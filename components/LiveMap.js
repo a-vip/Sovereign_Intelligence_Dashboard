@@ -220,21 +220,34 @@ export default function LiveMap() {
               const size = SEV_SIZES[d.severity] * 1.5;
               const color = CAT_COLORS[d.category] || '#888';
               
-              el.style.width = `${size}px`;
-              el.style.height = `${size}px`;
-              el.style.background = color;
-              el.style.borderRadius = '50%';
-              el.style.boxShadow = `0 0 ${size * 2}px ${color}, 0 0 ${size}px #fff`;
-              el.style.cursor = 'pointer';
-              el.style.pointerEvents = 'auto';
+              el.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto; cursor: pointer; transform: translate(-${size/2}px, -${size/2}px);">
+                  <div style="
+                    width: ${size}px; 
+                    height: ${size}px; 
+                    background: ${color}; 
+                    border-radius: 50%; 
+                    box-shadow: 0 0 ${size * 2}px ${color}, 0 0 ${size}px #fff;
+                  " class="globe-dot"></div>
+                  <div style="
+                    background: rgba(10, 15, 20, 0.85);
+                    backdrop-filter: blur(4px);
+                    border: 1px solid ${color}50;
+                    border-left: 3px solid ${color};
+                    padding: 4px 8px;
+                    border-radius: 2px 6px 6px 2px;
+                    color: #cbd5e1;
+                    font-family: 'SFMono-Regular', Consolas, monospace;
+                    font-size: 11px;
+                    white-space: nowrap;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                  ">
+                    <span style="color: ${color}; font-weight: 700; margin-right: 8px; letter-spacing: 0.5px;">${d.category.toUpperCase()}</span>
+                    ${d.name.length > 45 ? d.name.substring(0, 45) + '...' : d.name}
+                  </div>
+                </div>
+              `;
               
-              // Pulsing animation
-              el.animate([
-                { transform: 'scale(1)', opacity: 0.8 },
-                { transform: 'scale(1.3)', opacity: 0.4 },
-                { transform: 'scale(1)', opacity: 0.8 }
-              ], { duration: 2000, iterations: Infinity });
-
               // Find full event to pass to detail window
               const fullEvent = displayedEvents.find(e => e.title === d.name || e.id.replace('ev', 'geo') === d.id) || d;
               el.onclick = () => setSelectedEvent(fullEvent);
@@ -328,7 +341,7 @@ export default function LiveMap() {
             </label>
 
             <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Satellite Imagery</span>
+              <span className="cat-label">Live Satellite Feed</span>
               <input type="checkbox" checked={isGlobeSatellite} onChange={(e) => setIsGlobeSatellite(e.target.checked)} />
               <span className="cat-check" style={{ borderColor: isGlobeSatellite ? '#00f0ff' : '#4a5568', background: isGlobeSatellite ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
                 {isGlobeSatellite && '✓'}
