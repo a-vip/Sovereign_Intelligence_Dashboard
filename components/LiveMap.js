@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import EventDetailsWindow from './EventDetailsWindow';
 
 const EVENTS_POLL = 60000; // 1 minute
 
@@ -285,36 +286,12 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* Event Detail Modal */}
+      {/* Event Detail Modal (Draggable Window) */}
       {selectedEvent && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setSelectedEvent(null)}>
-          <div className="modal-content" style={{ maxWidth: 600 }}>
-            <div className="modal-header">
-              <div className="modal-title">{selectedEvent.title}</div>
-              <button className="modal-close" onClick={() => setSelectedEvent(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="modal-meta">
-                <span className="modal-meta-tag" style={{ background: `${CAT_COLORS[selectedEvent.category]}20`, color: CAT_COLORS[selectedEvent.category] }}>
-                  {selectedEvent.category}
-                </span>
-                <span className="feed-severity" style={{ background: `${SEV_COLORS[selectedEvent.severity]}25`, color: SEV_COLORS[selectedEvent.severity] }}>
-                  S{selectedEvent.severity}
-                </span>
-                {selectedEvent.location && <span className="modal-meta-tag" style={{ background: 'rgba(255,255,255,0.05)', color: '#8892a4' }}>📍 {selectedEvent.location}</span>}
-              </div>
-              <div style={{ marginTop: 16, fontSize: 13, color: '#8892a4' }}>
-                <div><strong>Source:</strong> {selectedEvent.source}</div>
-                <div><strong>Time:</strong> {formatTime(selectedEvent.timestamp)}</div>
-                {selectedEvent.url && (
-                  <a href={selectedEvent.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00f0ff', display: 'inline-block', marginTop: 12 }}>
-                    Open Source Article →
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <EventDetailsWindow 
+          event={selectedEvent} 
+          onClose={() => setSelectedEvent(null)} 
+        />
       )}
     </div>
   );
