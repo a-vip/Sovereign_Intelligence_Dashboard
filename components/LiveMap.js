@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -35,6 +35,51 @@ export default function LiveMap() {
   const [status, setStatus] = useState('loading');
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // Drag state for overlay panel
+  const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
+
+  const handleDragStart = (e) => {
+    // Only drag on left click
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPosX: panelPos.x,
+      startPosY: panelPos.y,
+    };
+  };
+
+  const handleDrag = useCallback((e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setPanelPos({
+      x: dragRef.current.startPosX + dx,
+      y: dragRef.current.startPosY + dy,
+    });
+  }, [isDragging]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDrag);
+      window.addEventListener('mouseup', handleDragEnd);
+    } else {
+      window.removeEventListener('mousemove', handleDrag);
+      window.removeEventListener('mouseup', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDrag);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [isDragging, handleDrag, handleDragEnd]);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -122,7 +167,32 @@ export default function LiveMap() {
         </MapContainer>
 
         {/* Overlay Controls */}
-        <div className="overlay-panel">
+        <div 
+          className="overlay-panel" 
+          style={{ 
+            transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
+            cursor: isDragging ? 'grabbing' : 'auto',
+            transition: isDragging ? 'none' : 'transform 0.1s ease'
+          }}
+        >
+          <div 
+            className="overlay-drag-handle" 
+            onMouseDown={handleDragStart}
+            style={{
+              height: '16px',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: '12px',
+              opacity: 0.5,
+              paddingBottom: '8px',
+              borderBottom: '1px solid var(--border-color)'
+            }}
+          >
+            <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'var(--text-muted)' }} />
+          </div>
+
           <div className="overlay-section">
             <div className="overlay-title">CATEGORIES</div>
             {Object.entries(CAT_COLORS).map(([cat, color]) => (
