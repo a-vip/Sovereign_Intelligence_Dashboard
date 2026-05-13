@@ -224,13 +224,13 @@ export default function LiveMap() {
             polygonsData={showBorders && geoJson ? geoJson : []}
             polygonAltitude={0.01}
             polygonCapColor={() => 'rgba(0,0,0,0)'}
-            polygonSideColor={() => 'rgba(0, 240, 255, 0.15)'}
-            polygonStrokeColor={() => '#334155'}
+            polygonSideColor={() => 'rgba(0, 240, 255, 0.2)'}
+            polygonStrokeColor={() => '#475569'}
             labelsData={showBorders && geoJson ? geoJson : []}
             labelLat={d => d.properties.LABEL_Y || 0}
             labelLng={d => d.properties.LABEL_X || 0}
             labelText={d => d.properties.NAME}
-            labelSize={0.6}
+            labelSize={0.8}
             labelDotRadius={0}
             labelColor={() => 'rgba(255, 255, 255, 0.8)'}
             labelResolution={2}
