@@ -140,11 +140,13 @@ export default function LiveMap() {
         if (prevQueue.length === 0) return prevQueue;
         const nextEvent = prevQueue[0];
         const newQueue = prevQueue.slice(1);
-        newQueue.push(nextEvent);
         tickCounter.current += 1;
         // Stamp a unique display key so React never sees duplicate keys
         const displayCopy = { ...nextEvent, _displayKey: `${nextEvent.id}-t${tickCounter.current}` };
         setDisplayedEvents((prevDisplay) => {
+          // Check if we already have this event ID in the display to avoid duplicates
+          if (prevDisplay.some(e => e.id === nextEvent.id)) return prevDisplay;
+          
           const updated = [displayCopy, ...prevDisplay];
           return updated.length > 50 ? updated.slice(0, 50) : updated;
         });
