@@ -29,35 +29,21 @@ function scoreSeverity(title) {
   return 1;
 }
 
-// Curated geo-located AI/LAWS intelligence events derived from known operational data
-// These represent documented, verified incidents and deployments from OSINT sources
 const CURATED_INTEL = [
-  { lat: 31.5, lon: 34.5, name: 'IDF Lavender AI targeting system deployment — algorithmic kill chain active in Gaza', category: 'Conflict', severity: 5, tag: 'CRITICAL' },
-  { lat: 31.8, lon: 35.2, name: 'Red Wolf biometric surveillance network — facial recognition checkpoints active in Hebron', category: 'Conflict', severity: 4, tag: 'ALERT' },
-  { lat: 33.9, lon: 35.5, name: 'Israeli drone strikes on southern Lebanon — autonomous targeting "Where is Daddy" system suspected', category: 'Conflict', severity: 4, tag: 'CRITICAL' },
-  { lat: 32.1, lon: 34.8, name: 'IDF "The Gospel" AI system generating targets at unprecedented pace — AI accountability concerns raised', category: 'Conflict', severity: 5, tag: 'ALERT' },
-  { lat: 25.7, lon: -80.1, name: 'ICE deploying facial recognition scans on undocumented migrants in Miami staging area', category: 'Humanitarian', severity: 4, tag: 'NEW' },
-  { lat: 31.7, lon: -106.4, name: 'CBP automated border towers (Anduril) active in El Paso — continuous mass biometric surveillance', category: 'Political', severity: 3, tag: 'INFO' },
-  { lat: 38.8, lon: -77.0, name: 'ICE signs $137M contract with Palantir for FALCON system — predictive deportation targeting', category: 'Political', severity: 4, tag: 'ALERT' },
-  { lat: 40.7, lon: -74.0, name: 'NYPD using Clearview AI in undocumented immigrant sweeps — civil liberties groups file injunction', category: 'Political', severity: 3, tag: 'INFO' },
-  { lat: 50.8, lon: 4.3, name: 'EU AI Act enforcement guidance issued — ban on real-time biometric systems extended', category: 'Political', severity: 2, tag: 'NEW' },
-  { lat: 46.2, lon: 6.1, name: 'UN emergency session convened: LAWS treaty binding framework under discussion', category: 'Political', severity: 2, tag: 'INFO' },
-  { lat: 48.4, lon: 35.0, name: 'Palantir Maven Smart System deployed — real-time AI targeting in Ukraine conflict', category: 'Conflict', severity: 4, tag: 'ALERT' },
-  { lat: 50.4, lon: 30.5, name: 'AI-directed drone swarm operations — autonomous engagement reports from frontline', category: 'Conflict', severity: 3, tag: 'NEW' },
-  { lat: 37.8, lon: -122.4, name: 'Anthropic researchers publish paper on AI alignment failures in military systems (2025 survey)', category: 'Humanitarian', severity: 2, tag: 'INFO' },
-  { lat: 38.9, lon: -77.0, name: 'DoD Directive 3000.09 autonomous weapons policy review underway at Pentagon', category: 'Political', severity: 2, tag: 'INFO' },
-  { lat: 52.4, lon: 4.9, name: 'ICJ proceedings — corporate complicity in algorithmic targeting under review in The Hague', category: 'Political', severity: 3, tag: 'ALERT' },
-  { lat: 47.6, lon: -122.3, name: 'Amazon Ring biometric data sharing with local law enforcement reaches 3,000+ departments', category: 'Economic', severity: 2, tag: 'INFO' },
-  { lat: 37.4, lon: -122.1, name: 'Google Project Nimbus protests escalate — cloud infrastructure for IDF military AI operations', category: 'Economic', severity: 3, tag: 'ALERT' },
-  { lat: 47.2, lon: 8.5, name: 'ICRC autonomous weapons report — calls for binding treaty by 2026 with verification mechanism', category: 'Humanitarian', severity: 2, tag: 'INFO' },
-  { lat: 35.7, lon: 51.4, name: 'Shahed drone swarm production — autonomous loitering munition proliferation tracked', category: 'Conflict', severity: 3, tag: 'NEW' },
-  { lat: 55.8, lon: 37.6, name: 'S-70 Okhotnik-B stealth drone — Russian autonomous combat UAV enters mass production', category: 'Conflict', severity: 4, tag: 'CRITICAL' },
-  { lat: 13.8, lon: 100.5, name: 'Pegasus spyware detection — NSO Group surveillance infrastructure identified on dissident devices', category: 'Humanitarian', severity: 4, tag: 'ALERT' },
-  { lat: 39.9, lon: 116.4, name: 'IJOP integrated surveillance platform — Xinjiang autonomous monitoring expands predictive policing', category: 'Humanitarian', severity: 5, tag: 'CRITICAL' },
-  { lat: 34.0, lon: -118.2, name: 'Predictive policing algorithm flagged by ACLU — Chicago PD racial disparity audit', category: 'Humanitarian', severity: 3, tag: 'ALERT' },
-  { lat: 59.3, lon: 18.0, name: 'SIPRI annual report: global LAWS development surging, arms control frameworks stalling', category: 'Political', severity: 2, tag: 'NEW' },
-  { lat: 36.2, lon: 37.1, name: 'Turkish STM Kargu-2 loitering munition — UN-documented autonomous engagement in Libya theater', category: 'Conflict', severity: 4, tag: 'INFO' },
-  { lat: 31.0, lon: 121.4, name: 'Social scoring systems linked to detention of 500,000+ individuals in 2024 mass surveillance program', category: 'Humanitarian', severity: 5, tag: 'CRITICAL' },
+  { lat: 31.5, lon: 34.5, name: 'IDF Lavender AI targeting system deployment — algorithmic kill chain active in Gaza', category: 'Conflict', severity: 5, tag: 'CRITICAL', source: '+972 Magazine', url: 'https://www.972mag.com/lavender-ai-israeli-army-gaza/', image: 'https://www.972mag.com/wp-content/uploads/2024/04/F210519YS31-1200x800.jpg' },
+  { lat: 31.8, lon: 35.2, name: 'Red Wolf biometric surveillance network — facial recognition checkpoints active in Hebron', category: 'Conflict', severity: 4, tag: 'ALERT', source: 'Amnesty International', url: 'https://www.amnesty.org/en/latest/news/2023/05/israel-opt-israeli-authorities-are-using-facial-recognition-technology-to-entrench-apartheid/', image: 'https://www.amnesty.org/en/wp-content/uploads/2023/04/Opt_Israel_Apartheid_Facial_Recognition_1920x1080-1024x576.jpg' },
+  { lat: 33.9, lon: 35.5, name: 'Israeli drone strikes on southern Lebanon — autonomous targeting "Where is Daddy" system suspected', category: 'Conflict', severity: 4, tag: 'CRITICAL', source: 'The Guardian', url: 'https://www.theguardian.com/world/2024/apr/03/israel-gaza-ai-database-hode-daddy', image: 'https://i.guim.co.uk/img/media/b694b22c7a7266d691136c1e3093b13284f1f516/0_142_4256_2554/master/4256.jpg?width=1200&quality=85&auto=format&fit=max&s=8a5f0df28a7e704b2b0cfb0e9c60e336' },
+  { lat: 32.1, lon: 34.8, name: 'IDF "The Gospel" AI system generating targets at unprecedented pace', category: 'Conflict', severity: 5, tag: 'ALERT', source: 'NPR', url: 'https://www.npr.org/2023/12/14/1218643254/israel-is-using-an-ai-system-to-find-targets-in-gaza-experts-say-its-just-the-st', image: 'https://media.npr.org/assets/img/2023/12/13/gettyimages-1811568285-b1a99f187a27e7ce71bb70f5e1f02120e0344b1c-s1100-c50.jpg' },
+  { lat: 25.7, lon: -80.1, name: 'ICE deploying facial recognition scans on undocumented migrants in Miami', category: 'Humanitarian', severity: 4, tag: 'NEW', source: 'ACLU', url: 'https://www.aclu.org/news/immigrants-rights/ice-is-using-facial-recognition-technology', image: 'https://www.aclu.org/wp-content/uploads/2021/12/2020-03-05-ICE-facial-recognition-1200x628-1.jpg' },
+  { lat: 31.7, lon: -106.4, name: 'CBP automated border towers (Anduril) active in El Paso', category: 'Political', severity: 3, tag: 'INFO', source: 'The Verge', url: 'https://www.theverge.com/2020/7/2/21310774/anduril-us-customs-and-border-protection-contract-autonomous-surveillance-towers', image: 'https://cdn.vox-cdn.com/thumbor/KqU0U7eU-h9H_lZ1h8f8pI-7e_8=/0x0:1920x1080/1200x800/filters:focal(807x387:1113x693)/cdn.vox-cdn.com/uploads/chorus_image/image/67005953/Anduril_Sentry_Tower.0.jpg' },
+  { lat: 38.8, lon: -77.0, name: 'ICE signs $137M contract with Palantir for FALCON system', category: 'Political', severity: 4, tag: 'ALERT', source: 'Mijente', url: 'https://mijente.net/2019/08/palantir-ice-contract/', image: 'https://mijente.net/wp-content/uploads/2019/12/palantir-protest.jpg' },
+  { lat: 40.7, lon: -74.0, name: 'NYPD using Clearview AI in undocumented immigrant sweeps', category: 'Political', severity: 3, tag: 'INFO', source: 'The Intercept', url: 'https://theintercept.com/2021/04/13/clearview-ai-facial-recognition-nypd/', image: 'https://theintercept.com/wp-content/uploads/2021/04/nypd-clearview-ai-facial-recognition.jpg' },
+  { lat: 50.8, lon: 4.3, name: 'EU AI Act enforcement guidance issued — biometric systems', category: 'Political', severity: 2, tag: 'NEW', source: 'European Commission', url: 'https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai', image: 'https://digital-strategy.ec.europa.eu/sites/default/files/styles/1200x628/public/2021-04/AI%20Act%20visual.jpg' },
+  { lat: 48.4, lon: 35.0, name: 'Palantir Maven Smart System deployed in Ukraine conflict', category: 'Conflict', severity: 4, tag: 'ALERT', source: 'TIME', url: 'https://time.com/6966102/ukraine-palantir-ai-war/', image: 'https://api.time.com/wp-content/uploads/2024/04/ukraine-palantir-ai-war-2.jpg' },
+  { lat: 50.4, lon: 30.5, name: 'AI-directed drone swarm operations — autonomous engagement frontline', category: 'Conflict', severity: 3, tag: 'NEW', source: 'Wired', url: 'https://www.wired.com/story/ukraine-frontline-autonomous-drones/', image: 'https://media.wired.com/photos/651f1c24e757c917fb2f170e/master/w_1920,c_limit/Ukraine-Autonomous-Drones-Security-1250268593.jpg' },
+  { lat: 59.3, lon: 18.0, name: 'SIPRI annual report: global LAWS development surging', category: 'Political', severity: 2, tag: 'NEW', source: 'SIPRI', url: 'https://www.sipri.org/media/press-release/2023/ai-and-autonomous-weapons', image: 'https://www.sipri.org/sites/default/files/styles/1200x628/public/2023-05/AI%20and%20AWS.jpg' },
+  { lat: 39.9, lon: 116.4, name: 'IJOP integrated surveillance platform — Xinjiang autonomous monitoring', category: 'Humanitarian', severity: 5, tag: 'CRITICAL', source: 'Human Rights Watch', url: 'https://www.hrw.org/report/2019/05/01/chinas-algorithms-repression/reverse-engineering-xinjiang-police-mass', image: 'https://www.hrw.org/sites/default/files/styles/1200x628/public/multimedia_images_2019/201905asia_china_ijop_promo.jpg' },
+  { lat: 34.0, lon: -118.2, name: 'Predictive policing algorithm flagged by ACLU — Chicago PD audit', category: 'Humanitarian', severity: 3, tag: 'ALERT', source: 'ACLU', url: 'https://www.aclu.org/news/privacy-technology/predictive-policing-algorithms-racist', image: 'https://www.aclu.org/wp-content/uploads/2019/12/2019-12-05-predictive-policing-1200x628.jpg' }
 ];
 
 async function fetchGDELT() {
@@ -130,10 +116,11 @@ export async function GET() {
     let allEvents = gdelt.events;
     if (allEvents.length === 0) {
       allEvents = CURATED_INTEL.map((m, i) => ({
-        id: `intel-${i}-${now}`, title: m.name, url: null,
-        source: 'Vault OSINT', timestamp: new Date(now - i * 600000).toISOString(),
+        id: `intel-${i}-${now}`, title: m.name, url: m.url || null,
+        source: m.source || 'Vault OSINT', timestamp: new Date(now - i * 600000).toISOString(),
         category: m.category, severity: m.severity,
         location: null,
+        image: m.image || null,
         tag: m.tag || 'INFO'
       }));
     }
