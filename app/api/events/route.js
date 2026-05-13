@@ -31,6 +31,20 @@ function scoreSeverity(title) {
   return 1;
 }
 
+function verifyQuality(title) {
+  const t = title.toLowerCase();
+  // Filter out irrelevant spam or generic tech news
+  const irrelevant = /iphone|samsung|price target|stock market|best deals|gaming laptop/i;
+  if (irrelevant.test(t)) return 0;
+  
+  // High quality indicators
+  let score = 1;
+  if (/report|investigation|exclusive|analysis|violation|human rights|ethics/i.test(t)) score += 2;
+  if (CAT_KEYWORDS.Conflict.test(t)) score += 1;
+  
+  return score;
+}
+
 function generateId(url, title) {
   return crypto.createHash('md5').update(url || title).digest('hex');
 }
@@ -60,9 +74,9 @@ const CURATED_INTEL = [
 
 async function fetchGDELT(timespan = '24h') {
   try {
-    const mainQuery = '(artificial intelligence OR autonomous weapons OR drone OR AI military OR surveillance OR facial recognition OR cyber)';
-    const geoUrl = `https://api.gdeltproject.org/api/v2/geo/geo?query=${encodeURIComponent(mainQuery)}&format=GeoJSON&timespan=${timespan}&maxpoints=500`;
-    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent('AI weapons OR autonomous drone OR AI surveillance OR AI military OR AI regulation OR facial recognition OR cyber attack')}&mode=artlist&maxrecords=150&format=json&sourcelang=english&timespan=${timespan}`;
+    const mainQuery = '(artificial intelligence OR autonomous weapons OR drone OR AI military OR surveillance OR facial recognition OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI")';
+    const geoUrl = `https://api.gdeltproject.org/api/v2/geo/geo?query=${encodeURIComponent(mainQuery)}&format=GeoJSON&timespan=${timespan}&maxpoints=1000`;
+    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=${timespan}`;
 
     const [geoRes, docRes] = await Promise.all([
       fetch(geoUrl, { signal: AbortSignal.timeout(6000) }).catch(() => null),
@@ -89,13 +103,17 @@ async function fetchGDELT(timespan = '24h') {
     if (docRes?.ok) {
       try {
         const data = await docRes.json();
-        events = (data.articles || []).map((a, i) => ({
-          id: generateId(a.url, a.title), title: a.title || 'Untitled', url: a.url,
-          source: a.domain || 'Unknown', timestamp: a.seendate || new Date().toISOString(),
-          category: categorize(a.title || ''), severity: scoreSeverity(a.title || ''),
-          location: a.sourcecountry || null,
-          details: { ...a }
-        }));
+        events = (data.articles || [])
+          .map((a, i) => ({
+            id: generateId(a.url, a.title), title: a.title || 'Untitled', url: a.url,
+            source: a.domain || 'Unknown', timestamp: a.seendate || new Date().toISOString(),
+            category: categorize(a.title || ''), severity: scoreSeverity(a.title || ''),
+            quality: verifyQuality(a.title || ''),
+            location: a.sourcecountry || null,
+            details: { ...a }
+          }))
+          .filter(e => e.quality > 1) // Only show high-quality/relevant information
+          .sort((a, b) => b.quality - a.quality);
       } catch {}
     }
 

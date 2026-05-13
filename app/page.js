@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Shield, RefreshCw, BarChart3, FileSearch, Activity, Radar } from 'lucide-react';
+import { Shield, RefreshCw, BarChart3, FileSearch, Activity, Radar, Coffee, Heart } from 'lucide-react';
 import MetricsOverview from '@/components/MetricsOverview';
 import { CategoryChart, ThreatChart, CountryChart, SystemTypeChart, ProducerChart, TagCloud } from '@/components/IntelligenceCharts';
 import QualitativeExplorer from '@/components/QualitativeExplorer';
@@ -103,6 +103,14 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="header-right">
+          <div className="support-links">
+            <a href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" target="_blank" rel="noopener noreferrer" className="support-btn patreon">
+              <Heart size={14} /> Patreon
+            </a>
+            <a href="https://buymeacoffee.com/avip" target="_blank" rel="noopener noreferrer" className="support-btn coffee">
+              <Coffee size={14} /> Buy Me a Coffee
+            </a>
+          </div>
           <div className="live-indicator"><div className="live-dot" /> LIVE</div>
           <button id="refresh-btn" className={`refresh-btn${refreshing ? ' spinning' : ''}`} onClick={() => fetchData(true)}>
             <RefreshCw size={14} /> Refresh
