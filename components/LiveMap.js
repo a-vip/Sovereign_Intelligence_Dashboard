@@ -36,6 +36,11 @@ export default function LiveMap() {
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  // 8-second live feed queue
+  const [eventQueue, setEventQueue] = useState([]);
+  const [displayedEvents, setDisplayedEvents] = useState([]);
+  const [isInitializing, setIsInitializing] = useState(true);
+
   // Drag state for overlay panel
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -85,25 +90,70 @@ export default function LiveMap() {
     try {
       const res = await fetch('/api/events');
       const data = await res.json();
-      if (data.markers?.length) setMarkers(data.markers);
-      if (data.events?.length) setEvents(data.events);
+      
+      if (data.events?.length) {
+        // Only setup queue on first load, or if empty
+        if (isInitializing || eventQueue.length === 0) {
+          const fetchedEvents = [...data.events].reverse();
+          setDisplayedEvents(fetchedEvents.slice(0, 5));
+          setEventQueue(fetchedEvents.slice(5));
+          setIsInitializing(false);
+        }
+        
+        // Update raw markers and events for reference
+        setMarkers(data.markers || []);
+        setEvents(data.events || []);
+      }
       setStatus(data.status || 'live');
     } catch { setStatus('error'); }
-  }, []);
+  }, [isInitializing, eventQueue.length]);
 
   useEffect(() => {
     fetchEvents();
+    // We only poll the API occasionally to refresh the queue, 
+    // the 8-second queue handler does the actual visual ticking.
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
   }, [fetchEvents]);
 
+  // 8-second tick to pop from queue
+  useEffect(() => {
+    if (isInitializing || eventQueue.length === 0) return;
+
+    const interval = setInterval(() => {
+      setEventQueue((prevQueue) => {
+        if (prevQueue.length === 0) return prevQueue;
+        
+        const nextEvent = prevQueue[0];
+        const newQueue = prevQueue.slice(1);
+        newQueue.push(nextEvent); // Loop infinitely
+
+        setDisplayedEvents((prevDisplay) => {
+          const updated = [nextEvent, ...prevDisplay];
+          if (updated.length > 50) return updated.slice(0, 50);
+          return updated;
+        });
+
+        return newQueue;
+      });
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [isInitializing, eventQueue.length]);
+
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
-  const filteredMarkers = markers.filter(m => categories[m.category] && m.severity >= minSeverity);
-  const filteredEvents = events.filter(e => categories[e.category] && e.severity >= minSeverity);
+  // Filter based on displayedEvents so they appear on the map as they pop
+  // Map markers to the events if possible. For curated OSINT, they map 1:1.
+  const displayedMarkers = markers.filter(m => 
+    displayedEvents.some(e => e.title === m.name || e.id.replace('ev', 'geo') === m.id)
+  );
+
+  const filteredMarkers = displayedMarkers.filter(m => categories[m.category] && m.severity >= minSeverity);
+  const filteredEvents = displayedEvents.filter(e => categories[e.category] && e.severity >= minSeverity);
   
   const categoryCounts = {};
-  events.forEach(e => { categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1; });
+  displayedEvents.forEach(e => { categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1; });
 
   return (
     <div className="sigint-container">

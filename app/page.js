@@ -4,7 +4,7 @@ import { Shield, RefreshCw, BarChart3, FileSearch, Activity, Radar } from 'lucid
 import MetricsOverview from '@/components/MetricsOverview';
 import { CategoryChart, ThreatChart, CountryChart, SystemTypeChart, ProducerChart, TagCloud } from '@/components/IntelligenceCharts';
 import QualitativeExplorer from '@/components/QualitativeExplorer';
-import RecentActivity from '@/components/RecentActivity';
+import TerminalFeed from '@/components/TerminalFeed';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
 
 const TABS = [
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             <CategoryChart data={data?.distributions?.categories} />
             <ThreatChart data={data?.distributions?.threats} />
           </div>
-          <RecentActivity recentFiles={data?.recentFiles} />
+          <TerminalFeed />
         </>
       )}
 
