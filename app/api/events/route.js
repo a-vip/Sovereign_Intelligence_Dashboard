@@ -110,9 +110,7 @@ export async function GET() {
     // Always include curated intel markers (with slight position variation for realism)
     const curatedMarkers = CURATED_INTEL.map((m, i) => ({
       ...m, id: `curated-${i}`,
-      lat: m.lat + (Math.random() - 0.5) * 0.1,
-      lon: m.lon + (Math.random() - 0.5) * 0.1,
-      count: 1, url: null, curated: true,
+      count: 1, curated: true,
     }));
 
     // Merge: GDELT live markers + curated intel

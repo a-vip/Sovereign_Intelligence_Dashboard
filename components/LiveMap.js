@@ -1,12 +1,8 @@
 'use client';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import EventDetailsWindow from './EventDetailsWindow';
 
-// Import Globe dynamically just in case, though LiveMap itself is wrapped.
-const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
-
-const EVENTS_POLL = 60000; // 1 minute
+const EVENTS_POLL = 60000;
 
 const CAT_COLORS = {
   Conflict: '#ff2d55',
@@ -17,7 +13,6 @@ const CAT_COLORS = {
 };
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
-const SEV_SIZES = { 1: 5, 2: 6, 3: 8, 4: 10, 5: 13 };
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -31,7 +26,6 @@ function formatTime(ts) {
 
 export default function LiveMap() {
   const [markers, setMarkers] = useState([]);
-  const [events, setEvents] = useState([]);
   const [categories, setCategories] = useState({ Conflict: true, Political: true, Humanitarian: true, Economic: true, Disaster: true });
   const [minSeverity, setMinSeverity] = useState(1);
   const [status, setStatus] = useState('loading');
@@ -42,7 +36,10 @@ export default function LiveMap() {
   const [isDayMode, setIsDayMode] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   const [showBorders, setShowBorders] = useState(true);
+  const [showLabels, setShowLabels] = useState(false); // OFF by default for performance
   const [geoJson, setGeoJson] = useState(null);
+  const [globeReady, setGlobeReady] = useState(false);
+  const [GlobeComponent, setGlobeComponent] = useState(null);
   const globeEl = useRef();
 
   // Overlay Settings
@@ -58,24 +55,29 @@ export default function LiveMap() {
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
+  // Lazy-load Globe component after mount (avoids SSR and double-import issues)
+  useEffect(() => {
+    let cancelled = false;
+    import('react-globe.gl').then(mod => {
+      if (!cancelled) setGlobeComponent(() => mod.default);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const handleDragStart = (e) => {
     if (e.button !== 0) return;
     setIsDragging(true);
     dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startPosX: panelPos.x,
-      startPosY: panelPos.y,
+      startX: e.clientX, startY: e.clientY,
+      startPosX: panelPos.x, startPosY: panelPos.y,
     };
   };
 
   const handleDrag = useCallback((e) => {
     if (!isDragging) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
     setPanelPos({
-      x: dragRef.current.startPosX + dx,
-      y: dragRef.current.startPosY + dy,
+      x: dragRef.current.startPosX + (e.clientX - dragRef.current.startX),
+      y: dragRef.current.startPosY + (e.clientY - dragRef.current.startY),
     });
   }, [isDragging]);
 
@@ -99,7 +101,6 @@ export default function LiveMap() {
     try {
       const res = await fetch('/api/events');
       const data = await res.json();
-      
       if (data.events?.length) {
         if (isInitializing || eventQueue.length === 0) {
           const fetchedEvents = [...data.events].reverse();
@@ -107,19 +108,21 @@ export default function LiveMap() {
           setEventQueue(fetchedEvents.slice(5));
           setIsInitializing(false);
         }
-        
         setMarkers(data.markers || []);
-        setEvents(data.events || []);
       }
       setStatus(data.status || 'live');
     } catch { setStatus('error'); }
   }, [isInitializing, eventQueue.length]);
 
-  // Fetch GeoJSON for country borders
+  // Fetch GeoJSON for country borders (deferred to avoid blocking initial render)
   useEffect(() => {
-    fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
-      .then(res => res.json())
-      .then(data => setGeoJson(data.features));
+    const timer = setTimeout(() => {
+      fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+        .then(res => res.json())
+        .then(data => setGeoJson(data.features))
+        .catch(() => {}); // silently fail — borders are optional
+    }, 3000); // defer 3s so globe loads first
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -129,57 +132,90 @@ export default function LiveMap() {
   }, [fetchEvents]);
 
   // 8-second tick to pop from queue
+  const tickCounter = useRef(0);
   useEffect(() => {
     if (isInitializing || eventQueue.length === 0) return;
-
     const interval = setInterval(() => {
       setEventQueue((prevQueue) => {
         if (prevQueue.length === 0) return prevQueue;
-        
         const nextEvent = prevQueue[0];
         const newQueue = prevQueue.slice(1);
-        newQueue.push(nextEvent); // Loop infinitely
-
+        newQueue.push(nextEvent);
+        tickCounter.current += 1;
+        // Stamp a unique display key so React never sees duplicate keys
+        const displayCopy = { ...nextEvent, _displayKey: `${nextEvent.id}-t${tickCounter.current}` };
         setDisplayedEvents((prevDisplay) => {
-          const updated = [nextEvent, ...prevDisplay];
-          if (updated.length > 50) return updated.slice(0, 50);
-          return updated;
+          const updated = [displayCopy, ...prevDisplay];
+          return updated.length > 50 ? updated.slice(0, 50) : updated;
         });
-
         return newQueue;
       });
     }, 8000);
-
     return () => clearInterval(interval);
   }, [isInitializing, eventQueue.length]);
 
   // Globe Auto-Rotate configuration
   useEffect(() => {
-    if (globeEl.current) {
-      globeEl.current.controls().autoRotate = autoRotate;
-      globeEl.current.controls().autoRotateSpeed = 0.5;
-      
-      // Setup event listeners on controls to stop auto-rotate on interaction
+    if (!globeEl.current || !globeReady) return;
+    try {
       const controls = globeEl.current.controls();
+      controls.autoRotate = autoRotate;
+      controls.autoRotateSpeed = 0.4;
       const onInteraction = () => setAutoRotate(false);
-      
       controls.addEventListener('start', onInteraction);
       return () => controls.removeEventListener('start', onInteraction);
-    }
-  }, [autoRotate]);
+    } catch {}
+  }, [autoRotate, globeReady]);
 
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
-  // Map markers to the events if possible.
-  const displayedMarkers = markers.filter(m => 
-    displayedEvents.some(e => e.title === m.name || e.id.replace('ev', 'geo') === m.id)
+  // Memoize filtered data to prevent unnecessary re-renders
+  const displayedMarkers = useMemo(() =>
+    markers.filter(m =>
+      displayedEvents.some(e => e.title === m.name || e.id?.replace('ev', 'geo') === m.id)
+    ), [markers, displayedEvents]
   );
 
-  const filteredMarkers = displayedMarkers.filter(m => categories[m.category] && m.severity >= minSeverity);
-  const filteredEvents = displayedEvents.filter(e => categories[e.category] && e.severity >= minSeverity);
-  
-  const categoryCounts = {};
-  displayedEvents.forEach(e => { categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1; });
+  const filteredMarkers = useMemo(() =>
+    displayedMarkers.filter(m => categories[m.category] && m.severity >= minSeverity),
+    [displayedMarkers, categories, minSeverity]
+  );
+
+  const filteredEvents = useMemo(() =>
+    displayedEvents.filter(e => categories[e.category] && e.severity >= minSeverity),
+    [displayedEvents, categories, minSeverity]
+  );
+
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    displayedEvents.forEach(e => { counts[e.category] = (counts[e.category] || 0) + 1; });
+    return counts;
+  }, [displayedEvents]);
+
+  // Memoize label data to avoid recalculating on every render
+  const labelData = useMemo(() => {
+    if (!showLabels || !geoJson) return [];
+    return geoJson.filter(f => f.properties?.LABEL_Y && f.properties?.LABEL_X);
+  }, [showLabels, geoJson]);
+
+  // Stable callback for htmlElement — avoids creating closures on every render
+  const createMarkerElement = useCallback((d) => {
+    const el = document.createElement('div');
+    const color = CAT_COLORS[d.category] || '#888';
+    const size = Math.min(6 + d.severity * 2, 16);
+
+    el.innerHTML = `<div style="
+      width:${size}px;height:${size}px;background:${color};border-radius:50%;
+      box-shadow:0 0 ${size}px ${color};cursor:pointer;pointer-events:auto;
+      transform:translate(-50%,-50%);
+    " class="globe-dot"></div>`;
+
+    el.onclick = () => {
+      const fullEvent = displayedEvents.find(e => e.title === d.name || e.id?.replace('ev', 'geo') === d.id) || d;
+      setSelectedEvent(fullEvent);
+    };
+    return el;
+  }, [displayedEvents]);
 
   return (
     <div className="sigint-container" style={{ position: 'relative', width: '100%', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
@@ -191,8 +227,8 @@ export default function LiveMap() {
           <span className="feed-count">{filteredEvents.length} events</span>
         </div>
         <div className="feed-list">
-          {filteredEvents.map((ev) => (
-            <div key={ev.id} className="feed-item" onClick={() => setSelectedEvent(ev)}>
+          {filteredEvents.map((ev, idx) => (
+            <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
               <div className="feed-item-header">
                 <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
                   {ev.category}
@@ -211,84 +247,58 @@ export default function LiveMap() {
       </div>
 
       {/* 3D Globe Area */}
-      <div className="sigint-map-area" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#0a0f14' }}>
-        {typeof window !== 'undefined' && (
-          <Globe
+      <div className="sigint-map-area" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#080c12' }}>
+        {GlobeComponent && (
+          <GlobeComponent
             ref={globeEl}
-            globeImageUrl={isDayMode ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg" : "//unpkg.com/three-globe/example/img/earth-night.jpg"}
+            onGlobeReady={() => setGlobeReady(true)}
+            globeImageUrl={isDayMode
+              ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+              : "//unpkg.com/three-globe/example/img/earth-night.jpg"
+            }
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
             showAtmosphere={true}
             atmosphereColor="#38bdf8"
-            atmosphereAltitude={0.15}
+            atmosphereAltitude={0.12}
             polygonsData={showBorders && geoJson ? geoJson : []}
-            polygonAltitude={0.01}
+            polygonAltitude={0.006}
             polygonCapColor={() => 'rgba(0,0,0,0)'}
-            polygonSideColor={() => 'rgba(0, 240, 255, 0.2)'}
+            polygonSideColor={() => 'rgba(0, 240, 255, 0.08)'}
             polygonStrokeColor={() => '#475569'}
-            labelsData={showBorders && geoJson ? geoJson : []}
-            labelLat={d => d.properties.LABEL_Y || 0}
-            labelLng={d => d.properties.LABEL_X || 0}
+            labelsData={labelData}
+            labelLat={d => d.properties.LABEL_Y}
+            labelLng={d => d.properties.LABEL_X}
             labelText={d => d.properties.NAME}
-            labelSize={0.8}
+            labelSize={0.6}
             labelDotRadius={0}
-            labelColor={() => 'rgba(255, 255, 255, 0.8)'}
-            labelResolution={2}
+            labelColor={() => 'rgba(200, 220, 255, 0.6)'}
+            labelResolution={1}
             htmlElementsData={filteredMarkers}
             htmlLat="lat"
             htmlLng="lon"
-            htmlElement={(d) => {
-              const el = document.createElement('div');
-              const size = SEV_SIZES[d.severity] * 1.5;
-              const color = CAT_COLORS[d.category] || '#888';
-              
-              el.innerHTML = `
-                <div style="
-                  width: ${size}px; 
-                  height: ${size}px; 
-                  background: ${color}; 
-                  border-radius: 50%; 
-                  box-shadow: 0 0 ${size * 2}px ${color}, 0 0 ${size}px #fff;
-                  cursor: pointer;
-                  pointer-events: auto;
-                  transform: translate(-50%, -50%);
-                " class="globe-dot"></div>
-              `;
-              
-              const fullEvent = displayedEvents.find(e => e.title === d.name || e.id.replace('ev', 'geo') === d.id) || d;
-              el.onclick = () => setSelectedEvent(fullEvent);
-              
-              return el;
-            }}
+            htmlElement={createMarkerElement}
           />
         )}
       </div>
 
       {/* Overlay Controls */}
-      <div 
-        className="overlay-panel" 
-        style={{ 
+      <div
+        className="overlay-panel"
+        style={{
           transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
           cursor: isDragging ? 'grabbing' : 'auto',
           transition: isDragging ? 'none' : 'transform 0.1s ease',
-          zIndex: 20,
-          position: 'absolute',
-          right: '20px',
-          bottom: '40px'
+          zIndex: 20, position: 'absolute', right: '20px', bottom: '40px'
         }}
       >
-        <div 
-          className="overlay-drag-handle" 
+        <div
+          className="overlay-drag-handle"
           onMouseDown={handleDragStart}
           style={{
-            height: '16px',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: '12px',
-            opacity: 0.5,
-            paddingBottom: '8px',
+            height: '16px', cursor: isDragging ? 'grabbing' : 'grab',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            marginBottom: '12px', opacity: 0.5, paddingBottom: '8px',
             borderBottom: '1px solid var(--border-color)'
           }}
         >
@@ -296,15 +306,15 @@ export default function LiveMap() {
         </div>
 
         <div className="overlay-section" style={{ borderBottom: isCatExpanded ? '1px solid var(--border-color)' : 'none', paddingBottom: isCatExpanded ? '12px' : '0' }}>
-          <div 
-            className="overlay-title" 
+          <div
+            className="overlay-title"
             style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
             onClick={() => setIsCatExpanded(!isCatExpanded)}
           >
             <span>CATEGORIES</span>
-            <span>{isCatExpanded ? '↓' : '←'}</span>
+            <span>{isCatExpanded ? '▾' : '◂'}</span>
           </div>
-          
+
           {isCatExpanded && (
             <div style={{ marginTop: '12px' }}>
               {Object.entries(CAT_COLORS).map(([cat, color]) => (
@@ -337,9 +347,9 @@ export default function LiveMap() {
         {isCatExpanded && (
           <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
             <div className="overlay-title">GLOBE SETTINGS</div>
-            
+
             <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Auto-Rotate Globe</span>
+              <span className="cat-label">Auto-Rotate</span>
               <input type="checkbox" checked={autoRotate} onChange={(e) => setAutoRotate(e.target.checked)} />
               <span className="cat-check" style={{ borderColor: autoRotate ? '#00f0ff' : '#4a5568', background: autoRotate ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
                 {autoRotate && '✓'}
@@ -347,7 +357,7 @@ export default function LiveMap() {
             </label>
 
             <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Daylight Satellite Mode</span>
+              <span className="cat-label">Daylight Mode</span>
               <input type="checkbox" checked={isDayMode} onChange={(e) => setIsDayMode(e.target.checked)} />
               <span className="cat-check" style={{ borderColor: isDayMode ? '#00f0ff' : '#4a5568', background: isDayMode ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
                 {isDayMode && '✓'}
@@ -355,10 +365,18 @@ export default function LiveMap() {
             </label>
 
             <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Show Geo Borders</span>
+              <span className="cat-label">Geo Borders</span>
               <input type="checkbox" checked={showBorders} onChange={(e) => setShowBorders(e.target.checked)} />
               <span className="cat-check" style={{ borderColor: showBorders ? '#00f0ff' : '#4a5568', background: showBorders ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
                 {showBorders && '✓'}
+              </span>
+            </label>
+
+            <label className="cat-toggle" style={{ marginTop: '8px' }}>
+              <span className="cat-label">Country Names</span>
+              <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
+              <span className="cat-check" style={{ borderColor: showLabels ? '#00f0ff' : '#4a5568', background: showLabels ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                {showLabels && '✓'}
               </span>
             </label>
           </div>
@@ -375,9 +393,9 @@ export default function LiveMap() {
 
       {/* Event Detail Modal (Draggable Window) */}
       {selectedEvent && (
-        <EventDetailsWindow 
-          event={selectedEvent} 
-          onClose={() => setSelectedEvent(null)} 
+        <EventDetailsWindow
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
         />
       )}
     </div>
