@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import dynamic from 'next/dynamic';
 import EventDetailsWindow from './EventDetailsWindow';
+
+// Import Globe dynamically just in case, though LiveMap itself is wrapped.
+const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
 
 const EVENTS_POLL = 60000; // 1 minute
 
@@ -37,6 +38,14 @@ export default function LiveMap() {
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  // Globe Settings
+  const [isGlobeSatellite, setIsGlobeSatellite] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const globeEl = useRef();
+
+  // Overlay Settings
+  const [isCatExpanded, setIsCatExpanded] = useState(true);
+
   // 8-second live feed queue
   const [eventQueue, setEventQueue] = useState([]);
   const [displayedEvents, setDisplayedEvents] = useState([]);
@@ -48,7 +57,6 @@ export default function LiveMap() {
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
   const handleDragStart = (e) => {
-    // Only drag on left click
     if (e.button !== 0) return;
     setIsDragging(true);
     dragRef.current = {
@@ -69,9 +77,7 @@ export default function LiveMap() {
     });
   }, [isDragging]);
 
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  const handleDragEnd = useCallback(() => setIsDragging(false), []);
 
   useEffect(() => {
     if (isDragging) {
@@ -93,7 +99,6 @@ export default function LiveMap() {
       const data = await res.json();
       
       if (data.events?.length) {
-        // Only setup queue on first load, or if empty
         if (isInitializing || eventQueue.length === 0) {
           const fetchedEvents = [...data.events].reverse();
           setDisplayedEvents(fetchedEvents.slice(0, 5));
@@ -101,7 +106,6 @@ export default function LiveMap() {
           setIsInitializing(false);
         }
         
-        // Update raw markers and events for reference
         setMarkers(data.markers || []);
         setEvents(data.events || []);
       }
@@ -111,8 +115,6 @@ export default function LiveMap() {
 
   useEffect(() => {
     fetchEvents();
-    // We only poll the API occasionally to refresh the queue, 
-    // the 8-second queue handler does the actual visual ticking.
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
   }, [fetchEvents]);
@@ -142,10 +144,24 @@ export default function LiveMap() {
     return () => clearInterval(interval);
   }, [isInitializing, eventQueue.length]);
 
+  // Globe Auto-Rotate configuration
+  useEffect(() => {
+    if (globeEl.current) {
+      globeEl.current.controls().autoRotate = autoRotate;
+      globeEl.current.controls().autoRotateSpeed = 0.5;
+      
+      // Setup event listeners on controls to stop auto-rotate on interaction
+      const controls = globeEl.current.controls();
+      const onInteraction = () => setAutoRotate(false);
+      
+      controls.addEventListener('start', onInteraction);
+      return () => controls.removeEventListener('start', onInteraction);
+    }
+  }, [autoRotate]);
+
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
-  // Filter based on displayedEvents so they appear on the map as they pop
-  // Map markers to the events if possible. For curated OSINT, they map 1:1.
+  // Map markers to the events if possible.
   const displayedMarkers = markers.filter(m => 
     displayedEvents.some(e => e.title === m.name || e.id.replace('ev', 'geo') === m.id)
   );
@@ -157,9 +173,9 @@ export default function LiveMap() {
   displayedEvents.forEach(e => { categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1; });
 
   return (
-    <div className="sigint-container">
+    <div className="sigint-container" style={{ position: 'relative', width: '100%', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
       {/* Event Feed Sidebar */}
-      <div className="sigint-feed">
+      <div className="sigint-feed" style={{ zIndex: 10 }}>
         <div className="feed-tabs">
           <button className={`feed-tab${feedTab === 'feed' ? ' active' : ''}`} onClick={() => setFeedTab('feed')}>FEED</button>
           <button className={`feed-tab live-tab${feedTab === 'live' ? ' active' : ''}`} onClick={() => setFeedTab('live')}>LIVE</button>
@@ -185,104 +201,148 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* Map */}
-      <div className="sigint-map-area">
-        <MapContainer center={[30, 35]} zoom={3} className="sigint-map" zoomControl={true} attributionControl={false}>
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+      {/* 3D Globe Area */}
+      <div className="sigint-map-area" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#0a0f14' }}>
+        {typeof window !== 'undefined' && (
+          <Globe
+            ref={globeEl}
+            globeImageUrl={isGlobeSatellite ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg" : "//unpkg.com/three-globe/example/img/earth-night.jpg"}
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+            showAtmosphere={true}
+            atmosphereColor="#38bdf8"
+            atmosphereAltitude={0.15}
+            htmlElementsData={filteredMarkers}
+            htmlLat="lat"
+            htmlLng="lon"
+            htmlElement={(d) => {
+              const el = document.createElement('div');
+              const size = SEV_SIZES[d.severity] * 1.5;
+              const color = CAT_COLORS[d.category] || '#888';
+              
+              el.style.width = `${size}px`;
+              el.style.height = `${size}px`;
+              el.style.background = color;
+              el.style.borderRadius = '50%';
+              el.style.boxShadow = `0 0 ${size * 2}px ${color}, 0 0 ${size}px #fff`;
+              el.style.cursor = 'pointer';
+              el.style.pointerEvents = 'auto';
+              
+              // Pulsing animation
+              el.animate([
+                { transform: 'scale(1)', opacity: 0.8 },
+                { transform: 'scale(1.3)', opacity: 0.4 },
+                { transform: 'scale(1)', opacity: 0.8 }
+              ], { duration: 2000, iterations: Infinity });
 
-          {filteredMarkers.map((m, i) => (
-            <CircleMarker
-              key={`m-${i}`}
-              center={[m.lat, m.lon]}
-              radius={SEV_SIZES[m.severity] || 6}
-              pathOptions={{
-                color: CAT_COLORS[m.category] || '#888',
-                fillColor: CAT_COLORS[m.category] || '#888',
-                fillOpacity: 0.6,
-                weight: 1.5,
-                opacity: 0.9,
-              }}
-            >
-              <Popup className="sigint-popup">
-                <div className="popup-title" style={{ color: CAT_COLORS[m.category] }}>{m.category}</div>
-                <div style={{ fontSize: 12, marginBottom: 6 }}>{m.name}</div>
-                <div className="popup-row">
-                  <span>Severity:</span>
-                  <span style={{ color: SEV_COLORS[m.severity] }}>S{m.severity}</span>
-                </div>
-                {m.count > 1 && <div className="popup-row"><span>Reports:</span><span>{m.count}</span></div>}
-                {m.url && <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00f0ff', fontSize: 11, display: 'block', marginTop: 6 }}>Open Source →</a>}
-              </Popup>
-            </CircleMarker>
-          ))}
-        </MapContainer>
+              // Find full event to pass to detail window
+              const fullEvent = displayedEvents.find(e => e.title === d.name || e.id.replace('ev', 'geo') === d.id) || d;
+              el.onclick = () => setSelectedEvent(fullEvent);
+              
+              return el;
+            }}
+          />
+        )}
+      </div>
 
-        {/* Overlay Controls */}
+      {/* Overlay Controls */}
+      <div 
+        className="overlay-panel" 
+        style={{ 
+          transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'auto',
+          transition: isDragging ? 'none' : 'transform 0.1s ease',
+          zIndex: 20,
+          position: 'absolute',
+          right: '20px',
+          bottom: '40px'
+        }}
+      >
         <div 
-          className="overlay-panel" 
-          style={{ 
-            transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
-            cursor: isDragging ? 'grabbing' : 'auto',
-            transition: isDragging ? 'none' : 'transform 0.1s ease'
+          className="overlay-drag-handle" 
+          onMouseDown={handleDragStart}
+          style={{
+            height: '16px',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: '12px',
+            opacity: 0.5,
+            paddingBottom: '8px',
+            borderBottom: '1px solid var(--border-color)'
           }}
         >
-          <div 
-            className="overlay-drag-handle" 
-            onMouseDown={handleDragStart}
-            style={{
-              height: '16px',
-              cursor: isDragging ? 'grabbing' : 'grab',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginBottom: '12px',
-              opacity: 0.5,
-              paddingBottom: '8px',
-              borderBottom: '1px solid var(--border-color)'
-            }}
-          >
-            <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'var(--text-muted)' }} />
-          </div>
-
-          <div className="overlay-section">
-            <div className="overlay-title">CATEGORIES</div>
-            {Object.entries(CAT_COLORS).map(([cat, color]) => (
-              <label key={cat} className="cat-toggle">
-                <span className="cat-dot" style={{ background: color }} />
-                <span className="cat-label">{cat}</span>
-                <span className="cat-count">{categoryCounts[cat] || 0}</span>
-                <input type="checkbox" checked={categories[cat]} onChange={() => toggleCategory(cat)} />
-                <span className="cat-check" style={{ borderColor: categories[cat] ? color : '#4a5568', background: categories[cat] ? `${color}30` : 'transparent' }}>
-                  {categories[cat] && '✓'}
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <div className="overlay-section">
-            <div className="overlay-title">MIN. SEVERITY</div>
-            <div className="severity-buttons">
-              {[1, 2, 3, 4, 5].map(s => (
-                <button key={s} className={`sev-btn${minSeverity <= s ? ' active' : ''}`}
-                  style={{ background: minSeverity <= s ? SEV_COLORS[s] : 'transparent', color: minSeverity <= s ? '#000' : '#8892a4', borderColor: SEV_COLORS[s] }}
-                  onClick={() => setMinSeverity(s)}>
-                  S{s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'var(--text-muted)' }} />
         </div>
 
-        {/* Status Bar */}
-        <div className="map-status-bar">
-          <div className="status-item">
-            <span className={`status-dot ${status === 'live' ? 'live' : ''}`} />
-            ⚡ {filteredMarkers.length} map points
+        <div className="overlay-section" style={{ borderBottom: isCatExpanded ? '1px solid var(--border-color)' : 'none', paddingBottom: isCatExpanded ? '12px' : '0' }}>
+          <div 
+            className="overlay-title" 
+            style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
+            onClick={() => setIsCatExpanded(!isCatExpanded)}
+          >
+            <span>CATEGORIES</span>
+            <span>{isCatExpanded ? '↓' : '←'}</span>
           </div>
-          <div className="status-item">📰 {filteredEvents.length} articles</div>
-          <div className="status-item" style={{ marginLeft: 'auto', opacity: 0.5 }}>
-            AI/LAWS Intel · GDELT · Auto-refresh 60s
+          
+          {isCatExpanded && (
+            <div style={{ marginTop: '12px' }}>
+              {Object.entries(CAT_COLORS).map(([cat, color]) => (
+                <label key={cat} className="cat-toggle">
+                  <span className="cat-dot" style={{ background: color }} />
+                  <span className="cat-label">{cat}</span>
+                  <span className="cat-count">{categoryCounts[cat] || 0}</span>
+                  <input type="checkbox" checked={categories[cat]} onChange={() => toggleCategory(cat)} />
+                  <span className="cat-check" style={{ borderColor: categories[cat] ? color : '#4a5568', background: categories[cat] ? `${color}30` : 'transparent' }}>
+                    {categories[cat] && '✓'}
+                  </span>
+                </label>
+              ))}
+
+              <div className="overlay-title" style={{ marginTop: '16px', marginBottom: '12px' }}>MIN. SEVERITY</div>
+              <div className="severity-buttons">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button key={s} className={`sev-btn${minSeverity <= s ? ' active' : ''}`}
+                    style={{ background: minSeverity <= s ? SEV_COLORS[s] : 'transparent', color: minSeverity <= s ? '#000' : '#8892a4', borderColor: SEV_COLORS[s] }}
+                    onClick={() => setMinSeverity(s)}>
+                    S{s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Globe Settings inside Overlay Panel */}
+        {isCatExpanded && (
+          <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
+            <div className="overlay-title">GLOBE SETTINGS</div>
+            
+            <label className="cat-toggle" style={{ marginTop: '8px' }}>
+              <span className="cat-label">Auto-Rotate Globe</span>
+              <input type="checkbox" checked={autoRotate} onChange={(e) => setAutoRotate(e.target.checked)} />
+              <span className="cat-check" style={{ borderColor: autoRotate ? '#00f0ff' : '#4a5568', background: autoRotate ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                {autoRotate && '✓'}
+              </span>
+            </label>
+
+            <label className="cat-toggle" style={{ marginTop: '8px' }}>
+              <span className="cat-label">Satellite Imagery</span>
+              <input type="checkbox" checked={isGlobeSatellite} onChange={(e) => setIsGlobeSatellite(e.target.checked)} />
+              <span className="cat-check" style={{ borderColor: isGlobeSatellite ? '#00f0ff' : '#4a5568', background: isGlobeSatellite ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                {isGlobeSatellite && '✓'}
+              </span>
+            </label>
           </div>
+        )}
+      </div>
+
+      {/* Status Bar */}
+      <div className="map-status-bar" style={{ zIndex: 10 }}>
+        <div className="status-item">
+          <span className={`status-dot ${status === 'live' ? 'live' : ''}`} />
+          ⚡ {filteredMarkers.length} map points
         </div>
       </div>
 
