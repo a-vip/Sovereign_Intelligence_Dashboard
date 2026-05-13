@@ -326,6 +326,46 @@ body:not(.ambient-glow)::before {
   border-radius: var(--radius-xl); width: 100%; max-width: 800px;
   max-height: 80vh; overflow-y: auto; animation: slideUp 300ms cubic-bezier(0.4,0,0.2,1);
 }
+/* EVENT DETAILS PANEL */
+.event-details-panel {
+  position: absolute; top: 20px; right: 20px; bottom: 20px;
+  width: 380px; background: rgba(6,10,18,0.95); border-left: 1px solid var(--border-color);
+  z-index: 1500; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  display: flex; flex-direction: column; overflow-y: auto;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+.details-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border-color); }
+.details-sev { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 900; color: #fff; font-family: 'JetBrains Mono', monospace; }
+.details-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
+.details-close:hover { color: #fff; }
+
+.details-media { width: 100%; height: 200px; background: #000; overflow: hidden; }
+.details-media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+.details-media:hover img { transform: scale(1.05); }
+
+.details-content { padding: 24px; }
+.details-category { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--cyan); margin-bottom: 8px; font-weight: 700; }
+.details-title { font-size: 18px; font-weight: 600; line-height: 1.4; color: #fff; margin-bottom: 20px; }
+
+.details-forecast { margin-bottom: 24px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.forecast-label { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
+.forecast-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 8px; overflow: hidden; }
+.forecast-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width 1s ease-in-out; }
+.forecast-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--cyan); }
+
+.details-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; margin-bottom: 24px; }
+.details-link { display: block; width: 100%; padding: 12px; background: var(--cyan-dim); border: 1px solid rgba(0,240,255,0.2); color: var(--cyan); text-align: center; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 13px; transition: var(--transition-fast); }
+.details-link:hover { background: var(--cyan); color: #000; }
+
+@media (max-width: 900px) {
+  .event-details-panel { width: 100%; right: 0; left: 0; top: auto; bottom: 0; height: 70vh; border-left: none; border-top: 1px solid var(--border-color); animation: slideInUp 0.3s ease-out; }
+}
+@keyframes slideInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .modal-header {
@@ -436,6 +476,19 @@ body:not(.ambient-glow)::before {
   background: var(--bg-secondary); border-right: 1px solid var(--border-color);
   display: flex; flex-direction: column; overflow: hidden;
 }
+
+.feed-type-tabs {
+  display: flex; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border-color);
+}
+.feed-type-tab {
+  flex: 1; padding: 12px; font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
+  color: var(--text-muted); cursor: pointer; border: none; background: transparent;
+  transition: var(--transition-fast); border-bottom: 2px solid transparent;
+}
+.feed-type-tab.active {
+  color: var(--cyan); border-bottom-color: var(--cyan); background: rgba(0,240,255,0.05);
+}
+.feed-type-tab:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.05); }
 
 .feed-tabs {
   display: flex; align-items: center; gap: 4px;

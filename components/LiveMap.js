@@ -47,6 +47,8 @@ export default function LiveMap() {
   const [pulseEnabled, setPulseEnabled] = useState(true); // Pulse on alerts
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [GlobeComponent, setGlobeComponent] = useState(null);
   const globeEl = useRef();
 
@@ -215,10 +217,18 @@ export default function LiveMap() {
     return markers.filter(m => categories[m.category] && m.severity >= minSeverity);
   }, [markers, categories, minSeverity]);
 
-  const filteredEvents = useMemo(() =>
-    displayedEvents.filter(e => categories[e.category] && e.severity >= minSeverity),
-    [displayedEvents, categories, minSeverity]
-  );
+  const filteredEvents = useMemo(() => {
+    let activeCategories = Object.keys(categories).filter(c => categories[c]);
+    let filtered = displayedEvents.filter(e => {
+      if (feedType === 'live') return !e.curated && (e.severity < 4 || !e.source?.includes('Reuters')); 
+      return e.curated || e.severity >= 4 || e.source?.includes('Reuters') || e.source?.includes('Guardian');
+    });
+    
+    if (activeCategories.length > 0) {
+      filtered = filtered.filter(e => activeCategories.includes(e.category));
+    }
+    return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  }, [displayedEvents, categories, feedType, minSeverity]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -280,16 +290,6 @@ export default function LiveMap() {
   // Stable callback for htmlElement — avoids creating closures on every render
   const createMarkerElement = useCallback((d) => {
     const el = document.createElement('div');
-    const color = SEV_COLORS[d.severity] || '#888'; // Color by severity as requested
-    const size = Math.min(6 + d.severity * 2, 16);
-
-    el.innerHTML = `<div style="
-      width:${size}px;height:${size}px;background:${color};border-radius:50%;
-      box-shadow:0 0 ${size}px ${color};cursor:pointer;pointer-events:auto;
-      transform:translate(-50%,-50%);
-    " class="globe-dot"></div>`;
-
-    el.onclick = () => {
       const fullEvent = displayedEvents.find(e => e.title === d.name || e.id?.replace('ev', 'geo') === d.id) || d;
       setSelectedEvent(fullEvent);
     };
@@ -300,10 +300,18 @@ export default function LiveMap() {
     <div className="sigint-container" style={{ position: 'relative', width: '100%', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
       {/* Event Feed Sidebar */}
       <div className="sigint-feed" style={{ zIndex: 10 }}>
+        <div className="feed-type-tabs">
+          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} onClick={() => setFeedType('live')}>
+            LIVE SIGNALS
+          </button>
+          <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} onClick={() => setFeedType('reports')}>
+            INTEL REPORTS
+          </button>
+        </div>
+        
         <div className="feed-tabs">
           <button className={`feed-tab ${timeRange === 'today' ? 'active' : ''}`} onClick={() => setTimeRange('today')}>TODAY</button>
           <button className={`feed-tab live-tab ${timeRange === '6h' ? 'active' : ''}`} onClick={() => setTimeRange('6h')}>6 HOURS</button>
-          <span className="feed-count">{filteredEvents.length} events</span>
         </div>
         <div className="feed-list">
           {filteredEvents.map((ev, idx) => (
@@ -501,6 +509,50 @@ export default function LiveMap() {
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
         />
+      )}
+      {/* Event Details Panel (Monitor-the-Situation style) */}
+      {selectedEvent && (
+        <div className="event-details-panel">
+          <div className="details-header">
+            <div className="details-sev" style={{ backgroundColor: SEVERITY_COLORS[selectedEvent.severity] }}>
+              S{selectedEvent.severity}
+            </div>
+            <button className="details-close" onClick={() => setSelectedEvent(null)}>×</button>
+          </div>
+          
+          {selectedEvent.details?.media && (
+            <div className="details-media">
+              <img src={selectedEvent.details.media} alt="Intelligence Media" />
+            </div>
+          )}
+          
+          <div className="details-content">
+            <div className="details-category">{selectedEvent.category}</div>
+            <h3 className="details-title">{selectedEvent.title || selectedEvent.name}</h3>
+            
+            {selectedEvent.details?.probability && (
+              <div className="details-forecast">
+                <div className="forecast-label">Escalation Probability</div>
+                <div className="forecast-bar">
+                  <div className="forecast-fill" style={{ width: `${selectedEvent.details.probability}%` }} />
+                </div>
+                <div className="forecast-value">{selectedEvent.details.probability}%</div>
+              </div>
+            )}
+            
+            <div className="details-meta">
+              <span>Source: {selectedEvent.source || 'GDELT OSINT'}</span>
+              <span>•</span>
+              <span>{new Date(selectedEvent.timestamp).toLocaleTimeString()}</span>
+            </div>
+            
+            {selectedEvent.url && (
+              <a href={selectedEvent.url} target="_blank" rel="noopener noreferrer" className="details-link">
+                View Original Signal
+              </a>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

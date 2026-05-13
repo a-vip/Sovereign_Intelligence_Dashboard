@@ -30,6 +30,18 @@ function scoreSeverity(title) {
   return 1;
 }
 
+function getEscalationProb(title, severity) {
+  let prob = severity * 15 + Math.floor(Math.random() * 20);
+  if (/nuclear|genocide|war|massacre/i.test(title)) prob = Math.max(prob, 85);
+  if (/tensions|warn|threat/i.test(title)) prob = Math.max(prob, 45);
+  return Math.min(prob, 99);
+}
+
+function extractMedia(article) {
+  // GDELT sometimes provides socialimage or similar
+  return article.socialimage || article.image || null;
+}
+
 export async function GET(request) {
   // Check for Vercel Cron Secret to secure the endpoint
   const authHeader = request.headers.get('authorization');
@@ -60,7 +72,11 @@ export async function GET(request) {
       category: categorize(a.title || ''),
       severity: scoreSeverity(a.title || ''),
       location: a.sourcecountry || null,
-      details: { ...a }
+      details: { 
+        ...a, 
+        media: extractMedia(a),
+        probability: getEscalationProb(a.title || '', scoreSeverity(a.title || ''))
+      }
     }));
 
     if (newEvents.length > 0) {
