@@ -35,16 +35,16 @@ export default function LiveMap() {
   // Globe Settings
   const [isDayMode, setIsDayMode] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [showBorders, setShowBorders] = useState(true);
-  const [showLabels, setShowLabels] = useState(true); // ON by default
-  const [lowPowerMode, setLowPowerMode] = useState(true); // ON by default
-  const [timeRange, setTimeRange] = useState('24h'); // '24h' or '6h'
+  const [showGeoDetails, setShowGeoDetails] = useState(false); // Unified Toggle, OFF by default
+  const [lowPowerMode, setLowPowerMode] = useState(true); 
+  const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
   const [geoJson, setGeoJson] = useState(null);
   const [citiesJson, setCitiesJson] = useState(null);
   const [globeReady, setGlobeReady] = useState(false);
-  const [showAtmosphere, setShowAtmosphere] = useState(true);
-  const [showGlow, setShowGlow] = useState(false); // Default OFF as requested
+  const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
+  const [showGlow, setShowGlow] = useState(false); // Default OFF
+  const [pulseEnabled, setPulseEnabled] = useState(true); // Pulse on alerts
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [GlobeComponent, setGlobeComponent] = useState(null);
@@ -52,12 +52,12 @@ export default function LiveMap() {
 
   // Toggle ambient glow on body
   useEffect(() => {
-    if (showGlow || isPulsing) {
+    if (showGlow || (pulseEnabled && isPulsing)) {
       document.body.classList.add('ambient-glow');
     } else {
       document.body.classList.remove('ambient-glow');
     }
-  }, [showGlow, isPulsing]);
+  }, [showGlow, isPulsing, pulseEnabled]);
 
   // Overlay Settings
   const [isCatExpanded, setIsCatExpanded] = useState(true);
@@ -228,7 +228,7 @@ export default function LiveMap() {
 
   // Memoize label data to avoid recalculating on every render
   const labelData = useMemo(() => {
-    if (!showLabels) return [];
+    if (!showGeoDetails) return [];
     
     const labels = [];
     
@@ -275,7 +275,7 @@ export default function LiveMap() {
     }
     
     return labels;
-  }, [showLabels, geoJson, citiesJson]);
+  }, [showGeoDetails, geoJson, citiesJson]);
 
   // Stable callback for htmlElement — avoids creating closures on every render
   const createMarkerElement = useCallback((d) => {
@@ -340,12 +340,12 @@ export default function LiveMap() {
             showAtmosphere={showAtmosphere && !lowPowerMode}
             atmosphereColor="#38bdf8"
             atmosphereAltitude={0.12}
-            polygonsData={showBorders && !lowPowerMode && geoJson ? geoJson : []}
+            polygonsData={showGeoDetails && !lowPowerMode && geoJson ? geoJson : []}
             polygonAltitude={0.006}
             polygonCapColor={() => 'rgba(0,0,0,0)'}
             polygonSideColor={() => 'rgba(0, 240, 255, 0.08)'}
             polygonStrokeColor={() => '#475569'}
-            labelsData={labelData}
+            labelsData={showGeoDetails ? labelData : []}
             labelLat={d => d.lat}
             labelLng={d => d.lon}
             labelText={d => d.text}
@@ -439,6 +439,14 @@ export default function LiveMap() {
               <div className="overlay-title">VISUALS</div>
 
               <label className="cat-toggle" style={{ marginTop: '8px' }}>
+                <span className="cat-label">Map Details</span>
+                <input type="checkbox" checked={showGeoDetails} onChange={(e) => setShowGeoDetails(e.target.checked)} />
+                <span className="cat-check" style={{ borderColor: showGeoDetails ? '#00f0ff' : '#4a5568', background: showGeoDetails ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                  {showGeoDetails && '✓'}
+                </span>
+              </label>
+
+              <label className="cat-toggle" style={{ marginTop: '8px' }}>
                 <span className="cat-label">Atmosphere</span>
                 <input type="checkbox" checked={showAtmosphere} onChange={(e) => setShowAtmosphere(e.target.checked)} />
                 <span className="cat-check" style={{ borderColor: showAtmosphere ? '#00f0ff' : '#4a5568', background: showAtmosphere ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
@@ -455,16 +463,16 @@ export default function LiveMap() {
               </label>
 
               <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label">Labels & Cities</span>
-                <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
-                <span className="cat-check" style={{ borderColor: showLabels ? '#00f0ff' : '#4a5568', background: showLabels ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                  {showLabels && '✓'}
+                <span className="cat-label">Alert Pulse</span>
+                <input type="checkbox" checked={pulseEnabled} onChange={(e) => setPulseEnabled(e.target.checked)} />
+                <span className="cat-check" style={{ borderColor: pulseEnabled ? '#facc15' : '#4a5568', background: pulseEnabled ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
+                  {pulseEnabled && '✓'}
                 </span>
               </label>
 
               <div className="overlay-title" style={{ marginTop: '16px' }}>PERFORMANCE</div>
               <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label">Low Power</span>
+                <span className="cat-label" style={{ color: lowPowerMode ? '#facc15' : 'inherit' }}>Low Power Mode</span>
                 <input type="checkbox" checked={lowPowerMode} onChange={(e) => setLowPowerMode(e.target.checked)} />
                 <span className="cat-check" style={{ borderColor: lowPowerMode ? '#facc15' : '#4a5568', background: lowPowerMode ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
                   {lowPowerMode && '✓'}

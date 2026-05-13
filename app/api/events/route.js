@@ -108,7 +108,7 @@ async function fetchGDELT(timespan = '24h') {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const timespan = searchParams.get('timespan') || '24h';
+    const timespan = searchParams.get('timespan') || 'today';
     const now = Date.now();
     
     // Initialize DB if needed

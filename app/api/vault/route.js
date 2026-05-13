@@ -1,24 +1,55 @@
 import { NextResponse } from 'next/server';
 import { parseVault } from '@/lib/vaultParser';
+import { getAggregatedStats, initDb } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// In-memory cache to avoid re-parsing the entire vault on every poll
 let cache = null;
 let cacheTime = 0;
-const CACHE_TTL = 10000; // 10 seconds
+const CACHE_TTL = 30000; // 30 seconds
+let dbInitialized = false;
 
 export async function GET() {
   try {
+    if (!dbInitialized && process.env.POSTGRES_URL) {
+      await initDb();
+      dbInitialized = true;
+    }
+
     const now = Date.now();
     if (!cache || now - cacheTime > CACHE_TTL) {
       cache = parseVault();
       cacheTime = now;
     }
 
-    // Strip heavy content field from documents to reduce payload
+    // Fetch DB stats if possible
+    let dbStats = null;
+    if (process.env.POSTGRES_URL) {
+      dbStats = await getAggregatedStats();
+    }
+
+    // Merge DB stats into vault metrics if available
+    const mergedMetrics = { ...cache.metrics };
+    if (dbStats) {
+      mergedMetrics.totalIntel = (mergedMetrics.totalIntel || 0) + dbStats.total;
+      mergedMetrics.criticalThreats = dbStats.critical || mergedMetrics.criticalThreats;
+      
+      // Update category distributions with live data
+      if (dbStats.categories && dbStats.categories.length > 0) {
+        dbStats.categories.forEach(item => {
+          const existing = cache.distributions.categories.find(c => c.name === item.category);
+          if (existing) {
+            existing.value += parseInt(item.count);
+          } else {
+            cache.distributions.categories.push({ name: item.category, value: parseInt(item.count) });
+          }
+        });
+      }
+    }
+
     const lite = {
       ...cache,
+      metrics: mergedMetrics,
       documents: cache.documents.map(({ content, ...rest }) => rest),
     };
 
@@ -26,10 +57,13 @@ export async function GET() {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
-    console.error('Vault parse error:', error);
-    return NextResponse.json(
-      { error: 'Failed to parse vault', details: error.message },
-      { status: 500 }
-    );
+    console.error('Vault API error:', error);
+    // Fallback to basic vault parse if DB fails
+    try {
+      const basicCache = parseVault();
+      return NextResponse.json(basicCache);
+    } catch (e) {
+      return NextResponse.json({ error: 'System error' }, { status: 500 });
+    }
   }
 }
