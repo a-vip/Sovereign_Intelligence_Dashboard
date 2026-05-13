@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshing, setRefreshing] = useState(false);
   const [activeTag, setActiveTag] = useState(null);
+  const [isVisible, setIsVisible] = useState(true);
 
   const fetchData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -44,11 +45,21 @@ export default function DashboardPage() {
   // Initial load
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Track page visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   // Live polling
   useEffect(() => {
+    if (!isVisible) return; // Pause polling when hidden
     const interval = setInterval(() => fetchData(false), POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, isVisible]);
 
   const handleTagClick = (tag) => {
     setActiveTag(prev => prev === tag ? null : tag);

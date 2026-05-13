@@ -37,6 +37,8 @@ export default function LiveMap() {
   const [autoRotate, setAutoRotate] = useState(true);
   const [showBorders, setShowBorders] = useState(true);
   const [showLabels, setShowLabels] = useState(false); // OFF by default for performance
+  const [lowPowerMode, setLowPowerMode] = useState(false); // New performance mode
+  const [isVisible, setIsVisible] = useState(true);
   const [geoJson, setGeoJson] = useState(null);
   const [globeReady, setGlobeReady] = useState(false);
   const [GlobeComponent, setGlobeComponent] = useState(null);
@@ -97,7 +99,17 @@ export default function LiveMap() {
     };
   }, [isDragging, handleDrag, handleDragEnd]);
 
+  // Track page visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   const fetchEvents = useCallback(async () => {
+    if (!isVisible) return; // Don't fetch if tab is hidden
     try {
       const res = await fetch('/api/events');
       const data = await res.json();
@@ -112,7 +124,7 @@ export default function LiveMap() {
       }
       setStatus(data.status || 'live');
     } catch { setStatus('error'); }
-  }, [isInitializing, eventQueue.length]);
+  }, [isInitializing, eventQueue.length, isVisible]);
 
   // Fetch GeoJSON for country borders (deferred to avoid blocking initial render)
   useEffect(() => {
@@ -134,7 +146,7 @@ export default function LiveMap() {
   // 8-second tick to pop from queue
   const tickCounter = useRef(0);
   useEffect(() => {
-    if (isInitializing || eventQueue.length === 0) return;
+    if (isInitializing || eventQueue.length === 0 || !isVisible) return; // Pause if hidden
     const interval = setInterval(() => {
       setEventQueue((prevQueue) => {
         if (prevQueue.length === 0) return prevQueue;
@@ -148,26 +160,26 @@ export default function LiveMap() {
           if (prevDisplay.some(e => e.id === nextEvent.id)) return prevDisplay;
           
           const updated = [displayCopy, ...prevDisplay];
-          return updated.length > 50 ? updated.slice(0, 50) : updated;
+          return updated.length > 30 ? updated.slice(0, 30) : updated; // Limited to 30 for performance
         });
         return newQueue;
       });
     }, 8000);
     return () => clearInterval(interval);
-  }, [isInitializing, eventQueue.length]);
+  }, [isInitializing, eventQueue.length, isVisible]);
 
   // Globe Auto-Rotate configuration
   useEffect(() => {
     if (!globeEl.current || !globeReady) return;
     try {
       const controls = globeEl.current.controls();
-      controls.autoRotate = autoRotate;
+      controls.autoRotate = autoRotate && isVisible; // Pause rotation if hidden
       controls.autoRotateSpeed = 0.4;
       const onInteraction = () => setAutoRotate(false);
       controls.addEventListener('start', onInteraction);
       return () => controls.removeEventListener('start', onInteraction);
     } catch {}
-  }, [autoRotate, globeReady]);
+  }, [autoRotate, globeReady, isVisible]);
 
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
@@ -258,17 +270,17 @@ export default function LiveMap() {
               ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
               : "//unpkg.com/three-globe/example/img/earth-night.jpg"
             }
-            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-            showAtmosphere={true}
+            bumpImageUrl={lowPowerMode ? null : "//unpkg.com/three-globe/example/img/earth-topology.png"}
+            backgroundImageUrl={lowPowerMode ? null : "//unpkg.com/three-globe/example/img/night-sky.png"}
+            showAtmosphere={!lowPowerMode}
             atmosphereColor="#38bdf8"
             atmosphereAltitude={0.12}
-            polygonsData={showBorders && geoJson ? geoJson : []}
+            polygonsData={showBorders && !lowPowerMode && geoJson ? geoJson : []}
             polygonAltitude={0.006}
             polygonCapColor={() => 'rgba(0,0,0,0)'}
             polygonSideColor={() => 'rgba(0, 240, 255, 0.08)'}
             polygonStrokeColor={() => '#475569'}
-            labelsData={labelData}
+            labelsData={lowPowerMode ? [] : labelData}
             labelLat={d => d.properties.LABEL_Y}
             labelLng={d => d.properties.LABEL_X}
             labelText={d => d.properties.NAME}
@@ -379,6 +391,15 @@ export default function LiveMap() {
               <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
               <span className="cat-check" style={{ borderColor: showLabels ? '#00f0ff' : '#4a5568', background: showLabels ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
                 {showLabels && '✓'}
+              </span>
+            </label>
+
+            <div className="overlay-title" style={{ marginTop: '16px' }}>PERFORMANCE</div>
+            <label className="cat-toggle" style={{ marginTop: '8px' }}>
+              <span className="cat-label" style={{ color: lowPowerMode ? '#facc15' : 'inherit' }}>Low Power Mode</span>
+              <input type="checkbox" checked={lowPowerMode} onChange={(e) => setLowPowerMode(e.target.checked)} />
+              <span className="cat-check" style={{ borderColor: lowPowerMode ? '#facc15' : '#4a5568', background: lowPowerMode ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
+                {lowPowerMode && '✓'}
               </span>
             </label>
           </div>
