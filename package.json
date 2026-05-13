@@ -1,11 +1,13 @@
 {
   "name": "sovereign-dashboard",
   "version": "0.1.0",
+  "main": "main.js",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\""
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
@@ -18,5 +20,10 @@
     "react-leaflet": "^5.0.0",
     "recharts": "^3.8.1",
     "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^42.0.1",
+    "wait-on": "^9.0.10"
   }
 }
