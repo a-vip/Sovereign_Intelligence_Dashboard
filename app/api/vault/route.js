@@ -31,8 +31,10 @@ export async function GET() {
     // Merge DB stats into vault metrics if available
     const mergedMetrics = { ...cache.metrics };
     if (dbStats) {
-      mergedMetrics.totalIntel = (mergedMetrics.totalIntel || 0) + dbStats.total;
-      mergedMetrics.criticalThreats = dbStats.critical || mergedMetrics.criticalThreats;
+      // "Intel Briefs" label uses totalDocuments
+      mergedMetrics.totalDocuments = (mergedMetrics.totalDocuments || 0) + dbStats.total;
+      // "Critical Threats" label uses criticalThreats
+      mergedMetrics.criticalThreats = (mergedMetrics.criticalThreats || 0) + dbStats.critical;
       
       // Update category distributions with live data
       if (dbStats.categories && dbStats.categories.length > 0) {
