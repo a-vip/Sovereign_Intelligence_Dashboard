@@ -46,6 +46,7 @@ export default function LiveMap() {
   const [showAtmosphere, setShowAtmosphere] = useState(true);
   const [showGlow, setShowGlow] = useState(false); // Default OFF as requested
   const [isPulsing, setIsPulsing] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [GlobeComponent, setGlobeComponent] = useState(null);
   const globeEl = useRef();
 
@@ -149,8 +150,8 @@ export default function LiveMap() {
         .then(data => setGeoJson(data.features))
         .catch(() => {});
 
-      // Fetch cities
-      fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_populated_places.geojson')
+      // Fetch cities (simple version)
+      fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_populated_places_simple.geojson')
         .then(res => res.json())
         .then(data => setCitiesJson(data.features))
         .catch(() => {});
@@ -279,7 +280,7 @@ export default function LiveMap() {
   // Stable callback for htmlElement — avoids creating closures on every render
   const createMarkerElement = useCallback((d) => {
     const el = document.createElement('div');
-    const color = CAT_COLORS[d.category] || '#888';
+    const color = SEV_COLORS[d.severity] || '#888'; // Color by severity as requested
     const size = Math.min(6 + d.severity * 2, 16);
 
     el.innerHTML = `<div style="
@@ -362,126 +363,118 @@ export default function LiveMap() {
 
       {/* Overlay Controls */}
       <div
-        className="overlay-panel"
+        className={`overlay-panel ${isMinimized ? 'minimized' : ''}`}
         style={{
           transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
           cursor: isDragging ? 'grabbing' : 'auto',
           transition: isDragging ? 'none' : 'transform 0.1s ease',
-          zIndex: 20, position: 'absolute', right: '20px', bottom: '40px'
+          zIndex: 20, position: 'absolute', right: '20px', bottom: '40px',
+          width: isMinimized ? '140px' : '260px'
         }}
       >
         <div
           className="overlay-drag-handle"
           onMouseDown={handleDragStart}
           style={{
-            height: '16px', cursor: isDragging ? 'grabbing' : 'grab',
+            height: '24px', cursor: isDragging ? 'grabbing' : 'grab',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
-            marginBottom: '12px', opacity: 0.5, paddingBottom: '8px',
-            borderBottom: '1px solid var(--border-color)'
+            marginBottom: '8px', opacity: 0.5, paddingBottom: '4px',
+            borderBottom: '1px solid var(--border-color)',
+            position: 'relative'
           }}
         >
           <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'var(--text-muted)' }} />
-        </div>
-
-        <div className="overlay-section" style={{ borderBottom: isCatExpanded ? '1px solid var(--border-color)' : 'none', paddingBottom: isCatExpanded ? '12px' : '0' }}>
-          <div
-            className="overlay-title"
-            style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
-            onClick={() => setIsCatExpanded(!isCatExpanded)}
+          <button 
+            onClick={() => setIsMinimized(!isMinimized)}
+            style={{ 
+              position: 'absolute', right: '4px', top: '2px', background: 'none', border: 'none', 
+              color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px' 
+            }}
           >
-            <span>CATEGORIES</span>
-            <span>{isCatExpanded ? '▾' : '◂'}</span>
-          </div>
-
-          {isCatExpanded && (
-            <div style={{ marginTop: '12px' }}>
-              {Object.entries(CAT_COLORS).map(([cat, color]) => (
-                <label key={cat} className="cat-toggle">
-                  <span className="cat-dot" style={{ background: color }} />
-                  <span className="cat-label">{cat}</span>
-                  <span className="cat-count">{categoryCounts[cat] || 0}</span>
-                  <input type="checkbox" checked={categories[cat]} onChange={() => toggleCategory(cat)} />
-                  <span className="cat-check" style={{ borderColor: categories[cat] ? color : '#4a5568', background: categories[cat] ? `${color}30` : 'transparent' }}>
-                    {categories[cat] && '✓'}
-                  </span>
-                </label>
-              ))}
-
-              <div className="overlay-title" style={{ marginTop: '16px', marginBottom: '12px' }}>MIN. SEVERITY</div>
-              <div className="severity-buttons">
-                {[1, 2, 3, 4, 5].map(s => (
-                  <button key={s} className={`sev-btn${minSeverity <= s ? ' active' : ''}`}
-                    style={{ background: minSeverity <= s ? SEV_COLORS[s] : 'transparent', color: minSeverity <= s ? '#000' : '#8892a4', borderColor: SEV_COLORS[s] }}
-                    onClick={() => setMinSeverity(s)}>
-                    S{s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            {isMinimized ? '▢' : '—'}
+          </button>
         </div>
 
-        {/* Globe Settings inside Overlay Panel */}
-        {isCatExpanded && (
-          <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
-            <div className="overlay-title">GLOBE SETTINGS</div>
+        {!isMinimized ? (
+          <>
+            <div className="overlay-section" style={{ borderBottom: isCatExpanded ? '1px solid var(--border-color)' : 'none', paddingBottom: isCatExpanded ? '12px' : '0' }}>
+              <div
+                className="overlay-title"
+                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
+                onClick={() => setIsCatExpanded(!isCatExpanded)}
+              >
+                <span>CATEGORIES</span>
+                <span>{isCatExpanded ? '▾' : '◂'}</span>
+              </div>
 
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Auto-Rotate</span>
-              <input type="checkbox" checked={autoRotate} onChange={(e) => setAutoRotate(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: autoRotate ? '#00f0ff' : '#4a5568', background: autoRotate ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                {autoRotate && '✓'}
-              </span>
-            </label>
+              {isCatExpanded && (
+                <div style={{ marginTop: '12px' }}>
+                  {Object.entries(CAT_COLORS).map(([cat, color]) => (
+                    <label key={cat} className="cat-toggle">
+                      <span className="cat-dot" style={{ background: color }} />
+                      <span className="cat-label">{cat}</span>
+                      <span className="cat-count">{categoryCounts[cat] || 0}</span>
+                      <input type="checkbox" checked={categories[cat]} onChange={() => toggleCategory(cat)} />
+                      <span className="cat-check" style={{ borderColor: categories[cat] ? color : '#4a5568', background: categories[cat] ? `${color}30` : 'transparent' }}>
+                        {categories[cat] && '✓'}
+                      </span>
+                    </label>
+                  ))}
 
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Daylight Mode</span>
-              <input type="checkbox" checked={isDayMode} onChange={(e) => setIsDayMode(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: isDayMode ? '#00f0ff' : '#4a5568', background: isDayMode ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                {isDayMode && '✓'}
-              </span>
-            </label>
+                  <div className="overlay-title" style={{ marginTop: '16px', marginBottom: '12px' }}>MIN. SEVERITY</div>
+                  <div className="severity-buttons">
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <button key={s} className={`sev-btn${minSeverity <= s ? ' active' : ''}`}
+                        style={{ background: minSeverity <= s ? SEV_COLORS[s] : 'transparent', color: minSeverity <= s ? '#000' : '#8892a4', borderColor: SEV_COLORS[s] }}
+                        onClick={() => setMinSeverity(s)}>
+                        S{s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Geo Borders</span>
-              <input type="checkbox" checked={showBorders} onChange={(e) => setShowBorders(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: showBorders ? '#00f0ff' : '#4a5568', background: showBorders ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                {showBorders && '✓'}
-              </span>
-            </label>
+            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
+              <div className="overlay-title">VISUALS</div>
 
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Labels & Cities</span>
-              <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: showLabels ? '#00f0ff' : '#4a5568', background: showLabels ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                {showLabels && '✓'}
-              </span>
-            </label>
+              <label className="cat-toggle" style={{ marginTop: '8px' }}>
+                <span className="cat-label">Atmosphere</span>
+                <input type="checkbox" checked={showAtmosphere} onChange={(e) => setShowAtmosphere(e.target.checked)} />
+                <span className="cat-check" style={{ borderColor: showAtmosphere ? '#00f0ff' : '#4a5568', background: showAtmosphere ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                  {showAtmosphere && '✓'}
+                </span>
+              </label>
 
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Atmosphere</span>
-              <input type="checkbox" checked={showAtmosphere} onChange={(e) => setShowAtmosphere(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: showAtmosphere ? '#00f0ff' : '#4a5568', background: showAtmosphere ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                {showAtmosphere && '✓'}
-              </span>
-            </label>
+              <label className="cat-toggle" style={{ marginTop: '8px' }}>
+                <span className="cat-label">Ambient Glow</span>
+                <input type="checkbox" checked={showGlow} onChange={(e) => setShowGlow(e.target.checked)} />
+                <span className="cat-check" style={{ borderColor: showGlow ? '#a855f7' : '#4a5568', background: showGlow ? 'rgba(168,85,247,0.2)' : 'transparent' }}>
+                  {showGlow && '✓'}
+                </span>
+              </label>
 
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Ambient Glow</span>
-              <input type="checkbox" checked={showGlow} onChange={(e) => setShowGlow(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: showGlow ? '#a855f7' : '#4a5568', background: showGlow ? 'rgba(168,85,247,0.2)' : 'transparent' }}>
-                {showGlow && '✓'}
-              </span>
-            </label>
+              <label className="cat-toggle" style={{ marginTop: '8px' }}>
+                <span className="cat-label">Labels & Cities</span>
+                <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
+                <span className="cat-check" style={{ borderColor: showLabels ? '#00f0ff' : '#4a5568', background: showLabels ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                  {showLabels && '✓'}
+                </span>
+              </label>
 
-            <div className="overlay-title" style={{ marginTop: '16px' }}>PERFORMANCE</div>
-            <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label" style={{ color: lowPowerMode ? '#facc15' : 'inherit' }}>Low Power Mode</span>
-              <input type="checkbox" checked={lowPowerMode} onChange={(e) => setLowPowerMode(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: lowPowerMode ? '#facc15' : '#4a5568', background: lowPowerMode ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
-                {lowPowerMode && '✓'}
-              </span>
-            </label>
+              <div className="overlay-title" style={{ marginTop: '16px' }}>PERFORMANCE</div>
+              <label className="cat-toggle" style={{ marginTop: '8px' }}>
+                <span className="cat-label">Low Power</span>
+                <input type="checkbox" checked={lowPowerMode} onChange={(e) => setLowPowerMode(e.target.checked)} />
+                <span className="cat-check" style={{ borderColor: lowPowerMode ? '#facc15' : '#4a5568', background: lowPowerMode ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
+                  {lowPowerMode && '✓'}
+                </span>
+              </label>
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', padding: '4px 0' }}>
+            INTEL OVERLAY
           </div>
         )}
       </div>
