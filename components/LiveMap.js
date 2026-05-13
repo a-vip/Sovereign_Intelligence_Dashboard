@@ -225,7 +225,15 @@ export default function LiveMap() {
             polygonAltitude={0.01}
             polygonCapColor={() => 'rgba(0,0,0,0)'}
             polygonSideColor={() => 'rgba(0, 240, 255, 0.15)'}
-            polygonStrokeColor={() => '#1e293b'}
+            polygonStrokeColor={() => '#334155'}
+            labelsData={showBorders && geoJson ? geoJson : []}
+            labelLat={d => d.properties.LABEL_Y || 0}
+            labelLng={d => d.properties.LABEL_X || 0}
+            labelText={d => d.properties.NAME}
+            labelSize={0.6}
+            labelDotRadius={0}
+            labelColor={() => 'rgba(255, 255, 255, 0.8)'}
+            labelResolution={2}
             htmlElementsData={filteredMarkers}
             htmlLat="lat"
             htmlLng="lon"
@@ -235,34 +243,18 @@ export default function LiveMap() {
               const color = CAT_COLORS[d.category] || '#888';
               
               el.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto; cursor: pointer; transform: translate(-${size/2}px, -${size/2}px);">
-                  <div style="
-                    width: ${size}px; 
-                    height: ${size}px; 
-                    background: ${color}; 
-                    border-radius: 50%; 
-                    box-shadow: 0 0 ${size * 2}px ${color}, 0 0 ${size}px #fff;
-                  " class="globe-dot"></div>
-                  <div style="
-                    background: rgba(10, 15, 20, 0.85);
-                    backdrop-filter: blur(4px);
-                    border: 1px solid ${color}50;
-                    border-left: 3px solid ${color};
-                    padding: 4px 8px;
-                    border-radius: 2px 6px 6px 2px;
-                    color: #cbd5e1;
-                    font-family: 'SFMono-Regular', Consolas, monospace;
-                    font-size: 11px;
-                    white-space: nowrap;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                  ">
-                    <span style="color: ${color}; font-weight: 700; margin-right: 8px; letter-spacing: 0.5px;">${d.category.toUpperCase()}</span>
-                    ${d.name.length > 45 ? d.name.substring(0, 45) + '...' : d.name}
-                  </div>
-                </div>
+                <div style="
+                  width: ${size}px; 
+                  height: ${size}px; 
+                  background: ${color}; 
+                  border-radius: 50%; 
+                  box-shadow: 0 0 ${size * 2}px ${color}, 0 0 ${size}px #fff;
+                  cursor: pointer;
+                  pointer-events: auto;
+                  transform: translate(-50%, -50%);
+                " class="globe-dot"></div>
               `;
               
-              // Find full event to pass to detail window
               const fullEvent = displayedEvents.find(e => e.title === d.name || e.id.replace('ev', 'geo') === d.id) || d;
               el.onclick = () => setSelectedEvent(fullEvent);
               
