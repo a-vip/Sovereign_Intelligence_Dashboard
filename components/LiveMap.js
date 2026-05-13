@@ -290,9 +290,21 @@ export default function LiveMap() {
   // Stable callback for htmlElement — avoids creating closures on every render
   const createMarkerElement = useCallback((d) => {
     const el = document.createElement('div');
-      const fullEvent = displayedEvents.find(e => e.title === d.name || e.id?.replace('ev', 'geo') === d.id) || d;
-      setSelectedEvent(fullEvent);
+    const color = SEVERITY_COLORS[d.severity] || '#94a3b8';
+    const size = Math.min(8 + d.severity * 2, 18);
+
+    el.innerHTML = `<div style="
+      width:${size}px;height:${size}px;background:${color};border-radius:50%;
+      box-shadow:0 0 ${size}px ${color};cursor:pointer;pointer-events:auto;
+      transform:translate(-50%,-50%);
+    " class="globe-dot"></div>`;
+
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const fullEvent = displayedEvents.find(ev => ev.id === d.id || ev.title === d.name);
+      setSelectedEvent(fullEvent || d);
     };
+    
     return el;
   }, [displayedEvents]);
 

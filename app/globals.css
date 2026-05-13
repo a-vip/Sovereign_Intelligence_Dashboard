@@ -65,12 +65,8 @@ body.ambient-glow::before {
   opacity: 1;
   transition: opacity 1s ease-in-out;
 }
-body:not(.ambient-glow)::before {
-  opacity: 0;
-  transition: opacity 1s ease-in-out;
-}
 
-#__next, main { position: relative; z-index: 1; }
+#___next, main { position: relative; z-index: 1; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
