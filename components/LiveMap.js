@@ -39,8 +39,10 @@ export default function LiveMap() {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   // Globe Settings
-  const [isGlobeSatellite, setIsGlobeSatellite] = useState(false);
+  const [isDayMode, setIsDayMode] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
+  const [showBorders, setShowBorders] = useState(true);
+  const [geoJson, setGeoJson] = useState(null);
   const globeEl = useRef();
 
   // Overlay Settings
@@ -112,6 +114,13 @@ export default function LiveMap() {
       setStatus(data.status || 'live');
     } catch { setStatus('error'); }
   }, [isInitializing, eventQueue.length]);
+
+  // Fetch GeoJSON for country borders
+  useEffect(() => {
+    fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+      .then(res => res.json())
+      .then(data => setGeoJson(data.features));
+  }, []);
 
   useEffect(() => {
     fetchEvents();
@@ -206,12 +215,17 @@ export default function LiveMap() {
         {typeof window !== 'undefined' && (
           <Globe
             ref={globeEl}
-            globeImageUrl={isGlobeSatellite ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg" : "//unpkg.com/three-globe/example/img/earth-night.jpg"}
+            globeImageUrl={isDayMode ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg" : "//unpkg.com/three-globe/example/img/earth-night.jpg"}
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
             showAtmosphere={true}
             atmosphereColor="#38bdf8"
             atmosphereAltitude={0.15}
+            polygonsData={showBorders && geoJson ? geoJson : []}
+            polygonAltitude={0.01}
+            polygonCapColor={() => 'rgba(0,0,0,0)'}
+            polygonSideColor={() => 'rgba(0, 240, 255, 0.15)'}
+            polygonStrokeColor={() => '#1e293b'}
             htmlElementsData={filteredMarkers}
             htmlLat="lat"
             htmlLng="lon"
@@ -341,10 +355,18 @@ export default function LiveMap() {
             </label>
 
             <label className="cat-toggle" style={{ marginTop: '8px' }}>
-              <span className="cat-label">Live Satellite Feed</span>
-              <input type="checkbox" checked={isGlobeSatellite} onChange={(e) => setIsGlobeSatellite(e.target.checked)} />
-              <span className="cat-check" style={{ borderColor: isGlobeSatellite ? '#00f0ff' : '#4a5568', background: isGlobeSatellite ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                {isGlobeSatellite && '✓'}
+              <span className="cat-label">Daylight Satellite Mode</span>
+              <input type="checkbox" checked={isDayMode} onChange={(e) => setIsDayMode(e.target.checked)} />
+              <span className="cat-check" style={{ borderColor: isDayMode ? '#00f0ff' : '#4a5568', background: isDayMode ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                {isDayMode && '✓'}
+              </span>
+            </label>
+
+            <label className="cat-toggle" style={{ marginTop: '8px' }}>
+              <span className="cat-label">Show Geo Borders</span>
+              <input type="checkbox" checked={showBorders} onChange={(e) => setShowBorders(e.target.checked)} />
+              <span className="cat-check" style={{ borderColor: showBorders ? '#00f0ff' : '#4a5568', background: showBorders ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
+                {showBorders && '✓'}
               </span>
             </label>
           </div>
