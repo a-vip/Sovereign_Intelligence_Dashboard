@@ -10,6 +10,7 @@
     "desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\""
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "gray-matter": "^4.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
