@@ -301,7 +301,7 @@ export default function LiveMap() {
       {/* Event Feed Sidebar */}
       <div className="sigint-feed" style={{ zIndex: 10 }}>
         <div className="feed-tabs">
-          <button className={`feed-tab ${timeRange === '24h' ? 'active' : ''}`} onClick={() => setTimeRange('24h')}>24 HOURS</button>
+          <button className={`feed-tab ${timeRange === 'today' ? 'active' : ''}`} onClick={() => setTimeRange('today')}>TODAY</button>
           <button className={`feed-tab live-tab ${timeRange === '6h' ? 'active' : ''}`} onClick={() => setTimeRange('6h')}>6 HOURS</button>
           <span className="feed-count">{filteredEvents.length} events</span>
         </div>
