@@ -139,16 +139,22 @@ export default function EventDetailsWindow({ event, onClose }) {
         </h2>
 
         {/* Meta Info */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.8rem', paddingBottom: '16px', borderBottom: '1px solid #1e293b' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            {formatTime(event.timestamp)}
-          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             {event.location || 'Global / OSINT'}
           </div>
         </div>
+
+        {/* Escalation Probability Bar (Monitor-the-Situation style) */}
+        {event.details?.probability && (
+          <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>ESCALATION PROBABILITY</div>
+            <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginBottom: '8px' }}>
+              <div style={{ height: '100%', width: `${event.details.probability}%`, background: 'linear-gradient(90deg, #00f0ff, #a855f7)', transition: 'width 1s ease-in-out' }} />
+            </div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#00f0ff', fontFamily: "'JetBrains Mono', monospace" }}>{event.details.probability}%</div>
+          </div>
+        )}
       </div>
 
       {/* Accordions */}
@@ -212,7 +218,9 @@ export default function EventDetailsWindow({ event, onClose }) {
                   <span>{formatTime(event.timestamp)}</span>
                 </div>
                 <div style={{ color: '#cbd5e1', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '12px' }}>
-                  Intelligence report retrieved from {event.source || 'OSINT network'}. Click the link below for the full source article, research, or documentation.
+                  <strong>Source: {event.source || 'Primary Intel Source'}</strong>
+                  <br />
+                  Direct signal retrieved from {event.source || 'verified intel networks'}. This record serves as a primary source for the event analysis.
                 </div>
                 {event.url && (
                   <a href={event.url} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>

@@ -8,10 +8,10 @@ import TerminalFeed from '@/components/TerminalFeed';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
 
 const TABS = [
+  { id: 'sigint', label: 'SIGINT Map', icon: Radar },
   { id: 'overview', label: 'Overview', icon: Activity },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'explorer', label: 'Explorer', icon: FileSearch },
-  { id: 'sigint', label: 'SIGINT Map', icon: Radar },
 ];
 
 const POLL_INTERVAL = 30000; // 30 seconds live update

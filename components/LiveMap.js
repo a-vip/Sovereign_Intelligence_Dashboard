@@ -45,7 +45,6 @@ export default function LiveMap() {
   const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [GlobeComponent, setGlobeComponent] = useState(null);
   const globeEl = useRef();
@@ -539,7 +538,9 @@ export default function LiveMap() {
             )}
             
             <div className="details-meta">
-              <span>Source: {selectedEvent.source || 'GDELT OSINT'}</span>
+              <span>Location: {selectedEvent.location || 'Global / OSINT'}</span>
+              <span>•</span>
+              <span>Source: {selectedEvent.source || 'Primary Intel'}</span>
               <span>•</span>
               <span>{new Date(selectedEvent.timestamp).toLocaleTimeString()}</span>
             </div>
