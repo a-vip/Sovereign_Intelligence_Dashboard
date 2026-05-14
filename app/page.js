@@ -20,7 +20,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('sigint');
   const [refreshing, setRefreshing] = useState(false);
   const [activeTag, setActiveTag] = useState(null);
   const [isVisible, setIsVisible] = useState(true);

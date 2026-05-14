@@ -52,19 +52,7 @@ body {
   overflow-x: hidden;
 }
 
-body.ambient-glow::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,240,255,0.04) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(255,45,85,0.03) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(168,85,247,0.02) 0%, transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 1;
-  transition: opacity 1s ease-in-out;
-}
+/* Global screen glow removed for performance */
 
 #___next, main { position: relative; z-index: 1; }
 

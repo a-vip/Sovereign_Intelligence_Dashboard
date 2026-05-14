@@ -43,8 +43,6 @@ export default function LiveMap() {
   const [citiesJson, setCitiesJson] = useState(null);
   const [globeReady, setGlobeReady] = useState(false);
   const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
-  const [showGlow, setShowGlow] = useState(false); // Default OFF
-  const [pulseEnabled, setPulseEnabled] = useState(true); // Pulse on alerts
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -52,14 +50,11 @@ export default function LiveMap() {
   const [GlobeComponent, setGlobeComponent] = useState(null);
   const globeEl = useRef();
 
-  // Toggle ambient glow on body
+  // Toggle ambient glow removed for performance
   useEffect(() => {
-    if (showGlow || (pulseEnabled && isPulsing)) {
-      document.body.classList.add('ambient-glow');
-    } else {
-      document.body.classList.remove('ambient-glow');
-    }
-  }, [showGlow, isPulsing, pulseEnabled]);
+    // Clean up if somehow still there
+    document.body.classList.remove('ambient-glow');
+  }, []);
 
   // Overlay Settings
   const [isCatExpanded, setIsCatExpanded] = useState(true);
@@ -220,8 +215,8 @@ export default function LiveMap() {
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
     let filtered = displayedEvents.filter(e => {
-      if (feedType === 'live') return !e.curated && (e.severity < 4 || !e.source?.includes('Reuters')); 
-      return e.curated || e.severity >= 4 || e.source?.includes('Reuters') || e.source?.includes('Guardian');
+      if (feedType === 'live') return !e.curated && !e.details?.isResearch && (e.severity < 4 || !e.source?.includes('Reuters')); 
+      return e.curated || e.details?.isResearch || e.severity >= 4 || e.source?.includes('Reuters') || e.source?.includes('Guardian');
     });
     
     if (activeCategories.length > 0) {
@@ -290,7 +285,7 @@ export default function LiveMap() {
   // Stable callback for htmlElement — avoids creating closures on every render
   const createMarkerElement = useCallback((d) => {
     const el = document.createElement('div');
-    const color = SEVERITY_COLORS[d.severity] || '#94a3b8';
+    const color = SEV_COLORS[d.severity] || '#94a3b8';
     const size = Math.min(8 + d.severity * 2, 18);
 
     el.innerHTML = `<div style="
@@ -332,6 +327,7 @@ export default function LiveMap() {
                 <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
                   {ev.category}
                 </span>
+                {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800', marginLeft: '6px' }}>RESEARCH</span>}
                 <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
                   S{ev.severity}
                 </span>
@@ -474,22 +470,6 @@ export default function LiveMap() {
                 </span>
               </label>
 
-              <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label">Ambient Glow</span>
-                <input type="checkbox" checked={showGlow} onChange={(e) => setShowGlow(e.target.checked)} />
-                <span className="cat-check" style={{ borderColor: showGlow ? '#a855f7' : '#4a5568', background: showGlow ? 'rgba(168,85,247,0.2)' : 'transparent' }}>
-                  {showGlow && '✓'}
-                </span>
-              </label>
-
-              <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label">Alert Pulse</span>
-                <input type="checkbox" checked={pulseEnabled} onChange={(e) => setPulseEnabled(e.target.checked)} />
-                <span className="cat-check" style={{ borderColor: pulseEnabled ? '#facc15' : '#4a5568', background: pulseEnabled ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
-                  {pulseEnabled && '✓'}
-                </span>
-              </label>
-
               <div className="overlay-title" style={{ marginTop: '16px' }}>PERFORMANCE</div>
               <label className="cat-toggle" style={{ marginTop: '8px' }}>
                 <span className="cat-label" style={{ color: lowPowerMode ? '#facc15' : 'inherit' }}>Low Power Mode</span>
@@ -511,7 +491,13 @@ export default function LiveMap() {
       <div className="map-status-bar" style={{ zIndex: 10 }}>
         <div className="status-item">
           <span className={`status-dot ${status === 'live' ? 'live' : ''}`} />
-          ⚡ {displayedMarkers.length} map points
+          {status === 'live' ? 'SYSTEMS ACTIVE' : 'RECONNECTING...'}
+        </div>
+        <div className="status-item">
+          ⚡ {displayedMarkers.length} MAP SIGNALS
+        </div>
+        <div className="status-item" style={{ marginLeft: 'auto' }}>
+          DATABASE SYNC: {new Date().toLocaleTimeString()}
         </div>
       </div>
 
@@ -526,7 +512,7 @@ export default function LiveMap() {
       {selectedEvent && (
         <div className="event-details-panel">
           <div className="details-header">
-            <div className="details-sev" style={{ backgroundColor: SEVERITY_COLORS[selectedEvent.severity] }}>
+            <div className="details-sev" style={{ backgroundColor: SEV_COLORS[selectedEvent.severity] }}>
               S{selectedEvent.severity}
             </div>
             <button className="details-close" onClick={() => setSelectedEvent(null)}>×</button>

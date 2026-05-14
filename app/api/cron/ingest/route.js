@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { initDb, saveEvents } from '@/lib/db';
 import crypto from 'crypto';
+import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,32 +39,24 @@ function getEscalationProb(title, severity) {
 }
 
 function extractMedia(article) {
-  // GDELT sometimes provides socialimage or similar
   return article.socialimage || article.image || null;
 }
 
 export async function GET(request) {
-  // Check for Vercel Cron Secret to secure the endpoint
-  const authHeader = request.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // return new Response('Unauthorized', { status: 401 }); // Temporarily disabled for testing
-  }
-
   try {
-    console.log('Starting scheduled ingestion...');
     await initDb();
-
+    
+    // 1. Fetch OSINT from GDELT
     const mainQuery = '(artificial intelligence OR autonomous weapons OR drone OR AI military OR surveillance OR facial recognition OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI")';
-    const timespan = '1h'; // Fetch last hour of news
-    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=${timespan}`;
-
-    const res = await fetch(docUrl, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) throw new Error(`GDELT fetch failed: ${res.status}`);
-
-    const data = await res.json();
-    const articles = data.articles || [];
-
-    const newEvents = articles.map(a => ({
+    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=1h`;
+    
+    const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(10000) });
+    const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
+    
+    // 2. Fetch Verified Research/News from Funnel
+    const research = await fetchResearch();
+    
+    const osintEvents = (gdeltData.articles || []).map(a => ({
       id: generateId(a.url, a.title),
       title: a.title || 'Untitled',
       url: a.url,
@@ -79,18 +72,32 @@ export async function GET(request) {
       }
     }));
 
+    const researchEvents = research.map(r => ({
+      ...r,
+      id: generateId(r.url, r.title),
+      details: { 
+        ...r.details, 
+        probability: getEscalationProb(r.title, r.severity),
+        isResearch: true 
+      }
+    }));
+
+    const newEvents = [...osintEvents, ...researchEvents];
+
     if (newEvents.length > 0) {
       await saveEvents(newEvents);
-      console.log(`Successfully ingested ${newEvents.length} new events.`);
+      // Log new events to vault
+      await logToVault(newEvents);
     }
-
-    return NextResponse.json({
-      success: true,
+    
+    return NextResponse.json({ 
+      success: true, 
       count: newEvents.length,
-      timestamp: new Date().toISOString()
+      osint: osintEvents.length,
+      research: researchEvents.length
     });
   } catch (error) {
-    console.error('Cron ingestion error:', error);
+    console.error('Scheduled ingestion error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

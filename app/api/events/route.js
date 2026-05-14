@@ -177,13 +177,14 @@ export async function GET(request) {
     }
 
     const result = {
-      markers: allMarkers,
-      events: allEvents,
-      markerCount: allMarkers.length,
-      eventCount: allEvents.length,
+      markers: allMarkers.slice(0, 500), // Limit markers for performance
+      events: allEvents.slice(0, 100),   // Only send top 100 recent events
+      markerCount: Math.min(allMarkers.length, 500),
+      eventCount: Math.min(allEvents.length, 100),
       source: gdelt.live ? 'db+gdelt+osint' : 'db+osint_curated',
       status: 'live',
       lastUpdated: new Date().toISOString(),
+      dbConnected: true
     };
 
     cache[timespan] = { data: result, time: now };
