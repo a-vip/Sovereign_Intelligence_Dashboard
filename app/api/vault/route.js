@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { parseVault } from '@/lib/vaultParser';
 import { getAggregatedStats, initDb, saveVaultDocs, getVaultDocs } from '@/lib/db';
 
@@ -86,7 +87,6 @@ export async function GET() {
       return NextResponse.json(basicCache);
     } catch (e) {
       return NextResponse.json({ error: 'System error' }, { status: 500 });
-    }
     }
   }
 }
