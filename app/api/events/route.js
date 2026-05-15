@@ -160,24 +160,6 @@ export async function GET(request) {
       count: 1, curated: true,
     }));
 
-    // Extract markers from allEvents (DB + GDELT) that have coordinates
-    const dbMarkers = allEvents
-      .filter(e => e.lat && e.lon)
-      .map(e => ({
-        id: `db-${e.id}`,
-        lat: e.lat,
-        lon: e.lon,
-        name: e.title,
-        category: e.category,
-        severity: e.severity,
-        url: e.url,
-        count: 1,
-        fromDb: true
-      }));
-
-    // Merge: GDELT live markers + curated intel + DB events
-    const allMarkers = [...gdelt.markers, ...curatedMarkers, ...dbMarkers];
-
     // Fetch historical events from DB for this timespan
     const dbEvents = await getEvents(timespan);
 
@@ -207,6 +189,24 @@ export async function GET(request) {
         tag: m.tag || 'INFO'
       }));
     }
+
+    // Now extract markers from the finalized allEvents list
+    const dbMarkers = allEvents
+      .filter(e => e.lat && e.lon)
+      .map(e => ({
+        id: `db-${e.id}`,
+        lat: e.lat,
+        lon: e.lon,
+        name: e.title,
+        category: e.category,
+        severity: e.severity,
+        url: e.url,
+        count: 1,
+        fromDb: true
+      }));
+
+    // Merge: GDELT live markers + curated intel + DB events
+    const allMarkers = [...gdelt.markers, ...curatedMarkers, ...dbMarkers];
 
     const result = {
       markers: allMarkers.slice(0, 500), // Limit markers for performance
