@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { parseVault } from '@/lib/vaultParser';
-import { getAggregatedStats, initDb } from '@/lib/db';
+import { getAggregatedStats, initDb, saveVaultDocs, getVaultDocs } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +17,28 @@ export async function GET() {
 
     const now = Date.now();
     if (!cache || now - cacheTime > CACHE_TTL) {
-      cache = parseVault();
+      const localVault = parseVault();
+      
+      if (localVault.isMock && process.env.POSTGRES_URL) {
+        // Try fetching from DB if local vault is mock (production)
+        const dbDocs = await getVaultDocs();
+        if (dbDocs.length > 0) {
+          // Construct a vault-like object from DB docs
+          cache = {
+            ...localVault,
+            isMock: false,
+            documents: dbDocs,
+            metrics: {
+              ...localVault.metrics,
+              totalDocuments: dbDocs.length,
+            }
+          };
+        } else {
+          cache = localVault;
+        }
+      } else {
+        cache = localVault;
+      }
       cacheTime = now;
     }
 
@@ -67,5 +87,38 @@ export async function GET() {
     } catch (e) {
       return NextResponse.json({ error: 'System error' }, { status: 500 });
     }
+    }
+  }
+}
+
+export async function POST(request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+    
+    if (!token || token !== process.env.DASHBOARD_API_TOKEN) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { documents } = await request.json();
+    if (!documents || documents.length === 0) {
+      return NextResponse.json({ message: 'No documents to sync' });
+    }
+
+    if (!dbInitialized) {
+      await initDb();
+      dbInitialized = true;
+    }
+
+    await saveVaultDocs(documents);
+    cache = null; // Clear cache
+
+    return NextResponse.json({ 
+      message: 'Vault sync successful', 
+      count: documents.length 
+    });
+  } catch (err) {
+    console.error('Vault Sync Error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
