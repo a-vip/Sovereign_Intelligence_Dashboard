@@ -104,14 +104,22 @@ async function fetchGDELT(timespan = '24h') {
       try {
         const data = await docRes.json();
         events = (data.articles || [])
-          .map((a, i) => ({
-            id: generateId(a.url, a.title), title: a.title || 'Untitled', url: a.url,
-            source: a.domain || 'Unknown', timestamp: a.seendate || new Date().toISOString(),
-            category: categorize(a.title || ''), severity: scoreSeverity(a.title || ''),
-            quality: verifyQuality(a.title || ''),
-            location: a.sourcecountry || null,
-            details: { ...a }
-          }))
+          .map((a, i) => {
+            // Normalize GDELT timestamp (YYYYMMDDHHMMSS) to ISO
+            let ts = a.seendate || new Date().toISOString();
+            if (typeof ts === 'string' && /^\d{14}$/.test(ts)) {
+              ts = ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z');
+            }
+            
+            return {
+              id: generateId(a.url, a.title), title: a.title || 'Untitled', url: a.url,
+              source: a.domain || 'Unknown', timestamp: ts,
+              category: categorize(a.title || ''), severity: scoreSeverity(a.title || ''),
+              quality: verifyQuality(a.title || ''),
+              location: a.sourcecountry || null,
+              details: { ...a }
+            };
+          })
           .filter(e => e.quality > 1) // Only show high-quality/relevant information
           .sort((a, b) => b.quality - a.quality);
       } catch {}
@@ -163,7 +171,16 @@ export async function GET(request) {
     dbEvents.forEach(e => eventMap.set(e.id, e));
     gdelt.events.forEach(e => eventMap.set(e.id, e));
     
-    let allEvents = Array.from(eventMap.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Sort and Prioritize: Vault events first, then by timestamp
+    let allEvents = Array.from(eventMap.values()).sort((a, b) => {
+      const isAVault = a.source?.includes('Vault') || a.source?.includes('OCHA') || a.source?.includes('HRW');
+      const isBVault = b.source?.includes('Vault') || b.source?.includes('OCHA') || b.source?.includes('HRW');
+      
+      if (isAVault && !isBVault) return -1;
+      if (!isAVault && isBVault) return 1;
+      
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    });
 
     if (allEvents.length === 0) {
       allEvents = CURATED_INTEL.map((m, i) => ({
@@ -178,9 +195,9 @@ export async function GET(request) {
 
     const result = {
       markers: allMarkers.slice(0, 500), // Limit markers for performance
-      events: allEvents.slice(0, 100),   // Only send top 100 recent events
+      events: allEvents.slice(0, 150),   // Increased limit for feed
       markerCount: Math.min(allMarkers.length, 500),
-      eventCount: Math.min(allEvents.length, 100),
+      eventCount: Math.min(allEvents.length, 150),
       source: gdelt.live ? 'db+gdelt+osint' : 'db+osint_curated',
       status: 'live',
       lastUpdated: new Date().toISOString(),
