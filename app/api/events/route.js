@@ -160,8 +160,23 @@ export async function GET(request) {
       count: 1, curated: true,
     }));
 
-    // Merge: GDELT live markers + curated intel
-    const allMarkers = [...gdelt.markers, ...curatedMarkers];
+    // Extract markers from allEvents (DB + GDELT) that have coordinates
+    const dbMarkers = allEvents
+      .filter(e => e.lat && e.lon)
+      .map(e => ({
+        id: `db-${e.id}`,
+        lat: e.lat,
+        lon: e.lon,
+        name: e.title,
+        category: e.category,
+        severity: e.severity,
+        url: e.url,
+        count: 1,
+        fromDb: true
+      }));
+
+    // Merge: GDELT live markers + curated intel + DB events
+    const allMarkers = [...gdelt.markers, ...curatedMarkers, ...dbMarkers];
 
     // Fetch historical events from DB for this timespan
     const dbEvents = await getEvents(timespan);
