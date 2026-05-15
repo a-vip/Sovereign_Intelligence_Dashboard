@@ -139,10 +139,9 @@ export default function EventDetailsWindow({ event, onClose }) {
         </h2>
 
         {/* Meta Info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            {event.location || 'Global / OSINT'}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontSize: '0.85rem', color: '#94a3b8' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          {event.location || 'Global / OSINT'}
         </div>
 
         {/* Escalation Probability Bar (Monitor-the-Situation style) */}
@@ -232,7 +231,6 @@ export default function EventDetailsWindow({ event, onClose }) {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
