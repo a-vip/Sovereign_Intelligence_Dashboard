@@ -195,3 +195,54 @@ export async function GET(request) {
   }
 }
 
+export async function POST(request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+    
+    // Validate against environment variable
+    if (!token || token !== process.env.DASHBOARD_API_TOKEN) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const data = await request.json();
+    const events = data.events || [];
+
+    if (events.length === 0) {
+      return NextResponse.json({ message: 'No events to save' });
+    }
+
+    // Initialize DB if needed
+    if (!dbInitialized) {
+      await initDb();
+      dbInitialized = true;
+    }
+
+    // Map OSINT events to dashboard format
+    const formattedEvents = events.map(e => ({
+      id: e.id || generateId(e.url, e.title),
+      title: e.title,
+      url: e.url,
+      source: e.source || 'Obsidian Vault',
+      timestamp: e.timestamp || new Date().toISOString(),
+      category: e.category || categorize(e.title),
+      severity: e.severity || scoreSeverity(e.title),
+      lat: e.lat || null,
+      lon: e.lon || null,
+      details: e.details || {}
+    }));
+
+    await saveEvents(formattedEvents);
+    
+    // Clear cache to show new data
+    cache = {};
+
+    return NextResponse.json({ 
+      message: 'Events ingested successfully', 
+      count: formattedEvents.length 
+    });
+  } catch (err) {
+    console.error('Ingestion Error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
