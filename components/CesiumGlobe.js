@@ -53,7 +53,9 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
 
     // Initialize clean viewer optimized for dark cyber dashboard
     const viewer = new Cesium.Viewer(containerRef.current, {
-      imageryProvider: false,
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}' // Google hybrid satellite tiles as base
+      }),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -64,7 +66,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       animation: false,
-      requestRenderMode: true,
+      requestRenderMode: false, // Prevent flashing/disappearing points by rendering continuously
       fullscreenButton: false,
       vrButton: false,
     });
@@ -79,7 +81,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       }));
 
       // Hide default low-res globe to display 3D terrain
-      viewer.scene.globe.show = false;
+      viewer.scene.globe.show = true; // Show base globe satellite imagery
       
       // Set premium initial viewpoint (zoomed out showing the full globe mesh)
       viewer.camera.setView({
@@ -225,7 +227,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     });
 
     // Request render update in Cesium engine
-    viewer.scene.requestRender();
+    // Handled automatically by continuous rendering
   }, [cesiumLoaded, displayedMarkers]);
 
   return (
