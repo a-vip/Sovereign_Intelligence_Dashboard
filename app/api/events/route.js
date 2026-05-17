@@ -75,7 +75,11 @@ function getCountryCoords(country, title = '') {
   let resolvedLocation = '';
 
   // 1. High-Fidelity City & Region Geolocation Scanner (Explicit Title Matches)
-  if (t.includes('gaza') || t.includes('rafah') || t.includes('khan younis')) { baseCoords = { lat: 31.35, lon: 34.30 }; resolvedLocation = 'Gaza Strip'; }
+  if (t.includes('mcallen')) { baseCoords = { lat: 26.2034, lon: -98.2300 }; resolvedLocation = 'McAllen, Texas, USA'; }
+  else if (t.includes('irwin county')) { baseCoords = { lat: 31.5975, lon: -83.2505 }; resolvedLocation = 'Irwin County, Georgia, USA'; }
+  else if (t.includes('adelanto')) { baseCoords = { lat: 34.5828, lon: -117.4092 }; resolvedLocation = 'Adelanto, California, USA'; }
+  else if (t.includes('eloy')) { baseCoords = { lat: 32.7559, lon: -111.5543 }; resolvedLocation = 'Eloy, Arizona, USA'; }
+  else if (t.includes('gaza') || t.includes('rafah') || t.includes('khan younis')) { baseCoords = { lat: 31.35, lon: 34.30 }; resolvedLocation = 'Gaza Strip'; }
   else if (t.includes('jerusalem') || t.includes('ramallah') || t.includes('west bank')) { baseCoords = { lat: 31.7683, lon: 35.2137 }; resolvedLocation = 'Jerusalem / West Bank'; }
   else if (t.includes('tel aviv') || t.includes('haifa') || t.includes('ben gurion')) { baseCoords = { lat: 32.0853, lon: 34.7818 }; resolvedLocation = 'Tel Aviv, Israel'; }
   else if (t.includes('beirut') || t.includes('sidon') || t.includes('tyre')) { baseCoords = { lat: 33.8938, lon: 35.5018 }; resolvedLocation = 'Beirut, Lebanon'; }
@@ -97,7 +101,30 @@ function getCountryCoords(country, title = '') {
   else if (t.includes('taipei') || t.includes('taiwan')) { baseCoords = { lat: 25.0330, lon: 121.5654 }; resolvedLocation = 'Taipei, Taiwan'; }
   else if (t.includes('israel') || t.includes('gaza') || t.includes('palestine')) { baseCoords = { lat: 31.0461, lon: 34.8516 }; resolvedLocation = 'Israel/Palestine'; }
 
-  // 2. High-Precision Title-Based Country Name Match (Traps global articles reporting specific countries)
+  // 2. High-Precision US States Title Geocoder (MUST execute before general US keywords to prevent stacks/clusters in Kansas!)
+  if (!baseCoords) {
+    if (t.includes('texas') || hasWord(t, 'tx')) { baseCoords = { lat: 31.9686, lon: -99.9018 }; resolvedLocation = 'Texas, USA'; }
+    else if (t.includes('california') || hasWord(t, 'ca')) { baseCoords = { lat: 36.7783, lon: -119.4179 }; resolvedLocation = 'California, USA'; }
+    else if (t.includes('arizona') || hasWord(t, 'az')) { baseCoords = { lat: 34.0489, lon: -111.0937 }; resolvedLocation = 'Arizona, USA'; }
+    else if (t.includes('georgia') || hasWord(t, 'ga')) { baseCoords = { lat: 32.1656, lon: -82.9001 }; resolvedLocation = 'Georgia, USA'; }
+    else if (t.includes('new york') || hasWord(t, 'ny')) { baseCoords = { lat: 43.2994, lon: -74.2179 }; resolvedLocation = 'New York, USA'; }
+    else if (t.includes('washington') || hasWord(t, 'dc') || hasWord(t, 'd.c.')) { baseCoords = { lat: 38.9072, lon: -77.0369 }; resolvedLocation = 'Washington D.C., USA'; }
+    else if (t.includes('florida') || hasWord(t, 'fl')) { baseCoords = { lat: 27.6648, lon: -81.5158 }; resolvedLocation = 'Florida, USA'; }
+    else if (t.includes('illinois') || hasWord(t, 'il')) { baseCoords = { lat: 40.6331, lon: -89.3985 }; resolvedLocation = 'Illinois, USA'; }
+    else if (t.includes('pennsylvania') || hasWord(t, 'pa')) { baseCoords = { lat: 41.2033, lon: -77.1945 }; resolvedLocation = 'Pennsylvania, USA'; }
+    else if (t.includes('ohio') || hasWord(t, 'oh')) { baseCoords = { lat: 40.4173, lon: -82.9071 }; resolvedLocation = 'Ohio, USA'; }
+    else if (t.includes('michigan') || hasWord(t, 'mi')) { baseCoords = { lat: 44.3148, lon: -85.6024 }; resolvedLocation = 'Michigan, USA'; }
+    else if (t.includes('north carolina') || hasWord(t, 'nc')) { baseCoords = { lat: 35.7596, lon: -79.0193 }; resolvedLocation = 'North Carolina, USA'; }
+    else if (t.includes('south carolina') || hasWord(t, 'sc')) { baseCoords = { lat: 33.8361, lon: -81.1637 }; resolvedLocation = 'South Carolina, USA'; }
+    else if (t.includes('virginia') || hasWord(t, 'va')) { baseCoords = { lat: 37.4316, lon: -78.6569 }; resolvedLocation = 'Virginia, USA'; }
+    else if (t.includes('maryland') || hasWord(t, 'md')) { baseCoords = { lat: 39.0458, lon: -76.6413 }; resolvedLocation = 'Maryland, USA'; }
+    else if (t.includes('massachusetts') || hasWord(t, 'ma')) { baseCoords = { lat: 42.4072, lon: -71.8157 }; resolvedLocation = 'Massachusetts, USA'; }
+    else if (t.includes('colorado') || hasWord(t, 'co')) { baseCoords = { lat: 39.5501, lon: -105.7821 }; resolvedLocation = 'Colorado, USA'; }
+    else if (t.includes('utah') || hasWord(t, 'ut')) { baseCoords = { lat: 39.3210, lon: -111.0937 }; resolvedLocation = 'Utah, USA'; }
+    else if (t.includes('oregon') || hasWord(t, 'or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
+  }
+
+  // 3. High-Precision Title-Based Country Name Match (Traps global articles reporting specific countries)
   if (!baseCoords) {
     if (t.includes('egypt')) { baseCoords = { lat: 26.8206, lon: 30.8025 }; resolvedLocation = 'Egypt'; }
     else if (t.includes('angola')) { baseCoords = { lat: -11.2027, lon: 17.8739 }; resolvedLocation = 'Angola'; }
@@ -200,10 +227,9 @@ function getCountryCoords(country, title = '') {
     else if (t.includes('panama')) { baseCoords = { lat: 8.5380, lon: -80.7821 }; resolvedLocation = 'Panama'; }
     else if (t.includes('solomon islands')) { baseCoords = { lat: -9.6457, lon: 160.1562 }; resolvedLocation = 'Solomon Islands'; }
     else if (t.includes('united states') || hasWord(t, 'us') || hasWord(t, 'usa') || t.includes('trump') || t.includes('hegseth') || t.includes('biden') || t.includes('white house') || t.includes('pentagon') || t.includes('congress') || t.includes('dnc') || t.includes('rnc') || t.includes('senate') || t.includes('supreme court') || t.includes('fbi') || t.includes('cia') || t.includes('nsa') || t.includes('dhs') || t.includes('ice') || t.includes('american') || t.includes('america')) { baseCoords = { lat: 37.0902, lon: -95.7129 }; resolvedLocation = 'United States'; }
-
   }
 
-  // 3. Country-Code Secondary Fallback Match (Only if title did NOT specify any country keywords)
+  // 4. Country-Code Secondary Fallback Match (Only if title did NOT specify any country keywords)
   if (!baseCoords) {
     if (c === 'jp') { baseCoords = { lat: 36.2048, lon: 138.2529 }; resolvedLocation = 'Japan'; }
     else if (c === 'de') { baseCoords = { lat: 51.1657, lon: 10.4515 }; resolvedLocation = 'Germany'; }
@@ -332,7 +358,7 @@ function getCountryCoords(country, title = '') {
     else if (t.includes('oregon') || hasWord(t, 'or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
   }
 
-  // 4. Smart Fallbacks (Only if no specific state or country was matched above!)
+  // Smart Fallbacks (Only if no specific state or country was matched above!)
   if (!baseCoords) {
     if (t.includes('surveillance') || t.includes('security') || c.includes('wired') || c.includes('eff')) {
       baseCoords = { lat: 37.0902, lon: -95.7129 };
@@ -578,6 +604,19 @@ export async function GET(request) {
 
       if (urlNorm) seenEventUrls.add(urlNorm);
       if (titleNorm) seenEventTitles.add(titleNorm);
+
+      // Make details and summary neat and concise to save pagespeed/bandwidth
+      if (e.details) {
+        e.details = { ...e.details };
+        if (typeof e.details.summary === 'string') {
+          let cleanSummary = e.details.summary.replace(/\s+/g, ' ').trim();
+          if (cleanSummary.length > 280) {
+            cleanSummary = cleanSummary.substring(0, 277) + '...';
+          }
+          e.details.summary = cleanSummary;
+        }
+      }
+
       allEvents.push(e);
     });
 
