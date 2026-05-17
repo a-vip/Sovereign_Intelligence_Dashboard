@@ -7,7 +7,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('operator');
+  const [role, setRole] = useState('researcher');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -160,7 +160,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
           margin: '0 0 24px 0',
           fontFamily: 'Courier New, monospace'
         }}>
-          [ SECURITY CLEARANCE LEVEL: ANALYST ]
+          [ SOVEREIGN INTELLIGENCE PLATFORM ]
         </p>
 
         {/* Switch Tabs */}
@@ -287,13 +287,13 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                 {/* Full Name */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Operator Identity
+                    Full Name
                   </label>
                   <div style={{ position: 'relative' }}>
                     <User size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
                     <input
                       type="text"
-                      placeholder="e.g. John Miller"
+                      placeholder="e.g. Jane Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -317,7 +317,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                 {/* Role / Assignment */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Mission Deployment Role
+                    Role
                   </label>
                   <select
                     value={role}
@@ -337,10 +337,12 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                     onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
                     onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
                   >
-                    <option value="analyst">SIGINT Analyst</option>
-                    <option value="investigator">LAWS Threat Investigator</option>
+                    <option value="researcher">Researcher</option>
+                    <option value="student">Student</option>
                     <option value="observer">Human Rights Observer</option>
-                    <option value="responder">Crisis Operations Operator</option>
+                    <option value="civilian">Civilian</option>
+                    <option value="military">Military/Government</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
               </>
@@ -349,13 +351,13 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
             {/* Email Address */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Secure Channel Email
+                Email Address
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
                 <input
                   type="email"
-                  placeholder="operator@sovereign.intel"
+                  placeholder="e.g. jane@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -380,14 +382,14 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                  Secure Access Code
+                  Password
                 </label>
               </div>
               <div style={{ position: 'relative' }}>
                 <Key size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -463,7 +465,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                 }
               }}
             >
-              {loading ? 'AUTHORIZING...' : isRegister ? 'GRANT ACCESS' : 'AUTHENTICATE'}
+              {loading ? 'PROCESSING...' : isRegister ? 'REGISTER' : 'AUTHENTICATE'}
               {!loading && <ChevronRight size={16} />}
             </button>
           </form>

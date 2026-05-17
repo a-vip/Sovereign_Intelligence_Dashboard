@@ -144,7 +144,7 @@ export default function DashboardPage() {
                 animation: 'pulse 2s infinite'
               }} />
               <span>
-                OPERATOR: <strong style={{ color: '#ffffff' }}>{currentUser.fullName}</strong> ({currentUser.role.toUpperCase()})
+                USER: <strong style={{ color: '#ffffff' }}>{currentUser.fullName}</strong> ({currentUser.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : ''})
               </span>
               <button 
                 onClick={handleLogout}
@@ -160,7 +160,7 @@ export default function DashboardPage() {
                   marginLeft: '4px',
                   transition: 'all 0.2s'
                 }}
-                title="Disconnect Operator Session"
+                title="Logout Session"
                 onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
                 onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.7)'}
               >

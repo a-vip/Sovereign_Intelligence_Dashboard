@@ -1,21 +1,10 @@
 'use client';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { SATELLITES_DATABASE } from '@/lib/satellitesData';
-import { propagateSatellite, generateOrbitPath } from '@/lib/satellitesPropagator';
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-export default function CesiumGlobe({ 
-  displayedMarkers = [], 
-  onPointClick = null, 
-  mapMode = '2d', 
-  mapStyle = 'satellite',
-  selectedSatellite = null,
-  onSatelliteSelect = null,
-  isCameraLocked = false,
-  showSatellites = true
-}) {
+export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '2d', mapStyle = 'satellite' }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const tilesetRef = useRef(null);
@@ -32,11 +21,6 @@ export default function CesiumGlobe({
   useEffect(() => {
     onPointClickRef.current = onPointClick;
   }, [onPointClick]);
-
-  const onSatelliteSelectRef = useRef(onSatelliteSelect);
-  useEffect(() => {
-    onSatelliteSelectRef.current = onSatelliteSelect;
-  }, [onSatelliteSelect]);
 
   // Pre-calculate repelled coordinates to prevent overlapping clusters on both maps!
   const repelledMarkers = useMemo(() => {
@@ -252,14 +236,12 @@ export default function CesiumGlobe({
       // Hover pick handler to show labels & pointer cursor
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.endPosition);
-        if (Cesium.defined(pickedObject) && pickedObject.id) {
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.label) {
           document.body.style.cursor = 'pointer';
           viewer.entities.values.forEach(entity => {
             if (entity.label) entity.label.show = false;
           });
-          if (pickedObject.id.label) {
-            pickedObject.id.label.show = true;
-          }
+          pickedObject.id.label.show = true;
         } else {
           document.body.style.cursor = 'default';
           viewer.entities.values.forEach(entity => {
@@ -268,27 +250,13 @@ export default function CesiumGlobe({
         }
       }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-      // Left-click pick handler to select threat event details or active satellites
+      // Left-click pick handler to select threat event details
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.position);
-        if (Cesium.defined(pickedObject) && pickedObject.id) {
-          const id = pickedObject.id;
-          
-          // 1. Check if clicked object is an active satellite
-          if (id.properties && id.properties.isSatellite) {
-            const satData = id.properties.satelliteData;
-            if (onSatelliteSelectRef.current) {
-              onSatelliteSelectRef.current(satData);
-            }
-            return;
-          }
-          
-          // 2. Standard threat marker event details click
-          if (id.properties) {
-            const metadata = id.properties.getValue(Cesium.JulianDate.now());
-            if (onPointClickRef.current && metadata) {
-              onPointClickRef.current(metadata);
-            }
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
+          const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
+          if (onPointClickRef.current && metadata) {
+            onPointClickRef.current(metadata);
           }
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -309,159 +277,6 @@ export default function CesiumGlobe({
       setMapError(true);
     }
   }, [mapError]);
-
-  // 3.1. Render active satellites and register dynamic 60 FPS clock update tick listener
-  useEffect(() => {
-    if (mapError || !viewerRef.current) return;
-    const viewer = viewerRef.current;
-    const Cesium = window.Cesium;
-    if (!Cesium) return;
-
-    // Create 3D points & faint orbit paths for all satellites once on boot
-    const satEntities = SATELLITES_DATABASE.map(sat => {
-      const now = Date.now();
-      const initialPos = propagateSatellite(sat, now);
-      
-      const orbitCartesians = generateOrbitPath(sat, now).map(
-        p => new Cesium.Cartesian3(p.x, p.y, p.z)
-      );
-
-      const pathEntity = viewer.entities.add({
-        id: `orbit-path-${sat.id}`,
-        polyline: {
-          positions: orbitCartesians,
-          width: 1.5,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.1,
-            color: Cesium.Color.fromCssColorString(sat.color).withAlpha(0.2)
-          }),
-          show: false // Show strictly only if selected
-        }
-      });
-
-      const pointEntity = viewer.entities.add({
-        id: `sat-${sat.id}`,
-        name: sat.name,
-        show: showSatellites,
-        position: new Cesium.Cartesian3(initialPos.position.x, initialPos.position.y, initialPos.position.z),
-        point: {
-          pixelSize: 9,
-          color: Cesium.Color.fromCssColorString(sat.color),
-          outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 1.5,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY // Bypass Earth occlusion so satellites show through the globe
-        },
-        label: {
-          text: `${sat.name}\n[${sat.cospar} // ${sat.norad}]`,
-          font: 'bold 8pt monospace',
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 2,
-          pixelOffset: new Cesium.Cartesian2(0, -18),
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          showBackground: true,
-          backgroundColor: Cesium.Color.fromCssColorString('#020617').withAlpha(0.8),
-          backgroundPadding: new Cesium.Cartesian2(6, 4),
-          show: false
-        },
-        properties: {
-          isSatellite: true,
-          satelliteData: sat
-        }
-      });
-
-      return { sat, pointEntity, pathEntity };
-    });
-
-    // Clock listener updates dynamic ECEF positions at 60 FPS
-    const removeTickListener = viewer.clock.onTick.addEventListener(() => {
-      const now = Date.now();
-      satEntities.forEach(({ sat, pointEntity }) => {
-        const propagated = propagateSatellite(sat, now);
-        const newPos = new Cesium.Cartesian3(propagated.position.x, propagated.position.y, propagated.position.z);
-        pointEntity.position.setValue(newPos);
-      });
-    });
-
-    return () => {
-      removeTickListener();
-      if (!viewer.isDestroyed()) {
-        satEntities.forEach(({ pointEntity, pathEntity }) => {
-          viewer.entities.remove(pointEntity);
-          viewer.entities.remove(pathEntity);
-        });
-      }
-    };
-  }, [mapError]);
-
-  // 3.2. Handle selected satellite orbit path highlight and camera tracking lock
-  useEffect(() => {
-    if (mapError || !viewerRef.current) return;
-    const viewer = viewerRef.current;
-    const Cesium = window.Cesium;
-    if (!Cesium) return;
-
-    SATELLITES_DATABASE.forEach(sat => {
-      const pathEntity = viewer.entities.getById(`orbit-path-${sat.id}`);
-      if (pathEntity && pathEntity.polyline) {
-        const isSelected = selectedSatellite && selectedSatellite.id === sat.id;
-        pathEntity.polyline.show = showSatellites && isSelected;
-        
-        if (isSelected) {
-          pathEntity.polyline.width = 2.8;
-          pathEntity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.28,
-            color: Cesium.Color.fromCssColorString(sat.color)
-          });
-        }
-      }
-    });
-
-    if (showSatellites && selectedSatellite && isCameraLocked) {
-      const satEntity = viewer.entities.getById(`sat-${selectedSatellite.id}`);
-      if (satEntity) {
-        viewer.trackedEntity = satEntity;
-      }
-    } else {
-      viewer.trackedEntity = undefined;
-    }
-
-    return () => {
-      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-        viewerRef.current.trackedEntity = undefined;
-      }
-    };
-  }, [selectedSatellite, isCameraLocked, showSatellites, mapError]);
-
-  // 3.3. React to live satellite layer toggle changes dynamically in real time
-  useEffect(() => {
-    if (mapError || !viewerRef.current) return;
-    const viewer = viewerRef.current;
-    const Cesium = window.Cesium;
-    if (!Cesium) return;
-
-    SATELLITES_DATABASE.forEach(sat => {
-      const pointEntity = viewer.entities.getById(`sat-${sat.id}`);
-      const pathEntity = viewer.entities.getById(`orbit-path-${sat.id}`);
-
-      if (pointEntity) {
-        pointEntity.show = showSatellites;
-        if (pointEntity.label) {
-          pointEntity.label.show = false;
-        }
-      }
-      if (pathEntity && pathEntity.polyline) {
-        const isSelected = selectedSatellite && selectedSatellite.id === sat.id;
-        pathEntity.polyline.show = showSatellites && isSelected;
-      }
-    });
-
-    if (!showSatellites) {
-      viewer.trackedEntity = undefined;
-    }
-  }, [showSatellites, selectedSatellite, mapError]);
 
   // 4. Handle Google 3D Tileset loading and visibility based on Map Mode
   useEffect(() => {
