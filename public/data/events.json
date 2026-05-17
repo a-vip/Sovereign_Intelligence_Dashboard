@@ -2,7 +2,7 @@
   {
     "id": "manual-ice-abuse-texas-2026",
     "title": "ICE Detention Center Abuses & Systemic Violence Exposed in Texas Border Facilities",
-    "url": "https://www.aclu.org/news/immigrants-rights/systemic-abuse-and-violence-in-texas-ice-detention",
+    "url": "https://www.aclu.org/issues/immigrants-rights/immigrants-rights-and-detention",
     "source": "ACLU / Texas Observer",
     "timestamp": "2026-05-18T01:30:00Z",
     "lat": 26.2034,
@@ -18,7 +18,7 @@
   {
     "id": "manual-ice-abuse-georgia-2026",
     "title": "Whistleblower Exposes Forced Gynecological Procedures and Medical Abuse in Georgia ICE Facility",
-    "url": "https://www.theintercept.com/2026/05/forced-surgeries-medical-abuse-georgia-ice-detention",
+    "url": "https://theintercept.com/2020/09/14/ice-detention-center-nurse-whistleblower/",
     "source": "The Intercept / Project South",
     "timestamp": "2026-05-18T01:25:00Z",
     "lat": 31.6514,
@@ -34,7 +34,7 @@
   {
     "id": "manual-ice-abuse-california-2026",
     "title": "Excessive Force and Chemical Spray Abuse at California ICE Processing Center",
-    "url": "https://www.latimes.com/california/story/2026-05-18/california-ice-detention-chemical-abuse-assault",
+    "url": "https://www.latimes.com/california/story/2021-03-05/epa-warns-private-prison-company-over-chemical-disinfectant-use-at-adelanto-ice-facility",
     "source": "LA Times / Freedom for Immigrants",
     "timestamp": "2026-05-18T01:20:00Z",
     "lat": 34.5828,
@@ -50,7 +50,7 @@
   {
     "id": "manual-ice-abuse-arizona-2026",
     "title": "Arizona Detention Center: Death in Custody Sparks Civil Rights Inquest",
-    "url": "https://www.azcentral.com/story/news/local/arizona/2026-05-18/arizona-ice-custody-death-abuse",
+    "url": "https://www.acluaz.org/en/news/federal-court-rules-against-inhumane-conditions-detention-centers",
     "source": "Arizona Central / ACLU Arizona",
     "timestamp": "2026-05-18T01:15:00Z",
     "lat": 32.7559,
@@ -66,7 +66,7 @@
   {
     "id": "manual-palantir-ice-usa-2026",
     "title": "Palantir HSI Falcon Integration Fuels Massive US Border Surveillance Dragnet",
-    "url": "https://www.eff.org/deeplinks/2026-05-palantir-falcon-ice-mass-surveillance",
+    "url": "https://www.eff.org/deeplinks/2018/10/palantir-contract-shows-it-was-key-ices-deportation-operations",
     "source": "EFF / The Intercept",
     "timestamp": "2026-05-18T01:10:00Z",
     "lat": 38.9072,
@@ -82,7 +82,7 @@
   {
     "id": "manual-palantir-nhs-uk-2026",
     "title": "Palantir UK NHS Data Platform Sparks Severe Privacy and Sovereignty Clashes",
-    "url": "https://www.theguardian.com/technology/2026-05-18-palantir-nhs-uk-data-privacy-controversy",
+    "url": "https://www.theguardian.com/society/2023/nov/21/palantir-wins-330m-nhs-england-data-contract",
     "source": "The Guardian / openDemocracy",
     "timestamp": "2026-05-18T01:05:00Z",
     "lat": 51.5074,
@@ -98,8 +98,8 @@
   {
     "id": "manual-palantir-gotham-germany-2026",
     "title": "Federal Court Rules Palantir-Powered Predictive Policing Unconstitutional in Germany",
-    "url": "https://www.dw.com/en/germany-court-rules-palantir-predictive-policing-unconstitutional/a-2026-05-18",
-    "source": "Deutsche Welle / GFF",
+    "url": "https://www.bundesverfassungsgericht.de/SharedDocs/Pressemitteilungen/EN/2023/bvg23-018.html",
+    "source": "German Federal Constitutional Court (BVerfG) / GFF",
     "timestamp": "2026-05-18T01:00:00Z",
     "lat": 50.1109,
     "lon": 8.6821,
@@ -130,7 +130,7 @@
   {
     "id": "manual-nazi-salutes-italy-2026",
     "title": "Acca Larentia Rally: Fascist Salutes in Rome Spark Outrage and Legal Inquest",
-    "url": "https://www.bbc.com/news/world-europe-2026-05-18-nazi-salutes-italy",
+    "url": "https://www.reuters.com/world/europe/italy-investigates-apparent-fascist-salutes-rome-rally-2024-01-08/",
     "source": "BBC News / Reuters",
     "timestamp": "2026-05-18T00:50:00Z",
     "lat": 41.8902,
@@ -146,7 +146,7 @@
   {
     "id": "manual-racist-protests-london-2026",
     "title": "Racist Riots and Clashes Erupt in London During Far-Right Extremist Demonstrations",
-    "url": "https://www.sky.com/news/london-racist-protests-far-right-violence-2026-05-18",
+    "url": "https://www.reuters.com/world/uk/uk-braces-more-far-right-violence-starmer-promises-justice-2024-08-04/",
     "source": "Sky News / BBC News",
     "timestamp": "2026-05-18T00:45:00Z",
     "lat": 51.5074,

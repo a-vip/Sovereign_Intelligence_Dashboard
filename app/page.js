@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Shield, RefreshCw } from 'lucide-react';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
+import AsciiGlobe from '@/components/AsciiGlobe';
 
 const POLL_INTERVAL = 30000; // 30 seconds live update
 
@@ -52,10 +53,16 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="loading-screen">
-        <div className="loading-ring" />
-        <div className="loading-text">Initializing Sovereign Intelligence</div>
-        <div className="loading-sub">Parsing vault data streams...</div>
+      <div className="loading-screen" style={{ gap: '24px' }}>
+        <div className="loading-globe-container" style={{ minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AsciiGlobe />
+        </div>
+        <div className="loading-text" style={{ textTransform: 'uppercase', letterSpacing: '2px', color: '#10b981', textShadow: '0 0 10px rgba(16, 185, 129, 0.4)' }}>
+          Initializing Sovereign Intelligence
+        </div>
+        <div className="loading-sub" style={{ fontFamily: 'Courier New, monospace', color: 'rgba(16, 185, 129, 0.6)' }}>
+          [ SIGNAL LOCK ACQUIRED // PARSING VAULT DATA STREAMS ]
+        </div>
       </div>
     );
   }
