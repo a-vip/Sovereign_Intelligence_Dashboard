@@ -667,3 +667,15 @@ body {
 @media (max-width: 600px) {
   .metrics-grid { grid-template-columns: 1fr; }
 }
+
+/* Premium Leaflet Tooltip Custom Overrides */
+.leaflet-tooltip-custom {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.leaflet-tooltip-custom::before {
+  display: none !important; /* Hide default white pointing arrow */
+}

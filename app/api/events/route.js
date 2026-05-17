@@ -127,10 +127,10 @@ function getCountryCoords(country, title = '') {
   } else if (t.includes('new york') || t.includes('manhattan')) {
     baseCoords = { lat: 40.7128, lon: -74.0060 };
     resolvedLocation = 'New York City, USA';
-  } else if (t.includes('tokyo') || c === 'jp') {
+  } else if (t.includes('tokyo') || t.includes('japan') || c === 'jp') {
     baseCoords = { lat: 35.6762, lon: 139.6503 };
     resolvedLocation = 'Tokyo, Japan';
-  } else if (t.includes('beijing') || c === 'cn') {
+  } else if (t.includes('beijing') || t.includes('china') || c === 'cn') {
     baseCoords = { lat: 39.9042, lon: 116.4074 };
     resolvedLocation = 'Beijing, China';
   } else if (t.includes('taipei') || t.includes('taiwan')) {
@@ -141,43 +141,69 @@ function getCountryCoords(country, title = '') {
     resolvedLocation = 'Israel/Palestine';
   }
 
-  // 2. Geopolitical Hotzones Country Fallbacks (if specific city not scanned)
+  // 2. Precise Country-Level Classifiers (if specific city not already scanned)
   if (!baseCoords) {
-    if (c === 'ua') { baseCoords = { lat: 48.3794, lon: 31.1656 }; resolvedLocation = 'Ukraine'; }
-    else if (c === 'ye' || t.includes('yemen')) { baseCoords = { lat: 15.5527, lon: 48.5164 }; resolvedLocation = 'Yemen'; }
-    else if (c === 'ir' || t.includes('iran')) { baseCoords = { lat: 32.4279, lon: 53.6880 }; resolvedLocation = 'Iran'; }
-    else if (c === 'iq' || t.includes('iraq')) { baseCoords = { lat: 33.2232, lon: 43.6793 }; resolvedLocation = 'Iraq'; }
-    else if (c === 'sa' || t.includes('saudi')) { baseCoords = { lat: 23.8859, lon: 45.0792 }; resolvedLocation = 'Saudi Arabia'; }
-    else if (c === 'kr' || c === 'kp' || t.includes('korea')) { baseCoords = { lat: 38.0, lon: 127.5 }; resolvedLocation = 'Korea Peninsula'; }
-    else if (c === 'in' || t.includes('india')) { baseCoords = { lat: 20.5937, lon: 78.9629 }; resolvedLocation = 'India'; }
-    else if (c === 'td' || t.includes('chad')) { baseCoords = { lat: 15.4542, lon: 18.7322 }; resolvedLocation = 'Chad'; }
-    else if (c === 'cd' || t.includes('congo') || t.includes('drc')) { baseCoords = { lat: -4.0383, lon: 21.7587 }; resolvedLocation = 'Dem. Rep. Congo'; }
-    else if (c === 'ly' || t.includes('libya')) { baseCoords = { lat: 26.3351, lon: 17.2283 }; resolvedLocation = 'Libya'; }
-    else if (c === 've' || t.includes('venezuela')) { baseCoords = { lat: 6.4238, lon: -66.5897 }; resolvedLocation = 'Venezuela'; }
-    else if (c === 'tn' || t.includes('tunisia')) { baseCoords = { lat: 33.8869, lon: 9.5375 }; resolvedLocation = 'Tunisia'; }
-    else if (c === 'za' || t.includes('south africa')) { baseCoords = { lat: -30.5595, lon: 22.9375 }; resolvedLocation = 'South Africa'; }
-    else if (c === 'eg' || t.includes('egypt')) { baseCoords = { lat: 26.8206, lon: 30.8025 }; resolvedLocation = 'Egypt'; }
-    else if (c === 'tr' || t.includes('turkey')) { baseCoords = { lat: 38.9637, lon: 35.2433 }; resolvedLocation = 'Turkey'; }
-    else if (c === 'mx' || t.includes('mexico')) { baseCoords = { lat: 23.6345, lon: -102.5528 }; resolvedLocation = 'Mexico'; }
-    else if (c === 'pk' || t.includes('pakistan')) { baseCoords = { lat: 30.3753, lon: 69.3451 }; resolvedLocation = 'Pakistan'; }
-    else if (c === 'af' || t.includes('afghanistan')) { baseCoords = { lat: 33.9391, lon: 67.7100 }; resolvedLocation = 'Afghanistan'; }
-    else if (c === 'ch' || t.includes('switzerland')) { baseCoords = { lat: 46.8182, lon: 8.2275 }; resolvedLocation = 'Switzerland'; }
-    else if (c === 'se' || t.includes('sweden')) { baseCoords = { lat: 60.1282, lon: 18.6435 }; resolvedLocation = 'Sweden'; }
-    else if (c === 'no' || t.includes('norway')) { baseCoords = { lat: 60.4720, lon: 8.4689 }; resolvedLocation = 'Norway'; }
-    else if (c === 'it' || t.includes('italy')) { baseCoords = { lat: 41.8719, lon: 12.5674 }; resolvedLocation = 'Italy'; }
-    else if (c === 'es' || t.includes('spain')) { baseCoords = { lat: 40.4637, lon: -3.7492 }; resolvedLocation = 'Spain'; }
-    else if (c === 'ph' || t.includes('philippines')) { baseCoords = { lat: 12.8797, lon: 121.7740 }; resolvedLocation = 'Philippines'; }
-    else if (c === 'id' || t.includes('indonesia')) { baseCoords = { lat: -0.7893, lon: 113.9213 }; resolvedLocation = 'Indonesia'; }
-    else if (c === 'co' || t.includes('colombia')) { baseCoords = { lat: 4.5709, lon: -72.9566 }; resolvedLocation = 'Colombia'; }
-    else if (c === 'sd' || t.includes('sudan')) { baseCoords = { lat: 12.8628, lon: 30.2176 }; resolvedLocation = 'Sudan'; }
-    else if (c === 'so' || t.includes('somalia')) { baseCoords = { lat: 5.1521, lon: 46.1996 }; resolvedLocation = 'Somalia'; }
-    else if (c === 'ke' || t.includes('kenya')) { baseCoords = { lat: -1.2921, lon: 36.8219 }; resolvedLocation = 'Kenya'; }
-    else if (c === 'ng' || t.includes('nigeria')) { baseCoords = { lat: 9.0820, lon: 8.6753 }; resolvedLocation = 'Nigeria'; }
+    if (t.includes('japan') || c === 'jp') { baseCoords = { lat: 36.2048, lon: 138.2529 }; resolvedLocation = 'Japan'; }
+    else if (t.includes('germany') || c === 'de') { baseCoords = { lat: 51.1657, lon: 10.4515 }; resolvedLocation = 'Germany'; }
+    else if (t.includes('france') || c === 'fr') { baseCoords = { lat: 46.2276, lon: 2.2137 }; resolvedLocation = 'France'; }
+    else if (t.includes('united kingdom') || t.includes('britain') || c === 'uk' || c === 'gb') { baseCoords = { lat: 55.3781, lon: -3.4360 }; resolvedLocation = 'United Kingdom'; }
+    else if (t.includes('canada') || c === 'ca') { baseCoords = { lat: 56.1304, lon: -106.3468 }; resolvedLocation = 'Canada'; }
+    else if (t.includes('italy') || c === 'it') { baseCoords = { lat: 41.8719, lon: 12.5674 }; resolvedLocation = 'Italy'; }
+    else if (t.includes('spain') || c === 'es') { baseCoords = { lat: 40.4637, lon: -3.7492 }; resolvedLocation = 'Spain'; }
+    else if (t.includes('switzerland') || c === 'ch') { baseCoords = { lat: 46.8182, lon: 8.2275 }; resolvedLocation = 'Switzerland'; }
+    else if (t.includes('sweden') || c === 'se') { baseCoords = { lat: 60.1282, lon: 18.6435 }; resolvedLocation = 'Sweden'; }
+    else if (t.includes('norway') || c === 'no') { baseCoords = { lat: 60.4720, lon: 8.4689 }; resolvedLocation = 'Norway'; }
+    else if (t.includes('ukraine') || c === 'ua') { baseCoords = { lat: 48.3794, lon: 31.1656 }; resolvedLocation = 'Ukraine'; }
+    else if (t.includes('yemen') || c === 'ye') { baseCoords = { lat: 15.5527, lon: 48.5164 }; resolvedLocation = 'Yemen'; }
+    else if (t.includes('iran') || c === 'ir') { baseCoords = { lat: 32.4279, lon: 53.6880 }; resolvedLocation = 'Iran'; }
+    else if (t.includes('iraq') || c === 'iq') { baseCoords = { lat: 33.2232, lon: 43.6793 }; resolvedLocation = 'Iraq'; }
+    else if (t.includes('saudi') || c === 'sa') { baseCoords = { lat: 23.8859, lon: 45.0792 }; resolvedLocation = 'Saudi Arabia'; }
+    else if (t.includes('india') || c === 'in') { baseCoords = { lat: 20.5937, lon: 78.9629 }; resolvedLocation = 'India'; }
+    else if (t.includes('australia') || c === 'au') { baseCoords = { lat: -25.2744, lon: 133.7751 }; resolvedLocation = 'Australia'; }
+    else if (t.includes('chad') || c === 'td') { baseCoords = { lat: 15.4542, lon: 18.7322 }; resolvedLocation = 'Chad'; }
+    else if (t.includes('congo') || t.includes('drc') || c === 'cd') { baseCoords = { lat: -4.0383, lon: 21.7587 }; resolvedLocation = 'Dem. Rep. Congo'; }
+    else if (t.includes('libya') || c === 'ly') { baseCoords = { lat: 26.3351, lon: 17.2283 }; resolvedLocation = 'Libya'; }
+    else if (t.includes('venezuela') || c === 've') { baseCoords = { lat: 6.4238, lon: -66.5897 }; resolvedLocation = 'Venezuela'; }
+    else if (t.includes('egypt') || c === 'eg') { baseCoords = { lat: 26.8206, lon: 30.8025 }; resolvedLocation = 'Egypt'; }
+    else if (t.includes('turkey') || c === 'tr') { baseCoords = { lat: 38.9637, lon: 35.2433 }; resolvedLocation = 'Turkey'; }
+    else if (t.includes('mexico') || c === 'mx') { baseCoords = { lat: 23.6345, lon: -102.5528 }; resolvedLocation = 'Mexico'; }
+    else if (t.includes('pakistan') || c === 'pk') { baseCoords = { lat: 30.3753, lon: 69.3451 }; resolvedLocation = 'Pakistan'; }
+    else if (t.includes('afghanistan') || c === 'af') { baseCoords = { lat: 33.9391, lon: 67.7100 }; resolvedLocation = 'Afghanistan'; }
+    else if (t.includes('philippines') || c === 'ph') { baseCoords = { lat: 12.8797, lon: 121.7740 }; resolvedLocation = 'Philippines'; }
+    else if (t.includes('indonesia') || c === 'id') { baseCoords = { lat: -0.7893, lon: 113.9213 }; resolvedLocation = 'Indonesia'; }
+    else if (t.includes('colombia') || c === 'co') { baseCoords = { lat: 4.5709, lon: -72.9566 }; resolvedLocation = 'Colombia'; }
+    else if (t.includes('sudan') || c === 'sd') { baseCoords = { lat: 12.8628, lon: 30.2176 }; resolvedLocation = 'Sudan'; }
+    else if (t.includes('somalia') || c === 'so') { baseCoords = { lat: 5.1521, lon: 46.1996 }; resolvedLocation = 'Somalia'; }
+    else if (t.includes('kenya') || c === 'ke') { baseCoords = { lat: -1.2921, lon: 36.8219 }; resolvedLocation = 'Kenya'; }
+    else if (t.includes('nigeria') || c === 'ng') { baseCoords = { lat: 9.0820, lon: 8.6753 }; resolvedLocation = 'Nigeria'; }
     else if (t.includes('south china sea')) { baseCoords = { lat: 12.0, lon: 113.0 }; resolvedLocation = 'South China Sea'; }
     else if (t.includes('europe') || t.includes('eu') || t.includes('brussels')) { baseCoords = { lat: 50.8503, lon: 4.3517 }; resolvedLocation = 'Brussels, EU'; }
   }
 
-  // 3. Smart Fallbacks
+  // 3. High-Fidelity US States Classifiers (to distribute US events accurately instead of stacking in Kansas)
+  if (!baseCoords) {
+    if (t.includes('texas') || t.includes('tx')) { baseCoords = { lat: 31.9686, lon: -99.9018 }; resolvedLocation = 'Texas, USA'; }
+    else if (t.includes('california') || t.includes('ca')) { baseCoords = { lat: 36.7783, lon: -119.4179 }; resolvedLocation = 'California, USA'; }
+    else if (t.includes('arizona') || t.includes('az')) { baseCoords = { lat: 34.0489, lon: -111.0937 }; resolvedLocation = 'Arizona, USA'; }
+    else if (t.includes('georgia') || t.includes('ga')) { baseCoords = { lat: 32.1656, lon: -82.9001 }; resolvedLocation = 'Georgia, USA'; }
+    else if (t.includes('new york') || t.includes('ny')) { baseCoords = { lat: 43.2994, lon: -74.2179 }; resolvedLocation = 'New York, USA'; }
+    else if (t.includes('washington') || t.includes('dc') || t.includes('d.c.')) { baseCoords = { lat: 38.9072, lon: -77.0369 }; resolvedLocation = 'Washington D.C., USA'; }
+    else if (t.includes('florida') || t.includes('fl')) { baseCoords = { lat: 27.6648, lon: -81.5158 }; resolvedLocation = 'Florida, USA'; }
+    else if (t.includes('illinois') || t.includes('il')) { baseCoords = { lat: 40.6331, lon: -89.3985 }; resolvedLocation = 'Illinois, USA'; }
+    else if (t.includes('pennsylvania') || t.includes('pa')) { baseCoords = { lat: 41.2033, lon: -77.1945 }; resolvedLocation = 'Pennsylvania, USA'; }
+    else if (t.includes('ohio') || t.includes('oh')) { baseCoords = { lat: 40.4173, lon: -82.9071 }; resolvedLocation = 'Ohio, USA'; }
+    else if (t.includes('michigan') || t.includes('mi')) { baseCoords = { lat: 44.3148, lon: -85.6024 }; resolvedLocation = 'Michigan, USA'; }
+    else if (t.includes('north carolina') || t.includes('nc')) { baseCoords = { lat: 35.7596, lon: -79.0193 }; resolvedLocation = 'North Carolina, USA'; }
+    else if (t.includes('south carolina') || t.includes('sc')) { baseCoords = { lat: 33.8361, lon: -81.1637 }; resolvedLocation = 'South Carolina, USA'; }
+    else if (t.includes('virginia') || t.includes('va')) { baseCoords = { lat: 37.4316, lon: -78.6569 }; resolvedLocation = 'Virginia, USA'; }
+    else if (t.includes('maryland') || t.includes('md')) { baseCoords = { lat: 39.0458, lon: -76.6413 }; resolvedLocation = 'Maryland, USA'; }
+    else if (t.includes('massachusetts') || t.includes('ma')) { baseCoords = { lat: 42.4072, lon: -71.8157 }; resolvedLocation = 'Massachusetts, USA'; }
+    else if (t.includes('colorado') || t.includes('co')) { baseCoords = { lat: 39.5501, lon: -105.7821 }; resolvedLocation = 'Colorado, USA'; }
+    else if (t.includes('utah') || t.includes('ut')) { baseCoords = { lat: 39.3210, lon: -111.0937 }; resolvedLocation = 'Utah, USA'; }
+    else if (t.includes('oregon') || t.includes('or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
+  }
+
+  // 4. Smart Fallbacks (Only if no specific state or country was matched above!)
   if (!baseCoords) {
     if (t.includes('surveillance') || t.includes('security') || c.includes('wired') || c.includes('eff')) {
       baseCoords = { lat: 37.0902, lon: -95.7129 };
@@ -198,7 +224,14 @@ function getCountryCoords(country, title = '') {
         { lat: 20.5937, lon: 78.9629, name: 'India' },   // India
         { lat: 35.8617, lon: 104.1954, name: 'China' }   // China
       ];
-      const selected = LANDMASS_COORDS[Math.floor(Math.random() * LANDMASS_COORDS.length)];
+      // Deterministic landmass selection based on title/country seed to prevent duplicates/jumping coordinates!
+      let hash = 0;
+      const seedText = title || country || 'signal';
+      for (let i = 0; i < seedText.length; i++) {
+        hash = seedText.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const index = Math.abs(hash) % LANDMASS_COORDS.length;
+      const selected = LANDMASS_COORDS[index];
       baseCoords = { lat: selected.lat, lon: selected.lon };
       resolvedLocation = selected.name;
     }

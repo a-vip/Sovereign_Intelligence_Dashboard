@@ -139,14 +139,17 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       }).addTo(map);
 
       marker.bindTooltip(`
-        <div style="font-family: monospace; font-size: 11px; padding: 2px;">
-          <strong>${m.title || m.name}</strong><br/>
-          <span style="color: ${sevColorStr}">Severity ${m.severity}</span> • 
-          <span style="color: #cbd5e1">${m.category}</span>
+        <div style="font-family: monospace; font-size: 11px; padding: 6px 10px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); max-width: 250px; white-space: normal; word-break: break-word;">
+          <strong style="display: block; margin-bottom: 4px; color: #ffffff;">${m.title || m.name}</strong>
+          <span style="color: ${sevColorStr}; font-weight: bold;">Severity ${m.severity}</span> • 
+          <span style="color: #94a3b8; font-weight: 500;">${m.category}</span>
         </div>
       `, {
         direction: 'top',
-        className: 'leaflet-tooltip-dark'
+        className: 'leaflet-tooltip-custom',
+        permanent: false,
+        sticky: true,
+        opacity: 1
       });
 
       marker.on('click', () => {
@@ -354,8 +357,11 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           fillColor: Cesium.Color.WHITE,
           outlineColor: Cesium.Color.BLACK,
           outlineWidth: 3,
+          showBackground: true,
+          backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85), // PREMIUM GLASSMORPHIC DARK SLATE BOX BACKGROUND!
+          backgroundPadding: new Cesium.Cartesian2(10, 6), // Crisp padding
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -16),
+          pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
           disableDepthTestDistance: 100000.0, // Match point occlusion culling
           show: false,
