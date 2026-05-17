@@ -212,7 +212,7 @@ function getCountryCoords(country, title = '') {
     else if (t.includes('laos') || c === 'la') { baseCoords = { lat: 19.8563, lon: 102.4955 }; resolvedLocation = 'Laos'; }
     else if (t.includes('cambodia') || c === 'kh') { baseCoords = { lat: 12.5657, lon: 104.9910 }; resolvedLocation = 'Cambodia'; }
     else if (t.includes('singapore') || c === 'sg') { baseCoords = { lat: 1.3521, lon: 103.8198 }; resolvedLocation = 'Singapore'; }
-    else if (t.includes('new zealand') || c === 'nz') { baseCoords = { lat: -40.9006, lon: 174.8860 }; resolvedLocation = 'New Zealand'; }
+    else if (t.includes('new zealand') || hasWord(t, 'nz') || c === 'nz') { baseCoords = { lat: -40.9006, lon: 174.8860 }; resolvedLocation = 'New Zealand'; }
     else if (t.includes('belarus') || c === 'by') { baseCoords = { lat: 53.7098, lon: 27.9534 }; resolvedLocation = 'Belarus'; }
     else if (t.includes('georgia') && c === 'ge') { baseCoords = { lat: 42.3154, lon: 43.3569 }; resolvedLocation = 'Georgia (Country)'; }
     else if (t.includes('armenia') || c === 'am') { baseCoords = { lat: 40.0691, lon: 45.0382 }; resolvedLocation = 'Armenia'; }
@@ -246,6 +246,8 @@ function getCountryCoords(country, title = '') {
     else if (t.includes('haiti') || c === 'ht') { baseCoords = { lat: 18.9712, lon: -72.2852 }; resolvedLocation = 'Haiti'; }
     else if (t.includes('dominican republic') || c === 'do') { baseCoords = { lat: 18.7357, lon: -70.1627 }; resolvedLocation = 'Dominican Republic'; }
     else if (t.includes('panama') || (c === 'pa' && !t.includes('pennsylvania'))) { baseCoords = { lat: 8.5380, lon: -80.7821 }; resolvedLocation = 'Panama'; }
+    else if (t.includes('solomon islands') || c === 'sb') { baseCoords = { lat: -9.6457, lon: 160.1562 }; resolvedLocation = 'Solomon Islands'; }
+    else if (t.includes('united states') || hasWord(t, 'us') || hasWord(t, 'usa') || c === 'us' || t.includes('trump') || t.includes('hegseth') || t.includes('biden') || t.includes('white house') || t.includes('pentagon') || t.includes('congress') || t.includes('dnc') || t.includes('rnc') || t.includes('senate') || t.includes('supreme court') || t.includes('fbi') || t.includes('cia') || t.includes('nsa') || t.includes('dhs') || t.includes('ice') || t.includes('american') || t.includes('america')) { baseCoords = { lat: 37.0902, lon: -95.7129 }; resolvedLocation = 'United States'; }
     else if (t.includes('south china sea')) { baseCoords = { lat: 12.0, lon: 113.0 }; resolvedLocation = 'South China Sea'; }
     else if (t.includes('europe') || t.includes('eu') || t.includes('brussels')) { baseCoords = { lat: 50.8503, lon: 4.3517 }; resolvedLocation = 'Brussels, EU'; }
   }
@@ -478,12 +480,12 @@ export async function GET(request) {
       finalEventsList = parseLocalRadarDossiers();
     }
 
-    // Merge Events
+    // Merge and Deduplicate Events
     const eventMap = new Map();
     finalEventsList.forEach(e => eventMap.set(e.id, e));
     evs.forEach(e => eventMap.set(e.id, e));
 
-    const allEvents = Array.from(eventMap.values()).sort((a, b) => {
+    const sortedEvents = Array.from(eventMap.values()).sort((a, b) => {
       const isA = a.source?.includes('Vault') || a.source?.includes('OCHA') || a.source?.includes('HRW');
       const isB = b.source?.includes('Vault') || b.source?.includes('OCHA') || b.source?.includes('HRW');
       if (isA && !isB) return -1;
@@ -491,29 +493,63 @@ export async function GET(request) {
       return new Date(b.timestamp) - new Date(a.timestamp);
     });
 
-    // Assign coordinates and high-fidelity location names to database events or fetched articles that lack them
-    allEvents.forEach(e => {
+    // Assign high-fidelity coordinates
+    sortedEvents.forEach(e => {
       const coords = getCountryCoords(e.location || 'Global', e.title);
       if (coords) {
         if (!e.lat || !e.lon) {
           e.lat = coords.lat;
           e.lon = coords.lon;
         }
-        // Override generic/abbreviated source country codes with clean resolved city/region names!
         if (coords.resolvedLocation && (!e.location || e.location === 'Global' || e.location.length <= 3)) {
           e.location = coords.resolvedLocation;
         }
       }
     });
 
-    // Markers
+    // Deep event deduplication by URL and title similarity
+    const seenEventTitles = new Set();
+    const seenEventUrls = new Set();
+    const allEvents = [];
+
+    sortedEvents.forEach(e => {
+      const titleNorm = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+      const urlNorm = (e.url || '').split('?')[0];
+
+      if (urlNorm && seenEventUrls.has(urlNorm)) return;
+      if (titleNorm && seenEventTitles.has(titleNorm)) return;
+
+      if (urlNorm) seenEventUrls.add(urlNorm);
+      if (titleNorm) seenEventTitles.add(titleNorm);
+      allEvents.push(e);
+    });
+
+    // Build and Deduplicate Markers
     const curated = CURATED_STATIC_MARKERS.map((m, i) => ({ ...m, id: `curated-${i}`, count: 1 }));
     const dbMarkers = allEvents.filter(e => e.lat && e.lon).map(e => ({
       id: `db-${e.id}`, lat: e.lat, lon: e.lon, name: e.title,
       category: e.category, severity: e.severity, url: e.url, location: e.location, count: 1
     }));
 
-    const finalMarkers = [...mks, ...curated, ...dbMarkers];
+    const rawMarkers = [...curated, ...dbMarkers, ...mks];
+    const seenMarkerCoords = new Set();
+    const seenMarkerNames = new Set();
+    const finalMarkers = [];
+
+    rawMarkers.forEach(m => {
+      if (!m.lat || !m.lon) return;
+
+      const coordKey = `${Number(m.lat).toFixed(4)},${Number(m.lon).toFixed(4)}`;
+      const nameNorm = (m.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+
+      // Prevent duplicate overlays and stacked repeats of the same or highly similar stories
+      if (nameNorm && seenMarkerNames.has(nameNorm)) return;
+      if (coordKey && seenMarkerCoords.has(coordKey) && m.name && [...seenMarkerNames].some(n => nameNorm.includes(n) || n.includes(nameNorm))) return;
+
+      if (coordKey) seenMarkerCoords.add(coordKey);
+      if (nameNorm) seenMarkerNames.add(nameNorm);
+      finalMarkers.push(m);
+    });
 
     const responseData = {
       markers: finalMarkers.slice(0, 1000),
