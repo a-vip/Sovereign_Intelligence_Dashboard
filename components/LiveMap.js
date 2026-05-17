@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import EventDetailsWindow from './EventDetailsWindow';
+import SatelliteHUD from './SatelliteHUD';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
@@ -44,6 +45,9 @@ export default function LiveMap() {
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [mapMode, setMapMode] = useState('2d'); // 2D satellite default for buttery performance!
   const [mapStyle, setMapStyle] = useState('dark'); // 'satellite' (Google Hybrid) or 'dark' (Tactical Dark theme)
+  
+  const [selectedSatellite, setSelectedSatellite] = useState(null);
+  const [isCameraLocked, setIsCameraLocked] = useState(false);
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
@@ -216,16 +220,34 @@ export default function LiveMap() {
       </div>
 
       {/* 3D Google Tiles Globe Area */}
-      <div ref={mapAreaRef} className="sigint-map-area">
+      <div ref={mapAreaRef} className="sigint-map-area" style={{ position: 'relative' }}>
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
           mapMode={mapMode}
           mapStyle={mapStyle}
+          selectedSatellite={selectedSatellite}
+          onSatelliteSelect={(sat) => {
+            setSelectedSatellite(sat);
+            setIsCameraLocked(true); // Auto-lock camera on select
+          }}
+          isCameraLocked={isCameraLocked}
           onPointClick={(point) => {
             const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
             setSelectedEvent(fullEvent || point);
           }}
         />
+
+        {selectedSatellite && (
+          <SatelliteHUD 
+            satellite={selectedSatellite}
+            onClose={() => {
+              setSelectedSatellite(null);
+              setIsCameraLocked(false);
+            }}
+            isLocked={isCameraLocked}
+            onToggleLock={() => setIsCameraLocked(!isCameraLocked)}
+          />
+        )}
       </div>
 
       {/* Overlay Controls */}
