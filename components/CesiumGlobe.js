@@ -516,6 +516,9 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       )}
 
       <style>{`
+        .cesium-viewer-bottom {
+          display: none !important;
+        }
         .leaflet-tooltip-dark {
           background: rgba(15, 23, 42, 0.95) !important;
           border: 1px solid rgba(56, 189, 248, 0.3) !important;

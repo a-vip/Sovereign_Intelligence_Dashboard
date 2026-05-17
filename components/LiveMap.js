@@ -420,8 +420,29 @@ export default function LiveMap() {
         <div className="status-item">
           ⚡ {displayedMarkers.length} MAP SIGNALS
         </div>
-        <div className="status-item" style={{ marginLeft: 'auto' }}>
-          DATABASE SYNC: {new Date().toLocaleTimeString()}
+        <div className="status-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <a 
+            href="https://aviperera.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ 
+              color: '#38bdf8', 
+              textDecoration: 'none', 
+              fontWeight: '700',
+              fontFamily: 'monospace',
+              fontSize: '10px',
+              transition: 'color 0.2s',
+              borderBottom: '1px dotted rgba(56, 189, 248, 0.4)',
+              paddingBottom: '1px',
+              letterSpacing: '0.05em'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#38bdf8'}
+          >
+            MADE BY AVI
+          </a>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+          <span>DATABASE SYNC: {new Date().toLocaleTimeString()}</span>
         </div>
       </div>
 
