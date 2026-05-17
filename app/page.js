@@ -144,7 +144,20 @@ export default function DashboardPage() {
                 animation: 'pulse 2s infinite'
               }} />
               <span>
-                USER: <strong style={{ color: '#ffffff' }}>{currentUser.fullName}</strong> ({currentUser.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : ''})
+                USER: <strong style={{ color: '#ffffff' }}>{currentUser.fullName}</strong> ({
+                  {
+                    researcher: 'Researcher',
+                    student: 'Student',
+                    observer: 'Human Rights Observer',
+                    journalist: 'Journalist',
+                    government: 'Government Official',
+                    military: 'Military Personnel',
+                    advocate: 'NGO Advocate',
+                    ethicist: 'Tech Policy Specialist',
+                    civilian: 'Civilian Observer',
+                    other: 'User'
+                  }[currentUser.role] || (currentUser.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : 'User')
+                })
               </span>
               <button 
                 onClick={handleLogout}

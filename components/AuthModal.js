@@ -337,11 +337,15 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                     onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
                     onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
                   >
-                    <option value="researcher">Researcher</option>
+                    <option value="researcher">Researcher / Academic</option>
                     <option value="student">Student</option>
                     <option value="observer">Human Rights Observer</option>
-                    <option value="civilian">Civilian</option>
-                    <option value="military">Military/Government</option>
+                    <option value="journalist">Journalist / Media</option>
+                    <option value="government">Government Official</option>
+                    <option value="military">Military Personnel</option>
+                    <option value="advocate">NGO / Civil Society Advocate</option>
+                    <option value="ethicist">Tech Policy Specialist</option>
+                    <option value="civilian">Civilian Observer</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
