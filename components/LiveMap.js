@@ -48,6 +48,44 @@ export default function LiveMap() {
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [GlobeComponent, setGlobeComponent] = useState(null);
   const globeEl = useRef();
+  const [isMobile, setIsMobile] = useState(false);
+  const [globeDimensions, setGlobeDimensions] = useState({ width: 600, height: 600 });
+  const mapAreaRef = useRef(null);
+
+  // Handle window resizing and mobile status
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 900;
+      setIsMobile(mobile);
+      if (mobile) {
+        setIsMinimized(true); // Auto-minimize overlay on mobile
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle dynamic map area resizing using ResizeObserver
+  useEffect(() => {
+    if (!mapAreaRef.current) return;
+    const updateDimensions = () => {
+      const rect = mapAreaRef.current.getBoundingClientRect();
+      setGlobeDimensions({
+        width: Math.floor(rect.width) || 600,
+        height: Math.floor(rect.height) || 450
+      });
+    };
+    
+    updateDimensions();
+    
+    const observer = new ResizeObserver(() => {
+      updateDimensions();
+    });
+    observer.observe(mapAreaRef.current);
+    
+    return () => observer.disconnect();
+  }, [mapAreaRef]);
 
   // Toggle ambient glow removed for performance
   useEffect(() => {
@@ -303,9 +341,9 @@ export default function LiveMap() {
   }, [displayedEvents]);
 
   return (
-    <div className="sigint-container" style={{ position: 'relative', width: '100%', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
+    <div className="sigint-container">
       {/* Event Feed Sidebar */}
-      <div className="sigint-feed" style={{ zIndex: 10 }}>
+      <div className="sigint-feed">
         <div className="feed-type-tabs">
           <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} onClick={() => setFeedType('live')}>
             LIVE SIGNALS
@@ -341,10 +379,12 @@ export default function LiveMap() {
       </div>
 
       {/* 3D Globe Area */}
-      <div className="sigint-map-area" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#080c12' }}>
+      <div ref={mapAreaRef} className="sigint-map-area">
         {GlobeComponent && (
           <GlobeComponent
             ref={globeEl}
+            width={globeDimensions.width}
+            height={globeDimensions.height}
             onGlobeReady={() => setGlobeReady(true)}
             globeImageUrl={isDayMode
               ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
@@ -380,11 +420,16 @@ export default function LiveMap() {
       <div
         className={`overlay-panel ${isMinimized ? 'minimized' : ''}`}
         style={{
-          transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
-          cursor: isDragging ? 'grabbing' : 'auto',
+          transform: isMobile ? 'none' : `translate(${panelPos.x}px, ${panelPos.y}px)`,
+          cursor: isMobile || isMinimized ? 'auto' : (isDragging ? 'grabbing' : 'grab'),
           transition: isDragging ? 'none' : 'transform 0.1s ease',
-          zIndex: 20, position: 'absolute', right: '20px', bottom: '40px',
-          width: isMinimized ? '140px' : '260px'
+          zIndex: 20,
+          position: isMobile ? 'fixed' : 'absolute',
+          right: isMobile ? '20px' : '20px',
+          bottom: isMobile ? '20px' : '48px',
+          left: isMobile ? '20px' : 'auto',
+          width: isMobile ? 'auto' : (isMinimized ? '140px' : '260px'),
+          maxWidth: isMobile ? 'none' : '260px'
         }}
       >
         <div
