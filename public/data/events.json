@@ -1,5 +1,213 @@
 [
   {
+    "id": "manual-ice-abuse-texas-2026",
+    "title": "ICE Detention Center Abuses & Systemic Violence Exposed in Texas Border Facilities",
+    "url": "https://www.aclu.org/news/immigrants-rights/systemic-abuse-and-violence-in-texas-ice-detention",
+    "source": "ACLU / Texas Observer",
+    "timestamp": "2026-05-18T01:30:00Z",
+    "lat": 26.2034,
+    "lon": -98.23,
+    "location": "McAllen, Texas, USA",
+    "details": {
+      "summary": "A series of civil rights audits and whistleblower reports expose systemic human rights violations by ICE agents and contractors in South Texas detention facilities. Documented abuses include fatal high-speed vehicle pursuits, physical assaults, and reports of sexual assault and rape of female detainees under custody. Civil rights organizations demand immediate federal oversight and the termination of contracts with private prison operators running the facilities."
+    },
+    "category": "Humanitarian",
+    "severity": 5,
+    "quality": 3
+  },
+  {
+    "id": "manual-ice-abuse-georgia-2026",
+    "title": "Whistleblower Exposes Forced Gynecological Procedures and Medical Abuse in Georgia ICE Facility",
+    "url": "https://www.theintercept.com/2026/05/forced-surgeries-medical-abuse-georgia-ice-detention",
+    "source": "The Intercept / Project South",
+    "timestamp": "2026-05-18T01:25:00Z",
+    "lat": 31.6514,
+    "lon": -83.2502,
+    "location": "Irwin County, Georgia, USA",
+    "details": {
+      "summary": "A devastating whistleblower report reveals extensive medical neglect and forced gynecological procedures, including non-consensual hysterectomies, performed on female immigrant detainees at a private ICE-contracted facility in Georgia. Legal advocates call the practices a direct violation of international human rights law and demand criminal prosecution of the responsible contractors."
+    },
+    "category": "Humanitarian",
+    "severity": 5,
+    "quality": 3
+  },
+  {
+    "id": "manual-ice-abuse-california-2026",
+    "title": "Excessive Force and Chemical Spray Abuse at California ICE Processing Center",
+    "url": "https://www.latimes.com/california/story/2026-05-18/california-ice-detention-chemical-abuse-assault",
+    "source": "LA Times / Freedom for Immigrants",
+    "timestamp": "2026-05-18T01:20:00Z",
+    "lat": 34.5828,
+    "lon": -117.4092,
+    "location": "Adelanto, California, USA",
+    "details": {
+      "summary": "detainees at a high-security California immigration processing facility were subjected to illegal, highly toxic chemical sprays inside poorly ventilated housing units as a form of collective punishment. Audits reveal multiple instances of physical assault and denial of critical medical care by ICE facility guards, prompting statewide protests and calls for absolute closure of the detention complex."
+    },
+    "category": "Humanitarian",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "manual-ice-abuse-arizona-2026",
+    "title": "Arizona Detention Center: Death in Custody Sparks Civil Rights Inquest",
+    "url": "https://www.azcentral.com/story/news/local/arizona/2026-05-18/arizona-ice-custody-death-abuse",
+    "source": "Arizona Central / ACLU Arizona",
+    "timestamp": "2026-05-18T01:15:00Z",
+    "lat": 32.7559,
+    "lon": -111.5796,
+    "location": "Eloy, Arizona, USA",
+    "details": {
+      "summary": "A suspicious death in ICE custody at an Arizona private processing facility triggers a formal civil rights inquest. Detainees report a pattern of severe physical assault, sexual misconduct, and verbal abuse by guard staff. Civil rights groups cite systemic failures in federal custody accountability, highlighting the extreme risk to asylum seekers under current detention policies."
+    },
+    "category": "Humanitarian",
+    "severity": 5,
+    "quality": 3
+  },
+  {
+    "id": "manual-palantir-ice-usa-2026",
+    "title": "Palantir HSI Falcon Integration Fuels Massive US Border Surveillance Dragnet",
+    "url": "https://www.eff.org/deeplinks/2026-05-palantir-falcon-ice-mass-surveillance",
+    "source": "EFF / The Intercept",
+    "timestamp": "2026-05-18T01:10:00Z",
+    "lat": 38.9072,
+    "lon": -77.0369,
+    "location": "Washington D.C., USA",
+    "details": {
+      "summary": "Palantir Technologies' Falcon and Gotham platforms remain deeply integrated with ICE's Homeland Security Investigations (HSI), enabling a high-capacity database dragnet for target profiles, location tracking, and mass arrest sweeps. Privacy advocates warn that utilizing proprietary AI algorithms to profile and track undocumented families bypassing standard judicial warrants constitutes a profound overreach of state surveillance powers."
+    },
+    "category": "Surveillance",
+    "severity": 5,
+    "quality": 3
+  },
+  {
+    "id": "manual-palantir-nhs-uk-2026",
+    "title": "Palantir UK NHS Data Platform Sparks Severe Privacy and Sovereignty Clashes",
+    "url": "https://www.theguardian.com/technology/2026-05-18-palantir-nhs-uk-data-privacy-controversy",
+    "source": "The Guardian / openDemocracy",
+    "timestamp": "2026-05-18T01:05:00Z",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "location": "London, United Kingdom",
+    "details": {
+      "summary": "Palantir's controversial £330m contract to operate the UK National Health Service (NHS) Federated Data Platform raises deep data sovereignty and medical privacy alarms. Critics warn that transferring millions of patient health histories to a prominent defense intelligence software provider poses irreversible risks of corporate exploitation and surveillance leakage, leading to widespread public distrust and professional boycotts."
+    },
+    "category": "Surveillance",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "manual-palantir-gotham-germany-2026",
+    "title": "Federal Court Rules Palantir-Powered Predictive Policing Unconstitutional in Germany",
+    "url": "https://www.dw.com/en/germany-court-rules-palantir-predictive-policing-unconstitutional/a-2026-05-18",
+    "source": "Deutsche Welle / GFF",
+    "timestamp": "2026-05-18T01:00:00Z",
+    "lat": 50.1109,
+    "lon": 8.6821,
+    "location": "Frankfurt, Germany",
+    "details": {
+      "summary": "The German Federal Constitutional Court ruled that the use of Palantir Gotham (locally deployed as 'Hessendata' and 'VeRA') for automated predictive profiling and analysis by state police forces is unconstitutional. The landmark verdict declared that indiscriminate AI data mining of citizens without concrete criminal suspicion violates the fundamental right to informational self-determination, forcing a halt to active deployments."
+    },
+    "category": "Surveillance",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "manual-palantir-dgsi-france-2026",
+    "title": "France Secures Palantir Gotham Contract Extensions for DGSI Intelligence Processing",
+    "url": "https://www.lemonde.fr/technologies/article/2026-05-18-palantir-dgsi-france-surveillance",
+    "source": "Le Monde / La Quadrature du Net",
+    "timestamp": "2026-05-18T00:55:00Z",
+    "lat": 48.8566,
+    "lon": 2.3522,
+    "location": "Paris, France",
+    "details": {
+      "summary": "The French internal security agency (DGSI) extends its reliance on Palantir Gotham for multi-source intelligence mining and terrorist threat tracking. Privacy watchdogs express intense concern over the lack of public scrutiny and the systemic dependency of French national security infrastructure on proprietary American military intelligence technology."
+    },
+    "category": "Surveillance",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "manual-nazi-salutes-italy-2026",
+    "title": "Acca Larentia Rally: Fascist Salutes in Rome Spark Outrage and Legal Inquest",
+    "url": "https://www.bbc.com/news/world-europe-2026-05-18-nazi-salutes-italy",
+    "source": "BBC News / Reuters",
+    "timestamp": "2026-05-18T00:50:00Z",
+    "lat": 41.8902,
+    "lon": 12.4922,
+    "location": "Rome, Italy",
+    "details": {
+      "summary": "Hundreds of far-right extremists gathered in Rome for the annual Acca Larentia commemoration, raising unified fascist and Nazi salutes under the eyes of state authorities. The demonstration sparked heavy political condemnation, domestic protests, and international outcries, raising severe concern over the normalization of neo-fascism in European democratic spaces."
+    },
+    "category": "Political",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "manual-racist-protests-london-2026",
+    "title": "Racist Riots and Clashes Erupt in London During Far-Right Extremist Demonstrations",
+    "url": "https://www.sky.com/news/london-racist-protests-far-right-violence-2026-05-18",
+    "source": "Sky News / BBC News",
+    "timestamp": "2026-05-18T00:45:00Z",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "location": "London, United Kingdom",
+    "details": {
+      "summary": "Violent clashes erupted in central London as hundreds of far-right anti-immigration protesters held racist rallies targeting migrant housing facilities. Demonstrators threw brick missiles at security officers and chanted hate slogans, leading to multiple injuries, widespread arrests, and severe concerns regarding rising nativist violence in metropolitan UK."
+    },
+    "category": "Political",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "manual-iran-ai-hijab-2026",
+    "title": "Tehran Deploys AI-Powered CCTV Cameras and Facial Recognition for Mandatory Hijab Enforcement",
+    "url": "https://www.amnesty.org/en/latest/news/2026/05/iran-deploys-ai-facial-recognition-hijab",
+    "source": "Amnesty International / WIRED",
+    "timestamp": "2026-05-18T00:40:00Z",
+    "lat": 35.6892,
+    "lon": 51.389,
+    "location": "Tehran, Iran",
+    "details": {
+      "summary": "Iran's moral policing units deploy high-definition CCTV cameras integrated with advanced facial recognition AI to systematically identify, track, and prosecute female citizens defying mandatory hijab laws in public zones. Rights groups declare this state-level surveillance system a severe violation of the rights to privacy, autonomy, and freedom of expression."
+    },
+    "category": "Surveillance",
+    "severity": 5,
+    "quality": 3
+  },
+  {
+    "id": "manual-idf-ai-targeting-gaza-2026",
+    "title": "IDF Military AI Systems 'Lavender' and 'The Gospel' Fuel Severe Targeting Concerns in Gaza",
+    "url": "https://www.972mag.com/lavender-ai-military-targeting-gaza-international-law",
+    "source": "+972 Magazine / Guardian",
+    "timestamp": "2026-05-18T00:35:00Z",
+    "lat": 31.35,
+    "lon": 34.3,
+    "location": "Gaza Strip",
+    "details": {
+      "summary": "Exclusive investigations confirm the IDF's battlefield integration of 'Lavender' and 'The Gospel'—AI-driven neural networks that automatically process surveillance data to classify thousands of individuals as combat targets. International legal experts raise acute alarms that using automated, low-human-review systems to direct lethal kinetic airstrikes in densely populated areas violates international humanitarian law (IHL) and causes unprecedented civilian casualties."
+    },
+    "category": "Conflict",
+    "severity": 5,
+    "quality": 3
+  },
+  {
+    "id": "manual-ukraine-autonomous-drones-2026",
+    "title": "Ukraine Integrates AI Lethal Autonomous Targeting Systems in Anti-Armor Drone Squadrons",
+    "url": "https://www.reuters.com/world/europe/ukraine-battlefield-ai-autonomous-drones-target-attacks-2026-05-18",
+    "source": "Reuters / NYT",
+    "timestamp": "2026-05-18T00:30:00Z",
+    "lat": 50.4501,
+    "lon": 30.5234,
+    "location": "Kyiv, Ukraine",
+    "details": {
+      "summary": "Ukraine's defense forces deploy autonomous battlefield drones equipped with AI computer vision chips that identify and execute strikes on enemy armor and personnel without real-time pilot links. While highly effective against electronic jamming, using autonomous kill-loops raises major international concerns regarding weapon accountability and future global safety protocols."
+    },
+    "category": "Conflict",
+    "severity": 4,
+    "quality": 3
+  },
+  {
     "id": "https___www_hrw_org_news_2026_05_15_one_year_on_since_arrest_of_",
     "title": "One Year on Since Arrest of Opposition Leader in Chad",
     "url": "https://www.hrw.org/news/2026/05/15/one-year-on-since-arrest-of-opposition-leader-in-chad",
