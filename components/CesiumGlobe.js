@@ -11,7 +11,7 @@ const CAT_COLORS = {
   Disaster: '#ff6b35',
 };
 
-const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyD4DuTPeIASgReG0AAlR8ZSZOlHw8alqME';
+const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '3d' }) {
   const containerRef = useRef(null);
