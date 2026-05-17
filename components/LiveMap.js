@@ -39,14 +39,14 @@ export default function LiveMap() {
   // Globe Settings
   const [isDayMode, setIsDayMode] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [showGeoDetails, setShowGeoDetails] = useState(true); // ON by default
-  const [lowPowerMode, setLowPowerMode] = useState(false); // High fidelity by default
+  const [showGeoDetails, setShowGeoDetails] = useState(false); // OFF by default
+  const [lowPowerMode, setLowPowerMode] = useState(true); // Low Power by default
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
   const [geoJson, setGeoJson] = useState(null);
   const [citiesJson, setCitiesJson] = useState(null);
   const [globeReady, setGlobeReady] = useState(false);
-  const [showAtmosphere, setShowAtmosphere] = useState(true); // ON by default
+  const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
@@ -168,17 +168,27 @@ export default function LiveMap() {
       const data = await res.json();
       if (data.events?.length) {
         setAllFetchedEvents(data.events);
-        if (isInitializing || eventQueue.length === 0) {
-          const fetchedEvents = [...data.events].reverse();
-          setDisplayedEvents(fetchedEvents.slice(0, 5));
-          setEventQueue(fetchedEvents.slice(5));
-          setIsInitializing(false);
-        }
+        setDisplayedEvents(prevDisplay => {
+          if (isInitializing || prevDisplay.length === 0) {
+            setIsInitializing(false);
+            // On initial load, display all events instantly (no trickle queue)
+            return [...data.events].reverse().map((e, idx) => ({ ...e, _displayKey: `${e.id}-init-${idx}` }));
+          } else {
+            // Prepend only the brand new streamed events
+            const newEvents = data.events.filter(e => !prevDisplay.some(p => p.id === e.id));
+            if (newEvents.length > 0) {
+              setIsPulsing(true);
+              setTimeout(() => setIsPulsing(false), 2000);
+              return [...newEvents.reverse().map((e, idx) => ({ ...e, _displayKey: `${e.id}-stream-${idx}` })), ...prevDisplay];
+            }
+            return prevDisplay;
+          }
+        });
         setMarkers(data.markers || []);
       }
       setStatus(data.status || 'live');
     } catch { setStatus('error'); }
-  }, [isInitializing, eventQueue.length, isVisible]);
+  }, [isInitializing, isVisible, timeRange]);
 
   // Fetch GeoJSON for country borders (deferred to avoid blocking initial render)
   useEffect(() => {
@@ -203,35 +213,6 @@ export default function LiveMap() {
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
   }, [fetchEvents, timeRange]); // Refetch when timeRange changes
-
-  // 8-second tick to pop from queue
-  const tickCounter = useRef(0);
-  useEffect(() => {
-    if (isInitializing || eventQueue.length === 0 || !isVisible) return; // Pause if hidden
-    const interval = setInterval(() => {
-      setEventQueue((prevQueue) => {
-        if (prevQueue.length === 0) return prevQueue;
-        const nextEvent = prevQueue[0];
-        const newQueue = prevQueue.slice(1);
-        tickCounter.current += 1;
-        // Stamp a unique display key so React never sees duplicate keys
-        const displayCopy = { ...nextEvent, _displayKey: `${nextEvent.id}-t${tickCounter.current}` };
-        setDisplayedEvents((prevDisplay) => {
-          // Check if we already have this event ID in the display to avoid duplicates
-          if (prevDisplay.some(e => e.id === nextEvent.id)) return prevDisplay;
-          
-          const updated = [displayCopy, ...prevDisplay];
-          return updated.length > 30 ? updated.slice(0, 30) : updated; // Limited to 30 for performance
-        });
-        // Trigger glow pulse on new event
-        setIsPulsing(true);
-        setTimeout(() => setIsPulsing(false), 2000);
-
-        return newQueue;
-      });
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [isInitializing, eventQueue.length, isVisible]);
 
   // Globe Auto-Rotate configuration
   useEffect(() => {
@@ -422,8 +403,8 @@ export default function LiveMap() {
             pointLat="lat"
             pointLng="lon"
             pointColor={d => SEV_COLORS[d.severity] || '#94a3b8'}
-            pointAltitude={d => Math.min(0.02 + d.severity * 0.03, 0.25)}
-            pointRadius={d => Math.min(0.12 + d.severity * 0.05, 0.4)}
+            pointAltitude={0}
+            pointRadius={d => Math.min(0.25 + d.severity * 0.15, 1.2)}
             pointLabel={d => d.name || d.title}
             pointsMerge={false}
             onPointClick={(point, event) => {

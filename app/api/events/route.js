@@ -152,14 +152,10 @@ function getCountryCoords(country, title = '') {
     };
   }
 
-  // Fallback to random global location if no match and it's not global
-  if (c !== 'global' && c !== '') {
-    const jitterLat = (Math.random() - 0.5) * 60;
-    const jitterLon = (Math.random() - 0.5) * 120;
-    return { lat: 10 + jitterLat, lon: jitterLon };
-  }
-
-  return null;
+  // Fallback to random global location for unmatched or global events
+  const jitterLat = (Math.random() - 0.5) * 75;
+  const jitterLon = (Math.random() - 0.5) * 220;
+  return { lat: 15 + jitterLat, lon: jitterLon };
 }
 
 function parseLocalRadarDossiers() {
@@ -358,8 +354,8 @@ export async function GET(request) {
     const finalMarkers = [...mks, ...curated, ...dbMarkers];
 
     const responseData = {
-      markers: finalMarkers.slice(0, 500),
-      events: allEvents.slice(0, 150),
+      markers: finalMarkers.slice(0, 1000),
+      events: allEvents.slice(0, 1000),
       lastUpdated: new Date().toISOString(),
       status: 'success'
     };
