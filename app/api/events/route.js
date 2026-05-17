@@ -52,133 +52,164 @@ function generateHashId(url, title) {
   return crypto.createHash('md5').update(seed).digest('hex');
 }
 
+function getDeterministicJitter(seedText, maxDegrees = 0.6) {
+  let hash = 0;
+  for (let i = 0; i < seedText.length; i++) {
+    hash = seedText.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const jitterLat = ((hash & 0xFF) / 255.0 - 0.5) * maxDegrees;
+  const jitterLon = (((hash >> 8) & 0xFF) / 255.0 - 0.5) * maxDegrees;
+  return { lat: jitterLat, lon: jitterLon };
+}
+
 function getCountryCoords(country, title = '') {
   const c = (country || '').toLowerCase().trim();
   const t = (title || '').toLowerCase();
   
-  // 1. Specific Surveillance & US agencies context-mapping (Palantir, ICE, NEST, DHS, FBI, CIA, NSA)
-  if (
-    t.includes('palantir') || 
-    t.includes(' ice ') || 
-    t.includes('nest') || 
-    t.includes('dhs') || 
-    t.includes('nsa') || 
-    t.includes('cia') || 
-    t.includes('fbi') || 
-    t.includes('pentagon') || 
-    t.includes('silicon valley') || 
-    t.includes('google cloud') || 
-    t.includes('microsoft') || 
-    t.includes('amazon aws')
-  ) {
-    return { 
-      lat: 37.0902 + (Math.random() - 0.5) * 2.0, 
-      lon: -95.7129 + (Math.random() - 0.5) * 2.0 
-    };
-  }
-  
-  // 2. Specific geopolitical hotzones & country keyword scanner
-  if (t.includes('ukraine') || t.includes('kiev') || t.includes('kyiv') || c === 'ua') return { lat: 48.3794, lon: 31.1656 };
-  if (t.includes('israel') || t.includes('gaza') || t.includes('palestine') || t.includes('tel aviv') || t.includes('west bank') || c === 'il' || c === 'ps') return { lat: 31.0461, lon: 34.8516 };
-  if (t.includes('taiwan') || t.includes('taipei')) return { lat: 23.6978, lon: 120.9605 };
-  if (t.includes('yemen') || t.includes('sanaa') || c === 'ye') return { lat: 15.5527, lon: 48.5164 };
-  if (t.includes('syria') || t.includes('damascus') || c === 'sy') return { lat: 34.8021, lon: 38.9968 };
-  if (t.includes('iran') || t.includes('tehran') || c === 'ir') return { lat: 32.4279, lon: 53.6880 };
-  if (t.includes('lebanon') || t.includes('beirut') || c === 'lb') return { lat: 33.8547, lon: 35.8623 };
-  if (t.includes('iraq') || t.includes('baghdad') || c === 'iq') return { lat: 33.2232, lon: 43.6793 };
-  if (t.includes('saudi') || t.includes('riyadh') || c === 'sa') return { lat: 23.8859, lon: 45.0792 };
-  if (t.includes('korea') || t.includes('seoul') || t.includes('pyongyang') || c === 'kr' || c === 'kp') return { lat: 38.0, lon: 127.5 };
-  if (t.includes('china') || t.includes('beijing') || t.includes('shanghai') || c === 'cn') return { lat: 35.8617, lon: 104.1954 };
-  if (t.includes('russia') || t.includes('moscow') || t.includes('kremlin') || c === 'ru') return { lat: 61.5240, lon: 105.3188 };
-  if (t.includes('india') || t.includes('delhi') || t.includes('mumbai') || c === 'in') return { lat: 20.5937, lon: 78.9629 };
-  if (t.includes('chad') || c === 'td') return { lat: 15.4542, lon: 18.7322 };
-  if (t.includes('congo') || t.includes('drc') || t.includes('kinshasa') || c === 'cd') return { lat: -4.0383, lon: 21.7587 };
-  if (t.includes('libya') || t.includes('tripoli') || c === 'ly') return { lat: 26.3351, lon: 17.2283 };
-  if (t.includes('venezuela') || t.includes('caracas') || c === 've') return { lat: 6.4238, lon: -66.5897 };
-  if (t.includes('tunisia') || t.includes('tunis') || c === 'tn') return { lat: 33.8869, lon: 9.5375 };
-  if (t.includes('south africa') || t.includes('johannesburg') || c === 'za') return { lat: -30.5595, lon: 22.9375 };
-  
-  // 3. Additional global countries keyword dictionary
-  if (t.includes('france') || t.includes('paris') || c === 'fr') return { lat: 46.2276, lon: 2.2137 };
-  if (t.includes('germany') || t.includes('berlin') || t.includes('munich') || c === 'de') return { lat: 51.1657, lon: 10.4515 };
-  if (t.includes('united kingdom') || t.includes('london') || t.includes('britain') || t.includes('england') || c === 'uk' || c === 'gb') return { lat: 55.3781, lon: -3.4360 };
-  if (t.includes('japan') || t.includes('tokyo') || c === 'jp') return { lat: 36.2048, lon: 138.2529 };
-  if (t.includes('canada') || t.includes('ottawa') || t.includes('toronto') || c === 'ca') return { lat: 56.1304, lon: -106.3468 };
-  if (t.includes('australia') || t.includes('canberra') || t.includes('sydney') || c === 'au') return { lat: -25.2744, lon: 133.7751 };
-  if (t.includes('brazil') || t.includes('brasilia') || t.includes('rio') || c === 'br') return { lat: -14.2350, lon: -51.9253 };
-  if (t.includes('egypt') || t.includes('cairo') || c === 'eg') return { lat: 26.8206, lon: 30.8025 };
-  if (t.includes('turkey') || t.includes('istanbul') || t.includes('ankara') || c === 'tr') return { lat: 38.9637, lon: 35.2433 };
-  if (t.includes('mexico') || c === 'mx') return { lat: 23.6345, lon: -102.5528 };
-  if (t.includes('pakistan') || t.includes('islamabad') || c === 'pk') return { lat: 30.3753, lon: 69.3451 };
-  if (t.includes('afghanistan') || t.includes('kabul') || c === 'af') return { lat: 33.9391, lon: 67.7100 };
-  if (t.includes('switzerland') || t.includes('geneva') || c === 'ch') return { lat: 46.8182, lon: 8.2275 };
-  if (t.includes('sweden') || t.includes('stockholm') || c === 'se') return { lat: 60.1282, lon: 18.6435 };
-  if (t.includes('norway') || t.includes('oslo') || c === 'no') return { lat: 60.4720, lon: 8.4689 };
-  if (t.includes('italy') || t.includes('rome') || c === 'it') return { lat: 41.8719, lon: 12.5674 };
-  if (t.includes('spain') || t.includes('madrid') || c === 'es') return { lat: 40.4637, lon: -3.7492 };
-  if (t.includes('philippines') || t.includes('manila') || c === 'ph') return { lat: 12.8797, lon: 121.7740 };
-  if (t.includes('indonesia') || t.includes('jakarta') || c === 'id') return { lat: -0.7893, lon: 113.9213 };
-  if (t.includes('colombia') || t.includes('bogota') || c === 'co') return { lat: 4.5709, lon: -72.9566 };
-  if (t.includes('sudan') || t.includes('khartoum') || c === 'sd') return { lat: 12.8628, lon: 30.2176 };
-  if (t.includes('somalia') || t.includes('mogadishu') || c === 'so') return { lat: 5.1521, lon: 46.1996 };
-  if (t.includes('kenya') || t.includes('nairobi') || c === 'ke') return { lat: -1.2921, lon: 36.8219 };
-  if (t.includes('nigeria') || t.includes('abuja') || c === 'ng') return { lat: 9.0820, lon: 8.6753 };
-  if (t.includes('south china sea')) return { lat: 12.0, lon: 113.0 };
-  if (t.includes('europe') || t.includes('eu') || t.includes('brussels')) return { lat: 50.8503, lon: 4.3517 };
-  
-  // 4. Source & context-aware smart fallback routing
-  if (
-    t.includes('surveillance') || 
-    t.includes('security') || 
-    c.includes('wired') || 
-    c.includes('eff') || 
-    c.includes('techworkers')
-  ) {
-    // Surveillance & US policy defaults to USA contextually
-    return { 
-      lat: 37.0902 + (Math.random() - 0.5) * 1.8, 
-      lon: -95.7129 + (Math.random() - 0.5) * 1.8 
-    };
-  }
-  if (
-    c.includes('reliefweb') || 
-    c.includes('human rights') || 
-    c.includes('hrw') || 
-    t.includes('humanitarian') || 
-    t.includes('refugee')
-  ) {
-    // International human rights/aid defaults to Switzerland/Europe contextually
-    return { 
-      lat: 46.8182 + (Math.random() - 0.5) * 1.5, 
-      lon: 8.2275 + (Math.random() - 0.5) * 1.5 
-    };
+  let baseCoords = null;
+  let resolvedLocation = '';
+
+  // 1. High-Fidelity City & Region Geolocation Scanner
+  if (t.includes('gaza') || t.includes('rafah') || t.includes('khan younis')) {
+    baseCoords = { lat: 31.35, lon: 34.30 };
+    resolvedLocation = 'Gaza Strip';
+  } else if (t.includes('jerusalem') || t.includes('ramallah') || t.includes('west bank')) {
+    baseCoords = { lat: 31.7683, lon: 35.2137 };
+    resolvedLocation = 'Jerusalem / West Bank';
+  } else if (t.includes('tel aviv') || t.includes('haifa') || t.includes('ben gurion')) {
+    baseCoords = { lat: 32.0853, lon: 34.7818 };
+    resolvedLocation = 'Tel Aviv, Israel';
+  } else if (t.includes('beirut') || t.includes('sidon') || t.includes('tyre')) {
+    baseCoords = { lat: 33.8938, lon: 35.5018 };
+    resolvedLocation = 'Beirut, Lebanon';
+  } else if (t.includes('damascus') || t.includes('homs') || t.includes('latakia') || t.includes('syria')) {
+    baseCoords = { lat: 34.8021, lon: 38.9968 };
+    resolvedLocation = 'Damascus, Syria';
+  } else if (t.includes('lebanon')) {
+    baseCoords = { lat: 33.8547, lon: 35.8623 };
+    resolvedLocation = 'Lebanon Region';
+  } else if (t.includes('nicosia') || t.includes('limassol') || t.includes('cyprus')) {
+    baseCoords = { lat: 35.1856, lon: 33.3823 };
+    resolvedLocation = 'Nicosia, Cyprus';
+  } else if (t.includes('kiev') || t.includes('kyiv')) {
+    baseCoords = { lat: 50.4501, lon: 30.5234 };
+    resolvedLocation = 'Kyiv, Ukraine';
+  } else if (t.includes('kharkiv') || t.includes('kharkov')) {
+    baseCoords = { lat: 49.9935, lon: 36.2304 };
+    resolvedLocation = 'Kharkiv, Ukraine';
+  } else if (t.includes('odesa') || t.includes('odessa')) {
+    baseCoords = { lat: 46.4825, lon: 30.7233 };
+    resolvedLocation = 'Odesa, Ukraine';
+  } else if (t.includes('lviv')) {
+    baseCoords = { lat: 49.8397, lon: 24.0297 };
+    resolvedLocation = 'Lviv, Ukraine';
+  } else if (t.includes('crimea') || t.includes('sevastopol')) {
+    baseCoords = { lat: 44.9521, lon: 34.1024 };
+    resolvedLocation = 'Crimea';
+  } else if (t.includes('moscow') || t.includes('kremlin') || c === 'ru') {
+    baseCoords = { lat: 55.7558, lon: 37.6173 };
+    resolvedLocation = 'Moscow, Russia';
+  } else if (t.includes('london') || t.includes('uk') || c === 'uk' || c === 'gb') {
+    baseCoords = { lat: 51.5074, lon: -0.1278 };
+    resolvedLocation = 'London, United Kingdom';
+  } else if (t.includes('paris') || c === 'fr') {
+    baseCoords = { lat: 48.8566, lon: 2.3522 };
+    resolvedLocation = 'Paris, France';
+  } else if (t.includes('berlin') || c === 'de') {
+    baseCoords = { lat: 51.1657, lon: 10.4515 };
+    resolvedLocation = 'Berlin, Germany';
+  } else if (t.includes('silicon valley') || t.includes('san francisco') || t.includes('palantir') || t.includes('dhs')) {
+    baseCoords = { lat: 37.7749, lon: -122.4194 };
+    resolvedLocation = 'Silicon Valley, USA';
+  } else if (t.includes('washington') || t.includes('pentagon') || t.includes('fbi') || t.includes('cia')) {
+    baseCoords = { lat: 38.9072, lon: -77.0369 };
+    resolvedLocation = 'Washington D.C., USA';
+  } else if (t.includes('new york') || t.includes('manhattan')) {
+    baseCoords = { lat: 40.7128, lon: -74.0060 };
+    resolvedLocation = 'New York City, USA';
+  } else if (t.includes('tokyo') || c === 'jp') {
+    baseCoords = { lat: 35.6762, lon: 139.6503 };
+    resolvedLocation = 'Tokyo, Japan';
+  } else if (t.includes('beijing') || c === 'cn') {
+    baseCoords = { lat: 39.9042, lon: 116.4074 };
+    resolvedLocation = 'Beijing, China';
+  } else if (t.includes('taipei') || t.includes('taiwan')) {
+    baseCoords = { lat: 25.0330, lon: 121.5654 };
+    resolvedLocation = 'Taipei, Taiwan';
+  } else if (t.includes('israel') || t.includes('gaza') || t.includes('palestine') || c === 'il' || c === 'ps') {
+    baseCoords = { lat: 31.0461, lon: 34.8516 };
+    resolvedLocation = 'Israel/Palestine';
   }
 
-  // 5. Landmass fallbacks grid (15 locations) if absolutely no match can be made
-  const LANDMASS_COORDS = [
-    { lat: 39.8283, lon: -98.5795 },  // North America (US Center)
-    { lat: 56.1304, lon: -106.3468 }, // Canada
-    { lat: -14.2350, lon: -51.9253 }, // South America (Brazil)
-    { lat: -35.6751, lon: -71.5430 }, // Chile/Argentina
-    { lat: 48.3794, lon: 31.1656 },   // Eastern Europe (Ukraine)
-    { lat: 46.2276, lon: 2.2137 },     // Western Europe (France)
-    { lat: 9.0820, lon: 8.6753 },      // West Africa (Nigeria)
-    { lat: -30.5595, lon: 22.9375 },  // South Africa
-    { lat: 26.8206, lon: 30.8025 },   // North Africa (Egypt)
-    { lat: 32.4279, lon: 53.6880 },   // Middle East (Iran)
-    { lat: 20.5937, lon: 78.9629 },   // South Asia (India)
-    { lat: 35.8617, lon: 104.1954 },  // East Asia (China)
-    { lat: -25.2744, lon: 133.7751 }, // Australia
-    { lat: 61.5240, lon: 105.3188 },  // Northern Asia (Siberia)
-    { lat: 15.8700, lon: 100.9925 }   // Southeast Asia (Thailand)
-  ];
+  // 2. Geopolitical Hotzones Country Fallbacks (if specific city not scanned)
+  if (!baseCoords) {
+    if (c === 'ua') { baseCoords = { lat: 48.3794, lon: 31.1656 }; resolvedLocation = 'Ukraine'; }
+    else if (c === 'ye' || t.includes('yemen')) { baseCoords = { lat: 15.5527, lon: 48.5164 }; resolvedLocation = 'Yemen'; }
+    else if (c === 'ir' || t.includes('iran')) { baseCoords = { lat: 32.4279, lon: 53.6880 }; resolvedLocation = 'Iran'; }
+    else if (c === 'iq' || t.includes('iraq')) { baseCoords = { lat: 33.2232, lon: 43.6793 }; resolvedLocation = 'Iraq'; }
+    else if (c === 'sa' || t.includes('saudi')) { baseCoords = { lat: 23.8859, lon: 45.0792 }; resolvedLocation = 'Saudi Arabia'; }
+    else if (c === 'kr' || c === 'kp' || t.includes('korea')) { baseCoords = { lat: 38.0, lon: 127.5 }; resolvedLocation = 'Korea Peninsula'; }
+    else if (c === 'in' || t.includes('india')) { baseCoords = { lat: 20.5937, lon: 78.9629 }; resolvedLocation = 'India'; }
+    else if (c === 'td' || t.includes('chad')) { baseCoords = { lat: 15.4542, lon: 18.7322 }; resolvedLocation = 'Chad'; }
+    else if (c === 'cd' || t.includes('congo') || t.includes('drc')) { baseCoords = { lat: -4.0383, lon: 21.7587 }; resolvedLocation = 'Dem. Rep. Congo'; }
+    else if (c === 'ly' || t.includes('libya')) { baseCoords = { lat: 26.3351, lon: 17.2283 }; resolvedLocation = 'Libya'; }
+    else if (c === 've' || t.includes('venezuela')) { baseCoords = { lat: 6.4238, lon: -66.5897 }; resolvedLocation = 'Venezuela'; }
+    else if (c === 'tn' || t.includes('tunisia')) { baseCoords = { lat: 33.8869, lon: 9.5375 }; resolvedLocation = 'Tunisia'; }
+    else if (c === 'za' || t.includes('south africa')) { baseCoords = { lat: -30.5595, lon: 22.9375 }; resolvedLocation = 'South Africa'; }
+    else if (c === 'eg' || t.includes('egypt')) { baseCoords = { lat: 26.8206, lon: 30.8025 }; resolvedLocation = 'Egypt'; }
+    else if (c === 'tr' || t.includes('turkey')) { baseCoords = { lat: 38.9637, lon: 35.2433 }; resolvedLocation = 'Turkey'; }
+    else if (c === 'mx' || t.includes('mexico')) { baseCoords = { lat: 23.6345, lon: -102.5528 }; resolvedLocation = 'Mexico'; }
+    else if (c === 'pk' || t.includes('pakistan')) { baseCoords = { lat: 30.3753, lon: 69.3451 }; resolvedLocation = 'Pakistan'; }
+    else if (c === 'af' || t.includes('afghanistan')) { baseCoords = { lat: 33.9391, lon: 67.7100 }; resolvedLocation = 'Afghanistan'; }
+    else if (c === 'ch' || t.includes('switzerland')) { baseCoords = { lat: 46.8182, lon: 8.2275 }; resolvedLocation = 'Switzerland'; }
+    else if (c === 'se' || t.includes('sweden')) { baseCoords = { lat: 60.1282, lon: 18.6435 }; resolvedLocation = 'Sweden'; }
+    else if (c === 'no' || t.includes('norway')) { baseCoords = { lat: 60.4720, lon: 8.4689 }; resolvedLocation = 'Norway'; }
+    else if (c === 'it' || t.includes('italy')) { baseCoords = { lat: 41.8719, lon: 12.5674 }; resolvedLocation = 'Italy'; }
+    else if (c === 'es' || t.includes('spain')) { baseCoords = { lat: 40.4637, lon: -3.7492 }; resolvedLocation = 'Spain'; }
+    else if (c === 'ph' || t.includes('philippines')) { baseCoords = { lat: 12.8797, lon: 121.7740 }; resolvedLocation = 'Philippines'; }
+    else if (c === 'id' || t.includes('indonesia')) { baseCoords = { lat: -0.7893, lon: 113.9213 }; resolvedLocation = 'Indonesia'; }
+    else if (c === 'co' || t.includes('colombia')) { baseCoords = { lat: 4.5709, lon: -72.9566 }; resolvedLocation = 'Colombia'; }
+    else if (c === 'sd' || t.includes('sudan')) { baseCoords = { lat: 12.8628, lon: 30.2176 }; resolvedLocation = 'Sudan'; }
+    else if (c === 'so' || t.includes('somalia')) { baseCoords = { lat: 5.1521, lon: 46.1996 }; resolvedLocation = 'Somalia'; }
+    else if (c === 'ke' || t.includes('kenya')) { baseCoords = { lat: -1.2921, lon: 36.8219 }; resolvedLocation = 'Kenya'; }
+    else if (c === 'ng' || t.includes('nigeria')) { baseCoords = { lat: 9.0820, lon: 8.6753 }; resolvedLocation = 'Nigeria'; }
+    else if (t.includes('south china sea')) { baseCoords = { lat: 12.0, lon: 113.0 }; resolvedLocation = 'South China Sea'; }
+    else if (t.includes('europe') || t.includes('eu') || t.includes('brussels')) { baseCoords = { lat: 50.8503, lon: 4.3517 }; resolvedLocation = 'Brussels, EU'; }
+  }
 
-  const base = LANDMASS_COORDS[Math.floor(Math.random() * LANDMASS_COORDS.length)];
-  const jitterLat = (Math.random() - 0.5) * 3.5;
-  const jitterLon = (Math.random() - 0.5) * 3.5;
+  // 3. Smart Fallbacks
+  if (!baseCoords) {
+    if (t.includes('surveillance') || t.includes('security') || c.includes('wired') || c.includes('eff')) {
+      baseCoords = { lat: 37.0902, lon: -95.7129 };
+      resolvedLocation = 'United States';
+    } else if (c.includes('reliefweb') || c.includes('human rights') || c.includes('hrw')) {
+      baseCoords = { lat: 46.8182, lon: 8.2275 };
+      resolvedLocation = 'Geneva, Switzerland';
+    } else {
+      const LANDMASS_COORDS = [
+        { lat: 39.8283, lon: -98.5795, name: 'North America' },  // North America
+        { lat: 56.1304, lon: -106.3468, name: 'Canada' }, // Canada
+        { lat: -14.2350, lon: -51.9253, name: 'Brazil' }, // Brazil
+        { lat: 48.3794, lon: 31.1656, name: 'Ukraine' },   // Ukraine
+        { lat: 46.2276, lon: 2.2137, name: 'France' },     // France
+        { lat: 9.0820, lon: 8.6753, name: 'Nigeria' },      // Nigeria
+        { lat: 26.8206, lon: 30.8025, name: 'Egypt' },   // Egypt
+        { lat: 32.4279, lon: 53.6880, name: 'Iran' },   // Iran
+        { lat: 20.5937, lon: 78.9629, name: 'India' },   // India
+        { lat: 35.8617, lon: 104.1954, name: 'China' }   // China
+      ];
+      const selected = LANDMASS_COORDS[Math.floor(Math.random() * LANDMASS_COORDS.length)];
+      baseCoords = { lat: selected.lat, lon: selected.lon };
+      resolvedLocation = selected.name;
+    }
+  }
+
+  // Apply stable, deterministic coordinate jitter to space markers beautifully without stack jumping!
+  const jitter = getDeterministicJitter(title || country || 'signal', 0.6);
   return {
-    lat: base.lat + jitterLat,
-    lon: base.lon + jitterLon
+    lat: baseCoords.lat + jitter.lat,
+    lon: baseCoords.lon + jitter.lon,
+    resolvedLocation: resolvedLocation || country || 'Global'
   };
 }
 
@@ -231,7 +262,7 @@ function parseLocalRadarDossiers() {
           category: getCategory(title),
           severity: getSeverity(title),
           quality: getQuality(title),
-          location: source || 'Global',
+          location: coords?.resolvedLocation || source || 'Global',
           lat: coords ? coords.lat : null,
           lon: coords ? coords.lon : null,
           details: { summary }
@@ -306,7 +337,7 @@ async function fetchGdelt(timespan) {
           category: getCategory(a.title),
           severity: getSeverity(a.title),
           quality: getQuality(a.title),
-          location: locationName,
+          location: coords?.resolvedLocation || locationName,
           lat: coords ? coords.lat : null,
           lon: coords ? coords.lon : null,
           details: { ...a }
@@ -357,13 +388,17 @@ export async function GET(request) {
       return new Date(b.timestamp) - new Date(a.timestamp);
     });
 
-    // Assign coordinates to database events or fetched articles that lack them
+    // Assign coordinates and high-fidelity location names to database events or fetched articles that lack them
     allEvents.forEach(e => {
-      if (!e.lat || !e.lon) {
-        const coords = getCountryCoords(e.location || 'Global', e.title);
-        if (coords) {
+      const coords = getCountryCoords(e.location || 'Global', e.title);
+      if (coords) {
+        if (!e.lat || !e.lon) {
           e.lat = coords.lat;
           e.lon = coords.lon;
+        }
+        // Override generic/abbreviated source country codes with clean resolved city/region names!
+        if (coords.resolvedLocation && (!e.location || e.location === 'Global' || e.location.length <= 3)) {
+          e.location = coords.resolvedLocation;
         }
       }
     });
@@ -372,7 +407,7 @@ export async function GET(request) {
     const curated = CURATED_STATIC_MARKERS.map((m, i) => ({ ...m, id: `curated-${i}`, count: 1 }));
     const dbMarkers = allEvents.filter(e => e.lat && e.lon).map(e => ({
       id: `db-${e.id}`, lat: e.lat, lon: e.lon, name: e.title,
-      category: e.category, severity: e.severity, url: e.url, count: 1
+      category: e.category, severity: e.severity, url: e.url, location: e.location, count: 1
     }));
 
     const finalMarkers = [...mks, ...curated, ...dbMarkers];

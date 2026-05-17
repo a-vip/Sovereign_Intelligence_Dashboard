@@ -42,7 +42,8 @@ export default function LiveMap() {
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
-  const [mapMode, setMapMode] = useState('3d'); // 3D Mesh mode by default!
+  const [mapMode, setMapMode] = useState('2d'); // 2D satellite default for buttery performance!
+  const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' (Google Hybrid) or 'dark' (Tactical Dark theme)
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
@@ -219,6 +220,7 @@ export default function LiveMap() {
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
           mapMode={mapMode}
+          mapStyle={mapStyle}
           onPointClick={(point) => {
             const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
             setSelectedEvent(fullEvent || point);
@@ -347,6 +349,53 @@ export default function LiveMap() {
                   2D SATELLITE
                 </button>
               </div>
+            </div>
+
+            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
+              <div className="overlay-title">BASE MAP STYLE</div>
+              <div className="severity-buttons" style={{ marginTop: '8px', marginBottom: '12px', display: 'flex', gap: '6px' }}>
+                <button
+                  className={`sev-btn${mapStyle === 'satellite' ? ' active' : ''}`}
+                  style={{
+                    background: mapStyle === 'satellite' ? '#38bdf8' : 'transparent',
+                    color: mapStyle === 'satellite' ? '#020617' : '#8892a4',
+                    borderColor: '#38bdf8',
+                    flex: 1,
+                    fontSize: '9px',
+                    padding: '6px 0',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    border: '1px solid #38bdf8',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setMapStyle('satellite')}
+                >
+                  SATELLITE
+                </button>
+                <button
+                  className={`sev-btn${mapStyle === 'dark' ? ' active' : ''}`}
+                  style={{
+                    background: mapStyle === 'dark' ? '#38bdf8' : 'transparent',
+                    color: mapStyle === 'dark' ? '#020617' : '#8892a4',
+                    borderColor: '#38bdf8',
+                    flex: 1,
+                    fontSize: '9px',
+                    padding: '6px 0',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    border: '1px solid #38bdf8',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setMapStyle('dark')}
+                >
+                  TACTICAL DARK
+                </button>
+              </div>
+            </div>
+
+            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
               <div className="overlay-title">MAP SYSTEM</div>
               <div style={{ fontSize: '9px', color: '#8892a4', marginTop: '4px', fontFamily: 'monospace' }}>
                 POWERED BY: GOOGLE 3D TILES

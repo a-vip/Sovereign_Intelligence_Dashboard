@@ -1,26 +1,20 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
-const CAT_COLORS = {
-  Conflict: '#ff2d55',
-  Surveillance: '#00f0ff',
-  Political: '#a855f7',
-  Humanitarian: '#22c55e',
-  Economic: '#facc15',
-  Disaster: '#ff6b35',
-};
-
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '3d' }) {
+export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '2d', mapStyle = 'satellite' }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const tilesetRef = useRef(null);
-  const imageryLayerRef = useRef(null);
   
-  const [cesiumLoaded, setCesiumLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
+  const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
+
+  const leafletContainerRef = useRef(null);
+  const leafletMapRef = useRef(null);
 
   // Stabilize callback references using a ref to prevent Cesium viewer unmount/recreation loops
   const onPointClickRef = useRef(onPointClick);
@@ -28,242 +22,333 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     onPointClickRef.current = onPointClick;
   }, [onPointClick]);
 
-  // 1. Dynamic CDN script and style injection
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  // Pre-calculate repelled coordinates to prevent overlapping clusters on both maps!
+  const repelledMarkers = useMemo(() => {
+    if (!displayedMarkers || displayedMarkers.length === 0) return [];
+    
+    // Create mutable copy of displayed markers with lat/lon coordinates
+    const points = displayedMarkers.map((m, idx) => ({
+      original: m,
+      lat: m.lat !== undefined && m.lat !== null ? m.lat : 0.0,
+      lon: m.lon !== undefined && m.lon !== null ? m.lon : 0.0,
+      index: idx
+    }));
 
-    if (!document.getElementById('cesium-css')) {
-      const link = document.createElement('link');
-      link.id = 'cesium-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css';
-      document.head.appendChild(link);
+    const gravity = 0.08; // Gravity pulls markers back to their real origins (softer to let them spread!)
+    const repelForce = 0.38; // Repulsion pushes close markers apart (stronger push!)
+    const thresholdDegrees = 0.95; // Spacing threshold in degrees (perfectly spaced out!)
+    const iterations = 12; // Force resolution passes
+
+    for (let step = 0; step < iterations; step++) {
+      for (let i = 0; i < points.length; i++) {
+        const p1 = points[i];
+        let forceLat = 0;
+        let forceLon = 0;
+
+        for (let j = 0; j < points.length; j++) {
+          if (i === j) continue;
+          const p2 = points[j];
+          
+          const dLat = p1.lat - p2.lat;
+          const dLon = p1.lon - p2.lon;
+          const dist = Math.sqrt(dLat * dLat + dLon * dLon) || 0.001;
+
+          if (dist < thresholdDegrees) {
+            const overlap = thresholdDegrees - dist;
+            const dirLat = dLat / dist;
+            const dirLon = dLon / dist;
+            
+            forceLat += dirLat * overlap * repelForce;
+            forceLon += dirLon * overlap * repelForce;
+          }
+        }
+
+        // Attraction to real geographic origin
+        const origLatDiff = p1.original.lat - p1.lat;
+        const origLonDiff = p1.original.lon - p1.lon;
+        forceLat += origLatDiff * gravity;
+        forceLon += origLonDiff * gravity;
+
+        p1.lat += forceLat;
+        p1.lon += forceLon;
+      }
     }
 
-    if (!window.Cesium) {
-      // Set the base URL for Cesium background workers BEFORE script injection
-      window.CESIUM_BASE_URL = 'https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/';
-      
-      const script = document.createElement('script');
-      script.src = 'https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js';
-      script.async = true;
-      script.onload = () => setCesiumLoaded(true);
-      document.head.appendChild(script);
-    } else {
-      setCesiumLoaded(true);
-    }
-  }, []);
+    return points.map(p => ({
+      ...p.original,
+      repelledLat: p.lat,
+      repelledLon: p.lon
+    }));
+  }, [displayedMarkers]);
 
-  // 2. Initialize Cesium.Viewer and load Google 3D Tiles
+  // 1. Initialize Leaflet ONLY as a graceful robust fallback if WebGL/Cesium fails
   useEffect(() => {
-    if (!cesiumLoaded || !containerRef.current || viewerRef.current) return;
+    if (!mapError || !leafletContainerRef.current) return;
+    if (leafletMapRef.current) return;
 
+    const L = window.L;
+    if (!L) return;
+
+    try {
+      const map = L.map(leafletContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false
+      }).setView([20.0, 12.0], 2);
+
+      leafletMapRef.current = map;
+
+      // Premium dark satellite layer
+      L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 19,
+        attribution: 'Google'
+      }).addTo(map);
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+      console.log("Leaflet 2D satellite fallback map initialized.");
+    } catch (e) {
+      console.error("Leaflet initialization failed:", e);
+    }
+  }, [mapError]);
+
+  // 2. Update threat markers on Leaflet fallback map
+  useEffect(() => {
+    if (!mapError || !leafletMapRef.current) return;
+
+    const L = window.L;
+    const map = leafletMapRef.current;
+
+    // Clear existing markers
+    map.eachLayer(layer => {
+      if (layer instanceof L.CircleMarker) {
+        map.removeLayer(layer);
+      }
+    });
+
+    repelledMarkers.forEach(m => {
+      if (m.repelledLat === undefined || m.repelledLon === undefined) return;
+
+      const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
+
+      const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
+        radius: Math.min(6 + (m.severity || 1) * 2, 16),
+        fillColor: sevColorStr, // Colored strictly by severity!
+        color: '#ffffff',       // CRISP TACTICAL WHITE OUTLINE BORDER!
+        weight: 2.5,            // Faint white outline like the reference image
+        opacity: 1,
+        fillOpacity: 0.9
+      }).addTo(map);
+
+      marker.bindTooltip(`
+        <div style="font-family: monospace; font-size: 11px; padding: 2px;">
+          <strong>${m.title || m.name}</strong><br/>
+          <span style="color: ${sevColorStr}">Severity ${m.severity}</span> • 
+          <span style="color: #cbd5e1">${m.category}</span>
+        </div>
+      `, {
+        direction: 'top',
+        className: 'leaflet-tooltip-dark'
+      });
+
+      marker.on('click', () => {
+        if (onPointClickRef.current) {
+          onPointClickRef.current(m);
+        }
+      });
+    });
+  }, [mapError, repelledMarkers]);
+
+  // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
+  useEffect(() => {
+    if (mapError || typeof window === 'undefined' || !containerRef.current || viewerRef.current) return;
+
+    const Cesium = window.Cesium;
+    if (!Cesium) {
+      console.warn("CesiumJS not available in window. Falling back to Leaflet.");
+      setMapError(true);
+      return;
+    }
+
+    let viewer;
+    try {
+      // Premium imagery provider url based on user style selection (Google Hybrid or Tactical Dark)
+      const mapUrl = mapStyle === 'dark'
+        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+        : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+
+      const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
+        url: mapUrl,
+        credit: mapStyle === 'dark' ? 'CartoDB Dark Matter' : 'Google Maps'
+      });
+
+      const viewerOptions = {
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        infoBox: false,
+        sceneModePicker: false,
+        selectionIndicator: false,
+        timeline: false,
+        navigationHelpButton: false,
+        navigationInstructionsInitiallyVisible: false,
+        animation: false,
+        requestRenderMode: false,
+        fullscreenButton: false,
+        vrButton: false,
+      };
+
+      // Set premium satellite map as baseLayer in modern Cesium, or imageryProvider in older versions
+      if (Cesium.ImageryLayer) {
+        viewerOptions.baseLayer = new Cesium.ImageryLayer(satelliteProvider);
+      } else {
+        viewerOptions.imageryProvider = satelliteProvider;
+      }
+
+      // Initialize clean premium satellite globe
+      viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
+
+      // Force verification & manual layer loading fallback to ensure we never get a blank blue globe
+      if (viewer.imageryLayers.length === 0) {
+        viewer.imageryLayers.addImageryProvider(satelliteProvider);
+      }
+
+      // Enable Google Maps API key globally in Cesium
+      Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
+
+      // Keep the globe visible to guarantee rendering stability
+      viewer.scene.globe.show = true;
+
+      // Set camera to premium global view
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(12.0, 20.0, 15000000.0),
+        orientation: {
+          heading: Cesium.Math.toRadians(0.0),
+          pitch: Cesium.Math.toRadians(-90.0),
+          roll: 0.0
+        }
+      });
+
+      // Screen space event handler for selection and navigation
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+      // Hover pick handler to show labels & pointer cursor
+      handler.setInputAction((movement) => {
+        const pickedObject = viewer.scene.pick(movement.endPosition);
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.label) {
+          document.body.style.cursor = 'pointer';
+          viewer.entities.values.forEach(entity => {
+            if (entity.label) entity.label.show = false;
+          });
+          pickedObject.id.label.show = true;
+        } else {
+          document.body.style.cursor = 'default';
+          viewer.entities.values.forEach(entity => {
+            if (entity.label) entity.label.show = false;
+          });
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+      // Left-click pick handler to select threat event details
+      handler.setInputAction((movement) => {
+        const pickedObject = viewer.scene.pick(movement.position);
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
+          const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
+          if (onPointClickRef.current && metadata) {
+            onPointClickRef.current(metadata);
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      viewerRef.current = viewer;
+
+      // Clean up on unmount
+      return () => {
+        handler.destroy();
+        if (viewerRef.current) {
+          viewerRef.current.destroy();
+          viewerRef.current = null;
+        }
+        tilesetRef.current = null;
+      };
+    } catch (e) {
+      console.error("Cesium globe initialization failed. Switching to 2D Fallback:", e);
+      setMapError(true);
+    }
+  }, [mapError]);
+
+  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode
+  useEffect(() => {
+    if (mapError || !viewerRef.current) return;
+    
+    const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
-    // Initialize clean viewer optimized for dark cyber dashboard
-    const viewer = new Cesium.Viewer(containerRef.current, {
-      imageryProvider: false, // Loaded dynamically to prevent flickering
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      infoBox: false,
-      sceneModePicker: false,
-      selectionIndicator: false,
-      timeline: false,
-      navigationHelpButton: false,
-      navigationInstructionsInitiallyVisible: false,
-      animation: false,
-      requestRenderMode: false, // Prevent flashing/disappearing points by rendering continuously
-      fullscreenButton: false,
-      vrButton: false,
-    });
+    if (mapMode === '3d') {
+      // Toggle 3D buildings overlay on
+      if (tilesetRef.current) {
+        tilesetRef.current.show = true;
+      } else if (tilesetLoadingStatus === 'idle') {
+        setTilesetLoadingStatus('loading');
+        setTilesetLoaded(false);
+        console.log("Zoomed/Toggled in! Dynamically loading Google Photorealistic 3D Tileset overlay...");
 
-    viewerRef.current = viewer;
+        const googleTilesUrl = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`;
+        Cesium.Cesium3DTileset.fromUrl(googleTilesUrl, {
+          showCreditsOnScreen: true,
+        }).then(tileset => {
+          if (!viewerRef.current || viewer.isDestroyed()) return;
 
-    // A. Initialize Google hybrid satellite imagery layer
-    const googleSatelliteProvider = new Cesium.UrlTemplateImageryProvider({
-      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}' // Google hybrid satellite tiles
-    });
-    const imageryLayer = viewer.imageryLayers.addImageryProvider(googleSatelliteProvider);
-    imageryLayerRef.current = imageryLayer;
-    imageryLayer.show = mapMode === '2d';
-
-    // B. Enable Google Maps API key globally in Cesium
-    Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
-
-    // C. Start with the globe visible to guarantee visibility during loading
-    viewer.scene.globe.show = true;
-
-    // D. Load Google Photorealistic 3D Tileset with bulletproof catch-all error fallback
-    let tilesetPromise;
-    if (typeof Cesium.createGooglePhotorealistic3DTileset === 'function') {
-      tilesetPromise = Cesium.createGooglePhotorealistic3DTileset();
-    } else {
-      tilesetPromise = Cesium.Cesium3DTileset.fromUrl(
-        `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-        { showCreditsOnScreen: true }
-      );
-    }
-
-    tilesetPromise.then(tileset => {
-      viewer.scene.primitives.add(tileset);
-      tilesetRef.current = tileset;
-      
-      // If 3D is active, hide flat globe to prevent z-fighting and show photorealistic mesh
-      if (mapMode === '3d') {
-        viewer.scene.globe.show = false;
-        tileset.show = true;
-      } else {
-        viewer.scene.globe.show = true;
-        tileset.show = false;
-      }
-      setTilesetLoaded(true);
-      console.log("Google Photorealistic 3D Tileset initialized successfully.");
-    }).catch(err => {
-      console.error("Map Tiles API is disabled or key is restricted. Falling back to 2D hybrid satellite base layer:", err);
-      // Bulletproof Fallback: Keep globe visible so users always see high-resolution maps
-      viewer.scene.globe.show = true;
-      if (imageryLayerRef.current) imageryLayerRef.current.show = true;
-      setTilesetLoaded(true);
-    });
-    
-    // Set premium initial viewpoint (zoomed out showing the full globe mesh)
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(12.0, 20.0, 15000000.0),
-      orientation: {
-        heading: Cesium.Math.toRadians(0.0),
-        pitch: Cesium.Math.toRadians(-90.0),
-        roll: 0.0
-      }
-    });
-
-    // 3. Dynamic Interactive Pick Handlers (Click & Hover)
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-    // Hover pick handler to show labels & cursors
-    handler.setInputAction((movement) => {
-      const pickedObject = viewer.scene.pick(movement.endPosition);
-      if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.label) {
-        document.body.style.cursor = 'pointer';
-        viewer.entities.values.forEach(entity => {
-          if (entity.label) entity.label.show = false;
-        });
-        pickedObject.id.label.show = true;
-      } else {
-        document.body.style.cursor = 'default';
-        viewer.entities.values.forEach(entity => {
-          if (entity.label) entity.label.show = false;
+          viewer.scene.primitives.add(tileset);
+          tilesetRef.current = tileset;
+          tileset.show = true;
+          
+          setTilesetLoaded(true);
+          setTilesetLoadingStatus('loaded');
+          console.log("Google 3D Tileset loaded successfully.");
+        }).catch(err => {
+          console.error("Google 3D Tileset load failed:", err);
+          setTilesetLoadingStatus('error');
         });
       }
-    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-    // Left-click pick handler to select event details and animate a premium 3D tilted flyTo zoom
-    handler.setInputAction((movement) => {
-      const pickedObject = viewer.scene.pick(movement.position);
-      if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-        const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
-        if (onPointClickRef.current && metadata) {
-          onPointClickRef.current(metadata);
-        }
-
-        // Smoothly fly and tilt to the clicked geolocated threat
-        const position = pickedObject.id.position.getValue(Cesium.JulianDate.now());
-        if (position) {
-          viewer.camera.flyTo({
-            destination: position,
-            duration: 1.8,
-            offset: new Cesium.HeadingPitchRange(
-              Cesium.Math.toRadians(0.0),
-              Cesium.Math.toRadians(-40.0), // Perfect 3D building architectural perspective angle
-              18000.0 // Elevate to 18km high zoom
-            )
-          });
-        }
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-    // Clean up pick handlers and viewer on unmount
-    return () => {
-      handler.destroy();
-      if (viewerRef.current) {
-        viewerRef.current.destroy();
-        viewerRef.current = null;
-      }
-    };
-  }, [cesiumLoaded]);
-
-  // 4. Dynamically toggle Map Mode layers without destroying the viewer (with tileset availability fallback check)
-  useEffect(() => {
-    if (!cesiumLoaded || !viewerRef.current) return;
-    
-    const viewer = viewerRef.current;
-    
-    if (mapMode === '3d' && tilesetRef.current) {
-      viewer.scene.globe.show = false; // Hide flat terrain to enable photorealistic 3D mesh
-      tilesetRef.current.show = true;
-      if (imageryLayerRef.current) imageryLayerRef.current.show = false;
     } else {
-      // Keep globe visible if we are in 2D or if 3D Tiles failed to load
-      viewer.scene.globe.show = true; 
-      if (tilesetRef.current) tilesetRef.current.show = false;
-      if (imageryLayerRef.current) imageryLayerRef.current.show = true;
+      // Toggle 3D buildings overlay off (keep the beautiful satellite globe visible)
+      if (tilesetRef.current) {
+        tilesetRef.current.show = false;
+      }
     }
-  }, [cesiumLoaded, mapMode]);
+  }, [mapMode, tilesetLoadingStatus, mapError]);
 
-  // 5. Update threat circle entities on displayedMarkers changes
+  // 5. Update threat markers on Cesium Globe
   useEffect(() => {
-    if (!cesiumLoaded || !viewerRef.current) return;
+    if (mapError || !viewerRef.current) return;
 
     const Cesium = window.Cesium;
     const viewer = viewerRef.current;
-    
+    if (!Cesium) return;
+
     // Clear previously rendered entities
     viewer.entities.removeAll();
 
-    // Group markers to calculate symmetrical spreading offsets
-    const coordGroups = {};
-    displayedMarkers.forEach(m => {
-      if (m.lat === undefined || m.lon === undefined || m.lat === null || m.lon === null) return;
-      const key = `${m.lat.toFixed(3)}_${m.lon.toFixed(3)}`;
-      if (!coordGroups[key]) coordGroups[key] = [];
-      coordGroups[key].push(m);
-    });
+    repelledMarkers.forEach(m => {
+      if (m.repelledLat === undefined || m.repelledLon === undefined) return;
 
-    displayedMarkers.forEach(m => {
-      if (m.lat === undefined || m.lon === undefined || m.lat === null || m.lon === null) return;
-      
-      let finalLat = m.lat;
-      let finalLon = m.lon;
-      
-      const key = `${m.lat.toFixed(3)}_${m.lon.toFixed(3)}`;
-      const group = coordGroups[key];
-      if (group && group.length > 1) {
-        const index = group.indexOf(m);
-        // Clean spread offset in degrees for 3D navigation
-        const radius = 0.08; 
-        const angle = (index * 2 * Math.PI) / group.length;
-        finalLat += radius * Math.sin(angle);
-        finalLon += radius * Math.cos(angle);
-      }
-
-      const colorStr = CAT_COLORS[m.category] || '#94a3b8';
       const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
 
-      // Threat circle billboard marker
+      // Threat circle billboard marker (perfectly clamped to terrain and 3D building rooftops!)
       viewer.entities.add({
         id: m.id || m.title,
         name: m.title || m.name,
-        position: Cesium.Cartesian3.fromDegrees(finalLon, finalLat, 150), // Elevated on top of 3D terrain
+        position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
         point: {
           pixelSize: Math.min(10 + (m.severity || 1) * 3, 24),
-          color: Cesium.Color.fromCssColorString(colorStr),
-          outlineColor: Cesium.Color.fromCssColorString(sevColorStr),
-          outlineWidth: 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY, // Ensure circles remain on top of buildings
+          color: Cesium.Color.fromCssColorString(sevColorStr), // Colored strictly by severity!
+          outlineColor: Cesium.Color.WHITE, // BEAUTIFUL OUTLINE WHITE BORDER!
+          outlineWidth: 2.5, // Crisp faint white border
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of buildings/terrain!
+          disableDepthTestDistance: 100000.0, // Only disable depth test when zoomed in closer than 100km to bypass 3D buildings clipping, keeping standard occlusion active at global scale!
         },
         label: {
-          text: `${m.title || m.name}\n[S${m.severity} • ${m.category}]`,
+          text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
           font: 'bold 9pt monospace',
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
           fillColor: Cesium.Color.WHITE,
@@ -271,17 +356,18 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           outlineWidth: 3,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -16),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
+          disableDepthTestDistance: 100000.0, // Match point occlusion culling
           show: false,
         },
         properties: m,
       });
 
-      // Expandable rippling radar waves for critical items
-      if (m.severity >= 4) {
+      // Expandable rippling radar waves (strictly pulse at severity 5, conforming beautifully to terrain!)
+      if (m.severity >= 5) {
         let currentRadius = 15000.0;
         viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(finalLon, finalLat, 100),
+          position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
           ellipse: {
             semiMajorAxis: new Cesium.CallbackProperty(() => {
               currentRadius += 3000.0;
@@ -294,17 +380,121 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
             material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.18),
             outline: true,
             outlineColor: Cesium.Color.fromCssColorString(sevColorStr),
-            height: 100,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Conform to the actual terrain/buildings!
           }
         });
       }
     });
-  }, [cesiumLoaded, displayedMarkers]);
+  }, [repelledMarkers, mapError]);
+
+  // 6. Handle Base Map Style changes dynamically in real time (Satellite vs Tactical Dark)
+  useEffect(() => {
+    if (mapError || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    try {
+      const mapUrl = mapStyle === 'dark'
+        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+        : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+
+      const provider = new Cesium.UrlTemplateImageryProvider({
+        url: mapUrl,
+        credit: mapStyle === 'dark' ? 'CartoDB Dark Matter' : 'Google Maps'
+      });
+
+      // Remove the base layer at index 0 and add the new styled layer at index 0!
+      if (viewer.imageryLayers.length > 0) {
+        viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
+      }
+      viewer.imageryLayers.addImageryProvider(provider, 0);
+      console.log(`Cesium base map style swapped dynamically to: ${mapStyle}`);
+    } catch (e) {
+      console.error("Failed to swap Cesium base map style dynamically:", e);
+    }
+  }, [mapStyle, mapError]);
+
+  // 7. Update Leaflet base map layer on mapStyle changes
+  useEffect(() => {
+    if (!mapError || !leafletMapRef.current) return;
+    const L = window.L;
+    const map = leafletMapRef.current;
+    if (!L) return;
+
+    try {
+      // Find and remove existing tile layers
+      map.eachLayer(layer => {
+        if (layer instanceof L.TileLayer) {
+          map.removeLayer(layer);
+        }
+      });
+
+      const tileUrl = mapStyle === 'dark' 
+        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+        : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+
+      L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: mapStyle === 'dark' ? 'CartoDB' : 'Google'
+      }).addTo(map);
+      console.log(`Leaflet fallback base map style swapped to: ${mapStyle}`);
+    } catch (e) {
+      console.error("Failed to swap Leaflet base map style:", e);
+    }
+  }, [mapError, mapStyle]);
+
+  const is2DActive = mapError;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#020617' }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      {!tilesetLoaded && (
+      
+      {/* 2D Leaflet Map Container (Active strictly as a robust fallback only) */}
+      <div 
+        ref={leafletContainerRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          zIndex: is2DActive ? 2 : 1,
+          opacity: is2DActive ? 1 : 0,
+          pointerEvents: is2DActive ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease'
+        }} 
+      />
+
+      {/* 3D Cesium Map Container (Primary Map - renders beautiful satellite globe by default!) */}
+      <div 
+        ref={containerRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          zIndex: !is2DActive ? 2 : 1,
+          opacity: !is2DActive ? 1 : 0,
+          pointerEvents: !is2DActive ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease'
+        }} 
+      />
+
+      {/* 2D Fallback Mode Badge */}
+      {mapError && (
+        <div style={{
+          position: 'absolute', top: '12px', left: '12px', zIndex: 10,
+          background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: '4px', padding: '8px 12px', fontSize: '9px', fontFamily: 'monospace', color: '#38bdf8',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '0.05em'
+        }}>
+          🛰️ TACTICAL MAP: 2D SAT-COM ACTIVE (FALLBACK MODE)
+        </div>
+      )}
+
+      {/* 3D Loading Overlay */}
+      {mapMode === '3d' && !tilesetLoaded && !mapError && (
         <div style={{
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
@@ -318,6 +508,19 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           <span>SYNCHRONIZING GOOGLE 3D TILES...</span>
         </div>
       )}
+
+      <style>{`
+        .leaflet-tooltip-dark {
+          background: rgba(15, 23, 42, 0.95) !important;
+          border: 1px solid rgba(56, 189, 248, 0.3) !important;
+          color: #f8fafc !important;
+          border-radius: 4px !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+        }
+        .leaflet-tooltip-dark:before {
+          border-top-color: rgba(15, 23, 42, 0.95) !important;
+        }
+      `}</style>
     </div>
   );
 }
