@@ -18,6 +18,12 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
   const viewerRef = useRef(null);
   const [cesiumLoaded, setCesiumLoaded] = useState(false);
 
+  // Stabilize callback references using a ref to prevent Cesium viewer unmount/recreation loops
+  const onPointClickRef = useRef(onPointClick);
+  useEffect(() => {
+    onPointClickRef.current = onPointClick;
+  }, [onPointClick]);
+
   // 1. Dynamic CDN script and style injection
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -116,13 +122,27 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    // Left-click pick handler to select event details
+    // Left-click pick handler to select event details and animate a premium 3D tilted flyTo zoom
     handler.setInputAction((movement) => {
       const pickedObject = viewer.scene.pick(movement.position);
       if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
         const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
-        if (onPointClick && metadata) {
-          onPointClick(metadata);
+        if (onPointClickRef.current && metadata) {
+          onPointClickRef.current(metadata);
+        }
+
+        // Smoothly fly and tilt to the clicked geolocated threat
+        const position = pickedObject.id.position.getValue(Cesium.JulianDate.now());
+        if (position) {
+          viewer.camera.flyTo({
+            destination: position,
+            duration: 1.8,
+            offset: new Cesium.HeadingPitchRange(
+              Cesium.Math.toRadians(0.0),
+              Cesium.Math.toRadians(-40.0), // Perfect 3D building architectural perspective angle
+              18000.0 // Elevate to 18km high zoom
+            )
+          });
         }
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -135,7 +155,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
         viewerRef.current = null;
       }
     };
-  }, [cesiumLoaded, onPointClick]);
+  }, [cesiumLoaded]);
 
   // 4. Update threat circle entities on displayedMarkers changes
   useEffect(() => {
