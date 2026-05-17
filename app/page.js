@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Shield, RefreshCw, User, LogOut } from 'lucide-react';
+import { Shield, RefreshCw, User, LogOut, Heart } from 'lucide-react';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
 import AsciiGlobe from '@/components/AsciiGlobe';
 import AuthModal from '@/components/AuthModal';
@@ -16,6 +16,7 @@ export default function DashboardPage() {
   
   const [currentUser, setCurrentUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSupportDropdown, setShowSupportDropdown] = useState(false);
 
   // Read stored session on client boot
   useEffect(() => {
@@ -180,6 +181,116 @@ export default function DashboardPage() {
               <User size={13} /> ACCESS CONTROL
             </button>
           )}
+
+          {/* Support Dropdown Button */}
+          <div style={{ position: 'relative' }}>
+            <button 
+              onClick={() => setShowSupportDropdown(!showSupportDropdown)}
+              onMouseEnter={() => setShowSupportDropdown(true)}
+              onMouseLeave={() => setShowSupportDropdown(false)}
+              className="refresh-btn"
+              style={{
+                background: 'rgba(236, 72, 153, 0.1)',
+                border: '1px solid rgba(236, 72, 153, 0.3)',
+                color: '#ec4899',
+                boxShadow: '0 0 10px rgba(236, 72, 153, 0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Heart size={13} style={{ fill: '#ec4899' }} /> SUPPORT
+            </button>
+            
+            {showSupportDropdown && (
+              <div 
+                onMouseEnter={() => setShowSupportDropdown(true)}
+                onMouseLeave={() => setShowSupportDropdown(false)}
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: '180px',
+                  background: 'rgba(8, 12, 24, 0.95)',
+                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  borderRadius: '8px',
+                  padding: '8px',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(6, 182, 212, 0.1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  zIndex: 1000,
+                  backdropFilter: 'blur(10px)',
+                  animation: 'fadeIn 0.2s ease-out'
+                }}
+              >
+                <a 
+                  href="https://www.patreon.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="support-btn patreon"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                    letterSpacing: '0.5px',
+                    transition: 'all 0.2s',
+                    background: 'rgba(255, 66, 77, 0.1)',
+                    color: '#ff424d',
+                    border: '1px solid rgba(255, 66, 77, 0.2)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ff424d';
+                    e.currentTarget.style.color = '#ffffff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 66, 77, 0.1)';
+                    e.currentTarget.style.color = '#ff424d';
+                  }}
+                >
+                  <span style={{ fontSize: '12px' }}>☕</span> Patreon
+                </a>
+                <a 
+                  href="https://www.buymeacoffee.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="support-btn coffee"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                    letterSpacing: '0.5px',
+                    transition: 'all 0.2s',
+                    background: 'rgba(255, 221, 0, 0.1)',
+                    color: '#ffdd00',
+                    border: '1px solid rgba(255, 221, 0, 0.2)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ffdd00';
+                    e.currentTarget.style.color = '#000000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 221, 0, 0.1)';
+                    e.currentTarget.style.color = '#ffdd00';
+                  }}
+                >
+                  <span style={{ fontSize: '12px' }}>⚡</span> Buy Me A Coffee
+                </a>
+              </div>
+            )}
+          </div>
 
           <button id="refresh-btn" className={`refresh-btn${refreshing ? ' spinning' : ''}`} onClick={() => fetchData(true)}>
             <RefreshCw size={14} /> Refresh
