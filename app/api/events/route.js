@@ -189,6 +189,63 @@ function getCountryCoords(country, title = '') {
     else if (t.includes('poland') || c === 'pl') { baseCoords = { lat: 51.9194, lon: 19.1451 }; resolvedLocation = 'Poland'; }
     else if (t.includes('netherlands') || t.includes('holland') || c === 'nl') { baseCoords = { lat: 52.1326, lon: 5.2913 }; resolvedLocation = 'Netherlands'; }
     else if (t.includes('belgium') || c === 'be') { baseCoords = { lat: 50.5039, lon: 4.4699 }; resolvedLocation = 'Belgium'; }
+    else if (t.includes('tunisia') || c === 'tn') { baseCoords = { lat: 33.8869, lon: 9.5375 }; resolvedLocation = 'Tunisia'; }
+    else if (t.includes('uganda') || c === 'ug') { baseCoords = { lat: 1.3733, lon: 32.2903 }; resolvedLocation = 'Uganda'; }
+    else if (t.includes('rwanda') || c === 'rw') { baseCoords = { lat: -1.9403, lon: 29.8739 }; resolvedLocation = 'Rwanda'; }
+    else if (t.includes('morocco') || c === 'ma') { baseCoords = { lat: 31.7917, lon: -7.0926 }; resolvedLocation = 'Morocco'; }
+    else if (t.includes('algeria') || c === 'dz') { baseCoords = { lat: 28.0339, lon: 1.6596 }; resolvedLocation = 'Algeria'; }
+    else if (t.includes('ethiopia') || c === 'et') { baseCoords = { lat: 9.1450, lon: 40.4897 }; resolvedLocation = 'Ethiopia'; }
+    else if (t.includes('tanzania') || c === 'tz') { baseCoords = { lat: -6.3690, lon: 34.8888 }; resolvedLocation = 'Tanzania'; }
+    else if (t.includes('south africa') || c === 'za') { baseCoords = { lat: -30.5595, lon: 22.9375 }; resolvedLocation = 'South Africa'; }
+    else if (t.includes('south sudan') || c === 'ss') { baseCoords = { lat: 6.8770, lon: 31.3070 }; resolvedLocation = 'South Sudan'; }
+    else if (t.includes('niger') || c === 'ne') { baseCoords = { lat: 17.6078, lon: 8.0817 }; resolvedLocation = 'Niger'; }
+    else if (t.includes('mali') || c === 'ml') { baseCoords = { lat: 17.5707, lon: -3.9962 }; resolvedLocation = 'Mali'; }
+    else if (t.includes('jordan') || c === 'jo') { baseCoords = { lat: 30.5852, lon: 36.2384 }; resolvedLocation = 'Jordan'; }
+    else if (t.includes('united arab emirates') || t.includes('uae') || t.includes('dubai') || c === 'ae') { baseCoords = { lat: 23.4241, lon: 53.8478 }; resolvedLocation = 'United Arab Emirates'; }
+    else if (t.includes('qatar') || c === 'qa') { baseCoords = { lat: 25.3548, lon: 51.1839 }; resolvedLocation = 'Qatar'; }
+    else if (t.includes('kuwait') || c === 'kw') { baseCoords = { lat: 29.3759, lon: 47.9774 }; resolvedLocation = 'Kuwait'; }
+    else if (t.includes('bangladesh') || c === 'bd') { baseCoords = { lat: 23.6850, lon: 90.3563 }; resolvedLocation = 'Bangladesh'; }
+    else if (t.includes('myanmar') || t.includes('burma') || c === 'mm') { baseCoords = { lat: 21.9162, lon: 95.9560 }; resolvedLocation = 'Myanmar'; }
+    else if (t.includes('nepal') || c === 'np') { baseCoords = { lat: 28.3949, lon: 84.1240 }; resolvedLocation = 'Nepal'; }
+    else if (t.includes('sri lanka') || c === 'lk') { baseCoords = { lat: 7.8731, lon: 80.7718 }; resolvedLocation = 'Sri Lanka'; }
+    else if (t.includes('korea') || c === 'kr' || c === 'kp') { baseCoords = { lat: 35.9078, lon: 127.7669 }; resolvedLocation = 'Korea'; }
+    else if (t.includes('laos') || c === 'la') { baseCoords = { lat: 19.8563, lon: 102.4955 }; resolvedLocation = 'Laos'; }
+    else if (t.includes('cambodia') || c === 'kh') { baseCoords = { lat: 12.5657, lon: 104.9910 }; resolvedLocation = 'Cambodia'; }
+    else if (t.includes('singapore') || c === 'sg') { baseCoords = { lat: 1.3521, lon: 103.8198 }; resolvedLocation = 'Singapore'; }
+    else if (t.includes('new zealand') || c === 'nz') { baseCoords = { lat: -40.9006, lon: 174.8860 }; resolvedLocation = 'New Zealand'; }
+    else if (t.includes('belarus') || c === 'by') { baseCoords = { lat: 53.7098, lon: 27.9534 }; resolvedLocation = 'Belarus'; }
+    else if (t.includes('georgia') && c === 'ge') { baseCoords = { lat: 42.3154, lon: 43.3569 }; resolvedLocation = 'Georgia (Country)'; }
+    else if (t.includes('armenia') || c === 'am') { baseCoords = { lat: 40.0691, lon: 45.0382 }; resolvedLocation = 'Armenia'; }
+    else if (t.includes('azerbaijan') || (c === 'az' && !t.includes('arizona'))) { baseCoords = { lat: 40.1431, lon: 47.5769 }; resolvedLocation = 'Azerbaijan'; }
+    else if (t.includes('ireland') || c === 'ie') { baseCoords = { lat: 53.4129, lon: -8.2439 }; resolvedLocation = 'Ireland'; }
+    else if (t.includes('austria') || c === 'at') { baseCoords = { lat: 47.5162, lon: 14.5501 }; resolvedLocation = 'Austria'; }
+    else if (t.includes('czechia') || t.includes('czech republic') || c === 'cz') { baseCoords = { lat: 49.8175, lon: 15.4730 }; resolvedLocation = 'Czechia'; }
+    else if (t.includes('slovakia') || c === 'sk') { baseCoords = { lat: 48.6690, lon: 19.6990 }; resolvedLocation = 'Slovakia'; }
+    else if (t.includes('hungary') || c === 'hu') { baseCoords = { lat: 47.1625, lon: 19.5033 }; resolvedLocation = 'Hungary'; }
+    else if (t.includes('romania') || c === 'ro') { baseCoords = { lat: 45.9432, lon: 24.9668 }; resolvedLocation = 'Romania'; }
+    else if (t.includes('bulgaria') || c === 'bg') { baseCoords = { lat: 42.7339, lon: 25.4858 }; resolvedLocation = 'Bulgaria'; }
+    else if (t.includes('croatia') || c === 'hr') { baseCoords = { lat: 45.1000, lon: 15.2000 }; resolvedLocation = 'Croatia'; }
+    else if (t.includes('serbia') || c === 'rs') { baseCoords = { lat: 44.0165, lon: 21.0059 }; resolvedLocation = 'Serbia'; }
+    else if (t.includes('kosovo') || c === 'xk') { baseCoords = { lat: 42.6026, lon: 20.9030 }; resolvedLocation = 'Kosovo'; }
+    else if (t.includes('albania') || c === 'al') { baseCoords = { lat: 41.1533, lon: 20.1683 }; resolvedLocation = 'Albania'; }
+    else if (t.includes('macedonia') || c === 'mk') { baseCoords = { lat: 41.6086, lon: 21.7453 }; resolvedLocation = 'Macedonia'; }
+    else if (t.includes('denmark') || c === 'dk') { baseCoords = { lat: 56.2639, lon: 9.5018 }; resolvedLocation = 'Denmark'; }
+    else if (t.includes('finland') || c === 'fi') { baseCoords = { lat: 61.9241, lon: 25.7482 }; resolvedLocation = 'Finland'; }
+    else if (t.includes('estonia') || c === 'ee') { baseCoords = { lat: 58.5953, lon: 25.0136 }; resolvedLocation = 'Estonia'; }
+    else if (t.includes('latvia') || c === 'lv') { baseCoords = { lat: 56.8796, lon: 24.6032 }; resolvedLocation = 'Latvia'; }
+    else if (t.includes('lithuania') || c === 'lt') { baseCoords = { lat: 55.1694, lon: 23.8813 }; resolvedLocation = 'Lithuania'; }
+    else if (t.includes('portugal') || c === 'pt') { baseCoords = { lat: 39.3999, lon: -8.2245 }; resolvedLocation = 'Portugal'; }
+    else if (t.includes('argentina') || c === 'ar') { baseCoords = { lat: -38.4161, lon: -63.6167 }; resolvedLocation = 'Argentina'; }
+    else if (t.includes('peru') || c === 'pe') { baseCoords = { lat: -9.1899, lon: -75.0152 }; resolvedLocation = 'Peru'; }
+    else if (t.includes('chile') || c === 'cl') { baseCoords = { lat: -35.6751, lon: -71.5430 }; resolvedLocation = 'Chile'; }
+    else if (t.includes('ecuador') || c === 'ec') { baseCoords = { lat: -1.8312, lon: -78.1834 }; resolvedLocation = 'Ecuador'; }
+    else if (t.includes('bolivia') || c === 'bo') { baseCoords = { lat: -16.2902, lon: -63.5887 }; resolvedLocation = 'Bolivia'; }
+    else if (t.includes('paraguay') || c === 'py') { baseCoords = { lat: -23.4425, lon: -58.4438 }; resolvedLocation = 'Paraguay'; }
+    else if (t.includes('uruguay') || c === 'uy') { baseCoords = { lat: -32.5228, lon: -55.7658 }; resolvedLocation = 'Uruguay'; }
+    else if (t.includes('cuba') || c === 'cu') { baseCoords = { lat: 21.5218, lon: -77.7812 }; resolvedLocation = 'Cuba'; }
+    else if (t.includes('haiti') || c === 'ht') { baseCoords = { lat: 18.9712, lon: -72.2852 }; resolvedLocation = 'Haiti'; }
+    else if (t.includes('dominican republic') || c === 'do') { baseCoords = { lat: 18.7357, lon: -70.1627 }; resolvedLocation = 'Dominican Republic'; }
+    else if (t.includes('panama') || (c === 'pa' && !t.includes('pennsylvania'))) { baseCoords = { lat: 8.5380, lon: -80.7821 }; resolvedLocation = 'Panama'; }
     else if (t.includes('south china sea')) { baseCoords = { lat: 12.0, lon: 113.0 }; resolvedLocation = 'South China Sea'; }
     else if (t.includes('europe') || t.includes('eu') || t.includes('brussels')) { baseCoords = { lat: 50.8503, lon: 4.3517 }; resolvedLocation = 'Brussels, EU'; }
   }
