@@ -13,10 +13,14 @@ const CAT_COLORS = {
 
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyD4DuTPeIASgReG0AAlR8ZSZOlHw8alqME';
 
-export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null }) {
+export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '3d' }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
+  const tilesetRef = useRef(null);
+  const imageryLayerRef = useRef(null);
+  
   const [cesiumLoaded, setCesiumLoaded] = useState(false);
+  const [tilesetLoaded, setTilesetLoaded] = useState(false);
 
   // Stabilize callback references using a ref to prevent Cesium viewer unmount/recreation loops
   const onPointClickRef = useRef(onPointClick);
@@ -59,9 +63,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
 
     // Initialize clean viewer optimized for dark cyber dashboard
     const viewer = new Cesium.Viewer(containerRef.current, {
-      imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}' // Google hybrid satellite tiles as base
-      }),
+      imageryProvider: false, // Loaded dynamically to prevent flickering
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -79,28 +81,40 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
 
     viewerRef.current = viewer;
 
-    // Enable Google's Photorealistic 3D Tileset
-    try {
-      const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-        url: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-        showCreditsOnScreen: true,
-      }));
+    // A. Initialize Google hybrid satellite imagery layer
+    const googleSatelliteProvider = new Cesium.UrlTemplateImageryProvider({
+      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}' // Google hybrid satellite tiles
+    });
+    const imageryLayer = viewer.imageryLayers.addImageryProvider(googleSatelliteProvider);
+    imageryLayerRef.current = imageryLayer;
+    imageryLayer.show = mapMode === '2d';
 
-      // Hide default low-res globe to display 3D terrain
-      viewer.scene.globe.show = true; // Show base globe satellite imagery
-      
-      // Set premium initial viewpoint (zoomed out showing the full globe mesh)
-      viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(12.0, 20.0, 15000000.0),
-        orientation: {
-          heading: Cesium.Math.toRadians(0.0),
-          pitch: Cesium.Math.toRadians(-90.0),
-          roll: 0.0
-        }
-      });
-    } catch (err) {
-      console.error("Error loading Google 3D Tileset:", err);
-    }
+    // B. Load Google Photorealistic 3D Tileset using correct fromUrl async constructor
+    Cesium.Cesium3DTileset.fromUrl(
+      `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
+      { showCreditsOnScreen: true }
+    ).then(tileset => {
+      viewer.scene.primitives.add(tileset);
+      tilesetRef.current = tileset;
+      tileset.show = mapMode === '3d';
+      setTilesetLoaded(true);
+    }).catch(err => {
+      console.error("Error loading Google 3D Tiles:", err);
+      setTilesetLoaded(true);
+    });
+
+    // C. Sync initial globe visibility
+    viewer.scene.globe.show = mapMode === '2d';
+    
+    // Set premium initial viewpoint (zoomed out showing the full globe mesh)
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(12.0, 20.0, 15000000.0),
+      orientation: {
+        heading: Cesium.Math.toRadians(0.0),
+        pitch: Cesium.Math.toRadians(-90.0),
+        roll: 0.0
+      }
+    });
 
     // 3. Dynamic Interactive Pick Handlers (Click & Hover)
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -157,7 +171,24 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     };
   }, [cesiumLoaded]);
 
-  // 4. Update threat circle entities on displayedMarkers changes
+  // 4. Dynamically toggle Map Mode layers without destroying the viewer
+  useEffect(() => {
+    if (!cesiumLoaded || !viewerRef.current) return;
+    
+    const viewer = viewerRef.current;
+    
+    if (mapMode === '3d') {
+      viewer.scene.globe.show = false; // Hide flat terrain to enable photorealistic 3D mesh
+      if (tilesetRef.current) tilesetRef.current.show = true;
+      if (imageryLayerRef.current) imageryLayerRef.current.show = false;
+    } else {
+      viewer.scene.globe.show = true; // Show base satellite globe
+      if (tilesetRef.current) tilesetRef.current.show = false;
+      if (imageryLayerRef.current) imageryLayerRef.current.show = true;
+    }
+  }, [cesiumLoaded, mapMode]);
+
+  // 5. Update threat circle entities on displayedMarkers changes
   useEffect(() => {
     if (!cesiumLoaded || !viewerRef.current) return;
 
@@ -245,15 +276,12 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
         });
       }
     });
-
-    // Request render update in Cesium engine
-    // Handled automatically by continuous rendering
   }, [cesiumLoaded, displayedMarkers]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#020617' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      {!cesiumLoaded && (
+      {!tilesetLoaded && (
         <div style={{
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',

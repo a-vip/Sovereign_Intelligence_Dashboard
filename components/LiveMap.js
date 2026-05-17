@@ -42,6 +42,7 @@ export default function LiveMap() {
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
+  const [mapMode, setMapMode] = useState('3d'); // 3D Mesh mode by default!
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
@@ -217,6 +218,7 @@ export default function LiveMap() {
       <div ref={mapAreaRef} className="sigint-map-area">
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
+          mapMode={mapMode}
           onPointClick={(point) => {
             const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
             setSelectedEvent(fullEvent || point);
@@ -304,8 +306,49 @@ export default function LiveMap() {
             </div>
 
             <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
+              <div className="overlay-title">MAP MODE</div>
+              <div className="severity-buttons" style={{ marginTop: '8px', marginBottom: '12px', display: 'flex', gap: '6px' }}>
+                <button
+                  className={`sev-btn${mapMode === '3d' ? ' active' : ''}`}
+                  style={{
+                    background: mapMode === '3d' ? '#38bdf8' : 'transparent',
+                    color: mapMode === '3d' ? '#020617' : '#8892a4',
+                    borderColor: '#38bdf8',
+                    flex: 1,
+                    fontSize: '9px',
+                    padding: '6px 0',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    border: '1px solid #38bdf8',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setMapMode('3d')}
+                >
+                  3D BUILDINGS
+                </button>
+                <button
+                  className={`sev-btn${mapMode === '2d' ? ' active' : ''}`}
+                  style={{
+                    background: mapMode === '2d' ? '#38bdf8' : 'transparent',
+                    color: mapMode === '2d' ? '#020617' : '#8892a4',
+                    borderColor: '#38bdf8',
+                    flex: 1,
+                    fontSize: '9px',
+                    padding: '6px 0',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    border: '1px solid #38bdf8',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setMapMode('2d')}
+                >
+                  2D SATELLITE
+                </button>
+              </div>
               <div className="overlay-title">MAP SYSTEM</div>
-              <div style={{ fontSize: '10px', color: '#8892a4', marginTop: '6px', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: '9px', color: '#8892a4', marginTop: '4px', fontFamily: 'monospace' }}>
                 POWERED BY: GOOGLE 3D TILES
                 <br />
                 RENDERER: CESIUMJS WebGL
