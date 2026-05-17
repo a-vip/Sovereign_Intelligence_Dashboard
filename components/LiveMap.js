@@ -36,6 +36,7 @@ export default function LiveMap() {
   const [status, setStatus] = useState('loading');
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
@@ -155,8 +156,19 @@ export default function LiveMap() {
 
   // Memoize filtered data to prevent unnecessary re-renders
   const displayedMarkers = useMemo(() => {
-    return markers.filter(m => categories[m.category] && m.severity >= minSeverity);
-  }, [markers, categories, minSeverity]);
+    let filtered = markers.filter(m => categories[m.category] && m.severity >= minSeverity);
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(m => {
+        const nameMatch = (m.name || m.title || '').toLowerCase().includes(q);
+        const locMatch = (m.location || '').toLowerCase().includes(q);
+        const catMatch = (m.category || '').toLowerCase().includes(q);
+        const descMatch = (m.description || m.details?.summary || '').toLowerCase().includes(q);
+        return nameMatch || locMatch || catMatch || descMatch;
+      });
+    }
+    return filtered;
+  }, [markers, categories, minSeverity, searchQuery]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -168,8 +180,21 @@ export default function LiveMap() {
     if (activeCategories.length > 0) {
       filtered = filtered.filter(e => activeCategories.includes(e.category));
     }
+
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(e => {
+        const titleMatch = (e.title || '').toLowerCase().includes(q);
+        const locMatch = (e.location || '').toLowerCase().includes(q);
+        const catMatch = (e.category || '').toLowerCase().includes(q);
+        const srcMatch = (e.source || '').toLowerCase().includes(q);
+        const summaryMatch = (e.details?.summary || e.description || '').toLowerCase().includes(q);
+        return titleMatch || locMatch || catMatch || srcMatch || summaryMatch;
+      });
+    }
+
     return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  }, [displayedEvents, categories, feedType]);
+  }, [displayedEvents, categories, feedType, searchQuery]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -194,6 +219,111 @@ export default function LiveMap() {
           <button className={`feed-tab ${timeRange === 'today' ? 'active' : ''}`} onClick={() => setTimeRange('today')}>TODAY</button>
           <button className={`feed-tab live-tab ${timeRange === '6h' ? 'active' : ''}`} onClick={() => setTimeRange('6h')}>6 HOURS</button>
         </div>
+        
+        {/* Live Search Bar */}
+        <div style={{
+          padding: '10px 14px',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.1)',
+          background: 'rgba(8, 12, 24, 0.25)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px'
+        }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="SEARCH SIGNAL FEED..."
+              style={{
+                width: '100%',
+                background: 'rgba(15, 23, 42, 0.55)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: '6px',
+                padding: '8px 32px 8px 12px',
+                color: '#ffffff',
+                fontFamily: 'Courier New, monospace',
+                fontSize: '11px',
+                letterSpacing: '0.05em',
+                outline: 'none',
+                transition: 'all 0.2s ease',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#00f0ff';
+                e.target.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'rgba(56, 189, 248, 0.2)';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+            {/* Search/Filter Indicator */}
+            <div style={{
+              position: 'absolute',
+              right: searchQuery ? '28px' : '12px',
+              color: searchQuery ? '#00f0ff' : 'rgba(56, 189, 248, 0.4)',
+              fontSize: '11px',
+              pointerEvents: 'none',
+              fontFamily: 'monospace'
+            }}>
+              🔍
+            </div>
+            {/* Clear Button */}
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(239, 68, 68, 0.8)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  outline: 'none',
+                  padding: '2px 4px',
+                  transition: 'color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+                onMouseLeave={(e) => e.target.style.color = 'rgba(239, 68, 68, 0.8)'}
+                title="Clear Search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <div style={{
+              fontSize: '9px',
+              fontFamily: 'Courier New, monospace',
+              color: '#00f0ff',
+              letterSpacing: '0.05em',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '2px'
+            }}>
+              <span>FILTERED: {filteredEvents.length} MATCHES</span>
+              <button 
+                onClick={() => setSearchQuery('')}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'rgba(56, 189, 248, 0.6)', 
+                  cursor: 'pointer', 
+                  fontSize: '9px',
+                  textDecoration: 'underline',
+                  fontFamily: 'monospace',
+                  padding: 0
+                }}
+              >
+                RESET
+              </button>
+            </div>
+          )}
+        </div>
+        
         <div className="feed-list">
           {filteredEvents.map((ev, idx) => (
             <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
