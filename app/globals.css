@@ -523,9 +523,14 @@ body {
 
 .feed-item {
   padding: 12px; border-radius: var(--radius-sm); cursor: pointer;
-  transition: var(--transition-fast); border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: all 0.2s ease-in-out; border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-left: 3px solid transparent;
 }
-.feed-item:hover { background: rgba(255,255,255,0.04); }
+.feed-item:hover { 
+  background: rgba(0, 240, 255, 0.04) !important; 
+  border-left-color: var(--cyan) !important;
+  box-shadow: inset 8px 0 20px rgba(0, 240, 255, 0.03) !important;
+}
 .feed-item-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .feed-category {
   font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
@@ -564,10 +569,10 @@ body {
 /* Overlay panel */
 .overlay-panel {
   position: absolute; bottom: 48px; right: 16px; z-index: 500;
-  background: rgba(10,15,26,0.92); border: 1px solid var(--glass-border);
+  background: rgba(10,15,26,0.92); border: 1px solid rgba(0, 240, 255, 0.18) !important;
   border-radius: var(--radius-md); padding: 16px; min-width: 220px;
   backdrop-filter: blur(16px);
-  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+  box-shadow: 0 16px 64px rgba(0,0,0,0.65), 0 0 24px rgba(0, 240, 255, 0.08) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .overlay-panel.minimized {

@@ -34,17 +34,19 @@ export default function LiveMap() {
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const [hoveredCountry, setHoveredCountry] = useState(null);
+
   // Globe Settings
   const [isDayMode, setIsDayMode] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [showGeoDetails, setShowGeoDetails] = useState(false); // Unified Toggle, OFF by default
-  const [lowPowerMode, setLowPowerMode] = useState(true); 
+  const [showGeoDetails, setShowGeoDetails] = useState(true); // ON by default
+  const [lowPowerMode, setLowPowerMode] = useState(false); // High fidelity by default
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
   const [geoJson, setGeoJson] = useState(null);
   const [citiesJson, setCitiesJson] = useState(null);
   const [globeReady, setGlobeReady] = useState(false);
-  const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
+  const [showAtmosphere, setShowAtmosphere] = useState(true); // ON by default
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
@@ -192,7 +194,7 @@ export default function LiveMap() {
         .then(res => res.json())
         .then(data => setCitiesJson(data.features))
         .catch(() => {});
-    }, 3000);
+    }, 500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -271,9 +273,9 @@ export default function LiveMap() {
 
   const categoryCounts = useMemo(() => {
     const counts = {};
-    displayedEvents.forEach(e => { counts[e.category] = (counts[e.category] || 0) + 1; });
+    markers.forEach(m => { counts[m.category] = (counts[m.category] || 0) + 1; });
     return counts;
-  }, [displayedEvents]);
+  }, [markers]);
 
   // Memoize label data to avoid recalculating on every render
   const labelData = useMemo(() => {
@@ -402,11 +404,12 @@ export default function LiveMap() {
             showAtmosphere={showAtmosphere && !lowPowerMode}
             atmosphereColor="#38bdf8"
             atmosphereAltitude={0.12}
-            polygonsData={showGeoDetails && !lowPowerMode && geoJson ? geoJson : []}
+            polygonsData={showGeoDetails && geoJson ? geoJson : []}
             polygonAltitude={0.006}
-            polygonCapColor={() => 'rgba(0,0,0,0)'}
-            polygonSideColor={() => 'rgba(0, 240, 255, 0.08)'}
-            polygonStrokeColor={() => '#475569'}
+            polygonCapColor={feat => feat === hoveredCountry ? 'rgba(0, 240, 255, 0.12)' : 'rgba(0,0,0,0)'}
+            polygonSideColor={feat => feat === hoveredCountry ? 'rgba(0, 240, 255, 0.15)' : 'rgba(0, 240, 255, 0.04)'}
+            polygonStrokeColor={feat => feat === hoveredCountry ? '#00f0ff' : 'rgba(0, 240, 255, 0.15)'}
+            onPolygonHover={setHoveredCountry}
             labelsData={showGeoDetails ? labelData : []}
             labelLat={d => d.lat}
             labelLng={d => d.lon}
