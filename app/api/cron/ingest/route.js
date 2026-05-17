@@ -48,30 +48,34 @@ export async function GET(request) {
     await initDb();
     
     // 1. Fetch OSINT from GDELT
-    const mainQuery = '(artificial intelligence OR autonomous weapons OR drone OR AI military OR surveillance OR "facial recognition" OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI" OR Palantir OR ICE OR DHS OR NEST OR "surveillance tech" OR earthquake OR tsunami OR flood OR hurricane OR "natural disaster" OR "refugee crisis" OR "humanitarian aid" OR "global trade" OR tariff OR sanction)';
+    const mainQuery = '(artificial intelligence OR autonomous weapons OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR drone OR AI military OR surveillance OR "facial recognition" OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI" OR Palantir OR ICE OR DHS OR NEST OR "surveillance tech" OR earthquake OR tsunami OR flood OR hurricane OR "natural disaster" OR "refugee crisis" OR "humanitarian aid" OR "global trade" OR tariff OR sanction)';
     const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=12h`;
     
-    const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(10000) });
-    const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
-    
+    let osintEvents = [];
+    try {
+      const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(6000) });
+      const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
+      osintEvents = (gdeltData.articles || []).map(a => ({
+        id: generateId(a.url, a.title),
+        title: a.title || 'Untitled',
+        url: a.url,
+        source: a.domain || 'Unknown',
+        timestamp: a.seendate || new Date().toISOString(),
+        category: categorize(a.title || ''),
+        severity: scoreSeverity(a.title || ''),
+        location: a.sourcecountry || null,
+        details: { 
+          ...a, 
+          media: extractMedia(a),
+          probability: getEscalationProb(a.title || '', scoreSeverity(a.title || ''))
+        }
+      }));
+    } catch (e) {
+      console.warn('GDELT OSINT fetch failed or timed out. Proceeding with research feeds.', e.message);
+    }
+
     // 2. Fetch Verified Research/News from Funnel
     const research = await fetchResearch();
-    
-    const osintEvents = (gdeltData.articles || []).map(a => ({
-      id: generateId(a.url, a.title),
-      title: a.title || 'Untitled',
-      url: a.url,
-      source: a.domain || 'Unknown',
-      timestamp: a.seendate || new Date().toISOString(),
-      category: categorize(a.title || ''),
-      severity: scoreSeverity(a.title || ''),
-      location: a.sourcecountry || null,
-      details: { 
-        ...a, 
-        media: extractMedia(a),
-        probability: getEscalationProb(a.title || '', scoreSeverity(a.title || ''))
-      }
-    }));
 
     const researchEvents = research.map(r => ({
       ...r,
