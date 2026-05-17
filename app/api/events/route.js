@@ -224,6 +224,19 @@ function parseLocalRadarDossiers() {
   return events;
 }
 
+function loadStaticEvents() {
+  const staticPath = path.join(process.cwd(), 'public', 'data', 'events.json');
+  try {
+    if (fs.existsSync(staticPath)) {
+      const data = fs.readFileSync(staticPath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error loading static events:', err);
+  }
+  return [];
+}
+
 const CURATED_STATIC_MARKERS = [
   { lat: 31.5, lon: 34.5, name: 'IDF Lavender AI targeting system deployment', category: 'Conflict', severity: 5, tag: 'CRITICAL', source: '+972 Magazine', url: 'https://www.972mag.com/lavender-ai-israeli-army-gaza/' },
   { lat: 31.8, lon: 35.2, name: 'Red Wolf biometric surveillance network', category: 'Conflict', severity: 4, tag: 'ALERT', source: 'Amnesty International', url: 'https://www.amnesty.org/en/latest/news/2023/05/israel-opt-israeli-authorities-are-using-facial-recognition-technology-to-entrench-apartheid/' },
@@ -306,8 +319,14 @@ export async function GET(request) {
 
     let finalEventsList = [...dbEventsList];
     if (finalEventsList.length === 0 && evs.length === 0) {
-      console.log('No online or database events found. Falling back to local dossiers...');
-      finalEventsList = parseLocalRadarDossiers();
+      console.log('No online or database events found. Trying fallbacks...');
+      const staticEvents = loadStaticEvents();
+      const localDossierEvents = parseLocalRadarDossiers();
+      
+      const mergedFallbacks = new Map();
+      staticEvents.forEach(e => mergedFallbacks.set(e.id, e));
+      localDossierEvents.forEach(e => mergedFallbacks.set(e.id, e));
+      finalEventsList = Array.from(mergedFallbacks.values());
     }
 
     // Merge Events
