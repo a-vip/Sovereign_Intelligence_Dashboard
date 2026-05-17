@@ -13,8 +13,9 @@ function categorize(text) {
   const keywords = {
     Conflict: /strike|attack|bomb|missile|drone|kill|military|weapon|war|combat|troops|airstrike|explosion|clash|warfare|assault|targeting/i,
     Humanitarian: /humanitarian|refugee|aid|famine|hunger|displacement|crisis|civilian|casualties|victims|rescue|relief/i,
-    Disaster: /disaster|earthquake|flood|tsunami|hurricane|wildfire|storm|cyclone|accident/i,
-    Economic: /economic|trade|sanction|tariff|oil|energy|market|finance|invest|contract|billion|funding/i,
+    Disaster: /disaster|earthquake|flood|tsunami|hurricane|wildfire|storm|cyclone|accident|tremor|quake|eruption|seismic/i,
+    Economic: /economic|trade|sanction|tariff|oil|energy|market|finance|invest|contract|billion|funding|gdp|inflation|rates|commerce/i,
+    Surveillance: /surveillance|palantir|ice|nest|dhs|facial recognition|biometric|tracking|border control|police tech|cia|fbi|nsa|monitoring|spying|espionage/i,
   };
   for (const [cat, re] of Object.entries(keywords)) {
     if (re.test(text)) return cat;
@@ -47,8 +48,8 @@ export async function GET(request) {
     await initDb();
     
     // 1. Fetch OSINT from GDELT
-    const mainQuery = '(artificial intelligence OR autonomous weapons OR drone OR AI military OR surveillance OR facial recognition OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI")';
-    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=1h`;
+    const mainQuery = '(artificial intelligence OR autonomous weapons OR drone OR AI military OR surveillance OR "facial recognition" OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI" OR Palantir OR ICE OR DHS OR NEST OR "surveillance tech" OR earthquake OR tsunami OR flood OR hurricane OR "natural disaster" OR "refugee crisis" OR "humanitarian aid" OR "global trade" OR tariff OR sanction)';
+    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=12h`;
     
     const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(10000) });
     const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
