@@ -89,22 +89,44 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     imageryLayerRef.current = imageryLayer;
     imageryLayer.show = mapMode === '2d';
 
-    // B. Load Google Photorealistic 3D Tileset using correct fromUrl async constructor
-    Cesium.Cesium3DTileset.fromUrl(
-      `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-      { showCreditsOnScreen: true }
-    ).then(tileset => {
+    // B. Enable Google Maps API key globally in Cesium
+    Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
+
+    // C. Start with the globe visible to guarantee visibility during loading
+    viewer.scene.globe.show = true;
+
+    // D. Load Google Photorealistic 3D Tileset with bulletproof catch-all error fallback
+    let tilesetPromise;
+    if (typeof Cesium.createGooglePhotorealistic3DTileset === 'function') {
+      tilesetPromise = Cesium.createGooglePhotorealistic3DTileset();
+    } else {
+      tilesetPromise = Cesium.Cesium3DTileset.fromUrl(
+        `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
+        { showCreditsOnScreen: true }
+      );
+    }
+
+    tilesetPromise.then(tileset => {
       viewer.scene.primitives.add(tileset);
       tilesetRef.current = tileset;
-      tileset.show = mapMode === '3d';
+      
+      // If 3D is active, hide flat globe to prevent z-fighting and show photorealistic mesh
+      if (mapMode === '3d') {
+        viewer.scene.globe.show = false;
+        tileset.show = true;
+      } else {
+        viewer.scene.globe.show = true;
+        tileset.show = false;
+      }
       setTilesetLoaded(true);
+      console.log("Google Photorealistic 3D Tileset initialized successfully.");
     }).catch(err => {
-      console.error("Error loading Google 3D Tiles:", err);
+      console.error("Map Tiles API is disabled or key is restricted. Falling back to 2D hybrid satellite base layer:", err);
+      // Bulletproof Fallback: Keep globe visible so users always see high-resolution maps
+      viewer.scene.globe.show = true;
+      if (imageryLayerRef.current) imageryLayerRef.current.show = true;
       setTilesetLoaded(true);
     });
-
-    // C. Sync initial globe visibility
-    viewer.scene.globe.show = mapMode === '2d';
     
     // Set premium initial viewpoint (zoomed out showing the full globe mesh)
     viewer.camera.setView({
@@ -171,18 +193,19 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     };
   }, [cesiumLoaded]);
 
-  // 4. Dynamically toggle Map Mode layers without destroying the viewer
+  // 4. Dynamically toggle Map Mode layers without destroying the viewer (with tileset availability fallback check)
   useEffect(() => {
     if (!cesiumLoaded || !viewerRef.current) return;
     
     const viewer = viewerRef.current;
     
-    if (mapMode === '3d') {
+    if (mapMode === '3d' && tilesetRef.current) {
       viewer.scene.globe.show = false; // Hide flat terrain to enable photorealistic 3D mesh
-      if (tilesetRef.current) tilesetRef.current.show = true;
+      tilesetRef.current.show = true;
       if (imageryLayerRef.current) imageryLayerRef.current.show = false;
     } else {
-      viewer.scene.globe.show = true; // Show base satellite globe
+      // Keep globe visible if we are in 2D or if 3D Tiles failed to load
+      viewer.scene.globe.show = true; 
       if (tilesetRef.current) tilesetRef.current.show = false;
       if (imageryLayerRef.current) imageryLayerRef.current.show = true;
     }
