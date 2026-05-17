@@ -1,6 +1,9 @@
 'use client';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import EventDetailsWindow from './EventDetailsWindow';
+
+const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
 const EVENTS_POLL = 15000; // Increased frequency (15s)
 
@@ -17,7 +20,7 @@ const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: 
 
 function formatTime(ts) {
   if (!ts) return '';
-  const d = new Date(ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
+  const d = new Date(ts.replace(/(d{4})(d{2})(d{2})(d{2})(d{2})(d{2})/, '$1-$2-$3T$4:$5:$6Z'));
   if (isNaN(d)) return ts;
   const diff = Date.now() - d;
   if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))}m ago`;
@@ -34,27 +37,13 @@ export default function LiveMap() {
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const [hoveredCountry, setHoveredCountry] = useState(null);
-
-  // Globe Settings
-  const [isDayMode, setIsDayMode] = useState(false);
-  const [autoRotate, setAutoRotate] = useState(true);
-  const [showGeoDetails, setShowGeoDetails] = useState(false); // OFF by default
-  const [lowPowerMode, setLowPowerMode] = useState(true); // Low Power by default
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
-  const [geoJson, setGeoJson] = useState(null);
-  const [citiesJson, setCitiesJson] = useState(null);
-  const [globeReady, setGlobeReady] = useState(false);
-  const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
-  const [mapStyle, setMapStyle] = useState('hybrid'); // Hybrid satellite by default as requested!
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
-  const [GlobeComponent, setGlobeComponent] = useState(null);
-  const globeEl = useRef();
+  
   const [isMobile, setIsMobile] = useState(false);
-  const [globeDimensions, setGlobeDimensions] = useState({ width: 600, height: 600 });
   const mapAreaRef = useRef(null);
 
   // Handle window resizing and mobile status
@@ -71,38 +60,10 @@ export default function LiveMap() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Handle dynamic map area resizing using ResizeObserver
-  useEffect(() => {
-    if (!mapAreaRef.current) return;
-    const updateDimensions = () => {
-      const rect = mapAreaRef.current.getBoundingClientRect();
-      setGlobeDimensions({
-        width: Math.floor(rect.width) || 600,
-        height: Math.floor(rect.height) || 450
-      });
-    };
-    
-    updateDimensions();
-    
-    const observer = new ResizeObserver(() => {
-      updateDimensions();
-    });
-    observer.observe(mapAreaRef.current);
-    
-    return () => observer.disconnect();
-  }, [mapAreaRef]);
-
-  // Toggle ambient glow removed for performance
-  useEffect(() => {
-    // Clean up if somehow still there
-    document.body.classList.remove('ambient-glow');
-  }, []);
-
   // Overlay Settings
   const [isCatExpanded, setIsCatExpanded] = useState(true);
 
   // 8-second live feed queue
-  const [eventQueue, setEventQueue] = useState([]);
   const [displayedEvents, setDisplayedEvents] = useState([]);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -110,15 +71,6 @@ export default function LiveMap() {
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
-
-  // Lazy-load Globe component after mount (avoids SSR and double-import issues)
-  useEffect(() => {
-    let cancelled = false;
-    import('react-globe.gl').then(mod => {
-      if (!cancelled) setGlobeComponent(() => mod.default);
-    });
-    return () => { cancelled = true; };
-  }, []);
 
   const handleDragStart = (e) => {
     if (e.button !== 0) return;
@@ -191,54 +143,18 @@ export default function LiveMap() {
     } catch { setStatus('error'); }
   }, [isInitializing, isVisible, timeRange]);
 
-  // Fetch GeoJSON for country borders (deferred to avoid blocking initial render)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Fetch countries
-      fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
-        .then(res => res.json())
-        .then(data => setGeoJson(data.features))
-        .catch(() => {});
-
-      // Fetch cities (simple version)
-      fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_populated_places_simple.geojson')
-        .then(res => res.json())
-        .then(data => setCitiesJson(data.features))
-        .catch(() => {});
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     fetchEvents();
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
   }, [fetchEvents, timeRange]); // Refetch when timeRange changes
 
-  // Globe Auto-Rotate configuration
-  useEffect(() => {
-    if (!globeEl.current || !globeReady) return;
-    try {
-      const controls = globeEl.current.controls();
-      controls.autoRotate = autoRotate && isVisible; // Pause rotation if hidden
-      controls.autoRotateSpeed = 0.4;
-      const onInteraction = () => setAutoRotate(false);
-      controls.addEventListener('start', onInteraction);
-      return () => controls.removeEventListener('start', onInteraction);
-    } catch {}
-  }, [autoRotate, globeReady, isVisible]);
-
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
   // Memoize filtered data to prevent unnecessary re-renders
-  // ALL points that come up should remain on the map
   const displayedMarkers = useMemo(() => {
     return markers.filter(m => categories[m.category] && m.severity >= minSeverity);
   }, [markers, categories, minSeverity]);
-
-  const ringMarkers = useMemo(() => {
-    return displayedMarkers.filter(m => m.severity >= 4);
-  }, [displayedMarkers]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -251,85 +167,13 @@ export default function LiveMap() {
       filtered = filtered.filter(e => activeCategories.includes(e.category));
     }
     return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  }, [displayedEvents, categories, feedType, minSeverity]);
+  }, [displayedEvents, categories, feedType]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
     markers.forEach(m => { counts[m.category] = (counts[m.category] || 0) + 1; });
     return counts;
   }, [markers]);
-
-  // Memoize label data to avoid recalculating on every render
-  const labelData = useMemo(() => {
-    if (!showGeoDetails) return [];
-    
-    const labels = [];
-    
-    // Add countries
-    if (geoJson) {
-      geoJson.forEach(f => {
-        const { bbox, properties } = f;
-        let lat = properties?.LABEL_Y;
-        let lon = properties?.LABEL_X;
-        
-        if (!lat && bbox) {
-          lat = (bbox[1] + bbox[3]) / 2;
-          lon = (bbox[0] + bbox[2]) / 2;
-        }
-        
-        if (lat) {
-          labels.push({
-            lat,
-            lon,
-            text: properties.NAME,
-            size: 1.2,
-            color: 'rgba(255, 255, 255, 0.85)',
-            type: 'country'
-          });
-        }
-      });
-    }
-
-    // Add cities
-    if (citiesJson) {
-      citiesJson.forEach(f => {
-        const { geometry, properties } = f;
-        if (geometry.type === 'Point') {
-          labels.push({
-            lat: geometry.coordinates[1],
-            lon: geometry.coordinates[0],
-            text: properties.NAME,
-            size: 0.6,
-            color: 'rgba(200, 240, 255, 0.6)',
-            type: 'city'
-          });
-        }
-      });
-    }
-    
-    return labels;
-  }, [showGeoDetails, geoJson, citiesJson]);
-
-  // Stable callback for htmlElement — avoids creating closures on every render
-  const createMarkerElement = useCallback((d) => {
-    const el = document.createElement('div');
-    const color = SEV_COLORS[d.severity] || '#94a3b8';
-    const size = Math.min(8 + d.severity * 2, 18);
-
-    el.innerHTML = `<div style="
-      width:${size}px;height:${size}px;background:${color};border-radius:50%;
-      box-shadow:0 0 ${size}px ${color};cursor:pointer;pointer-events:auto;
-      transform:translate(-50%,-50%);
-    " class="globe-dot"></div>`;
-
-    el.onclick = (e) => {
-      e.stopPropagation();
-      const fullEvent = displayedEvents.find(ev => ev.id === d.id || ev.title === d.name);
-      setSelectedEvent(fullEvent || d);
-    };
-    
-    return el;
-  }, [displayedEvents]);
 
   return (
     <div className="sigint-container">
@@ -369,62 +213,15 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* 3D Globe Area */}
+      {/* 3D Google Tiles Globe Area */}
       <div ref={mapAreaRef} className="sigint-map-area">
-        {GlobeComponent && (
-          <GlobeComponent
-            ref={globeEl}
-            width={globeDimensions.width}
-            height={globeDimensions.height}
-            onGlobeReady={() => setGlobeReady(true)}
-            globeImageUrl={isDayMode
-              ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-              : "//unpkg.com/three-globe/example/img/earth-night.jpg"
-            }
-            bumpImageUrl={lowPowerMode ? null : "//unpkg.com/three-globe/example/img/earth-topology.png"}
-            backgroundImageUrl={lowPowerMode ? null : "//unpkg.com/three-globe/example/img/night-sky.png"}
-            showAtmosphere={showAtmosphere && !lowPowerMode}
-            atmosphereColor="#38bdf8"
-            atmosphereAltitude={0.12}
-            polygonsData={showGeoDetails && geoJson ? geoJson : []}
-            polygonAltitude={0.006}
-            polygonCapColor={feat => feat === hoveredCountry ? 'rgba(0, 240, 255, 0.12)' : 'rgba(0,0,0,0)'}
-            polygonSideColor={feat => feat === hoveredCountry ? 'rgba(0, 240, 255, 0.15)' : 'rgba(0, 240, 255, 0.04)'}
-            polygonStrokeColor={feat => feat === hoveredCountry ? '#00f0ff' : 'rgba(0, 240, 255, 0.15)'}
-            onPolygonHover={setHoveredCountry}
-            labelsData={showGeoDetails ? labelData : []}
-            labelLat={d => d.lat}
-            labelLng={d => d.lon}
-            labelText={d => d.text}
-            labelSize={d => d.size}
-            labelDotRadius={d => d.type === 'city' ? 0.1 : 0}
-            labelColor={d => d.color}
-            labelResolution={2}
-            pointsData={displayedMarkers}
-            pointLat="lat"
-            pointLng="lon"
-            pointColor={d => SEV_COLORS[d.severity] || '#94a3b8'}
-            pointAltitude={0}
-            pointRadius={d => Math.min(0.25 + d.severity * 0.15, 1.2)}
-            pointLabel={d => d.name || d.title}
-            pointsMerge={false}
-            onPointClick={(point, event) => {
-              if (event) event.stopPropagation();
-              const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
-              setSelectedEvent(fullEvent || point);
-              if (globeEl.current) {
-                globeEl.current.pointOfView({ lat: point.lat, lng: point.lon, altitude: 1.5 }, 1000);
-              }
-            }}
-            ringsData={ringMarkers}
-            ringLat="lat"
-            ringLng="lon"
-            ringColor={d => SEV_COLORS[d.severity] || '#ff2d55'}
-            ringMaxRadius={d => Math.min(1.2 + d.severity * 0.8, 4.0)}
-            ringPropagationSpeed={d => Math.min(0.6 + d.severity * 0.4, 2.0)}
-            ringRepeatNum={2}
-          />
-        )}
+        <CesiumGlobe
+          displayedMarkers={displayedMarkers}
+          onPointClick={(point) => {
+            const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
+            setSelectedEvent(fullEvent || point);
+          }}
+        />
       </div>
 
       {/* Overlay Controls */}
@@ -448,45 +245,45 @@ export default function LiveMap() {
           onMouseDown={handleDragStart}
           style={{
             height: '24px', cursor: isDragging ? 'grabbing' : 'grab',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            marginBottom: '8px', opacity: 0.5, paddingBottom: '4px',
-            borderBottom: '1px solid var(--border-color)',
-            position: 'relative'
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '0 8px', background: 'rgba(15, 23, 42, 0.95)',
+            borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+            borderRadius: '6px 6px 0 0'
           }}
         >
-          <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'var(--text-muted)' }} />
-          <button 
-            onClick={() => setIsMinimized(!isMinimized)}
-            style={{ 
-              position: 'absolute', right: '4px', top: '2px', background: 'none', border: 'none', 
-              color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px' 
+          <span style={{ fontSize: '9px', fontWeight: '800', color: '#38bdf8', letterSpacing: '0.05em' }}>
+            🛰️ TACTICAL MONITORS
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
+            style={{
+              background: 'none', border: 'none', color: '#8892a4', cursor: 'pointer',
+              fontSize: '10px', fontWeight: 'bold'
             }}
           >
-            {isMinimized ? '▢' : '—'}
+            {isMinimized ? '[+]' : '[-]'}
           </button>
         </div>
 
         {!isMinimized ? (
           <>
-            <div className="overlay-section" style={{ borderBottom: isCatExpanded ? '1px solid var(--border-color)' : 'none', paddingBottom: isCatExpanded ? '12px' : '0' }}>
-              <div
-                className="overlay-title"
-                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
-                onClick={() => setIsCatExpanded(!isCatExpanded)}
-              >
+            <div className="overlay-section">
+              <div className="overlay-title" onClick={() => setIsCatExpanded(!isCatExpanded)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}>
                 <span>CATEGORIES</span>
-                <span>{isCatExpanded ? '▾' : '◂'}</span>
+                <span>{isCatExpanded ? '▼' : '▶'}</span>
               </div>
 
               {isCatExpanded && (
-                <div style={{ marginTop: '12px' }}>
-                  {Object.entries(CAT_COLORS).map(([cat, color]) => (
+                <div style={{ marginTop: '8px' }}>
+                  {Object.keys(categories).map(cat => (
                     <label key={cat} className="cat-toggle">
-                      <span className="cat-dot" style={{ background: color }} />
-                      <span className="cat-label">{cat}</span>
-                      <span className="cat-count">{categoryCounts[cat] || 0}</span>
+                      <span className="cat-label">
+                        <span className="cat-dot" style={{ background: CAT_COLORS[cat] }} />
+                        {cat}
+                        <span className="cat-count">({categoryCounts[cat] || 0})</span>
+                      </span>
                       <input type="checkbox" checked={categories[cat]} onChange={() => toggleCategory(cat)} />
-                      <span className="cat-check" style={{ borderColor: categories[cat] ? color : '#4a5568', background: categories[cat] ? `${color}30` : 'transparent' }}>
+                      <span className="cat-check" style={{ borderColor: categories[cat] ? CAT_COLORS[cat] : '#4a5568', background: categories[cat] ? `${CAT_COLORS[cat]}20` : 'transparent' }}>
                         {categories[cat] && '✓'}
                       </span>
                     </label>
@@ -507,32 +304,12 @@ export default function LiveMap() {
             </div>
 
             <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
-              <div className="overlay-title">VISUALS</div>
-
-              <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label">Map Details</span>
-                <input type="checkbox" checked={showGeoDetails} onChange={(e) => setShowGeoDetails(e.target.checked)} />
-                <span className="cat-check" style={{ borderColor: showGeoDetails ? '#00f0ff' : '#4a5568', background: showGeoDetails ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                  {showGeoDetails && '✓'}
-                </span>
-              </label>
-
-              <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label">Atmosphere</span>
-                <input type="checkbox" checked={showAtmosphere} onChange={(e) => setShowAtmosphere(e.target.checked)} />
-                <span className="cat-check" style={{ borderColor: showAtmosphere ? '#00f0ff' : '#4a5568', background: showAtmosphere ? 'rgba(0,240,255,0.2)' : 'transparent' }}>
-                  {showAtmosphere && '✓'}
-                </span>
-              </label>
-
-              <div className="overlay-title" style={{ marginTop: '16px' }}>PERFORMANCE</div>
-              <label className="cat-toggle" style={{ marginTop: '8px' }}>
-                <span className="cat-label" style={{ color: lowPowerMode ? '#facc15' : 'inherit' }}>Low Power Mode</span>
-                <input type="checkbox" checked={lowPowerMode} onChange={(e) => setLowPowerMode(e.target.checked)} />
-                <span className="cat-check" style={{ borderColor: lowPowerMode ? '#facc15' : '#4a5568', background: lowPowerMode ? 'rgba(250,204,21,0.2)' : 'transparent' }}>
-                  {lowPowerMode && '✓'}
-                </span>
-              </label>
+              <div className="overlay-title">MAP SYSTEM</div>
+              <div style={{ fontSize: '10px', color: '#8892a4', marginTop: '6px', fontFamily: 'monospace' }}>
+                POWERED BY: GOOGLE 3D TILES
+                <br />
+                RENDERER: CESIUMJS WebGL
+              </div>
             </div>
           </>
         ) : (
@@ -561,53 +338,10 @@ export default function LiveMap() {
         <EventDetailsWindow
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          SEV_COLORS={SEV_COLORS}
+          CAT_COLORS={CAT_COLORS}
+          formatTime={formatTime}
         />
-      )}
-      {/* Event Details Panel (Monitor-the-Situation style) */}
-      {selectedEvent && (
-        <div className="event-details-panel">
-          <div className="details-header">
-            <div className="details-sev" style={{ backgroundColor: SEV_COLORS[selectedEvent.severity] }}>
-              S{selectedEvent.severity}
-            </div>
-            <button className="details-close" onClick={() => setSelectedEvent(null)}>×</button>
-          </div>
-          
-          {selectedEvent.details?.media && (
-            <div className="details-media">
-              <img src={selectedEvent.details.media} alt="Intelligence Media" />
-            </div>
-          )}
-          
-          <div className="details-content">
-            <div className="details-category">{selectedEvent.category}</div>
-            <h3 className="details-title">{selectedEvent.title || selectedEvent.name}</h3>
-            
-            {selectedEvent.details?.probability && (
-              <div className="details-forecast">
-                <div className="forecast-label">Escalation Probability</div>
-                <div className="forecast-bar">
-                  <div className="forecast-fill" style={{ width: `${selectedEvent.details.probability}%` }} />
-                </div>
-                <div className="forecast-value">{selectedEvent.details.probability}%</div>
-              </div>
-            )}
-            
-            <div className="details-meta">
-              <span>Location: {selectedEvent.location || 'Global / OSINT'}</span>
-              <span>•</span>
-              <span>Source: {selectedEvent.source || 'Primary Intel'}</span>
-              <span>•</span>
-              <span>{new Date(selectedEvent.timestamp).toLocaleTimeString()}</span>
-            </div>
-            
-            {selectedEvent.url && (
-              <a href={selectedEvent.url} target="_blank" rel="noopener noreferrer" className="details-link">
-                View Original Signal
-              </a>
-            )}
-          </div>
-        </div>
       )}
     </div>
   );
