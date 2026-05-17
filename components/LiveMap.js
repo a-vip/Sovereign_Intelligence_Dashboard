@@ -47,6 +47,7 @@ export default function LiveMap() {
   const [citiesJson, setCitiesJson] = useState(null);
   const [globeReady, setGlobeReady] = useState(false);
   const [showAtmosphere, setShowAtmosphere] = useState(false); // OFF by default
+  const [mapStyle, setMapStyle] = useState('hybrid'); // Hybrid satellite by default as requested!
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
