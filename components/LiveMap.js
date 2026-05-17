@@ -6,6 +6,7 @@ const EVENTS_POLL = 15000; // Increased frequency (15s)
 
 const CAT_COLORS = {
   Conflict: '#ff2d55',
+  Surveillance: '#00f0ff',
   Political: '#a855f7',
   Humanitarian: '#22c55e',
   Economic: '#facc15',
@@ -26,7 +27,8 @@ function formatTime(ts) {
 
 export default function LiveMap() {
   const [markers, setMarkers] = useState([]);
-  const [categories, setCategories] = useState({ Conflict: true, Political: true, Humanitarian: true, Economic: true, Disaster: true });
+  const [allFetchedEvents, setAllFetchedEvents] = useState([]);
+  const [categories, setCategories] = useState({ Conflict: true, Surveillance: true, Political: true, Humanitarian: true, Economic: true, Disaster: true });
   const [minSeverity, setMinSeverity] = useState(1);
   const [status, setStatus] = useState('loading');
   const [feedTab, setFeedTab] = useState('feed');
@@ -163,6 +165,7 @@ export default function LiveMap() {
       const res = await fetch(`/api/events?timespan=${timeRange}`);
       const data = await res.json();
       if (data.events?.length) {
+        setAllFetchedEvents(data.events);
         if (isInitializing || eventQueue.length === 0) {
           const fetchedEvents = [...data.events].reverse();
           setDisplayedEvents(fetchedEvents.slice(0, 5));
@@ -248,6 +251,10 @@ export default function LiveMap() {
   const displayedMarkers = useMemo(() => {
     return markers.filter(m => categories[m.category] && m.severity >= minSeverity);
   }, [markers, categories, minSeverity]);
+
+  const ringMarkers = useMemo(() => {
+    return displayedMarkers.filter(m => m.severity >= 4);
+  }, [displayedMarkers]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -408,10 +415,29 @@ export default function LiveMap() {
             labelDotRadius={d => d.type === 'city' ? 0.1 : 0}
             labelColor={d => d.color}
             labelResolution={2}
-            htmlElementsData={displayedMarkers}
-            htmlLat="lat"
-            htmlLng="lon"
-            htmlElement={createMarkerElement}
+            pointsData={displayedMarkers}
+            pointLat="lat"
+            pointLng="lon"
+            pointColor={d => SEV_COLORS[d.severity] || '#94a3b8'}
+            pointAltitude={d => Math.min(0.02 + d.severity * 0.03, 0.25)}
+            pointRadius={d => Math.min(0.12 + d.severity * 0.05, 0.4)}
+            pointLabel={d => d.name || d.title}
+            pointsMerge={false}
+            onPointClick={(point, event) => {
+              if (event) event.stopPropagation();
+              const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
+              setSelectedEvent(fullEvent || point);
+              if (globeEl.current) {
+                globeEl.current.pointOfView({ lat: point.lat, lng: point.lon, altitude: 1.5 }, 1000);
+              }
+            }}
+            ringsData={ringMarkers}
+            ringLat="lat"
+            ringLng="lon"
+            ringColor={d => SEV_COLORS[d.severity] || '#ff2d55'}
+            ringMaxRadius={d => Math.min(1.2 + d.severity * 0.8, 4.0)}
+            ringPropagationSpeed={d => Math.min(0.6 + d.severity * 0.4, 2.0)}
+            ringRepeatNum={2}
           />
         )}
       </div>
