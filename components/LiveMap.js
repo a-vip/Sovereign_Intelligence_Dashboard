@@ -43,7 +43,7 @@ export default function LiveMap() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [mapMode, setMapMode] = useState('2d'); // 2D satellite default for buttery performance!
-  const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' (Google Hybrid) or 'dark' (Tactical Dark theme)
+  const [mapStyle, setMapStyle] = useState('dark'); // 'satellite' (Google Hybrid) or 'dark' (Tactical Dark theme)
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
