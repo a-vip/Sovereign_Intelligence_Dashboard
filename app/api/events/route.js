@@ -316,17 +316,12 @@ export async function GET(request) {
 
     const { mks, evs } = await fetchGdelt(ts);
     const dbEventsList = await getEvents(ts);
+    const staticEvents = loadStaticEvents();
 
-    let finalEventsList = [...dbEventsList];
+    let finalEventsList = [...dbEventsList, ...staticEvents];
     if (finalEventsList.length === 0 && evs.length === 0) {
-      console.log('No online or database events found. Trying fallbacks...');
-      const staticEvents = loadStaticEvents();
-      const localDossierEvents = parseLocalRadarDossiers();
-      
-      const mergedFallbacks = new Map();
-      staticEvents.forEach(e => mergedFallbacks.set(e.id, e));
-      localDossierEvents.forEach(e => mergedFallbacks.set(e.id, e));
-      finalEventsList = Array.from(mergedFallbacks.values());
+      console.log('No online, database, or static events found. Trying local dossiers...');
+      finalEventsList = parseLocalRadarDossiers();
     }
 
     // Merge Events
