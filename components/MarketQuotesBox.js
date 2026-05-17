@@ -1,0 +1,265 @@
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import { RefreshCw, X, TrendingUp, TrendingDown } from 'lucide-react';
+
+const INITIAL_QUOTES = [
+  { symbol: 'S&P500', icon: '📈', name: 'S&P500', price: 7409, chg: -1.2, isUp: false },
+  { symbol: 'FTSE 100', icon: '🇬🇧', name: 'FTSE 100', price: 10195, chg: -1.7, isUp: false },
+  { symbol: 'Shanghai Composite', icon: '🇨🇳', name: 'Shanghai Composite', price: 4135, chg: -2.5, isUp: false },
+  { symbol: 'Nikkei', icon: '🇯🇵', name: 'Nikkei', price: 61409, chg: -2.0, isUp: false },
+  { symbol: 'Gold', icon: '🥇', name: 'Gold', price: 4543, chg: -0.4, isUp: false },
+  { symbol: 'Silver', icon: '🥈', name: 'Silver', price: 76.74, chg: -1.0, isUp: false },
+  { symbol: 'BTC', icon: '₿', name: 'BTC', price: 77194, chg: -1.2, isUp: false },
+  { symbol: 'WTI', icon: '🛢️', name: 'WTI', price: 102.56, chg: 1.5, isUp: true },
+  { symbol: 'Brent', icon: '🛢️', name: 'Brent', price: 110.71, chg: 1.3, isUp: true },
+  { symbol: 'VIX', icon: '😱', name: 'VIX', price: 18.52, chg: 7.3, isUp: true },
+];
+
+export default function MarketQuotesBox({ onClose }) {
+  const [quotes, setQuotes] = useState(INITIAL_QUOTES);
+  const [lastUpdated, setLastUpdated] = useState('just now');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Position state for dragging
+  const [pos, setPos] = useState({ x: 300, y: 80 });
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
+
+  const handleDragStart = (e) => {
+    if (e.button !== 0) return; // Left click only
+    setDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPosX: pos.x,
+      startPosY: pos.y,
+    };
+  };
+
+  useEffect(() => {
+    const handleDrag = (e) => {
+      if (!dragging) return;
+      setPos({
+        x: dragRef.current.startPosX + (e.clientX - dragRef.current.startX),
+        y: dragRef.current.startPosY + (e.clientY - dragRef.current.startY),
+      });
+    };
+
+    const handleDragEnd = () => setDragging(false);
+
+    if (dragging) {
+      window.addEventListener('mousemove', handleDrag);
+      window.addEventListener('mouseup', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDrag);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [dragging]);
+
+  // Live ticking simulation
+  useEffect(() => {
+    const tick = () => {
+      setQuotes(prev =>
+        prev.map(q => {
+          // VIX has higher volatility, others are smaller
+          const factor = q.symbol === 'VIX' ? 2 : 0.4;
+          const fluctuation = (Math.random() * 2 - 1) * factor;
+          const priceChangePercent = fluctuation / 100;
+          const newPrice = q.price * (1 + priceChangePercent);
+          const newChg = q.chg + fluctuation;
+
+          // Decimals formatting helper
+          let decimals = q.price > 1000 ? 0 : 2;
+          if (q.symbol === 'Silver' || q.symbol === 'WTI' || q.symbol === 'Brent' || q.symbol === 'VIX') {
+            decimals = 2;
+          }
+
+          return {
+            ...q,
+            price: parseFloat(newPrice.toFixed(decimals)),
+            chg: parseFloat(newChg.toFixed(1)),
+            isUp: newChg >= 0,
+          };
+        })
+      );
+      const now = new Date();
+      setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
+
+    const interval = setInterval(tick, 3500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setQuotes(prev =>
+        prev.map(q => {
+          const shift = (Math.random() * 1.5 - 0.75);
+          return {
+            ...q,
+            chg: parseFloat((q.chg + shift).toFixed(1)),
+            isUp: (q.chg + shift) >= 0,
+          };
+        })
+      );
+      const now = new Date();
+      setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setIsRefreshing(false);
+    }, 600);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: '320px',
+        background: 'rgba(8, 12, 24, 0.95)',
+        border: '1px solid rgba(56, 189, 248, 0.25)',
+        borderRadius: '12px',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.08)',
+        zIndex: 100,
+        fontFamily: 'monospace',
+        color: '#e2e8f0',
+        userSelect: 'none',
+        backdropFilter: 'blur(12px)',
+        transition: dragging ? 'none' : 'transform 0.1s ease',
+      }}
+    >
+      {/* Header */}
+      <div
+        onMouseDown={handleDragStart}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          cursor: dragging ? 'grabbing' : 'grab',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: '#10b981', fontSize: '18px', fontWeight: 'bold' }}>$</span>
+          <span style={{ fontSize: '13px', fontWeight: '800', letterSpacing: '0.1em', color: '#ffffff' }}>MARKETS</span>
+          <span style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.35)', marginLeft: '4px' }}>{lastUpdated}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={handleManualRefresh}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px',
+              borderRadius: '4px',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#38bdf8'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.4)'}
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spinning' : ''} />
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#ffffff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px',
+              borderRadius: '6px',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Column Labels */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1.4fr 1fr 1fr',
+          padding: '8px 16px 4px 16px',
+          fontSize: '9px',
+          fontWeight: 'bold',
+          color: 'rgba(255, 255, 255, 0.3)',
+          letterSpacing: '0.05em',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+        }}
+      >
+        <div>SYMBOL</div>
+        <div style={{ textAlign: 'right' }}>PRICE</div>
+        <div style={{ textAlign: 'right' }}>CHG</div>
+      </div>
+
+      {/* Quotes List */}
+      <div style={{ padding: '6px 0' }}>
+        {quotes.map((q, idx) => (
+          <div
+            key={q.symbol}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1.4fr 1fr 1fr',
+              padding: '6px 16px',
+              fontSize: '11px',
+              alignItems: 'center',
+              transition: 'background 0.2s',
+              background: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.04)'}
+            onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent'}
+          >
+            {/* Symbol name and arrow */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {q.isUp ? (
+                <TrendingUp size={11} color="#22c55e" style={{ flexShrink: 0 }} />
+              ) : (
+                <TrendingDown size={11} color="#ef4444" style={{ flexShrink: 0 }} />
+              )}
+              <span style={{ color: '#e2e8f0', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                {q.name} <span style={{ fontSize: '10px' }}>{q.icon}</span>
+              </span>
+            </div>
+
+            {/* Price */}
+            <div style={{ textAlign: 'right', color: '#f8fafc', fontWeight: 'bold' }}>
+              {q.price.toLocaleString(undefined, { minimumFractionDigits: q.price > 1000 ? 0 : 2 })}
+            </div>
+
+            {/* Change */}
+            <div
+              style={{
+                textAlign: 'right',
+                color: q.isUp ? '#22c55e' : '#ef4444',
+                fontWeight: 'bold',
+              }}
+            >
+              {q.isUp ? '+' : ''}
+              {q.chg.toFixed(1)}%
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

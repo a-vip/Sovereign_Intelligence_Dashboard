@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import EventDetailsWindow from './EventDetailsWindow';
+import MarketQuotesBox from './MarketQuotesBox';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
@@ -37,6 +38,7 @@ export default function LiveMap() {
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMarkets, setShowMarkets] = useState(false);
 
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
@@ -526,6 +528,34 @@ export default function LiveMap() {
             </div>
 
             <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
+              <div className="overlay-title">TACTICAL WIDGETS</div>
+              <button
+                className={`sev-btn${showMarkets ? ' active' : ''}`}
+                style={{
+                  marginTop: '8px',
+                  background: showMarkets ? '#10b981' : 'transparent',
+                  color: showMarkets ? '#020617' : '#8892a4',
+                  borderColor: '#10b981',
+                  width: '100%',
+                  fontSize: '9px',
+                  padding: '6px 0',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  border: '1px solid #10b981',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                onClick={() => setShowMarkets(!showMarkets)}
+              >
+                📊 {showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS'}
+              </button>
+            </div>
+
+            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
               <div className="overlay-title">MAP SYSTEM</div>
               <div style={{ fontSize: '9px', color: '#8892a4', marginTop: '4px', fontFamily: 'monospace' }}>
                 POWERED BY: GOOGLE 3D TILES
@@ -575,6 +605,11 @@ export default function LiveMap() {
           <span>DATABASE SYNC: {new Date().toLocaleTimeString()}</span>
         </div>
       </div>
+
+      {/* Live Market Quotes Box */}
+      {showMarkets && (
+        <MarketQuotesBox onClose={() => setShowMarkets(false)} />
+      )}
 
       {/* Event Detail Modal (Draggable Window) */}
       {selectedEvent && (
