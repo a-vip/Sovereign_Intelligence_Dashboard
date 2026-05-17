@@ -343,7 +343,7 @@ export default function CesiumGlobe({
         id: `sat-${sat.id}`,
         name: sat.name,
         show: showSatellites,
-        position: Cesium.Cartesian3.fromElements(initialPos.position.x, initialPos.position.y, initialPos.position.z),
+        position: new Cesium.Cartesian3(initialPos.position.x, initialPos.position.y, initialPos.position.z),
         point: {
           pixelSize: 9,
           color: Cesium.Color.fromCssColorString(sat.color),
@@ -380,7 +380,7 @@ export default function CesiumGlobe({
       const now = Date.now();
       satEntities.forEach(({ sat, pointEntity }) => {
         const propagated = propagateSatellite(sat, now);
-        const newPos = Cesium.Cartesian3.fromElements(propagated.position.x, propagated.position.y, propagated.position.z);
+        const newPos = new Cesium.Cartesian3(propagated.position.x, propagated.position.y, propagated.position.z);
         pointEntity.position.setValue(newPos);
       });
     });
