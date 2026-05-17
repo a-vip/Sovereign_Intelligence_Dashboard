@@ -48,6 +48,7 @@ export default function LiveMap() {
   
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [isCameraLocked, setIsCameraLocked] = useState(false);
+  const [showSatellites, setShowSatellites] = useState(true);
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
@@ -231,6 +232,7 @@ export default function LiveMap() {
             setIsCameraLocked(true); // Auto-lock camera on select
           }}
           isCameraLocked={isCameraLocked}
+          showSatellites={showSatellites}
           onPointClick={(point) => {
             const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
             setSelectedEvent(fullEvent || point);
@@ -415,6 +417,37 @@ export default function LiveMap() {
                   TACTICAL DARK
                 </button>
               </div>
+            </div>
+
+            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
+              <div className="overlay-title">AEROSPACE SIGINT</div>
+              <label className="cat-toggle" style={{ marginTop: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="cat-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#f8fafc', fontWeight: 500 }}>
+                  🛰️ Satellite Tracker
+                </span>
+                <input 
+                  type="checkbox" 
+                  checked={showSatellites} 
+                  onChange={() => setShowSatellites(!showSatellites)}
+                  style={{ display: 'none' }}
+                />
+                <span className="cat-check" style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '14px',
+                  height: '14px',
+                  border: '1px solid',
+                  borderRadius: '3px',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  borderColor: showSatellites ? '#38bdf8' : '#4a5568', 
+                  background: showSatellites ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                  color: '#38bdf8'
+                }}>
+                  {showSatellites && '✓'}
+                </span>
+              </label>
             </div>
 
             <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>

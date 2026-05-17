@@ -13,7 +13,8 @@ export default function CesiumGlobe({
   mapStyle = 'satellite',
   selectedSatellite = null,
   onSatelliteSelect = null,
-  isCameraLocked = false
+  isCameraLocked = false,
+  showSatellites = true
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -341,6 +342,7 @@ export default function CesiumGlobe({
       const pointEntity = viewer.entities.add({
         id: `sat-${sat.id}`,
         name: sat.name,
+        show: showSatellites,
         position: Cesium.Cartesian3.fromElements(initialPos.position.x, initialPos.position.y, initialPos.position.z),
         point: {
           pixelSize: 9,
@@ -405,7 +407,7 @@ export default function CesiumGlobe({
       const pathEntity = viewer.entities.getById(`orbit-path-${sat.id}`);
       if (pathEntity && pathEntity.polyline) {
         const isSelected = selectedSatellite && selectedSatellite.id === sat.id;
-        pathEntity.polyline.show = isSelected;
+        pathEntity.polyline.show = showSatellites && isSelected;
         
         if (isSelected) {
           pathEntity.polyline.width = 2.8;
@@ -417,7 +419,7 @@ export default function CesiumGlobe({
       }
     });
 
-    if (selectedSatellite && isCameraLocked) {
+    if (showSatellites && selectedSatellite && isCameraLocked) {
       const satEntity = viewer.entities.getById(`sat-${selectedSatellite.id}`);
       if (satEntity) {
         viewer.trackedEntity = satEntity;
@@ -431,7 +433,35 @@ export default function CesiumGlobe({
         viewerRef.current.trackedEntity = undefined;
       }
     };
-  }, [selectedSatellite, isCameraLocked, mapError]);
+  }, [selectedSatellite, isCameraLocked, showSatellites, mapError]);
+
+  // 3.3. React to live satellite layer toggle changes dynamically in real time
+  useEffect(() => {
+    if (mapError || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    SATELLITES_DATABASE.forEach(sat => {
+      const pointEntity = viewer.entities.getById(`sat-${sat.id}`);
+      const pathEntity = viewer.entities.getById(`orbit-path-${sat.id}`);
+
+      if (pointEntity) {
+        pointEntity.show = showSatellites;
+        if (pointEntity.label) {
+          pointEntity.label.show = false;
+        }
+      }
+      if (pathEntity && pathEntity.polyline) {
+        const isSelected = selectedSatellite && selectedSatellite.id === sat.id;
+        pathEntity.polyline.show = showSatellites && isSelected;
+      }
+    });
+
+    if (!showSatellites) {
+      viewer.trackedEntity = undefined;
+    }
+  }, [showSatellites, selectedSatellite, mapError]);
 
   // 4. Handle Google 3D Tileset loading and visibility based on Map Mode
   useEffect(() => {
