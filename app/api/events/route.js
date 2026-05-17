@@ -66,6 +66,11 @@ function getCountryCoords(country, title = '') {
   const c = (country || '').toLowerCase().trim();
   const t = (title || '').toLowerCase();
   
+  // Safe token-boundary checker to prevent substring false positives (e.g. 'flood' matching US state abbreviation 'fl')
+  const hasWord = (text, word) => {
+    return new RegExp(`\\b${word}\\b`, 'i').test(text);
+  };
+  
   let baseCoords = null;
   let resolvedLocation = '';
 
@@ -109,7 +114,7 @@ function getCountryCoords(country, title = '') {
   } else if (t.includes('moscow') || t.includes('kremlin') || c === 'ru') {
     baseCoords = { lat: 55.7558, lon: 37.6173 };
     resolvedLocation = 'Moscow, Russia';
-  } else if (t.includes('london') || t.includes('uk') || c === 'uk' || c === 'gb') {
+  } else if (t.includes('london') || hasWord(t, 'uk') || c === 'uk' || c === 'gb') {
     baseCoords = { lat: 51.5074, lon: -0.1278 };
     resolvedLocation = 'London, United Kingdom';
   } else if (t.includes('paris') || c === 'fr') {
@@ -176,31 +181,39 @@ function getCountryCoords(country, title = '') {
     else if (t.includes('somalia') || c === 'so') { baseCoords = { lat: 5.1521, lon: 46.1996 }; resolvedLocation = 'Somalia'; }
     else if (t.includes('kenya') || c === 'ke') { baseCoords = { lat: -1.2921, lon: 36.8219 }; resolvedLocation = 'Kenya'; }
     else if (t.includes('nigeria') || c === 'ng') { baseCoords = { lat: 9.0820, lon: 8.6753 }; resolvedLocation = 'Nigeria'; }
+    else if (t.includes('malaysia') || c === 'my') { baseCoords = { lat: 4.2105, lon: 101.9758 }; resolvedLocation = 'Malaysia'; }
+    else if (t.includes('thailand') || c === 'th') { baseCoords = { lat: 15.8700, lon: 100.9925 }; resolvedLocation = 'Thailand'; }
+    else if (t.includes('vietnam') || c === 'vn') { baseCoords = { lat: 14.0583, lon: 108.2772 }; resolvedLocation = 'Vietnam'; }
+    else if (t.includes('greece') || c === 'gr') { baseCoords = { lat: 39.0742, lon: 21.8243 }; resolvedLocation = 'Greece'; }
+    else if (t.includes('brazil') || c === 'br') { baseCoords = { lat: -14.2350, lon: -51.9253 }; resolvedLocation = 'Brazil'; }
+    else if (t.includes('poland') || c === 'pl') { baseCoords = { lat: 51.9194, lon: 19.1451 }; resolvedLocation = 'Poland'; }
+    else if (t.includes('netherlands') || t.includes('holland') || c === 'nl') { baseCoords = { lat: 52.1326, lon: 5.2913 }; resolvedLocation = 'Netherlands'; }
+    else if (t.includes('belgium') || c === 'be') { baseCoords = { lat: 50.5039, lon: 4.4699 }; resolvedLocation = 'Belgium'; }
     else if (t.includes('south china sea')) { baseCoords = { lat: 12.0, lon: 113.0 }; resolvedLocation = 'South China Sea'; }
     else if (t.includes('europe') || t.includes('eu') || t.includes('brussels')) { baseCoords = { lat: 50.8503, lon: 4.3517 }; resolvedLocation = 'Brussels, EU'; }
   }
 
   // 3. High-Fidelity US States Classifiers (to distribute US events accurately instead of stacking in Kansas)
   if (!baseCoords) {
-    if (t.includes('texas') || t.includes('tx')) { baseCoords = { lat: 31.9686, lon: -99.9018 }; resolvedLocation = 'Texas, USA'; }
-    else if (t.includes('california') || t.includes('ca')) { baseCoords = { lat: 36.7783, lon: -119.4179 }; resolvedLocation = 'California, USA'; }
-    else if (t.includes('arizona') || t.includes('az')) { baseCoords = { lat: 34.0489, lon: -111.0937 }; resolvedLocation = 'Arizona, USA'; }
-    else if (t.includes('georgia') || t.includes('ga')) { baseCoords = { lat: 32.1656, lon: -82.9001 }; resolvedLocation = 'Georgia, USA'; }
-    else if (t.includes('new york') || t.includes('ny')) { baseCoords = { lat: 43.2994, lon: -74.2179 }; resolvedLocation = 'New York, USA'; }
-    else if (t.includes('washington') || t.includes('dc') || t.includes('d.c.')) { baseCoords = { lat: 38.9072, lon: -77.0369 }; resolvedLocation = 'Washington D.C., USA'; }
-    else if (t.includes('florida') || t.includes('fl')) { baseCoords = { lat: 27.6648, lon: -81.5158 }; resolvedLocation = 'Florida, USA'; }
-    else if (t.includes('illinois') || t.includes('il')) { baseCoords = { lat: 40.6331, lon: -89.3985 }; resolvedLocation = 'Illinois, USA'; }
-    else if (t.includes('pennsylvania') || t.includes('pa')) { baseCoords = { lat: 41.2033, lon: -77.1945 }; resolvedLocation = 'Pennsylvania, USA'; }
-    else if (t.includes('ohio') || t.includes('oh')) { baseCoords = { lat: 40.4173, lon: -82.9071 }; resolvedLocation = 'Ohio, USA'; }
-    else if (t.includes('michigan') || t.includes('mi')) { baseCoords = { lat: 44.3148, lon: -85.6024 }; resolvedLocation = 'Michigan, USA'; }
-    else if (t.includes('north carolina') || t.includes('nc')) { baseCoords = { lat: 35.7596, lon: -79.0193 }; resolvedLocation = 'North Carolina, USA'; }
-    else if (t.includes('south carolina') || t.includes('sc')) { baseCoords = { lat: 33.8361, lon: -81.1637 }; resolvedLocation = 'South Carolina, USA'; }
-    else if (t.includes('virginia') || t.includes('va')) { baseCoords = { lat: 37.4316, lon: -78.6569 }; resolvedLocation = 'Virginia, USA'; }
-    else if (t.includes('maryland') || t.includes('md')) { baseCoords = { lat: 39.0458, lon: -76.6413 }; resolvedLocation = 'Maryland, USA'; }
-    else if (t.includes('massachusetts') || t.includes('ma')) { baseCoords = { lat: 42.4072, lon: -71.8157 }; resolvedLocation = 'Massachusetts, USA'; }
-    else if (t.includes('colorado') || t.includes('co')) { baseCoords = { lat: 39.5501, lon: -105.7821 }; resolvedLocation = 'Colorado, USA'; }
-    else if (t.includes('utah') || t.includes('ut')) { baseCoords = { lat: 39.3210, lon: -111.0937 }; resolvedLocation = 'Utah, USA'; }
-    else if (t.includes('oregon') || t.includes('or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
+    if (t.includes('texas') || hasWord(t, 'tx')) { baseCoords = { lat: 31.9686, lon: -99.9018 }; resolvedLocation = 'Texas, USA'; }
+    else if (t.includes('california') || hasWord(t, 'ca')) { baseCoords = { lat: 36.7783, lon: -119.4179 }; resolvedLocation = 'California, USA'; }
+    else if (t.includes('arizona') || hasWord(t, 'az')) { baseCoords = { lat: 34.0489, lon: -111.0937 }; resolvedLocation = 'Arizona, USA'; }
+    else if (t.includes('georgia') || hasWord(t, 'ga')) { baseCoords = { lat: 32.1656, lon: -82.9001 }; resolvedLocation = 'Georgia, USA'; }
+    else if (t.includes('new york') || hasWord(t, 'ny')) { baseCoords = { lat: 43.2994, lon: -74.2179 }; resolvedLocation = 'New York, USA'; }
+    else if (t.includes('washington') || hasWord(t, 'dc') || hasWord(t, 'd.c.')) { baseCoords = { lat: 38.9072, lon: -77.0369 }; resolvedLocation = 'Washington D.C., USA'; }
+    else if (t.includes('florida') || hasWord(t, 'fl')) { baseCoords = { lat: 27.6648, lon: -81.5158 }; resolvedLocation = 'Florida, USA'; }
+    else if (t.includes('illinois') || hasWord(t, 'il')) { baseCoords = { lat: 40.6331, lon: -89.3985 }; resolvedLocation = 'Illinois, USA'; }
+    else if (t.includes('pennsylvania') || hasWord(t, 'pa')) { baseCoords = { lat: 41.2033, lon: -77.1945 }; resolvedLocation = 'Pennsylvania, USA'; }
+    else if (t.includes('ohio') || hasWord(t, 'oh')) { baseCoords = { lat: 40.4173, lon: -82.9071 }; resolvedLocation = 'Ohio, USA'; }
+    else if (t.includes('michigan') || hasWord(t, 'mi')) { baseCoords = { lat: 44.3148, lon: -85.6024 }; resolvedLocation = 'Michigan, USA'; }
+    else if (t.includes('north carolina') || hasWord(t, 'nc')) { baseCoords = { lat: 35.7596, lon: -79.0193 }; resolvedLocation = 'North Carolina, USA'; }
+    else if (t.includes('south carolina') || hasWord(t, 'sc')) { baseCoords = { lat: 33.8361, lon: -81.1637 }; resolvedLocation = 'South Carolina, USA'; }
+    else if (t.includes('virginia') || hasWord(t, 'va')) { baseCoords = { lat: 37.4316, lon: -78.6569 }; resolvedLocation = 'Virginia, USA'; }
+    else if (t.includes('maryland') || hasWord(t, 'md')) { baseCoords = { lat: 39.0458, lon: -76.6413 }; resolvedLocation = 'Maryland, USA'; }
+    else if (t.includes('massachusetts') || hasWord(t, 'ma')) { baseCoords = { lat: 42.4072, lon: -71.8157 }; resolvedLocation = 'Massachusetts, USA'; }
+    else if (t.includes('colorado') || hasWord(t, 'co')) { baseCoords = { lat: 39.5501, lon: -105.7821 }; resolvedLocation = 'Colorado, USA'; }
+    else if (t.includes('utah') || hasWord(t, 'ut')) { baseCoords = { lat: 39.3210, lon: -111.0937 }; resolvedLocation = 'Utah, USA'; }
+    else if (t.includes('oregon') || hasWord(t, 'or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
   }
 
   // 4. Smart Fallbacks (Only if no specific state or country was matched above!)
