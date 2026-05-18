@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff } from 'lucide-react';
+import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff, MessageSquare } from 'lucide-react';
 
-export default function AccountModal({ onClose, currentUser, onAuthSuccess, handleLogout }) {
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'security', 'system'
+export default function AccountModal({ onClose, currentUser, onAuthSuccess, handleLogout, initialTab = 'profile', prefilledSuggestion = null }) {
+  const [activeTab, setActiveTab] = useState(initialTab); // 'profile', 'security', 'system', 'suggestions'
   
   // Step-by-step wizard states
   const [wizardType, setWizardType] = useState(''); // '', 'name', 'email', 'password'
@@ -27,6 +27,62 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Suggestions & Bug Reports Form states
+  const [suggestionType, setSuggestionType] = useState('general'); // 'general', 'bug', 'map', 'link'
+  const [suggestionSubject, setSuggestionSubject] = useState('');
+  const [suggestionDetails, setSuggestionDetails] = useState('');
+  const [suggestionTargetId, setSuggestionTargetId] = useState('');
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [successSuggestions, setSuccessSuggestions] = useState(false);
+  const [errorSuggestions, setErrorSuggestions] = useState(null);
+
+  const handleSuggestionSubmit = async (e) => {
+    e.preventDefault();
+    setLoadingSuggestions(true);
+    setErrorSuggestions(null);
+    setSuccessSuggestions(false);
+
+    try {
+      const res = await fetch('/api/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: suggestionType,
+          subject: suggestionSubject,
+          details: suggestionDetails,
+          targetId: suggestionTargetId,
+          operatorEmail: currentUser?.email || 'unknown@sovereign.net',
+          operatorName: currentUser?.fullName || 'Anonymous Operator'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to transmit suggestion report.');
+      }
+
+      setSuccessSuggestions(true);
+    } catch (err) {
+      setErrorSuggestions(err.message);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  // Prefill suggestions if passed from external buttons (e.g. Map Coordinates or Broken Link reports)
+  useEffect(() => {
+    if (prefilledSuggestion) {
+      if (prefilledSuggestion.type) setSuggestionType(prefilledSuggestion.type);
+      if (prefilledSuggestion.subject) setSuggestionSubject(prefilledSuggestion.subject);
+      if (prefilledSuggestion.targetId) setSuggestionTargetId(prefilledSuggestion.targetId);
+      if (prefilledSuggestion.details) setSuggestionDetails(prefilledSuggestion.details);
+      
+      // Auto-reset wizard/success states so the form is clean and visible
+      setSuccessSuggestions(false);
+      setErrorSuggestions(null);
+    }
+  }, [prefilledSuggestion]);
 
   // Load preferences from localStorage on mount
   useEffect(() => {
@@ -327,6 +383,29 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
               >
                 <Settings size={13} />
                 SYSTEM PREFS
+              </button>
+              <button
+                onClick={() => { setActiveTab('suggestions'); setWizardType(''); }}
+                style={{
+                  width: '100%',
+                  background: activeTab === 'suggestions' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                  border: activeTab === 'suggestions' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                  color: activeTab === 'suggestions' ? '#06b6d4' : '#8892a4',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <MessageSquare size={13} />
+                SUGGESTIONS
               </button>
             </div>
 
@@ -713,6 +792,133 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         </select>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeTab === 'suggestions' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                        SUGGESTIONS & BUG REPORTS
+                      </h3>
+                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                        Submit suggestions, coordinates errors, or broken links directly to the Lead Developer.
+                      </p>
+                    </div>
+
+                    {successSuggestions ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px' }}>
+                        <Check size={28} style={{ color: '#10b981', marginBottom: '8px' }} />
+                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981', letterSpacing: '0.5px' }}>Suggestion Transmitted Successfully</span>
+                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'rgba(16,185,129,0.6)', marginTop: '4px' }}>[ TRANSMISSION PROTOCOL COMPLETE // DISPATCHED TO DEVEL ]</span>
+                        
+                        <a
+                          href="/mock-email.html"
+                          target="_blank"
+                          style={{
+                            marginTop: '12px',
+                            display: 'inline-block',
+                            background: 'rgba(234, 179, 8, 0.1)',
+                            border: '1px solid rgba(234, 179, 8, 0.3)',
+                            color: '#eab308',
+                            borderRadius: '6px',
+                            padding: '8px 16px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            textDecoration: 'none',
+                            fontFamily: 'monospace',
+                            letterSpacing: '0.5px',
+                            cursor: 'pointer',
+                            boxShadow: '0 0 10px rgba(234, 179, 8, 0.05)',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.18)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'}
+                        >
+                          [📂 OPEN MOCK FEEDBACK EMAIL INBOX]
+                        </a>
+
+                        <button
+                          onClick={() => {
+                            setSuccessSuggestions(false);
+                            setSuggestionSubject('');
+                            setSuggestionDetails('');
+                            setSuggestionTargetId('');
+                          }}
+                          style={{ marginTop: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '4px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          SUBMIT ANOTHER REPORT
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSuggestionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {errorSuggestions && (
+                          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '10px 12px', color: '#ef4444', fontSize: '11px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <ShieldAlert size={14} />
+                            <span>{errorSuggestions}</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Report Type</label>
+                            <select
+                              value={suggestionType}
+                              onChange={(e) => setSuggestionType(e.target.value)}
+                              style={{ background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+                            >
+                              <option value="general">💡 General Suggestion</option>
+                              <option value="bug">🐛 System Bug Report</option>
+                              <option value="map">📍 Incorrect Map Coordinates</option>
+                              <option value="link">🔗 Broken Intelligence Link</option>
+                            </select>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Target Point / Link ID (Optional)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. event-105 or broken URL"
+                              value={suggestionTargetId}
+                              onChange={(e) => setSuggestionTargetId(e.target.value)}
+                              style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Subject</label>
+                          <input
+                            type="text"
+                            placeholder="Brief summary of suggestion/issue"
+                            value={suggestionSubject}
+                            onChange={(e) => setSuggestionSubject(e.target.value)}
+                            required
+                            style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Details & Description</label>
+                          <textarea
+                            rows={4}
+                            placeholder="Please provide full contextual details..."
+                            value={suggestionDetails}
+                            onChange={(e) => setSuggestionDetails(e.target.value)}
+                            required
+                            style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none', resize: 'vertical', fontFamily: 'sans-serif' }}
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={loadingSuggestions}
+                          style={{ background: '#06b6d4', color: '#020617', border: 'none', borderRadius: '6px', padding: '10px 0', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', boxShadow: '0 0 10px rgba(6,182,212,0.15)', marginTop: '4px' }}
+                        >
+                          {loadingSuggestions ? 'TRANSMITTING REPORT...' : 'SUBMIT SUGGESTION REPORT'}
+                        </button>
+                      </form>
+                    )}
                   </div>
                 )}
               </>

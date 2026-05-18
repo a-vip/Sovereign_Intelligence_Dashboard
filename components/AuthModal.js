@@ -12,6 +12,8 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [isPendingVerification, setIsPendingVerification] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +37,13 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
 
       if (!res.ok) {
         throw new Error(data.error || 'Authentication failed');
+      }
+
+      if (data.pending) {
+        setRegisteredEmail(email);
+        setIsPendingVerification(true);
+        setLoading(false);
+        return;
       }
 
       setSuccess(true);
@@ -278,6 +287,166 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
             }}>
               [ INITIALIZING SYSTEM PROFILE ]
             </p>
+          </div>
+        ) : isPendingVerification ? (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            animation: 'fadeIn 0.3s'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: 'rgba(6, 182, 212, 0.08)',
+                border: '1px solid rgba(6, 182, 212, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#06b6d4',
+                animation: 'scaleIn 0.3s',
+                position: 'relative'
+              }}>
+                <Mail size={24} />
+                <div style={{
+                  position: 'absolute',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  bottom: '2px',
+                  right: '2px',
+                  border: '2px solid #080c18'
+                }} />
+              </div>
+            </div>
+
+            <h3 style={{
+              textAlign: 'center',
+              color: '#ffffff',
+              fontSize: '16px',
+              fontWeight: 600,
+              margin: '0 0 8px 0',
+              letterSpacing: '1px',
+              textTransform: 'uppercase'
+            }}>
+              Authentication Link Sent
+            </h3>
+            
+            <p style={{
+              textAlign: 'center',
+              color: '#8892a4',
+              fontSize: '13px',
+              lineHeight: 1.5,
+              margin: '0 0 20px 0'
+            }}>
+              We have dispatched a time-locked security link to <strong style={{ color: '#ffffff' }}>{registeredEmail}</strong>.
+            </p>
+
+            <div style={{
+              background: 'rgba(2, 6, 23, 0.5)',
+              border: '1px solid rgba(255, 255, 255, 0.03)',
+              borderRadius: '8px',
+              padding: '16px',
+              fontFamily: 'Courier New, monospace',
+              fontSize: '11px',
+              color: '#8892a4',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>STATUS:</span>
+                <span style={{ color: '#10b981' }}>DISPATCHED // WAITING</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>TIME-LOCK LIMIT:</span>
+                <span style={{ color: '#ef4444' }}>15:00 MINUTES</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>ENVELOPE TYPE:</span>
+                <span>SHA256-OTP</span>
+              </div>
+            </div>
+
+            {/* Local Sandbox Environment Simulator */}
+            <div style={{
+              marginTop: '20px',
+              padding: '14px',
+              background: 'rgba(6, 182, 212, 0.04)',
+              border: '1px dashed rgba(6, 182, 212, 0.25)',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '10px', color: '#06b6d4', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>
+                🔒 LOCAL DEV CONSOLE SIMULATOR
+              </div>
+              <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
+                Local SMTP unconfigured. The email was simulated and written to your workspace.
+              </p>
+              <a 
+                href="/mock-email.html" 
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-block',
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  color: '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#06b6d4';
+                  e.currentTarget.style.color = '#020617';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+              >
+                OPEN MOCK EMAIL INBOX
+              </a>
+            </div>
+
+            <button
+              onClick={() => {
+                setIsPendingVerification(false);
+                setError(null);
+              }}
+              style={{
+                marginTop: '20px',
+                width: '100%',
+                background: 'transparent',
+                color: '#8892a4',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                padding: '10px 0',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.color = '#8892a4';
+              }}
+            >
+              BACK TO SIGN IN
+            </button>
           </div>
         ) : (
           /* Form Block */

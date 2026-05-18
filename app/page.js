@@ -19,7 +19,15 @@ export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountModalTab, setAccountModalTab] = useState('profile');
+  const [prefilledSuggestion, setPrefilledSuggestion] = useState(null);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
+
+  const openAccountModal = (tab = 'profile', prefill = null) => {
+    setPrefilledSuggestion(prefill);
+    setAccountModalTab(tab);
+    setShowAccountModal(true);
+  };
 
   // Read stored session on client boot
   useEffect(() => {
@@ -124,7 +132,7 @@ export default function DashboardPage() {
         showAuthModal={showAuthModal}
         setShowAuthModal={setShowAuthModal}
         handleAuthSuccess={handleAuthSuccess}
-        onAvatarClick={() => setShowAccountModal(true)}
+        onAvatarClick={openAccountModal}
       />
 
       {/* Access Control HUD Overlay */}
@@ -142,6 +150,8 @@ export default function DashboardPage() {
           currentUser={currentUser}
           onAuthSuccess={handleAuthSuccess}
           handleLogout={handleLogout}
+          initialTab={accountModalTab}
+          prefilledSuggestion={prefilledSuggestion}
         />
       )}
     </main>

@@ -51,7 +51,7 @@ function formatTime(ts) {
   });
 }
 
-export default function EventDetailsWindow({ event, onClose }) {
+export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
   const [pos, setPos] = useState({ x: window.innerWidth / 2 - 200, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
@@ -221,8 +221,33 @@ export default function EventDetailsWindow({ event, onClose }) {
             {event.location || 'GLOBAL / REMOTE'}
           </div>
           {(event.lat && event.lon) && (
-            <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "'JetBrains Mono', monospace" }}>
-              GEO_REF: {event.lat.toFixed(4)}N, {event.lon.toFixed(4)}E
+            <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "'JetBrains Mono', monospace", display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <span>GEO_REF: {event.lat.toFixed(4)}N, {event.lon.toFixed(4)}E</span>
+              {onReportIssue && (
+                <button
+                  onClick={() => onReportIssue('suggestions', {
+                    type: 'map',
+                    subject: `Incorrect Coordinates for: ${event.title}`,
+                    targetId: `${event.lat.toFixed(4)}, ${event.lon.toFixed(4)} (ID: ${event.id})`,
+                    details: `The threat marker for "${event.title}" is located at coordinates ${event.lat.toFixed(4)}, ${event.lon.toFixed(4)} but is placed on the incorrect part of the map. Correct coordinates should be:`
+                  })}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f59e0b',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontFamily: 'monospace',
+                    outline: 'none'
+                  }}
+                  title="Report incorrect placement of this marker on the map"
+                >
+                  [REPORT INCORRECT COORDS]
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -409,38 +434,98 @@ export default function EventDetailsWindow({ event, onClose }) {
               </div>
               
               {currentUrl ? (
-                <a 
-                  href={currentUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '8px', 
-                    padding: '8px', 
-                    background: verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)', 
-                    color: verificationStatus === 'healed' ? '#00f0ff' : '#38bdf8', 
-                    border: verificationStatus === 'healed' ? '1px solid rgba(0, 240, 255, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)', 
-                    borderRadius: '4px', 
-                    fontSize: '11px', 
-                    fontWeight: 700, 
-                    textDecoration: 'none',
-                    transition: 'all 0.2s',
-                    boxShadow: verificationStatus === 'healed' ? '0 0 12px rgba(0, 240, 255, 0.15)' : 'none'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.2)' : 'rgba(56, 189, 248, 0.2)'; 
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)'; 
-                  }}
-                >
-                  {verificationStatus === 'healed' ? '⚡ AUDIT HEALED PRESS WIRE' : '🌐 AUDIT ORIGINAL PRESS WIRE'}
-                </a>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <a 
+                    href={currentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '8px', 
+                      padding: '8px', 
+                      background: verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)', 
+                      color: verificationStatus === 'healed' ? '#00f0ff' : '#38bdf8', 
+                      border: verificationStatus === 'healed' ? '1px solid rgba(0, 240, 255, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)', 
+                      borderRadius: '4px', 
+                      fontSize: '11px', 
+                      fontWeight: 700, 
+                      textDecoration: 'none',
+                      transition: 'all 0.2s',
+                      boxShadow: verificationStatus === 'healed' ? '0 0 12px rgba(0, 240, 255, 0.15)' : 'none'
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.2)' : 'rgba(56, 189, 248, 0.2)'; 
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)'; 
+                    }}
+                  >
+                    {verificationStatus === 'healed' ? '⚡ AUDIT HEALED PRESS WIRE' : '🌐 AUDIT ORIGINAL PRESS WIRE'}
+                  </a>
+                  {onReportIssue && (
+                    <button
+                      onClick={() => onReportIssue('suggestions', {
+                        type: 'link',
+                        subject: `Broken Press Link for: ${event.title}`,
+                        targetId: `URL: ${currentUrl} (ID: ${event.id})`,
+                        details: `The press link for "${event.title}" seems to be broken, throws an error, or links to incorrect information. The URL reported is: ${currentUrl}`
+                      })}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        background: 'rgba(245, 158, 11, 0.05)',
+                        border: '1px solid rgba(245, 158, 11, 0.2)',
+                        borderRadius: '4px',
+                        color: '#f59e0b',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        fontFamily: 'monospace',
+                        transition: 'all 0.2s',
+                        outline: 'none'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.05)'}
+                    >
+                      [⚡ REPORT BROKEN INTEL LINK]
+                    </button>
+                  )}
+                </div>
               ) : (
-                <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 600 }}>
-                  ⚠ LINK UNVERIFIED (BROKEN)
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 600 }}>
+                    ⚠ LINK UNVERIFIED (BROKEN)
+                  </div>
+                  {onReportIssue && (
+                    <button
+                      onClick={() => onReportIssue('suggestions', {
+                        type: 'link',
+                        subject: `Missing/Broken Link for: ${event.title}`,
+                        targetId: `ID: ${event.id}`,
+                        details: `The intelligence dossier for "${event.title}" has a missing or dead source press link.`
+                      })}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        background: 'rgba(239, 68, 68, 0.05)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '4px',
+                        color: '#ef4444',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        fontFamily: 'monospace',
+                        transition: 'all 0.2s',
+                        outline: 'none'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                    >
+                      [⚡ REPORT MISSING SOURCE LINK]
+                    </button>
+                  )}
                 </div>
               )}
             </div>

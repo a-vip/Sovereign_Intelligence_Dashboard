@@ -51,6 +51,80 @@ export default function CesiumGlobe({
   }, []);
   
   const [mapError, setMapError] = useState(false);
+  const [scriptsLoaded, setScriptsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Direct check if both scripts are already initialized globally
+    if (window.Cesium && window.L) {
+      setScriptsLoaded(true);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadStyles = () => {
+      const styles = [
+        { id: 'leaflet-css-pkg', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' },
+        { id: 'cesium-css-pkg', href: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css' }
+      ];
+      styles.forEach(s => {
+        if (!document.getElementById(s.id)) {
+          const link = document.createElement('link');
+          link.id = s.id;
+          link.rel = 'stylesheet';
+          link.href = s.href;
+          link.crossOrigin = '';
+          document.head.appendChild(link);
+        }
+      });
+    };
+
+    const loadScripts = async () => {
+      loadStyles();
+
+      const loadScript = (src, id) => {
+        return new Promise((resolve, reject) => {
+          if (document.getElementById(id)) {
+            resolve();
+            return;
+          }
+          const script = document.createElement('script');
+          script.id = id;
+          script.src = src;
+          script.async = true;
+          script.crossOrigin = '';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error(`Script load failed: ${src}`));
+          document.head.appendChild(script);
+        });
+      };
+
+      try {
+        // Load Leaflet first (sequential to prevent overlaps)
+        await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'leaflet-js-pkg');
+        // Load Cesium next
+        await loadScript('https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js', 'cesium-js-pkg');
+
+        if (isMounted) {
+          setScriptsLoaded(true);
+        }
+      } catch (err) {
+        console.error("External mapping assets failed to load:", err);
+        if (isMounted) {
+          setMapError(true);
+        }
+      }
+    };
+
+    loadScripts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const [viewerReady, setViewerReady] = useState(false);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
@@ -78,7 +152,7 @@ export default function CesiumGlobe({
 
   // 4. Buttery smooth auto rotation of the globe until user interacts with the camera!
   useEffect(() => {
-    if (!viewerRef.current || !autoRotate || mapError || !viewerReady) return;
+    if (!scriptsLoaded || !viewerRef.current || !autoRotate || mapError || !viewerReady) return;
 
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
@@ -104,7 +178,7 @@ export default function CesiumGlobe({
         viewer.scene.postRender.removeEventListener(rotateCamera);
       }
     };
-  }, [autoRotate, mapError, viewerReady]);
+  }, [autoRotate, mapError, viewerReady, scriptsLoaded]);
 
   const handleUserInteraction = () => {
     if (autoRotate && onInteraction) {
@@ -274,7 +348,7 @@ export default function CesiumGlobe({
 
   // 1. Initialize Leaflet ONLY as a graceful robust fallback if WebGL/Cesium fails
   useEffect(() => {
-    if (!mapError || !leafletContainerRef.current) return;
+    if (!scriptsLoaded || !mapError || !leafletContainerRef.current) return;
     if (leafletMapRef.current) return;
 
     const L = window.L;
@@ -300,11 +374,11 @@ export default function CesiumGlobe({
     } catch (e) {
       console.error("Leaflet initialization failed:", e);
     }
-  }, [mapError]);
+  }, [mapError, scriptsLoaded]);
 
   // 2. Update threat markers on Leaflet fallback map
   useEffect(() => {
-    if (!mapError || !leafletMapRef.current) return;
+    if (!scriptsLoaded || !mapError || !leafletMapRef.current) return;
 
     const L = window.L;
     const map = leafletMapRef.current;
@@ -350,11 +424,11 @@ export default function CesiumGlobe({
         }
       });
     });
-  }, [mapError, repelledMarkers]);
+  }, [mapError, repelledMarkers, scriptsLoaded]);
 
   // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
   useEffect(() => {
-    if (mapError || typeof window === 'undefined' || !containerRef.current || viewerRef.current) return;
+    if (!scriptsLoaded || mapError || typeof window === 'undefined' || !containerRef.current || viewerRef.current) return;
 
     const Cesium = window.Cesium;
     if (!Cesium) {
@@ -497,11 +571,11 @@ export default function CesiumGlobe({
       console.error("Cesium globe initialization failed. Switching to 2D Fallback:", e);
       setMapError(true);
     }
-  }, [mapError]);
+  }, [mapError, scriptsLoaded]);
 
   // 4. Handle Google 3D Tileset loading and visibility based on Map Mode
   useEffect(() => {
-    if (mapError || !viewerRef.current) return;
+    if (!scriptsLoaded || mapError || !viewerRef.current) return;
     
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
@@ -540,11 +614,11 @@ export default function CesiumGlobe({
         tilesetRef.current.show = false;
       }
     }
-  }, [mapMode, tilesetLoadingStatus, mapError]);
+  }, [mapMode, tilesetLoadingStatus, mapError, scriptsLoaded]);
 
   // 5. Update threat markers on Cesium Globe
   useEffect(() => {
-    if (mapError || !viewerRef.current) return;
+    if (!scriptsLoaded || mapError || !viewerRef.current) return;
 
     const Cesium = window.Cesium;
     const viewer = viewerRef.current;
@@ -612,11 +686,11 @@ export default function CesiumGlobe({
         });
       }
     });
-  }, [repelledMarkers, mapError]);
+  }, [repelledMarkers, mapError, scriptsLoaded]);
 
   // 6. Handle Base Map Style changes dynamically in real time (Satellite vs Tactical Dark)
   useEffect(() => {
-    if (mapError || !viewerRef.current) return;
+    if (!scriptsLoaded || mapError || !viewerRef.current) return;
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
@@ -640,11 +714,11 @@ export default function CesiumGlobe({
     } catch (e) {
       console.error("Failed to swap Cesium base map style dynamically:", e);
     }
-  }, [mapStyle, mapError]);
+  }, [mapStyle, mapError, scriptsLoaded]);
 
   // 7. Update Leaflet base map layer on mapStyle changes
   useEffect(() => {
-    if (!mapError || !leafletMapRef.current) return;
+    if (!scriptsLoaded || !mapError || !leafletMapRef.current) return;
     const L = window.L;
     const map = leafletMapRef.current;
     if (!L) return;
@@ -669,11 +743,11 @@ export default function CesiumGlobe({
     } catch (e) {
       console.error("Failed to swap Leaflet base map style:", e);
     }
-  }, [mapError, mapStyle]);
+  }, [mapError, mapStyle, scriptsLoaded]);
 
   // 8. Capture and normalize wheel zoom for perfect laptop trackpad and mouse scroll zoom!
   useEffect(() => {
-    if (mapError || !viewerRef.current) return;
+    if (!scriptsLoaded || mapError || !viewerRef.current) return;
     const viewer = viewerRef.current;
     const container = containerRef.current;
     if (!container) return;
@@ -742,7 +816,7 @@ export default function CesiumGlobe({
     return () => {
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [mapError]);
+  }, [mapError, scriptsLoaded]);
 
   const is2DActive = mapError;
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getUserByEmail, createUser, initDb } from '@/lib/db';
+import { getUserByEmail, createPendingRegistration, initDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
+import { sendVerificationEmail } from '@/lib/mail';
+import crypto from 'crypto';
 
 export async function POST(req) {
   try {
@@ -47,21 +49,25 @@ export async function POST(req) {
       );
     }
 
-    // 3. Hash password and persist user
+    // 3. Hash password
     const passwordHash = hashPassword(password);
-    const newUser = await createUser(cleanEmail, passwordHash, cleanName, cleanRole);
+    
+    // 4. Generate verification token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    
+    // 5. Save pending registration
+    await createPendingRegistration(token, cleanEmail, passwordHash, cleanName, cleanRole, expiresAt);
+    
+    // 6. Send verification email
+    const host = req.headers.get('host') || 'localhost:3000';
+    await sendVerificationEmail(cleanEmail, token, cleanName, host);
 
     return NextResponse.json({
       success: true,
-      message: 'Access granted. Operator registered successfully.',
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        fullName: newUser.full_name,
-        role: newUser.role,
-        createdAt: newUser.created_at
-      }
-    }, { status: 201 });
+      pending: true,
+      message: 'Verification dispatch successful. Please inspect email console to authenticate.'
+    }, { status: 200 });
 
   } catch (error) {
     console.error('Registration API Error:', error);

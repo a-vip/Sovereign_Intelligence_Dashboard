@@ -434,9 +434,44 @@ export default function LiveMap({
 
           {/* Profile User avatar (Access Control trigger) */}
           {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Submit Feedback / Report Bug Button */}
+              <button
+                onClick={() => onAvatarClick('suggestions')}
+                style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: '#f59e0b',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  fontFamily: 'monospace',
+                  cursor: 'pointer',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 0 10px rgba(245, 158, 11, 0.05)',
+                  height: '26px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
+                  e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.05)';
+                }}
+                title="Submit Suggestions & Report System Issues"
+              >
+                <span>💡</span>
+                <span>FEEDBACK ENGINE</span>
+              </button>
+
               <div 
-                onClick={onAvatarClick}
+                onClick={() => onAvatarClick('profile')}
                 style={{
                   background: 'rgba(16, 185, 129, 0.1)',
                   border: '1px solid #10b981',
@@ -1294,6 +1329,7 @@ export default function LiveMap({
         <EventDetailsWindow
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          onReportIssue={onAvatarClick}
           SEV_COLORS={SEV_COLORS}
           CAT_COLORS={CAT_COLORS}
           formatTime={formatTime}
