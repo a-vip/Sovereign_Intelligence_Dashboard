@@ -459,7 +459,7 @@ body {
 .sigint-container {
   display: grid;
   grid-template-columns: 360px 1fr;
-  height: calc(100vh - 110px);
+  height: calc(100vh - 76px);
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--glass-border);
@@ -477,35 +477,46 @@ body {
   overflow: hidden;
 }
 
+/* Ticker Marquee Scroll Animation */
+@keyframes ticker-marquee {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-33.33%, 0, 0); }
+}
+
 /* Mobile Responsive Adjustments */
 @media (max-width: 900px) {
+  .dashboard-fullbleed {
+    padding: 0 !important;
+  }
   .sigint-container {
-    display: flex !important;
-    flex-direction: column !important;
-    height: auto !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    height: calc(100vh - 70px) !important; /* Mobile: 46px header + 24px ticker = 70px */
     border: none !important;
-    background: transparent !important;
-    gap: 16px;
-    overflow-y: visible !important;
+    border-radius: 0 !important;
+    gap: 0 !important;
   }
   .sigint-feed {
-    width: 100% !important;
-    height: 500px !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: var(--radius-md) !important;
-    position: relative !important;
-    order: 2;
+    position: absolute !important;
+    z-index: 1000 !important;
+    height: 100% !important;
   }
   .sigint-map-area {
     width: 100% !important;
-    height: 400px !important;
-    position: relative !important;
-    border-radius: var(--radius-md) !important;
-    overflow: hidden !important;
-    order: 1;
+    height: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    border-radius: 0 !important;
   }
   .overlay-panel {
-    z-index: 1000 !important;
+    z-index: 1001 !important;
+    position: fixed !important;
+    bottom: 80px !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-width: none !important;
   }
 }
 

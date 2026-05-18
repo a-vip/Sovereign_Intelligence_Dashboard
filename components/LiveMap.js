@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { Shield, RefreshCw, User, LogOut, Heart } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 
@@ -29,7 +30,13 @@ function formatTime(ts) {
   return d.toLocaleDateString();
 }
 
-export default function LiveMap() {
+export default function LiveMap({
+  currentUser,
+  handleLogout,
+  showAuthModal,
+  setShowAuthModal,
+  handleAuthSuccess
+}) {
   const [markers, setMarkers] = useState([]);
   const [allFetchedEvents, setAllFetchedEvents] = useState([]);
   const [categories, setCategories] = useState({ Conflict: true, Surveillance: true, Political: true, Humanitarian: true, Economic: true, Disaster: true });
@@ -41,6 +48,8 @@ export default function LiveMap() {
   const [showMarkets, setShowMarkets] = useState(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showSupportDropdown, setShowSupportDropdown] = useState(false);
 
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
@@ -150,6 +159,12 @@ export default function LiveMap() {
     } catch { setStatus('error'); }
   }, [isInitializing, isVisible, timeRange]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchEvents();
+    setRefreshing(false);
+  }, [fetchEvents]);
+
   useEffect(() => {
     fetchEvents();
     const interval = setInterval(fetchEvents, EVENTS_POLL);
@@ -206,71 +221,263 @@ export default function LiveMap() {
     return counts;
   }, [markers]);
 
+  // Create ticker alert items
+  const tickerItems = useMemo(() => {
+    if (!allFetchedEvents || allFetchedEvents.length === 0) {
+      return ["[SIGNAL LOCK] Listening for live SIGINT telemetry..."];
+    }
+    // Limit to latest 6 alerts and duplicate to make the marquee perfectly infinite/seamless
+    const base = allFetchedEvents.slice(0, 6).map(ev => `[${ev.category.toUpperCase()} // ${formatTime(ev.timestamp)}] ${ev.title.toUpperCase()}`);
+    return [...base, ...base, ...base];
+  }, [allFetchedEvents]);
+
   return (
-    <div 
-      className="sigint-container"
-      style={{
-        gridTemplateColumns: isFeedCollapsed ? '0px 1fr' : '360px 1fr',
-        transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: '#020617', overflow: 'hidden' }}>
+      {/* Sleek, MTS-style Clean Header Bar */}
+      <header style={{
+        height: isMobile ? '46px' : '52px',
+        background: 'rgba(8, 12, 24, 0.95)',
+        borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: isMobile ? '0 12px' : '0 20px',
+        boxSizing: 'border-box',
+        zIndex: 1001,
+        backdropFilter: 'blur(10px)',
         position: 'relative'
-      }}
-    >
-      {/* Floating Collapse Handle (Shown when feed is collapsed) */}
-      {isFeedCollapsed && (
-        <button
-          onClick={() => setIsFeedCollapsed(false)}
-          style={{
-            position: 'absolute',
-            left: '20px',
-            top: '20px',
-            background: 'rgba(8, 12, 24, 0.9)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            borderRadius: '8px',
-            padding: '8px 16px',
-            color: '#e2e8f0',
-            fontFamily: 'Courier New, monospace',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            letterSpacing: '0.05em',
-            cursor: 'pointer',
-            zIndex: 30,
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(56, 189, 248, 0.05)',
+      }}>
+        {/* Left: Shield Logo & Compact Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #00f0ff, #ec4899)',
+            borderRadius: '4px',
+            width: '20px',
+            height: '20px',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#00f0ff';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
-            e.currentTarget.style.transform = 'scale(1.02)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.25)';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(56, 189, 248, 0.05)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          <span>FEED ({filteredEvents.length})</span>
-          <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>&gt;</span>
-        </button>
-      )}
+            justifyContent: 'center',
+            boxShadow: '0 0 8px rgba(0, 240, 255, 0.4)'
+          }}>
+            <Shield size={12} color="#fff" />
+          </div>
+          <div>
+            <h1 style={{
+              fontSize: isMobile ? '12px' : '14px',
+              fontWeight: '800',
+              color: '#ffffff',
+              margin: 0,
+              fontFamily: 'monospace',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              textShadow: '0 0 10px rgba(255,255,255,0.1)'
+            }}>
+              {isMobile ? 'SOVEREIGN' : 'SOVEREIGN INTELLIGENCE'}
+            </h1>
+            {!isMobile && (
+              <div style={{
+                fontSize: '9px',
+                color: 'rgba(255,255,255,0.4)',
+                fontWeight: '500',
+                letterSpacing: '0.5px',
+                marginTop: '1px'
+              }}>
+                LAWS Tracking • State Violations • Corporate Complicity
+              </div>
+            )}
+          </div>
+        </div>
 
-      {/* Event Feed Sidebar */}
+        {/* Right Section: Compact Status indicators & Access Control */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Pulsing Signal Count (MTS style) */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '10px',
+            color: '#10b981',
+            fontWeight: 'bold'
+          }}>
+            <div style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: '#10b981',
+              boxShadow: '0 0 6px #10b981',
+              animation: 'pulse 2s infinite'
+            }} />
+            <span>• {displayedMarkers.length}</span>
+          </div>
+
+          {/* Compact Refresh Avatar */}
+          <button 
+            onClick={handleRefresh}
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'rgba(255, 255, 255, 0.6)',
+              borderRadius: '50%',
+              width: '26px',
+              height: '26px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              outline: 'none',
+              transition: 'all 0.2s'
+            }}
+            className={refreshing ? 'spinning' : ''}
+            title="Refresh Live Signals"
+            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
+          >
+            <RefreshCw size={12} />
+          </button>
+
+          {/* Profile User avatar (Access Control trigger) */}
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div 
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid #10b981',
+                  borderRadius: '50%',
+                  width: '26px',
+                  height: '26px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  color: '#10b981',
+                  fontFamily: 'monospace',
+                  cursor: 'pointer'
+                }}
+                title={`Operator: ${currentUser.fullName} (${currentUser.role})`}
+              >
+                {currentUser.fullName.charAt(0).toUpperCase()}
+              </div>
+              <button 
+                onClick={handleLogout}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(239, 68, 68, 0.6)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px 4px',
+                  transition: 'all 0.2s'
+                }}
+                title="Logout Operator Session"
+                onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}
+              >
+                <LogOut size={12} />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowAuthModal(true)}
+              style={{
+                background: 'rgba(6, 182, 212, 0.08)',
+                border: '1px solid rgba(6, 182, 212, 0.25)',
+                color: '#06b6d4',
+                borderRadius: '50%',
+                width: '26px',
+                height: '26px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                outline: 'none',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(6, 182, 212, 0.15)';
+                e.currentTarget.style.borderColor = '#06b6d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
+                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)';
+              }}
+              title="Operator Authenticate"
+            >
+              <User size={12} />
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Cyber News Ticker Bar */}
+      <div style={{
+        background: '#040810',
+        borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+        height: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        overflow: 'hidden',
+        width: '100%',
+        position: 'relative'
+      }}>
+        <div style={{
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+          animation: 'ticker-marquee 40s linear infinite',
+          fontFamily: 'JetBrains Mono, Courier New, monospace',
+          fontSize: '10px',
+          color: '#00f0ff',
+          fontWeight: 'bold',
+          letterSpacing: '0.05em'
+        }}>
+          {tickerItems.join('   •   ')}
+        </div>
+      </div>
+
+      {/* Map Layout Container */}
       <div 
-        className="sigint-feed"
+        className="sigint-container"
         style={{
-          transform: isFeedCollapsed ? 'translateX(-100%)' : 'translateX(0)',
-          opacity: isFeedCollapsed ? 0 : 1,
-          width: isFeedCollapsed ? '0px' : '360px',
-          minWidth: isFeedCollapsed ? '0px' : '360px',
-          maxWidth: isFeedCollapsed ? '0px' : '360px',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          borderRight: isFeedCollapsed ? 'none' : '1px solid var(--border-color)',
-          visibility: isFeedCollapsed ? 'hidden' : 'visible',
+          gridTemplateColumns: isMobile ? '1fr' : (isFeedCollapsed ? '0px 1fr' : '360px 1fr'),
+          transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          position: 'relative',
+          height: '100%',
+          width: '100%',
+          overflow: 'hidden',
+          flex: 1
         }}
       >
+        {/* Event Feed Sidebar */}
+        <div 
+          className="sigint-feed"
+          style={{
+            position: isMobile ? 'absolute' : 'relative',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: isFeedCollapsed ? '0px' : (isMobile ? '310px' : '360px'),
+            minWidth: isFeedCollapsed ? '0px' : (isMobile ? '310px' : '360px'),
+            maxWidth: isFeedCollapsed ? '0px' : (isMobile ? '85vw' : '360px'),
+            transform: isFeedCollapsed ? 'translateX(-100%)' : 'translateX(0)',
+            opacity: isFeedCollapsed ? 0 : 1,
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            borderRight: isFeedCollapsed ? 'none' : '1px solid rgba(56, 189, 248, 0.2)',
+            visibility: isFeedCollapsed ? 'hidden' : 'visible',
+            zIndex: 1000,
+            background: 'rgba(8, 12, 24, 0.96)',
+            boxShadow: isFeedCollapsed ? 'none' : '10px 0 40px rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(15px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
         <div className="feed-type-tabs" style={{ display: 'flex', alignItems: 'stretch' }}>
           <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} onClick={() => setFeedType('live')}>
             LIVE SIGNALS
@@ -449,49 +656,7 @@ export default function LiveMap() {
       </div>
 
       {/* Overlay Controls */}
-      {isMinimized ? (
-        <button
-          onClick={() => setIsMinimized(false)}
-          style={{
-            position: isMobile ? 'fixed' : 'absolute',
-            right: '20px',
-            bottom: isMobile ? '20px' : '48px',
-            zIndex: 20,
-            background: 'rgba(8, 12, 24, 0.9)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            borderRadius: '8px',
-            padding: '10px 16px',
-            color: '#ffffff',
-            fontFamily: 'Courier New, monospace',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            transition: 'all 0.2s ease',
-            outline: 'none',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#00f0ff';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
-            e.currentTarget.style.transform = 'scale(1.02)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.25)';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          <span>OVERLAYS</span>
-          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1 5L5 1L9 5" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      ) : (
+      {!isMinimized && (
         <div
           className="overlay-panel"
           style={{
@@ -500,9 +665,9 @@ export default function LiveMap() {
             transition: isDragging ? 'none' : 'transform 0.1s ease',
             zIndex: 20,
             position: isMobile ? 'fixed' : 'absolute',
-            right: isMobile ? '20px' : '20px',
-            bottom: isMobile ? '20px' : '48px',
-            left: isMobile ? '20px' : 'auto',
+            right: isMobile ? '16px' : '20px',
+            bottom: isMobile ? '80px' : '48px',
+            left: isMobile ? '16px' : 'auto',
             width: isMobile ? 'auto' : '260px',
             maxWidth: isMobile ? 'none' : '260px'
           }}
@@ -704,6 +869,238 @@ export default function LiveMap() {
         </div>
       )}
 
+      {/* Floating Bottom Control Pill Bar (MTS Style) */}
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1002,
+        display: 'flex',
+        gap: '10px',
+        pointerEvents: 'auto'
+      }}>
+        {/* Feed Pill Button */}
+        <button 
+          onClick={() => setIsFeedCollapsed(!isFeedCollapsed)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 16px',
+            borderRadius: '24px',
+            background: 'rgba(8, 12, 24, 0.85)',
+            border: !isFeedCollapsed ? '1px solid #00f0ff' : '1px solid rgba(56, 189, 248, 0.25)',
+            color: !isFeedCollapsed ? '#00f0ff' : '#e2e8f0',
+            fontSize: '11px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(56, 189, 248, 0.05)',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontFamily: 'monospace'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#00f0ff';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = !isFeedCollapsed ? '#00f0ff' : 'rgba(56, 189, 248, 0.25)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
+          }}
+        >
+          <span>📋</span> {isMobile ? 'FEED' : 'LIVE FEED'}
+        </button>
+
+        {/* Support Pill Button */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            onClick={() => setShowSupportDropdown(!showSupportDropdown)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '24px',
+              background: 'rgba(8, 12, 24, 0.85)',
+              border: showSupportDropdown ? '1px solid #ec4899' : '1px solid rgba(236, 72, 153, 0.25)',
+              color: showSupportDropdown ? '#ec4899' : '#e2e8f0',
+              fontSize: '11px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+              fontFamily: 'monospace'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#ec4899';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(236, 72, 153, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = showSupportDropdown ? '#ec4899' : 'rgba(236, 72, 153, 0.25)';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
+            }}
+          >
+            <span style={{ color: '#ec4899' }}>❤️</span> SUPPORT
+          </button>
+
+          {/* Support Dropdown Card Floating Directly Above Support Pill */}
+          {showSupportDropdown && (
+            <div 
+              style={{
+                position: 'absolute',
+                bottom: '42px',
+                right: '50%',
+                transform: 'translateX(50%)',
+                width: '190px',
+                background: 'rgba(8, 12, 24, 0.96)',
+                border: '1px solid rgba(236, 72, 153, 0.3)',
+                borderRadius: '8px',
+                padding: '10px',
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(236, 72, 153, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                zIndex: 1003,
+                backdropFilter: 'blur(12px)',
+                animation: 'fadeIn 0.15s ease-out'
+              }}
+            >
+              {/* Header with Close Button */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid rgba(236, 72, 153, 0.2)',
+                paddingBottom: '6px',
+                marginBottom: '2px',
+                width: '100%'
+              }}>
+                <span style={{ fontSize: '9px', fontWeight: '800', color: '#ec4899', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                  SUPPORT CREATOR
+                </span>
+                <span 
+                  onClick={(e) => { e.stopPropagation(); setShowSupportDropdown(false); }}
+                  style={{
+                    cursor: 'pointer',
+                    color: 'rgba(236, 72, 153, 0.6)',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    lineHeight: '1',
+                    padding: '0 4px',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(236, 72, 153, 0.6)'}
+                  title="Close Support Menu"
+                >
+                  ×
+                </span>
+              </div>
+
+              <a 
+                href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  textDecoration: 'none',
+                  letterSpacing: '0.5px',
+                  transition: 'all 0.2s',
+                  background: 'rgba(255, 66, 77, 0.1)',
+                  color: '#ff424d',
+                  border: '1px solid rgba(255, 66, 77, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#ff424d';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 66, 77, 0.1)';
+                  e.currentTarget.style.color = '#ff424d';
+                }}
+              >
+                <span style={{ fontSize: '12px' }}>☕</span> Patreon
+              </a>
+              <a 
+                href="https://buymeacoffee.com/avip" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  textDecoration: 'none',
+                  letterSpacing: '0.5px',
+                  transition: 'all 0.2s',
+                  background: 'rgba(255, 221, 0, 0.1)',
+                  color: '#ffdd00',
+                  border: '1px solid rgba(255, 221, 0, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#ffdd00';
+                  e.currentTarget.style.color = '#000000';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 221, 0, 0.1)';
+                  e.currentTarget.style.color = '#ffdd00';
+                }}
+              >
+                <span style={{ fontSize: '12px' }}>⚡</span> Buy Coffee
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Overlays Pill Button */}
+        <button 
+          onClick={() => setIsMinimized(!isMinimized)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 16px',
+            borderRadius: '24px',
+            background: 'rgba(8, 12, 24, 0.85)',
+            border: !isMinimized ? '1px solid #00f0ff' : '1px solid rgba(0, 240, 255, 0.25)',
+            color: !isMinimized ? '#00f0ff' : '#e2e8f0',
+            fontSize: '11px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontFamily: 'monospace'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#00f0ff';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = !isMinimized ? '#00f0ff' : 'rgba(0, 240, 255, 0.25)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
+          }}
+        >
+          <span>🛰️</span> OVERLAYS
+        </button>
+      </div>
+
       {/* Status Bar */}
       <div className="map-status-bar" style={{ zIndex: 10 }}>
         <div className="status-item">
@@ -755,5 +1152,6 @@ export default function LiveMap() {
         />
       )}
     </div>
+  </div>
   );
 }
