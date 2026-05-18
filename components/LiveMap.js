@@ -354,7 +354,7 @@ export default function LiveMap({
         timestamp: item.published_at,
         url: item.url,
         details: {
-          summary: `Source: ${item.source}. Geotagged live feed article.`,
+          summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
           isRssItem: true
         }
       }));
@@ -1079,18 +1079,32 @@ export default function LiveMap({
                   else if (item.sid === 'nature') badgeColor = '#22c55e';
 
                   return (
-                    <a 
+                    <div 
                       key={item.id || idx} 
-                      href={item.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                      onClick={() => setSelectedEvent({
+                        id: item.id || `rss-${item.url}`,
+                        title: item.title,
+                        category: item.category || 'Political',
+                        severity: item.severity || 1,
+                        location: item.location || 'Unknown',
+                        lat: item.latitude ? parseFloat(item.latitude) : null,
+                        lon: item.longitude ? parseFloat(item.longitude) : null,
+                        timestamp: item.published_at,
+                        url: item.url,
+                        source: item.source,
+                        details: {
+                          summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
+                          isRssItem: true
+                        }
+                      })}
                       className="feed-item"
                       style={{ 
                         textDecoration: 'none', 
                         display: 'block', 
                         borderBottom: '1px solid rgba(255,255,255,0.04)',
                         padding: '12px 14px',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
                       }}
                     >
                       <div className="feed-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -1136,9 +1150,9 @@ export default function LiveMap({
                         letterSpacing: '0.05em'
                       }}>
                         <span>OSINT FEED SYSTEM</span>
-                        <span style={{ color: '#00f0ff', opacity: 0.8 }}>LINK SECURED ↗</span>
+                        <span style={{ color: '#00f0ff', opacity: 0.8 }}>PREVIEW & TRACK ↗</span>
                       </div>
-                    </a>
+                    </div>
                   );
                 })}
                 {filteredRssItems.length > visibleRssCount && (
@@ -1330,7 +1344,7 @@ export default function LiveMap({
                   url: matchedRss.url,
                   source: matchedRss.source || 'RSS Feed',
                   details: {
-                    summary: `Source: ${matchedRss.source}. Geotagged live feed article.`,
+                    summary: matchedRss.summary || `Source: ${matchedRss.source}. Geotagged live feed article.`,
                     isRssItem: true
                   }
                 };

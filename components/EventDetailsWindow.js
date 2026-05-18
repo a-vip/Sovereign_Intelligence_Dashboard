@@ -175,7 +175,9 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-           <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '1px', color: '#64748b' }}>SIGINT://DETAILS</span>
+           <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '1px', color: event.details?.isRssItem ? '#00f0ff' : '#64748b' }}>
+             {event.details?.isRssItem ? 'SIGINT://OSINT_FEED' : 'SIGINT://DETAILS'}
+           </span>
            <span style={{ fontSize: '0.7rem', color: '#334155' }}>|</span>
            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', fontFamily: "var(--font-jetbrains-fallback)" }}>{event.id?.substring(0, 8).toUpperCase()}</span>
         </div>
@@ -430,7 +432,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
               </div>
               
               <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
-                <strong>Fact-Check Summary:</strong> This signal is logged persistently inside our Neon database. Sourced from trusted press wires, cross-referenced using fuzzy geocoding specificity algorithms, and cataloged by the Sovereign AI background ingestion protocol.
+                <strong>Fact-Check Summary:</strong> {event.details?.isRssItem ? 'This signal is geotagged live from open-source feeds and persistently archived in our Neon database. Sourced directly via secure TLS handshake protocol and synthesized using our real-time Web Scraping Summarizer agent.' : 'This signal is logged persistently inside our Neon database. Sourced from trusted press wires, cross-referenced using fuzzy geocoding specificity algorithms, and cataloged by the Sovereign AI background ingestion protocol.'}
               </div>
               
               {currentUrl ? (
