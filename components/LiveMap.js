@@ -98,6 +98,8 @@ export default function LiveMap({
   const [rssStatus, setRssStatus] = useState('loading');
   const [rssLoading, setRssLoading] = useState(true);
   const [activeRssTab, setActiveRssTab] = useState('all');
+  const [isRssDropdownOpen, setIsRssDropdownOpen] = useState(false);
+  const [selectedRssSources, setSelectedRssSources] = useState(['arxiv', 'aje', 'hrw', 'nature', 'un', 'wired', 'eff']);
   const [mapMode, setMapMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('operator_pref_mapMode') || '2d';
@@ -286,7 +288,7 @@ export default function LiveMap({
 
     // 2. Map RSS Feed items containing valid locations to standard marker layouts
     const rssMarkers = rssItems
-      .filter(item => item.latitude !== null && item.longitude !== null && !isNaN(parseFloat(item.latitude)) && !isNaN(parseFloat(item.longitude)))
+      .filter(item => selectedRssSources.includes(item.sid) && item.latitude !== null && item.longitude !== null && !isNaN(parseFloat(item.latitude)) && !isNaN(parseFloat(item.longitude)))
       .map(item => ({
         id: item.id || `rss-${item.url}`,
         name: item.title,
@@ -321,7 +323,7 @@ export default function LiveMap({
       });
     }
     return filtered;
-  }, [markers, rssItems, categories, minSeverity, searchQuery]);
+  }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -357,10 +359,7 @@ export default function LiveMap({
   }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
 
   const filteredRssItems = useMemo(() => {
-    let items = rssItems;
-    if (activeRssTab !== 'all') {
-      items = items.filter(item => item.sid === activeRssTab);
-    }
+    let items = rssItems.filter(item => selectedRssSources.includes(item.sid));
     
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
@@ -372,7 +371,7 @@ export default function LiveMap({
     }
     
     return items;
-  }, [rssItems, activeRssTab, searchQuery]);
+  }, [rssItems, selectedRssSources, searchQuery]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -728,33 +727,157 @@ export default function LiveMap({
         </div>
         
         {feedType === 'rss' ? (
-          <div className="feed-tabs" style={{ overflowX: 'auto', whiteSpace: 'nowrap', gap: '2px', padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
-            <button className={`feed-tab ${activeRssTab === 'all' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('all')}>ALL</button>
-            <button className={`feed-tab ${activeRssTab === 'arxiv' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('arxiv')}>arXiv</button>
-            <button className={`feed-tab ${activeRssTab === 'aje' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('aje')}>AJE</button>
-            <button className={`feed-tab ${activeRssTab === 'hrw' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('hrw')}>HRW</button>
-            <button className={`feed-tab ${activeRssTab === 'nature' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('nature')}>NATURE</button>
+          <div style={{ position: 'relative', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 30, borderBottom: '1px solid rgba(56, 189, 248, 0.15)' }}>
             
+            {/* Custom Multi-select Dropdown Button */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <button 
+                onClick={() => setIsRssDropdownOpen(!isRssDropdownOpen)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '4px',
+                  color: '#ffffff',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#00f0ff'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = isRssDropdownOpen ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)'}
+              >
+                <span>📡 SOURCES ({selectedRssSources.length}/7)</span>
+                <span style={{ fontSize: '9px', color: '#00f0ff' }}>{isRssDropdownOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {isRssDropdownOpen && (
+                <>
+                  {/* Click outside backdrop */}
+                  <div 
+                    onClick={() => setIsRssDropdownOpen(false)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}
+                  />
+                  {/* Floating dropdown overlay */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    background: 'rgba(11, 17, 32, 0.98)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid #1e293b',
+                    borderRadius: '4px',
+                    padding: '8px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.8), 0 0 15px rgba(0, 240, 255, 0.05)',
+                    zIndex: 1001,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    {/* Toggle All Button */}
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
+                      <button
+                        onClick={() => setSelectedRssSources(['arxiv', 'aje', 'hrw', 'nature', 'un', 'wired', 'eff'])}
+                        style={{ flex: 1, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)'}
+                      >
+                        [SELECT ALL]
+                      </button>
+                      <button
+                        onClick={() => setSelectedRssSources([])}
+                        style={{ flex: 1, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'}
+                      >
+                        [CLEAR ALL]
+                      </button>
+                    </div>
+
+                    {/* Sources Map Checkboxes */}
+                    {[
+                      { id: 'arxiv', name: 'arXiv cs.AI' },
+                      { id: 'aje', name: 'Al Jazeera' },
+                      { id: 'hrw', name: 'Human Rights Watch' },
+                      { id: 'nature', name: 'Nature MI' },
+                      { id: 'un', name: 'UN News' },
+                      { id: 'wired', name: 'Wired AI & Security' },
+                      { id: 'eff', name: 'EFF Updates' }
+                    ].map(src => {
+                      const isChecked = selectedRssSources.includes(src.id);
+                      return (
+                        <label 
+                          key={src.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            color: isChecked ? '#e2e8f0' : '#64748b',
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
+                            padding: '4px 6px',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            background: isChecked ? 'rgba(56, 189, 248, 0.04)' : 'transparent',
+                            transition: 'all 0.1s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = isChecked ? 'rgba(56, 189, 248, 0.04)' : 'transparent'}
+                        >
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedRssSources(prev => 
+                                prev.includes(src.id) 
+                                  ? prev.filter(x => x !== src.id) 
+                                  : [...prev, src.id]
+                              );
+                            }}
+                            style={{ accentColor: '#00f0ff', cursor: 'pointer' }}
+                          />
+                          <span>{src.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Sync Refresh Button */}
             <button 
               onClick={() => fetchRss(true)} 
               disabled={rssLoading}
               title="Force sync live RSS feeds"
               style={{
-                background: 'transparent',
-                border: 'none',
+                background: 'rgba(15, 23, 42, 0.65)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '4px',
                 color: rssLoading ? 'rgba(255,255,255,0.2)' : '#00f0ff',
                 cursor: 'pointer',
                 fontSize: '11px',
-                padding: '0 6px',
+                padding: '6px 10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginLeft: 'auto',
                 outline: 'none',
-                opacity: rssLoading ? 0.5 : 1
+                opacity: rssLoading ? 0.5 : 1,
+                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
+                transition: 'all 0.15s ease'
               }}
+              onMouseEnter={(e) => !rssLoading && (e.currentTarget.style.borderColor = '#00f0ff')}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)'}
             >
-              <RefreshCw size={10} className={rssLoading ? 'spinning' : ''} style={{ animation: rssLoading ? 'spin 1.5s linear infinite' : 'none' }} />
+              <RefreshCw size={11} className={rssLoading ? 'spinning' : ''} style={{ animation: rssLoading ? 'spin 1.5s linear infinite' : 'none' }} />
             </button>
           </div>
         ) : (
