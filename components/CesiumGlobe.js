@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '2d', mapStyle = 'satellite' }) {
+export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '2d', mapStyle = 'satellite', onMapModeChange = null }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const tilesetRef = useRef(null);
@@ -749,94 +749,36 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
             gap: '8px'
           }}>
             <button 
-              onClick={handleZoomIn}
+              onClick={() => {
+                if (onMapModeChange) {
+                  onMapModeChange(mapMode === '3d' ? '2d' : '3d');
+                }
+              }}
               style={{
                 width: '36px', height: '36px',
-                background: 'rgba(8, 12, 24, 0.85)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
+                background: mapMode === '3d' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(8, 12, 24, 0.85)',
+                border: mapMode === '3d' ? '1px solid #00f0ff' : '1px solid rgba(56, 189, 248, 0.3)',
                 borderRadius: '6px',
-                color: '#38bdf8',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s ease',
-                outline: 'none'
-              }}
-              title="Zoom In"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#00f0ff';
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
-                e.currentTarget.style.color = '#38bdf8';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-              }}
-            >
-              +
-            </button>
-            <button 
-              onClick={handleZoomOut}
-              style={{
-                width: '36px', height: '36px',
-                background: 'rgba(8, 12, 24, 0.85)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                borderRadius: '6px',
-                color: '#38bdf8',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s ease',
-                outline: 'none'
-              }}
-              title="Zoom Out"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#00f0ff';
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
-                e.currentTarget.style.color = '#38bdf8';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-              }}
-            >
-              −
-            </button>
-            <button 
-              onClick={handleToggleTilt}
-              style={{
-                width: '36px', height: '36px',
-                background: 'rgba(8, 12, 24, 0.85)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                borderRadius: '6px',
-                color: '#38bdf8',
+                color: mapMode === '3d' ? '#00f0ff' : '#38bdf8',
                 fontSize: '11px',
                 fontWeight: '800',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                boxShadow: mapMode === '3d' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)',
                 backdropFilter: 'blur(8px)',
                 transition: 'all 0.2s ease',
                 outline: 'none'
               }}
-              title="Toggle 2D/3D Angled Perspective"
+              title={mapMode === '3d' ? "Switch to 2D Map" : "Enable 3D Photorealistic Buildings Mode"}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = '#00f0ff';
                 e.currentTarget.style.color = '#ffffff';
                 e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
-                e.currentTarget.style.color = '#38bdf8';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+                e.currentTarget.style.borderColor = mapMode === '3d' ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)';
+                e.currentTarget.style.color = mapMode === '3d' ? '#00f0ff' : '#38bdf8';
+                e.currentTarget.style.boxShadow = mapMode === '3d' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)';
               }}
             >
               3D

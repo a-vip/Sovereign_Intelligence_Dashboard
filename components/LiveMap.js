@@ -429,7 +429,7 @@ export default function LiveMap({
         <div style={{
           display: 'inline-block',
           whiteSpace: 'nowrap',
-          animation: 'ticker-marquee 40s linear infinite',
+          animation: 'ticker-marquee 110s linear infinite',
           fontFamily: 'JetBrains Mono, Courier New, monospace',
           fontSize: '10px',
           color: '#00f0ff',
@@ -648,6 +648,7 @@ export default function LiveMap({
           displayedMarkers={displayedMarkers}
           mapMode={mapMode}
           mapStyle={mapStyle}
+          onMapModeChange={setMapMode}
           onPointClick={(point) => {
             const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
             setSelectedEvent(fullEvent || point);
@@ -1030,7 +1031,7 @@ export default function LiveMap({
                   e.currentTarget.style.color = '#ff424d';
                 }}
               >
-                <span style={{ fontSize: '12px' }}>☕</span> Patreon
+                <span style={{ fontSize: '12px' }}>⚡</span> Patreon
               </a>
               <a 
                 href="https://buymeacoffee.com/avip" 
@@ -1061,7 +1062,7 @@ export default function LiveMap({
                   e.currentTarget.style.color = '#ffdd00';
                 }}
               >
-                <span style={{ fontSize: '12px' }}>⚡</span> Buy Coffee
+                <span style={{ fontSize: '12px' }}>☕</span> Buy Coffee
               </a>
             </div>
           )}
