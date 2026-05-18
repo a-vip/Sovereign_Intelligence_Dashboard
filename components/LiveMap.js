@@ -94,6 +94,10 @@ export default function LiveMap({
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
+  const [rssItems, setRssItems] = useState([]);
+  const [rssStatus, setRssStatus] = useState('loading');
+  const [rssLoading, setRssLoading] = useState(true);
+  const [activeRssTab, setActiveRssTab] = useState('all');
   const [mapMode, setMapMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('operator_pref_mapMode') || '2d';
@@ -236,17 +240,38 @@ export default function LiveMap({
     } catch { setStatus('error'); }
   }, [isInitializing, isVisible, timeRange]);
 
+  const fetchRss = useCallback(async (refresh = false) => {
+    if (!isVisible) return;
+    setRssLoading(true);
+    try {
+      const res = await fetch(`/api/rss${refresh ? '?refresh=true' : ''}`);
+      const data = await res.json();
+      if (data.success && data.items) {
+        setRssItems(data.items);
+        setRssStatus(data.status);
+      } else {
+        setRssStatus('error');
+      }
+    } catch (e) {
+      console.error('Failed to fetch RSS:', e);
+      setRssStatus('error');
+    } finally {
+      setRssLoading(false);
+    }
+  }, [isVisible]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchEvents();
+    await Promise.all([fetchEvents(), fetchRss(false)]);
     setRefreshing(false);
-  }, [fetchEvents]);
+  }, [fetchEvents, fetchRss]);
 
   useEffect(() => {
     fetchEvents();
+    fetchRss(false);
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
-  }, [fetchEvents]);
+  }, [fetchEvents, fetchRss]);
 
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
@@ -298,6 +323,24 @@ export default function LiveMap({
 
     return filtered.sort((a, b) => parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp));
   }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
+
+  const filteredRssItems = useMemo(() => {
+    let items = rssItems;
+    if (activeRssTab !== 'all') {
+      items = items.filter(item => item.sid === activeRssTab);
+    }
+    
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      items = items.filter(item => {
+        const titleMatch = (item.title || '').toLowerCase().includes(q);
+        const sourceMatch = (item.source || '').toLowerCase().includes(q);
+        return titleMatch || sourceMatch;
+      });
+    }
+    
+    return items;
+  }, [rssItems, activeRssTab, searchQuery]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -616,11 +659,14 @@ export default function LiveMap({
           }}
         >
         <div className="feed-type-tabs" style={{ display: 'flex', alignItems: 'stretch' }}>
-          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} onClick={() => setFeedType('live')}>
+          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '9px' : '10px' }} onClick={() => setFeedType('live')}>
             LIVE SIGNALS
           </button>
-          <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} onClick={() => setFeedType('reports')}>
+          <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '9px' : '10px' }} onClick={() => setFeedType('reports')}>
             INTEL REPORTS
+          </button>
+          <button className={`feed-type-tab ${feedType === 'rss' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '9px' : '10px' }} onClick={() => setFeedType('rss')}>
+            RSS FEEDS
           </button>
           
           {/* Elegant Collapse Arrow Button inside Feed Header */}
@@ -649,10 +695,42 @@ export default function LiveMap({
           </button>
         </div>
         
-        <div className="feed-tabs">
-          <button className={`feed-tab ${timeRange === 'recent' ? 'active' : ''}`} onClick={() => setTimeRange('recent')}>LATEST</button>
-          <button className={`feed-tab live-tab ${timeRange === 'critical' ? 'active' : ''}`} onClick={() => setTimeRange('critical')}>CRITICAL</button>
-        </div>
+        {feedType === 'rss' ? (
+          <div className="feed-tabs" style={{ overflowX: 'auto', whiteSpace: 'nowrap', gap: '2px', padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
+            <button className={`feed-tab ${activeRssTab === 'all' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('all')}>ALL</button>
+            <button className={`feed-tab ${activeRssTab === 'arxiv' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('arxiv')}>arXiv</button>
+            <button className={`feed-tab ${activeRssTab === 'aje' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('aje')}>AJE</button>
+            <button className={`feed-tab ${activeRssTab === 'hrw' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('hrw')}>HRW</button>
+            <button className={`feed-tab ${activeRssTab === 'nature' ? 'active' : ''}`} style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }} onClick={() => setActiveRssTab('nature')}>NATURE</button>
+            
+            <button 
+              onClick={() => fetchRss(true)} 
+              disabled={rssLoading}
+              title="Force sync live RSS feeds"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: rssLoading ? 'rgba(255,255,255,0.2)' : '#00f0ff',
+                cursor: 'pointer',
+                fontSize: '11px',
+                padding: '0 6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 'auto',
+                outline: 'none',
+                opacity: rssLoading ? 0.5 : 1
+              }}
+            >
+              <RefreshCw size={10} className={rssLoading ? 'spinning' : ''} style={{ animation: rssLoading ? 'spin 1.5s linear infinite' : 'none' }} />
+            </button>
+          </div>
+        ) : (
+          <div className="feed-tabs">
+            <button className={`feed-tab ${timeRange === 'recent' ? 'active' : ''}`} onClick={() => setTimeRange('recent')}>LATEST</button>
+            <button className={`feed-tab live-tab ${timeRange === 'critical' ? 'active' : ''}`} onClick={() => setTimeRange('critical')}>CRITICAL</button>
+          </div>
+        )}
         
         {/* Live Search Bar */}
         <div style={{
@@ -738,7 +816,7 @@ export default function LiveMap({
               alignItems: 'center',
               marginTop: '2px'
             }}>
-              <span>FILTERED: {filteredEvents.length} MATCHES</span>
+              <span>FILTERED: {feedType === 'rss' ? filteredRssItems.length : filteredEvents.length} MATCHES</span>
               <button 
                 onClick={() => setSearchQuery('')}
                 style={{ 
@@ -759,36 +837,118 @@ export default function LiveMap({
         </div>
         
         <div className="feed-list">
-          {filteredEvents.map((ev, idx) => (
-            <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
-              <div className="feed-item-header">
-                <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
-                  {ev.category}
-                </span>
-                {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
-                <span className="feed-verification" style={{ 
-                  fontSize: '8px', 
-                  background: ev.url ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)', 
-                  color: ev.url ? '#22c55e' : '#eab308', 
-                  padding: '2px 6px', 
-                  borderRadius: '4px', 
-                  border: ev.url ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
-                  fontWeight: '800', 
-                  letterSpacing: '0.05em',
-                  fontFamily: 'monospace'
-                }}>
-                  {ev.url ? 'VERIFIED' : 'UNVERIFIED'}
-                </span>
-                <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
-                  S{ev.severity}
-                </span>
-                <span className="feed-time">{formatTime(ev.timestamp)}</span>
+          {feedType === 'rss' ? (
+            rssLoading && filteredRssItems.length === 0 ? (
+              <div className="feed-empty" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '40px 10px', alignItems: 'center' }}>
+                <span className="loading-ring" style={{ width: '20px', height: '20px', borderWidth: '2px' }} />
+                <span style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '1px', color: 'rgba(255,255,255,0.4)' }}>SCRAPING TACTICAL FEEDS...</span>
               </div>
-              <div className="feed-title">{ev.title}</div>
-              {ev.location && <div className="feed-location">📍 {ev.location}</div>}
-            </div>
-          ))}
-          {filteredEvents.length === 0 && <div className="feed-empty">No events match current filters</div>}
+            ) : filteredRssItems.length === 0 ? (
+              <div className="feed-empty">No RSS items match current filters</div>
+            ) : (
+              filteredRssItems.map((item, idx) => {
+                let badgeColor = '#00f0ff';
+                if (item.sid === 'arxiv') badgeColor = '#38bdf8';
+                else if (item.sid === 'aje') badgeColor = '#ff2d55';
+                else if (item.sid === 'hrw') badgeColor = '#facc15';
+                else if (item.sid === 'nature') badgeColor = '#22c55e';
+
+                return (
+                  <a 
+                    key={item.id || idx} 
+                    href={item.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="feed-item"
+                    style={{ 
+                      textDecoration: 'none', 
+                      display: 'block', 
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      padding: '12px 14px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div className="feed-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span className="feed-category" style={{ 
+                        background: `${badgeColor}15`, 
+                        color: badgeColor, 
+                        borderColor: `${badgeColor}30`,
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        border: `1px solid ${badgeColor}30`,
+                        letterSpacing: '0.05em',
+                        fontFamily: 'monospace'
+                      }}>
+                        {item.source}
+                      </span>
+                      <span className="feed-time" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                        {formatTime(item.published_at)}
+                      </span>
+                    </div>
+                    <div className="feed-title" style={{ 
+                      fontSize: '12.5px', 
+                      fontWeight: '600', 
+                      lineHeight: '1.45', 
+                      color: '#e2e8f0',
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#00f0ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#e2e8f0'}
+                    >
+                      {item.title}
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      marginTop: '8px', 
+                      fontSize: '8.5px', 
+                      fontFamily: 'monospace', 
+                      color: 'rgba(255,255,255,0.25)',
+                      letterSpacing: '0.05em'
+                    }}>
+                      <span>OSINT FEED SYSTEM</span>
+                      <span style={{ color: '#00f0ff', opacity: 0.8 }}>LINK SECURED ↗</span>
+                    </div>
+                  </a>
+                );
+              })
+            )
+          ) : (
+            filteredEvents.map((ev, idx) => (
+              <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
+                <div className="feed-item-header">
+                  <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
+                    {ev.category}
+                  </span>
+                  {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
+                  <span className="feed-verification" style={{ 
+                    fontSize: '8px', 
+                    background: ev.url ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)', 
+                    color: ev.url ? '#22c55e' : '#eab308', 
+                    padding: '2px 6px', 
+                    borderRadius: '4px', 
+                    border: ev.url ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
+                    fontWeight: '800', 
+                    letterSpacing: '0.05em',
+                    fontFamily: 'monospace'
+                  }}>
+                    {ev.url ? 'VERIFIED' : 'UNVERIFIED'}
+                  </span>
+                  <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
+                    S{ev.severity}
+                  </span>
+                  <span className="feed-time">{formatTime(ev.timestamp)}</span>
+                </div>
+                <div className="feed-title">{ev.title}</div>
+                {ev.location && <div className="feed-location">📍 {ev.location}</div>}
+              </div>
+            ))
+          )}
+          {feedType !== 'rss' && filteredEvents.length === 0 && <div className="feed-empty">No events match current filters</div>}
         </div>
       </div>
 

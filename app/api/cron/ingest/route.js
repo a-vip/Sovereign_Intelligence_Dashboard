@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents } from '@/lib/db';
+import { initDb, saveEvents, saveRssItems } from '@/lib/db';
 import crypto from 'crypto';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
+import { scrapeAllRss } from '@/lib/rssParser';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,12 +95,25 @@ export async function GET(request) {
       // Log new events to vault
       await logToVault(newEvents);
     }
+
+    // 3. Fetch and parse Live RSS feeds, then save to Neon
+    let newRssCount = 0;
+    try {
+      const rssItems = await scrapeAllRss();
+      if (rssItems.length > 0) {
+        await saveRssItems(rssItems);
+        newRssCount = rssItems.length;
+      }
+    } catch (e) {
+      console.warn('RSS ingestion failed during cron run:', e.message);
+    }
     
     return NextResponse.json({ 
       success: true, 
       count: newEvents.length,
       osint: osintEvents.length,
-      research: researchEvents.length
+      research: researchEvents.length,
+      rssIngested: newRssCount
     });
   } catch (error) {
     console.error('Scheduled ingestion error:', error);
