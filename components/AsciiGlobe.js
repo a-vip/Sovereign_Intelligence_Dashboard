@@ -83,7 +83,7 @@ export default function AsciiGlobe() {
     }, 450);
 
     // Grid Dimensions
-    const W_total = isMobile ? 54 : 110;
+    const W_total = isMobile ? 54 : 112;
     const H = isMobile ? 22 : 26;
     
     const W_globe = 54;
@@ -98,33 +98,33 @@ export default function AsciiGlobe() {
       const buffer = Array(H).fill(null).map(() => Array(W_total).fill(' '));
 
       if (!isMobile) {
-        // Render Left Logs (Columns 0 to 20)
+        // Render Left Logs (Columns 0 to 25)
         for (let y = 0; y < H; y++) {
           const logLine = currentL[y] || '';
-          for (let x = 0; x < Math.min(20, logLine.length); x++) {
+          for (let x = 0; x < Math.min(26, logLine.length); x++) {
             buffer[y][x] = logLine[x];
           }
         }
-        // Left border separator
+        // Left border separator at column 27
         for (let y = 0; y < H; y++) {
-          buffer[y][21] = '│';
+          buffer[y][27] = '│';
         }
 
-        // Render Right Logs (Columns 89 to 109)
+        // Render Right Logs (Columns 86 to 111)
         for (let y = 0; y < H; y++) {
           const logLine = currentR[y] || '';
-          for (let x = 0; x < Math.min(20, logLine.length); x++) {
-            buffer[y][89 + x] = logLine[x];
+          for (let x = 0; x < Math.min(26, logLine.length); x++) {
+            buffer[y][86 + x] = logLine[x];
           }
         }
-        // Right border separator
+        // Right border separator at column 84
         for (let y = 0; y < H; y++) {
-          buffer[y][88] = '│';
+          buffer[y][84] = '│';
         }
       }
 
-      // Render rotating globe inside central section
-      const globeOffset = isMobile ? 0 : 22;
+      // Render rotating globe inside central section (centered perfectly at 29)
+      const globeOffset = isMobile ? 0 : 29;
       const zBuffer = Array(H_globe).fill(null).map(() => Array(W_globe).fill(-1000));
       const globeBuffer = Array(H_globe).fill(null).map(() => Array(W_globe).fill(' '));
 
