@@ -480,8 +480,8 @@ export default function CesiumGlobe({
         `, {
           direction: 'top',
           className: 'leaflet-tooltip-custom',
-          permanent: isSelected,
-          sticky: !isSelected,
+          permanent: true,
+          sticky: false,
           opacity: 1
         });
 
@@ -623,48 +623,82 @@ export default function CesiumGlobe({
         }
       });
 
+      // Safe utility helpers to retrieve properties from Cesium entities without throwing TypeErrors
+      const getIsSatellite = (entity) => {
+        if (!entity || !entity.properties) return false;
+        const props = entity.properties;
+        if (typeof props.getValue === 'function') {
+          try {
+            const val = props.getValue(Cesium.JulianDate.now());
+            return val && !!val.isSatellite;
+          } catch (e) {
+            return false;
+          }
+        }
+        return !!props.isSatellite;
+      };
+
       // Screen space event handler for selection and navigation
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
-      // Hover pick handler to show labels & pointer cursor
+      // Hover pick handler to show threat labels, toggle cursor pointer, and maintain satellite labels safely
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.endPosition);
-        if (Cesium.defined(pickedObject) && pickedObject.id) {
-          const id = pickedObject.id;
-          const props = id.properties?.getValue(Cesium.JulianDate.now());
-          if (props && props.isSatellite) {
+        
+        let hoveredEntity = null;
+        if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
+          hoveredEntity = pickedObject.id;
+        }
+
+        if (hoveredEntity) {
+          const isSat = getIsSatellite(hoveredEntity);
+          
+          if (isSat) {
+            // Hovered over a satellite: show pointer cursor and ensure its label remains visible
             document.body.style.cursor = 'pointer';
+            
+            // Hide all threat event labels (hover reset) while keeping satellite labels visible
             viewer.entities.values.forEach(entity => {
-              const eProps = entity.properties?.getValue(Cesium.JulianDate.now());
-              if (entity.label && eProps && eProps.isSatellite) {
-                entity.label.show = (entity === id || (selectedSatelliteRef.current && selectedSatelliteRef.current.code === eProps.code));
+              if (entity.label) {
+                const entIsSat = getIsSatellite(entity);
+                if (!entIsSat) {
+                  entity.label.show = false;
+                }
               }
             });
-          } else if (id.label) {
+          } else if (hoveredEntity.label) {
+            // Hovered over a threat event point: show pointer cursor and show *only* this point's label
             document.body.style.cursor = 'pointer';
+            
             viewer.entities.values.forEach(entity => {
-              if (entity.label && (!entity.properties?.getValue(Cesium.JulianDate.now())?.isSatellite)) {
-                entity.label.show = false;
+              if (entity.label) {
+                const entIsSat = getIsSatellite(entity);
+                if (!entIsSat) {
+                  entity.label.show = (entity === hoveredEntity);
+                }
               }
             });
-            id.label.show = true;
           } else {
+            // Hovered over another Cesium entity (e.g. dynamic waves ellipse)
             document.body.style.cursor = 'default';
             viewer.entities.values.forEach(entity => {
-              const eProps = entity.properties?.getValue(Cesium.JulianDate.now());
               if (entity.label) {
-                const isSelSat = eProps && eProps.isSatellite && selectedSatelliteRef.current && selectedSatelliteRef.current.code === eProps.code;
-                entity.label.show = isSelSat;
+                const entIsSat = getIsSatellite(entity);
+                if (!entIsSat) {
+                  entity.label.show = false;
+                }
               }
             });
           }
         } else {
+          // Hovered over background, oceans, space, or 3D buildings (Google Tiles feature)
           document.body.style.cursor = 'default';
           viewer.entities.values.forEach(entity => {
-            const eProps = entity.properties?.getValue(Cesium.JulianDate.now());
             if (entity.label) {
-              const isSelSat = eProps && eProps.isSatellite && selectedSatelliteRef.current && selectedSatelliteRef.current.code === eProps.code;
-              entity.label.show = isSelSat;
+              const entIsSat = getIsSatellite(entity);
+              if (!entIsSat) {
+                entity.label.show = false;
+              }
             }
           });
         }
@@ -850,7 +884,7 @@ export default function CesiumGlobe({
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             pixelOffset: new Cesium.Cartesian2(0, -20),
             heightReference: Cesium.HeightReference.NONE,
-            show: isSelected,
+            show: true,
             disableDepthTestDistance: 100000.0
           },
           properties: { ...sat, isSatellite: true }
