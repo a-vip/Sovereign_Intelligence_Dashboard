@@ -4,6 +4,7 @@ import { Shield, RefreshCw, User, LogOut, Heart } from 'lucide-react';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
 import AsciiGlobe from '@/components/AsciiGlobe';
 import AuthModal from '@/components/AuthModal';
+import AccountModal from '@/components/AccountModal';
 
 const POLL_INTERVAL = 30000; // 30 seconds live update
 
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   
   const [currentUser, setCurrentUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
 
   // Read stored session on client boot
@@ -122,6 +124,7 @@ export default function DashboardPage() {
         showAuthModal={showAuthModal}
         setShowAuthModal={setShowAuthModal}
         handleAuthSuccess={handleAuthSuccess}
+        onAvatarClick={() => setShowAccountModal(true)}
       />
 
       {/* Access Control HUD Overlay */}
@@ -129,6 +132,16 @@ export default function DashboardPage() {
         <AuthModal 
           onClose={() => setShowAuthModal(false)} 
           onAuthSuccess={handleAuthSuccess} 
+        />
+      )}
+
+      {/* Operator Account Settings Overlay */}
+      {showAccountModal && (
+        <AccountModal 
+          onClose={() => setShowAccountModal(false)} 
+          currentUser={currentUser}
+          onAuthSuccess={handleAuthSuccess}
+          handleLogout={handleLogout}
         />
       )}
     </main>

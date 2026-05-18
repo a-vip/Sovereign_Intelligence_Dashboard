@@ -35,7 +35,8 @@ export default function LiveMap({
   handleLogout,
   showAuthModal,
   setShowAuthModal,
-  handleAuthSuccess
+  handleAuthSuccess,
+  onAvatarClick
 }) {
   const [markers, setMarkers] = useState([]);
   const [allFetchedEvents, setAllFetchedEvents] = useState([]);
@@ -345,6 +346,7 @@ export default function LiveMap({
           {currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div 
+                onClick={onAvatarClick}
                 style={{
                   background: 'rgba(16, 185, 129, 0.1)',
                   border: '1px solid #10b981',
@@ -358,9 +360,18 @@ export default function LiveMap({
                   fontWeight: 'bold',
                   color: '#10b981',
                   fontFamily: 'monospace',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
                 }}
-                title={`Operator: ${currentUser.fullName} (${currentUser.role})`}
+                title={`Configure Settings for Operator: ${currentUser.fullName}`}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
+                  e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
                 {currentUser.fullName.charAt(0).toUpperCase()}
               </div>
