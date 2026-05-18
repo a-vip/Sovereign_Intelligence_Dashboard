@@ -22,6 +22,92 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     onPointClickRef.current = onPointClick;
   }, [onPointClick]);
 
+  const handleZoomIn = () => {
+    if (!viewerRef.current) return;
+    const camera = viewerRef.current.camera;
+    const scene = viewerRef.current.scene;
+    let height = 10000000.0;
+    try {
+      const cartographic = scene.globe.ellipsoid.cartesianToCartographic(camera.position);
+      if (cartographic) height = cartographic.height;
+    } catch(e) {}
+    camera.move(camera.direction, height * 0.25);
+  };
+
+  const handleZoomOut = () => {
+    if (!viewerRef.current) return;
+    const camera = viewerRef.current.camera;
+    const scene = viewerRef.current.scene;
+    let height = 10000000.0;
+    try {
+      const cartographic = scene.globe.ellipsoid.cartesianToCartographic(camera.position);
+      if (cartographic) height = cartographic.height;
+    } catch(e) {}
+    camera.move(camera.direction, -height * 0.25);
+  };
+
+  const handleResetNorth = () => {
+    if (!viewerRef.current) return;
+    const camera = viewerRef.current.camera;
+    const scene = viewerRef.current.scene;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+    
+    try {
+      const windowPosition = new Cesium.Cartesian2(containerRef.current.clientWidth / 2, containerRef.current.clientHeight / 2);
+      const ray = camera.getPickRay(windowPosition);
+      const target = scene.globe.pick(ray, scene);
+
+      if (Cesium.defined(target)) {
+        const cartographic = scene.globe.ellipsoid.cartesianToCartographic(camera.position);
+        camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            Cesium.Math.toDegrees(cartographic.longitude),
+            Cesium.Math.toDegrees(cartographic.latitude),
+            cartographic.height
+          ),
+          orientation: {
+            heading: Cesium.Math.toRadians(0.0),
+            pitch: camera.pitch,
+            roll: 0.0
+          },
+          duration: 1.0
+        });
+      }
+    } catch(e) {}
+  };
+
+  const handleToggleTilt = () => {
+    if (!viewerRef.current) return;
+    const camera = viewerRef.current.camera;
+    const scene = viewerRef.current.scene;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    try {
+      const windowPosition = new Cesium.Cartesian2(containerRef.current.clientWidth / 2, containerRef.current.clientHeight / 2);
+      const ray = camera.getPickRay(windowPosition);
+      const target = scene.globe.pick(ray, scene);
+
+      if (Cesium.defined(target)) {
+        const currentPitchDeg = Cesium.Math.toDegrees(camera.pitch);
+        const targetPitchRad = currentPitchDeg < -75 
+          ? Cesium.Math.toRadians(-45.0) 
+          : Cesium.Math.toRadians(-90.0);
+
+        camera.flyTo({
+          destination: camera.position,
+          orientation: {
+            heading: camera.heading,
+            pitch: targetPitchRad,
+            roll: 0.0
+          },
+          duration: 1.0
+        });
+      }
+    } catch(e) {}
+  };
+
   // Pre-calculate repelled coordinates to prevent overlapping clusters on both maps!
   const repelledMarkers = useMemo(() => {
     if (!displayedMarkers || displayedMarkers.length === 0) return [];
@@ -230,6 +316,11 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
             modifier: Cesium.KeyboardEventModifier.SHIFT
           }
         ];
+
+        // Ground the camera so panning is immediate, snappy, and intuitive like Google Maps!
+        viewer.scene.screenSpaceCameraController.inertiaSpin = 0.15;
+        viewer.scene.screenSpaceCameraController.inertiaTranslate = 0.15;
+        viewer.scene.screenSpaceCameraController.inertiaZoom = 0.15;
       }
 
       // Force verification & manual layer loading fallback to ensure we never get a blank blue globe
@@ -592,6 +683,176 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
         }}>
           🛰️ TACTICAL MAP: 2D SAT-COM ACTIVE (FALLBACK MODE)
         </div>
+      )}
+
+      {/* Visual Navigation controls HUD overlay */}
+      {!mapError && (
+        <>
+          {/* Tactical Control Toolbar */}
+          <div style={{
+            position: 'absolute',
+            bottom: '100px',
+            right: '20px',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <button 
+              onClick={handleZoomIn}
+              style={{
+                width: '36px', height: '36px',
+                background: 'rgba(8, 12, 24, 0.85)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '6px',
+                color: '#38bdf8',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease',
+                outline: 'none'
+              }}
+              title="Zoom In"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#00f0ff';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                e.currentTarget.style.color = '#38bdf8';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+              }}
+            >
+              +
+            </button>
+            <button 
+              onClick={handleZoomOut}
+              style={{
+                width: '36px', height: '36px',
+                background: 'rgba(8, 12, 24, 0.85)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '6px',
+                color: '#38bdf8',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease',
+                outline: 'none'
+              }}
+              title="Zoom Out"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#00f0ff';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                e.currentTarget.style.color = '#38bdf8';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+              }}
+            >
+              −
+            </button>
+            <button 
+              onClick={handleToggleTilt}
+              style={{
+                width: '36px', height: '36px',
+                background: 'rgba(8, 12, 24, 0.85)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '6px',
+                color: '#38bdf8',
+                fontSize: '11px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease',
+                outline: 'none'
+              }}
+              title="Toggle 2D/3D Angled Perspective"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#00f0ff';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                e.currentTarget.style.color = '#38bdf8';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+              }}
+            >
+              3D
+            </button>
+            <button 
+              onClick={handleResetNorth}
+              style={{
+                width: '36px', height: '36px',
+                background: 'rgba(8, 12, 24, 0.85)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '6px',
+                color: '#38bdf8',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease',
+                outline: 'none'
+              }}
+              title="Reset North Orientation"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#00f0ff';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                e.currentTarget.style.color = '#38bdf8';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+              }}
+            >
+              🧭
+            </button>
+          </div>
+
+          {/* Tactical Controls Legend Overlay (Bottom Left) */}
+          <div style={{
+            position: 'absolute',
+            bottom: '48px',
+            left: '20px',
+            zIndex: 10,
+            background: 'rgba(8, 12, 24, 0.85)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            fontFamily: 'Courier New, monospace',
+            fontSize: '10px',
+            color: '#e2e8f0',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)',
+            pointerEvents: 'none',
+            letterSpacing: '0.02em',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}>
+            <div style={{ fontWeight: '800', color: '#00f0ff', marginBottom: '2px', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '2px' }}>
+              📡 MAP NAVIGATION HUD
+            </div>
+            <div>🖱️ <span style={{ color: '#38bdf8' }}>Drag:</span> Pan / Orbit</div>
+            <div>⌨️ <span style={{ color: '#38bdf8' }}>Shift + Drag:</span> Rotate & Tilt</div>
+            <div>🔄 <span style={{ color: '#38bdf8' }}>Scroll:</span> Zoom <span style={{ color: 'rgba(56, 189, 248, 0.6)' }}>[Shift+Scroll to Tilt]</span></div>
+          </div>
+        </>
       )}
 
       {/* 3D Loading Overlay */}
