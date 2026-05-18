@@ -412,18 +412,30 @@ body {
 .threat-badge.medium { background: var(--amber-dim); color: var(--amber); }
 .threat-badge.low { background: rgba(255,255,255,0.05); color: var(--text-muted); }
 
-/* ═══ LOADING ═══ */
 .loading-screen {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: center; min-height: 80vh; gap: 24px;
+  justify-content: center; min-height: 80vh; gap: 16px; padding: 20px;
+  text-align: center;
 }
 .loading-ring {
   width: 48px; height: 48px; border: 3px solid var(--border-color);
   border-top-color: var(--cyan); border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-.loading-text { font-size: 14px; color: var(--text-muted); font-weight: 500; }
-.loading-sub { font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+.loading-text {
+  font-size: 13px; font-weight: 700; letter-spacing: 2px;
+  color: var(--cyan); text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  text-transform: uppercase;
+}
+.loading-sub {
+  font-size: 10px; color: rgba(0, 240, 255, 0.6);
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px;
+}
+@media (max-width: 600px) {
+  .loading-screen { gap: 12px; }
+  .loading-text { font-size: 11px; letter-spacing: 1.5px; }
+  .loading-sub { font-size: 8.5px; }
+}
 
 /* ═══ FULLBLEED LAYOUT (for SIGINT map) ═══ */
 .dashboard-fullbleed { max-width: 100%; padding: 8px 16px; }

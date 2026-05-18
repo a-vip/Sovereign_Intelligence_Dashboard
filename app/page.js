@@ -86,14 +86,14 @@ export default function DashboardPage() {
 
   if (loading || !minLoaderFinished) {
     return (
-      <div className="loading-screen" style={{ gap: '24px' }}>
-        <div className="loading-globe-container" style={{ minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="loading-screen">
+        <div className="loading-globe-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <AsciiGlobe />
         </div>
-        <div className="loading-text" style={{ textTransform: 'uppercase', letterSpacing: '2px', color: '#00f0ff', textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}>
+        <div className="loading-text">
           Initializing Sovereign Intelligence
         </div>
-        <div className="loading-sub" style={{ fontFamily: 'Courier New, monospace', color: 'rgba(0, 240, 255, 0.6)' }}>
+        <div className="loading-sub">
           [ SIGNAL LOCK ACQUIRED // PARSING VAULT DATA STREAMS ]
         </div>
       </div>
