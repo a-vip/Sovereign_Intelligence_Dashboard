@@ -31,17 +31,22 @@ export async function POST(req) {
       screenshot: screenshot || null
     });
 
-    // 3. Dispatch Feedback Intelligence Report email
-    await sendSuggestionEmail({
-      type,
-      subject: subject.trim(),
-      details: details.trim(),
-      targetId: targetId ? targetId.trim() : null,
-      operatorEmail: operatorEmail.toLowerCase().trim(),
-      operatorName: operatorName.trim(),
-      screenshot: screenshot || null,
-      host
-    });
+    // 3. Dispatch Feedback Intelligence Report email (resilient, non-blocking fallback)
+    try {
+      await sendSuggestionEmail({
+        type,
+        subject: subject.trim(),
+        details: details.trim(),
+        targetId: targetId ? targetId.trim() : null,
+        operatorEmail: operatorEmail.toLowerCase().trim(),
+        operatorName: operatorName.trim(),
+        screenshot: screenshot || null,
+        host
+      });
+    } catch (emailError) {
+      console.error('[SUGGESTIONS] Failed to dispatch feedback email notification:', emailError);
+      // Proceed gracefully - feedback is already safely persisted in the database!
+    }
 
     return NextResponse.json({
       success: true,
