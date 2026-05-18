@@ -31,7 +31,8 @@ export default function CesiumGlobe({
   satellites = [],
   selectedSatellite = null,
   isTracked = false,
-  onSatelliteClick = null
+  onSatelliteClick = null,
+  resetKey = 0
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -526,6 +527,37 @@ export default function CesiumGlobe({
       }).addTo(map);
     }
   }, [mapError, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite]);
+
+  // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
+  useEffect(() => {
+    if (resetKey > 0) {
+      // 1. Reset 3D Cesium Globe View
+      if (viewerRef.current) {
+        const viewer = viewerRef.current;
+        const Cesium = window.Cesium;
+        if (Cesium) {
+          // Release any tracked entity locking camera focus
+          viewer.trackedEntity = undefined;
+
+          // Fly camera back to default viewpoint looking down from space nadir
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(12.0, 20.0, 15000000.0),
+            orientation: {
+              heading: Cesium.Math.toRadians(0.0),
+              pitch: Cesium.Math.toRadians(-90.0),
+              roll: 0.0
+            },
+            duration: 2.0
+          });
+        }
+      }
+
+      // 2. Reset 2D Leaflet Fallback map position
+      if (mapError && leafletMapRef.current) {
+        leafletMapRef.current.setView([20.0, 12.0], 2);
+      }
+    }
+  }, [resetKey, mapError]);
 
   // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
   useEffect(() => {

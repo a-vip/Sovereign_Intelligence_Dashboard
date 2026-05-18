@@ -88,6 +88,7 @@ export default function LiveMap({
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(true);
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
 
   const [timeRange, setTimeRange] = useState('recent'); 
@@ -309,6 +310,11 @@ export default function LiveMap({
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
+    setResetKey(prev => prev + 1);
+    setSelectedSatellite(null);
+    setIsTracked(false);
+    setSelectedEvent(null);
+    setAutoRotate(true);
     await Promise.all([fetchEvents(), fetchRss(false)]);
     setRefreshing(false);
   }, [fetchEvents, fetchRss]);
@@ -1281,6 +1287,7 @@ export default function LiveMap({
             setIsTracked(false); // Reset tracking when selecting a new satellite
             setAutoRotate(false);
           }}
+          resetKey={resetKey}
         />
       </div>
 
