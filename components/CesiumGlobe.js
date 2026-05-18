@@ -4,6 +4,21 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
+const createEmojiCanvas = (emoji, size = 32) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.shadowColor = 'rgba(0, 240, 255, 0.8)';
+  ctx.shadowBlur = 6;
+  ctx.font = `${size - 10}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, size / 2, size / 2);
+  return canvas;
+};
+
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
@@ -11,7 +26,11 @@ export default function CesiumGlobe({
   mapStyle = 'satellite', 
   onMapModeChange = null,
   autoRotate = true,
-  onInteraction = null
+  onInteraction = null,
+  showSatellites = false,
+  satellites = [],
+  selectedSatellite = null,
+  onSatelliteClick = null
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -149,6 +168,16 @@ export default function CesiumGlobe({
   useEffect(() => {
     onPointClickRef.current = onPointClick;
   }, [onPointClick]);
+
+  const onSatelliteClickRef = useRef(onSatelliteClick);
+  useEffect(() => {
+    onSatelliteClickRef.current = onSatelliteClick;
+  }, [onSatelliteClick]);
+
+  const selectedSatelliteRef = useRef(selectedSatellite);
+  useEffect(() => {
+    selectedSatelliteRef.current = selectedSatellite;
+  }, [selectedSatellite]);
 
   // 4. Buttery smooth auto rotation of the globe until user interacts with the camera!
   useEffect(() => {
@@ -383,9 +412,9 @@ export default function CesiumGlobe({
     const L = window.L;
     const map = leafletMapRef.current;
 
-    // Clear existing markers
+    // Clear existing markers and paths
     map.eachLayer(layer => {
-      if (layer instanceof L.CircleMarker) {
+      if (layer instanceof L.CircleMarker || layer instanceof L.Polyline) {
         map.removeLayer(layer);
       }
     });
@@ -424,7 +453,78 @@ export default function CesiumGlobe({
         }
       });
     });
-  }, [mapError, repelledMarkers, scriptsLoaded]);
+
+    // Render 2D Satellites Fallback
+    if (showSatellites && satellites) {
+      satellites.forEach(sat => {
+        const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
+        
+        const satIcon = L.divIcon({
+          html: `<div style="font-size: ${isSelected ? '24px' : '16px'}; line-height: 1; text-shadow: 0 0 8px rgba(0, 240, 255, 0.9); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">🛰️</div>`,
+          className: 'leaflet-sat-emoji-icon',
+          iconSize: isSelected ? [24, 24] : [16, 16],
+          iconAnchor: isSelected ? [12, 12] : [8, 8]
+        });
+
+        const marker = L.marker([sat.latitude, sat.longitude], {
+          icon: satIcon
+        }).addTo(map);
+
+        marker.bindTooltip(`
+          <div style="font-family: monospace; font-size: 11px; padding: 6px 10px; background: rgba(11, 17, 32, 0.95); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 6px; color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); max-width: 250px; white-space: normal; word-break: break-word;">
+            <strong style="color: #00ffff; display: block; margin-bottom: 2px;">📡 ${sat.name}</strong>
+            <span>NORAD: ${sat.code}</span><br/>
+            <span>Alt: ${sat.altitude} km</span><br/>
+            <span>V: ${sat.velocity} km/s</span>
+          </div>
+        `, {
+          direction: 'top',
+          className: 'leaflet-tooltip-custom',
+          permanent: isSelected,
+          sticky: !isSelected,
+          opacity: 1
+        });
+
+        marker.on('click', () => {
+          if (onSatelliteClickRef.current) {
+            onSatelliteClickRef.current(sat);
+          }
+        });
+      });
+    }
+
+    // Render 2D Orbit Ground-Track Path Fallback
+    if (showSatellites && selectedSatellite) {
+      const latlngs = [];
+      const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
+      const nowMin = Date.now() / 1000 / 60;
+      const EarthRotationSpeed = 360 / 1440;
+      const earthRotationDrift = (nowMin * EarthRotationSpeed) % 360;
+
+      for (let i = 0; i <= 360; i += 5) {
+        const theta = (i * Math.PI) / 180;
+        const sinLat = Math.sin(inclinationRad) * Math.sin(theta);
+        const lat = (Math.asin(sinLat) * 180) / Math.PI;
+        
+        const yPrime = Math.cos(inclinationRad) * Math.sin(theta);
+        const xPrime = Math.cos(theta);
+        let lonOrbit = Math.atan2(yPrime, xPrime);
+        
+        let lon = (lonOrbit * 180) / Math.PI + (selectedSatellite.raan || 45.0) - earthRotationDrift;
+        lon = ((lon + 180) % 360) - 180;
+        if (lon < -180) lon += 360;
+
+        latlngs.push([lat, lon]);
+      }
+
+      L.polyline(latlngs, {
+        color: '#00ffff',
+        dashArray: '5, 8',
+        weight: 2,
+        opacity: 0.75
+      }).addTo(map);
+    }
+  }, [mapError, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite]);
 
   // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
   useEffect(() => {
@@ -529,26 +629,57 @@ export default function CesiumGlobe({
       // Hover pick handler to show labels & pointer cursor
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.endPosition);
-        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.label) {
-          document.body.style.cursor = 'pointer';
-          viewer.entities.values.forEach(entity => {
-            if (entity.label) entity.label.show = false;
-          });
-          pickedObject.id.label.show = true;
+        if (Cesium.defined(pickedObject) && pickedObject.id) {
+          const id = pickedObject.id;
+          const props = id.properties?.getValue(Cesium.JulianDate.now());
+          if (props && props.isSatellite) {
+            document.body.style.cursor = 'pointer';
+            viewer.entities.values.forEach(entity => {
+              const eProps = entity.properties?.getValue(Cesium.JulianDate.now());
+              if (entity.label && eProps && eProps.isSatellite) {
+                entity.label.show = (entity === id || (selectedSatelliteRef.current && selectedSatelliteRef.current.code === eProps.code));
+              }
+            });
+          } else if (id.label) {
+            document.body.style.cursor = 'pointer';
+            viewer.entities.values.forEach(entity => {
+              if (entity.label && (!entity.properties?.getValue(Cesium.JulianDate.now())?.isSatellite)) {
+                entity.label.show = false;
+              }
+            });
+            id.label.show = true;
+          } else {
+            document.body.style.cursor = 'default';
+            viewer.entities.values.forEach(entity => {
+              const eProps = entity.properties?.getValue(Cesium.JulianDate.now());
+              if (entity.label) {
+                const isSelSat = eProps && eProps.isSatellite && selectedSatelliteRef.current && selectedSatelliteRef.current.code === eProps.code;
+                entity.label.show = isSelSat;
+              }
+            });
+          }
         } else {
           document.body.style.cursor = 'default';
           viewer.entities.values.forEach(entity => {
-            if (entity.label) entity.label.show = false;
+            const eProps = entity.properties?.getValue(Cesium.JulianDate.now());
+            if (entity.label) {
+              const isSelSat = eProps && eProps.isSatellite && selectedSatelliteRef.current && selectedSatelliteRef.current.code === eProps.code;
+              entity.label.show = isSelSat;
+            }
           });
         }
       }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-      // Left-click pick handler to select threat event details
+      // Left-click pick handler to select threat event details or satellites
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.position);
         if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
           const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
-          if (onPointClickRef.current && metadata) {
+          if (metadata && metadata.isSatellite) {
+            if (onSatelliteClickRef.current) {
+              onSatelliteClickRef.current(metadata);
+            }
+          } else if (onPointClickRef.current && metadata) {
             onPointClickRef.current(metadata);
           }
         }
@@ -686,7 +817,88 @@ export default function CesiumGlobe({
         });
       }
     });
-  }, [repelledMarkers, mapError, scriptsLoaded]);
+
+    // Render 3D Orbiting Satellites in Space!
+    if (showSatellites && satellites && satellites.length > 0) {
+      satellites.forEach(sat => {
+        const altInMeters = sat.altitude * 1000;
+        const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
+        
+        viewer.entities.add({
+          id: `sat-${sat.code}`,
+          name: sat.name,
+          position: Cesium.Cartesian3.fromDegrees(sat.longitude, sat.latitude, altInMeters),
+          billboard: {
+            image: createEmojiCanvas('🛰️', isSelected ? 36 : 24),
+            heightReference: Cesium.HeightReference.NONE, // Floating in space!
+            disableDepthTestDistance: 100000.0,
+            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER
+          },
+          label: {
+            text: isSelected 
+              ? `${sat.name}\nAlt: ${sat.altitude}km • Inc: ${sat.inclination}° • V: ${sat.velocity}km/s`
+              : sat.name,
+            font: isSelected ? 'bold 8pt monospace' : '7pt monospace',
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            showBackground: true,
+            backgroundColor: Cesium.Color.fromCssColorString('#0b1120').withAlpha(0.85),
+            backgroundPadding: new Cesium.Cartesian2(6, 4),
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -20),
+            heightReference: Cesium.HeightReference.NONE,
+            show: isSelected,
+            disableDepthTestDistance: 100000.0
+          },
+          properties: { ...sat, isSatellite: true }
+        });
+      });
+    }
+
+    // Render clicked Satellite flight path orbit ring!
+    if (showSatellites && selectedSatellite) {
+      const points = [];
+      const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
+      
+      const nowMin = Date.now() / 1000 / 60;
+      const EarthRotationSpeed = 360 / 1440;
+      const earthRotationDrift = (nowMin * EarthRotationSpeed) % 360;
+
+      for (let i = 0; i <= 360; i += 2) {
+        const theta = (i * Math.PI) / 180;
+        
+        const sinLat = Math.sin(inclinationRad) * Math.sin(theta);
+        const latRad = Math.asin(sinLat);
+        const latitude = (latRad * 180) / Math.PI;
+        
+        const yPrime = Math.cos(inclinationRad) * Math.sin(theta);
+        const xPrime = Math.cos(theta);
+        let lonOrbit = Math.atan2(yPrime, xPrime);
+        
+        let longitude = (lonOrbit * 180) / Math.PI + (selectedSatellite.raan || 45.0) - earthRotationDrift;
+        longitude = ((longitude + 180) % 360) - 180;
+        if (longitude < -180) longitude += 360;
+
+        points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, selectedSatellite.altitude * 1000));
+      }
+
+      viewer.entities.add({
+        id: 'sat-orbit-ring',
+        polyline: {
+          positions: points,
+          width: 2.0,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.25,
+            color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.65)
+          }),
+          arcType: Cesium.ArcType.NONE
+        }
+      });
+    }
+  }, [repelledMarkers, mapError, scriptsLoaded, showSatellites, satellites, selectedSatellite]);
 
   // 6. Handle Base Map Style changes dynamically in real time (Satellite vs Tactical Dark)
   useEffect(() => {

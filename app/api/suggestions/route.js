@@ -8,7 +8,7 @@ export async function POST(req) {
     await initDb();
 
     const body = await req.json();
-    const { type, subject, details, targetId, operatorEmail, operatorName } = body;
+    const { type, subject, details, targetId, operatorEmail, operatorName, screenshot } = body;
 
     // 1. Validation and Sanity checks
     if (!type || !subject || !details || !operatorEmail || !operatorName) {
@@ -27,7 +27,8 @@ export async function POST(req) {
       details: details.trim(),
       targetId: targetId ? targetId.trim() : null,
       operatorEmail: operatorEmail.toLowerCase().trim(),
-      operatorName: operatorName.trim()
+      operatorName: operatorName.trim(),
+      screenshot: screenshot || null
     });
 
     // 3. Dispatch Feedback Intelligence Report email
@@ -38,6 +39,7 @@ export async function POST(req) {
       targetId: targetId ? targetId.trim() : null,
       operatorEmail: operatorEmail.toLowerCase().trim(),
       operatorName: operatorName.trim(),
+      screenshot: screenshot || null,
       host
     });
 

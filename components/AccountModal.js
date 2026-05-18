@@ -33,9 +33,30 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
   const [suggestionSubject, setSuggestionSubject] = useState('');
   const [suggestionDetails, setSuggestionDetails] = useState('');
   const [suggestionTargetId, setSuggestionTargetId] = useState('');
+  const [suggestionScreenshot, setSuggestionScreenshot] = useState(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [successSuggestions, setSuccessSuggestions] = useState(false);
   const [errorSuggestions, setErrorSuggestions] = useState(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Check file size (max 4.5MB base64 limit)
+    if (file.size > 4.5 * 1024 * 1024) {
+      setErrorSuggestions('File size exceeds the 4.5MB security limit.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSuggestionScreenshot(reader.result);
+    };
+    reader.onerror = () => {
+      setErrorSuggestions('Failed to parse selected image file.');
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSuggestionSubmit = async (e) => {
     e.preventDefault();
@@ -53,7 +74,8 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
           details: suggestionDetails,
           targetId: suggestionTargetId,
           operatorEmail: currentUser?.email || 'unknown@sovereign.net',
-          operatorName: currentUser?.fullName || 'Anonymous Operator'
+          operatorName: currentUser?.fullName || 'Anonymous Operator',
+          screenshot: suggestionScreenshot
         })
       });
 
@@ -336,7 +358,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 }}
               >
                 <User size={13} />
-                PROFILE INFO
+                PROFILE
               </button>
               <button
                 onClick={() => { setActiveTab('security'); setWizardType(''); }}
@@ -382,7 +404,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 }}
               >
                 <Settings size={13} />
-                SYSTEM PREFS
+                PREFS
               </button>
               <button
                 onClick={() => { setActiveTab('suggestions'); setWizardType(''); }}
@@ -405,13 +427,14 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 }}
               >
                 <MessageSquare size={13} />
-                SUGGESTIONS
+                FEEDBACK
               </button>
             </div>
 
             {/* Logout trigger */}
             <button
               onClick={() => { handleLogout(); onClose(); }}
+              className="logout-btn"
               style={{
                 width: '100%',
                 background: 'rgba(239, 68, 68, 0.05)',
@@ -433,7 +456,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
             >
               <LogOut size={13} />
-              LOGOUT
+              <span className="logout-text">LOGOUT</span>
             </button>
           </div>
 
@@ -799,56 +822,59 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
                       <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
-                        SUGGESTIONS & BUG REPORTS
+                        FEEDBACK & SUGGESTIONS
                       </h3>
                       <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
-                        Submit suggestions, coordinates errors, or broken links directly to the Lead Developer.
+                        Submit suggestions, coordinates errors, or system bug reports directly to the developers.
                       </p>
                     </div>
 
                     {successSuggestions ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px' }}>
-                        <Check size={28} style={{ color: '#10b981', marginBottom: '8px' }} />
-                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981', letterSpacing: '0.5px' }}>Suggestion Transmitted Successfully</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'rgba(16,185,129,0.6)', marginTop: '4px' }}>[ TRANSMISSION PROTOCOL COMPLETE // DISPATCHED TO DEVEL ]</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
+                        <Check size={32} style={{ color: '#10b981', marginBottom: '12px' }} />
+                        <span style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.5px', marginBottom: '8px' }}>Thank you for the feedback!</span>
+                        <p style={{ fontSize: '11px', color: '#8892a4', margin: '0 0 16px 0', maxWidth: '320px', lineHeight: '1.5' }}>
+                          Your report has been securely transmitted and logged to the developer console.
+                        </p>
                         
-                        <a
-                          href="/mock-email.html"
-                          target="_blank"
-                          style={{
-                            marginTop: '12px',
-                            display: 'inline-block',
-                            background: 'rgba(234, 179, 8, 0.1)',
-                            border: '1px solid rgba(234, 179, 8, 0.3)',
-                            color: '#eab308',
-                            borderRadius: '6px',
-                            padding: '8px 16px',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            textDecoration: 'none',
-                            fontFamily: 'monospace',
-                            letterSpacing: '0.5px',
-                            cursor: 'pointer',
-                            boxShadow: '0 0 10px rgba(234, 179, 8, 0.05)',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.18)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'}
-                        >
-                          [📂 OPEN MOCK FEEDBACK EMAIL INBOX]
-                        </a>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          <a
+                            href="/mock-email.html"
+                            target="_blank"
+                            style={{
+                              background: 'rgba(234, 179, 8, 0.1)',
+                              border: '1px solid rgba(234, 179, 8, 0.3)',
+                              color: '#eab308',
+                              borderRadius: '6px',
+                              padding: '8px 16px',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              textDecoration: 'none',
+                              fontFamily: 'monospace',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.18)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'}
+                          >
+                            [📂 OPEN MOCK INBOX]
+                          </a>
 
-                        <button
-                          onClick={() => {
-                            setSuccessSuggestions(false);
-                            setSuggestionSubject('');
-                            setSuggestionDetails('');
-                            setSuggestionTargetId('');
-                          }}
-                          style={{ marginTop: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '4px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
-                        >
-                          SUBMIT ANOTHER REPORT
-                        </button>
+                          <button
+                            onClick={() => {
+                              setSuccessSuggestions(false);
+                              setSuggestionSubject('');
+                              setSuggestionDetails('');
+                              setSuggestionTargetId('');
+                              setSuggestionScreenshot(null);
+                            }}
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '6px', padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                          >
+                            SUBMIT MORE FEEDBACK
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <form onSubmit={handleSuggestionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -901,7 +927,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Details & Description</label>
                           <textarea
-                            rows={4}
+                            rows={3}
                             placeholder="Please provide full contextual details..."
                             value={suggestionDetails}
                             onChange={(e) => setSuggestionDetails(e.target.value)}
@@ -910,12 +936,59 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                           />
                         </div>
 
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Attach Screenshot / Image (Optional)</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px dashed rgba(6, 182, 212, 0.3)',
+                              borderRadius: '6px',
+                              padding: '8px 12px',
+                              color: '#06b6d4',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(6, 182, 212, 0.05)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
+                            >
+                              📁 SELECT IMAGE
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={handleFileChange}
+                                style={{ display: 'none' }}
+                              />
+                            </label>
+                            {suggestionScreenshot && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px', padding: '6px 10px' }}>
+                                <span style={{ color: '#10b981', fontSize: '10px', fontWeight: 'bold', fontFamily: 'monospace' }}>✓ ATTACHED</span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => setSuggestionScreenshot(null)} 
+                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold', padding: 0 }}
+                                >
+                                  REMOVE
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {suggestionScreenshot && (
+                            <img src={suggestionScreenshot} style={{ maxWidth: '120px', maxHeight: '80px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', marginTop: '6px' }} alt="Preview" />
+                          )}
+                        </div>
+
                         <button
                           type="submit"
                           disabled={loadingSuggestions}
                           style={{ background: '#06b6d4', color: '#020617', border: 'none', borderRadius: '6px', padding: '10px 0', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', boxShadow: '0 0 10px rgba(6,182,212,0.15)', marginTop: '4px' }}
                         >
-                          {loadingSuggestions ? 'TRANSMITTING REPORT...' : 'SUBMIT SUGGESTION REPORT'}
+                          {loadingSuggestions ? 'TRANSMITTING FEEDBACK...' : 'SUBMIT FEEDBACK'}
                         </button>
                       </form>
                     )}
@@ -955,18 +1028,39 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
             width: 100% !important;
             border-right: none !important;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            display: flex !important;
             flex-direction: row !important;
-            justifyContent: space-between !important;
-            padding: 8px 16px !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 8px 12px !important;
           }
           .settings-sidebar > div {
+            display: flex !important;
             flex-direction: row !important;
             flex: 1 !important;
-            gap: 6px !important;
+            justify-content: space-around !important;
+            gap: 4px !important;
           }
           .settings-sidebar button {
-            padding: 6px 10px !important;
-            font-size: 9px !important;
+            padding: 8px 10px !important;
+            font-size: 8.5px !important;
+            justify-content: center !important;
+            flex: 1 !important;
+            gap: 4px !important;
+          }
+          .settings-sidebar .logout-btn {
+            width: auto !important;
+            margin-left: 8px !important;
+            padding: 8px 12px !important;
+          }
+          @media (max-width: 480px) {
+            .settings-sidebar button {
+              font-size: 0px !important; /* Hide text, keep only icon */
+              padding: 10px !important;
+            }
+            .settings-sidebar .logout-text {
+              display: none !important;
+            }
           }
         }
       `}</style>

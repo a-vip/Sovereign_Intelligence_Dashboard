@@ -84,7 +84,7 @@ export default function LiveMap({
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
-  const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
+  const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(true);
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
@@ -128,6 +128,49 @@ export default function LiveMap({
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
+
+  // Satellite Tracking & Observation States
+  const [showSatellites, setShowSatellites] = useState(true);
+  const [satellites, setSatellites] = useState([]);
+  const [selectedSatellite, setSelectedSatellite] = useState(null);
+
+  // Dynamic 5-second telemetry polling interval for space satellites
+  useEffect(() => {
+    if (!showSatellites) {
+      setSatellites([]);
+      return;
+    }
+
+    const fetchSatellites = async () => {
+      try {
+        const res = await fetch('/api/satellite');
+        if (res.ok) {
+          const data = await res.json();
+          setSatellites(data);
+          
+          // Keep live telemetry coordinates synchronized for clicked satellite
+          if (selectedSatelliteRef.current) {
+            const updated = data.find(s => s.code === selectedSatelliteRef.current.code);
+            if (updated) {
+              setSelectedSatellite(updated);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to query orbital satellite API:", err);
+      }
+    };
+
+    fetchSatellites();
+    const interval = setInterval(fetchSatellites, 5000);
+    return () => clearInterval(interval);
+  }, [showSatellites]);
+
+  // Keep a stable ref of selected satellite to prevent polling race conditions
+  const selectedSatelliteRef = useRef(selectedSatellite);
+  useEffect(() => {
+    selectedSatelliteRef.current = selectedSatellite;
+  }, [selectedSatellite]);
 
   // Handle preferences changes dynamically via standard browser events
   useEffect(() => {
@@ -372,6 +415,19 @@ export default function LiveMap({
     
     return items;
   }, [rssItems, selectedRssSources, searchQuery]);
+
+  const filteredSatellites = useMemo(() => {
+    if (!showSatellites || !satellites) return [];
+    if (searchQuery.trim() === '') return satellites;
+    const q = searchQuery.toLowerCase().trim();
+    return satellites.filter(sat => {
+      const nameMatch = (sat.name || '').toLowerCase().includes(q);
+      const codeMatch = (sat.code || '').toLowerCase().includes(q);
+      const countryMatch = (sat.country || '').toLowerCase().includes(q);
+      const descMatch = (sat.desc || '').toLowerCase().includes(q);
+      return nameMatch || codeMatch || countryMatch || descMatch;
+    });
+  }, [showSatellites, satellites, searchQuery]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -690,14 +746,17 @@ export default function LiveMap({
           }}
         >
         <div className="feed-type-tabs" style={{ display: 'flex', alignItems: 'stretch' }}>
-          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '9px' : '10px' }} onClick={() => setFeedType('live')}>
+          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px' }} onClick={() => setFeedType('live')}>
             LIVE SIGNALS
           </button>
-          <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '9px' : '10px' }} onClick={() => setFeedType('reports')}>
+          <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px' }} onClick={() => setFeedType('reports')}>
             INTEL REPORTS
           </button>
-          <button className={`feed-type-tab ${feedType === 'rss' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '8px' : '12px', fontSize: isMobile ? '9px' : '10px' }} onClick={() => setFeedType('rss')}>
+          <button className={`feed-type-tab ${feedType === 'rss' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px' }} onClick={() => setFeedType('rss')}>
             RSS FEEDS
+          </button>
+          <button className={`feed-type-tab ${feedType === 'satellites' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px', color: '#00f0ff' }} onClick={() => setFeedType('satellites')}>
+            SPACE RADAR
           </button>
           
           {/* Elegant Collapse Arrow Button inside Feed Header */}
@@ -971,7 +1030,7 @@ export default function LiveMap({
               alignItems: 'center',
               marginTop: '2px'
             }}>
-              <span>FILTERED: {feedType === 'rss' ? filteredRssItems.length : filteredEvents.length} MATCHES</span>
+              <span>FILTERED: {feedType === 'rss' ? filteredRssItems.length : feedType === 'satellites' ? filteredSatellites.length : filteredEvents.length} MATCHES</span>
               <button 
                 onClick={() => setSearchQuery('')}
                 style={{ 
@@ -1072,6 +1131,74 @@ export default function LiveMap({
                 );
               })
             )
+          ) : feedType === 'satellites' ? (
+            filteredSatellites.length === 0 ? (
+              <div className="feed-empty">No active satellites found matching search query</div>
+            ) : (
+              filteredSatellites.map((sat, idx) => {
+                const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
+                return (
+                  <div 
+                    key={sat.code || idx}
+                    onClick={() => {
+                      setSelectedSatellite(sat);
+                      setAutoRotate(false);
+                    }}
+                    className={`feed-item ${isSelected ? 'active' : ''}`}
+                    style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      padding: '12px 14px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(0, 240, 255, 0.08)' : 'transparent',
+                      borderLeft: isSelected ? '3px solid #00f0ff' : '3px solid transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span className="feed-category" style={{
+                        background: 'rgba(0, 240, 255, 0.1)',
+                        color: '#00f0ff',
+                        borderColor: 'rgba(0, 240, 255, 0.3)',
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(0, 240, 255, 0.3)',
+                        letterSpacing: '0.05em',
+                        fontFamily: 'monospace'
+                      }}>
+                        🛰️ {sat.country}
+                      </span>
+                      <span style={{ fontSize: '9px', color: '#facc15', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                        ALT: {sat.altitude}km
+                      </span>
+                    </div>
+                    <div style={{
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      lineHeight: '1.45',
+                      color: isSelected ? '#00f0ff' : '#e2e8f0',
+                      fontFamily: 'system-ui, -apple-system, sans-serif'
+                    }}>
+                      {sat.name}
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '8px',
+                      fontSize: '8.5px',
+                      fontFamily: 'monospace',
+                      color: 'rgba(255,255,255,0.3)',
+                      letterSpacing: '0.05em'
+                    }}>
+                      <span>NORAD #{sat.code}</span>
+                      <span style={{ color: '#22c55e' }}>V: {sat.velocity} km/s</span>
+                    </div>
+                  </div>
+                );
+              })
+            )
           ) : (
             filteredEvents.map((ev, idx) => (
               <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
@@ -1142,6 +1269,13 @@ export default function LiveMap({
               }
             }
             setSelectedEvent(fullEvent || point);
+          }}
+          showSatellites={showSatellites}
+          satellites={satellites}
+          selectedSatellite={selectedSatellite}
+          onSatelliteClick={(sat) => {
+            setSelectedSatellite(sat);
+            setAutoRotate(false);
           }}
         />
       </div>
@@ -1352,6 +1486,39 @@ export default function LiveMap({
                     onClick={() => setAutoRotate(!autoRotate)}
                   >
                     🔄 {autoRotate ? 'AUTO ROTATE ACTIVE' : 'ENABLE AUTO ROTATION'}
+                  </button>
+                </div>
+
+                {/* Orbital Satellites Tracker Toggle */}
+                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>ORBITAL RADAR</div>
+                  <button
+                    className={`sev-btn${showSatellites ? ' active' : ''}`}
+                    style={{
+                      background: showSatellites ? '#00f0ff' : 'transparent',
+                      color: showSatellites ? '#020617' : '#8892a4',
+                      borderColor: '#00f0ff',
+                      width: '100%',
+                      fontSize: '9px',
+                      padding: '5px 0',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      border: '1px solid #00f0ff',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    onClick={() => {
+                      setShowSatellites(!showSatellites);
+                      if (showSatellites) {
+                        setSelectedSatellite(null);
+                      }
+                    }}
+                  >
+                    📡 {showSatellites ? 'TRACKING ACTIVE' : 'OBSERVE SATELLITES'}
                   </button>
                 </div>
 
@@ -1620,6 +1787,44 @@ export default function LiveMap({
         >
           <span>🛰️</span> OVERLAYS
         </button>
+
+        {/* Satellites Pill Button */}
+        <button 
+          onClick={() => {
+            setShowSatellites(!showSatellites);
+            if (showSatellites) {
+              setSelectedSatellite(null);
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: isMobile ? '6px 12px' : '8px 16px',
+            borderRadius: '24px',
+            background: 'rgba(8, 12, 24, 0.85)',
+            border: showSatellites ? '1px solid #00f0ff' : '1px solid rgba(0, 240, 255, 0.25)',
+            color: showSatellites ? '#00f0ff' : '#e2e8f0',
+            fontSize: isMobile ? '10px' : '11px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontFamily: 'monospace'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#00f0ff';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = showSatellites ? '#00f0ff' : 'rgba(0, 240, 255, 0.25)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
+          }}
+        >
+          <span>🛰️</span> {showSatellites ? 'SPACE RADAR ON' : 'SPACE RADAR OFF'}
+        </button>
       </div>
 
       {/* Status Bar */}
@@ -1672,6 +1877,107 @@ export default function LiveMap({
           CAT_COLORS={CAT_COLORS}
           formatTime={formatTime}
         />
+      )}
+
+      {/* Dynamic Satellite Telemetry Sci-Fi Console */}
+      {showSatellites && selectedSatellite && (
+        <div style={{
+          position: 'absolute',
+          bottom: isMobile ? '120px' : '30px',
+          right: isMobile ? '20px' : '300px',
+          width: '280px',
+          background: 'rgba(11, 17, 32, 0.88)',
+          border: '1px solid #00f0ff',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0, 240, 255, 0.2), inset 0 0 12px rgba(0, 240, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          padding: '16px',
+          zIndex: 1000,
+          fontFamily: 'Courier New, monospace',
+          color: '#ffffff',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 240, 255, 0.3)', paddingBottom: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ animation: 'pulse 1.5s infinite', width: '6px', height: '6px', background: '#00f0ff', borderRadius: '50%' }} />
+              <strong style={{ color: '#00f0ff', fontSize: '11px', letterSpacing: '0.1em' }}>TELEMETRY ONLINE</strong>
+            </div>
+            <button 
+              onClick={() => setSelectedSatellite(null)} 
+              style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.5)', cursor: 'pointer', fontSize: '14px', outline: 'none' }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Sci-Fi Radar SVG outline / wireframe graphic */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', position: 'relative' }}>
+            <svg width="80" height="80" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(0, 240, 255, 0.15)" strokeWidth="1" />
+              <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(0, 240, 255, 0.25)" strokeWidth="1" strokeDasharray="3, 3" />
+              <circle cx="50" cy="50" r="15" fill="none" stroke="rgba(0, 240, 255, 0.35)" strokeWidth="1" />
+              <line x1="5" y1="50" x2="95" y2="50" stroke="rgba(0, 240, 255, 0.2)" strokeWidth="0.5" />
+              <line x1="50" y1="5" x2="50" y2="95" stroke="rgba(0, 240, 255, 0.2)" strokeWidth="0.5" />
+              <line x1="50" y1="50" x2="50" y2="5" stroke="#00f0ff" strokeWidth="1.5">
+                <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="4s" repeatCount="indefinite" />
+              </line>
+              <circle cx="50" cy="18" r="3" fill="#00f0ff">
+                <animate attributeName="opacity" values="0.2; 1; 0.2" dur="1s" repeatCount="indefinite" />
+              </circle>
+            </svg>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '9px', color: 'rgba(0, 240, 255, 0.5)' }}>
+              {selectedSatellite.code}
+            </div>
+          </div>
+
+          {/* Stats Readout Grid */}
+          <div style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>NAME:</span>
+              <span style={{ color: '#00f0ff', fontWeight: 'bold' }}>{selectedSatellite.name}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>NORAD CATALOG:</span>
+              <span>#{selectedSatellite.code}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LIVE ALTITUDE:</span>
+              <span style={{ color: '#facc15' }}>{selectedSatellite.altitude} km</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>ORBIT VELOCITY:</span>
+              <span style={{ color: '#22c55e' }}>{selectedSatellite.velocity} km/s</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LATITUDE:</span>
+              <span>{parseFloat(selectedSatellite.latitude).toFixed(4)}°</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LONGITUDE:</span>
+              <span>{parseFloat(selectedSatellite.longitude).toFixed(4)}°</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>INCLINATION:</span>
+              <span>{selectedSatellite.inclination}°</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>ORBIT PERIOD:</span>
+              <span>{selectedSatellite.period} mins</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>OPERATOR/ORIGIN:</span>
+              <span>{selectedSatellite.country}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LAUNCH DATE:</span>
+              <span>{selectedSatellite.launchDate}</span>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(0, 240, 255, 0.2)', marginTop: '12px', paddingTop: '8px', fontSize: '8.5px', color: 'rgba(0, 240, 255, 0.5)', textAlign: 'center', letterSpacing: '0.05em' }}>
+            {selectedSatellite.desc || 'ACTIVE SPACE OBSERVATION VEHICLE'}
+          </div>
+        </div>
       )}
     </div>
   </div>
