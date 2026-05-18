@@ -1218,7 +1218,7 @@ export default function LiveMap({
             onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
             onMouseLeave={(e) => e.currentTarget.style.color = '#38bdf8'}
           >
-            by Avi
+            BY AVI
           </a>
           <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
           <span>DATABASE SYNC: {new Date().toLocaleTimeString()}</span>
