@@ -1787,44 +1787,6 @@ export default function LiveMap({
         >
           <span>🛰️</span> OVERLAYS
         </button>
-
-        {/* Satellites Pill Button */}
-        <button 
-          onClick={() => {
-            setShowSatellites(!showSatellites);
-            if (showSatellites) {
-              setSelectedSatellite(null);
-            }
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: isMobile ? '6px 12px' : '8px 16px',
-            borderRadius: '24px',
-            background: 'rgba(8, 12, 24, 0.85)',
-            border: showSatellites ? '1px solid #00f0ff' : '1px solid rgba(0, 240, 255, 0.25)',
-            color: showSatellites ? '#00f0ff' : '#e2e8f0',
-            fontSize: isMobile ? '10px' : '11px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(8px)',
-            transition: 'all 0.2s ease',
-            outline: 'none',
-            fontFamily: 'monospace'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#00f0ff';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = showSatellites ? '#00f0ff' : 'rgba(0, 240, 255, 0.25)';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
-          }}
-        >
-          <span>🛰️</span> {showSatellites ? 'SPACE RADAR ON' : 'SPACE RADAR OFF'}
-        </button>
       </div>
 
       {/* Status Bar */}
