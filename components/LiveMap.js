@@ -20,18 +20,14 @@ const CAT_COLORS = {
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 
-function formatTime(ts) {
-  if (!ts) return '';
+function parseDateSafe(ts) {
+  if (!ts) return new Date(0);
   let d;
-  
-  // Handle GDELT / Compact format YYYYMMDDHHMMSS or YYYYMMDDTHHMMSSZ
   if (typeof ts === 'string') {
     const cleanTs = ts.trim();
     if (/^\d{14}$/.test(cleanTs)) {
-      // YYYYMMDDHHMMSS
       d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
     } else if (/^\d{8}T\d{6}Z$/.test(cleanTs)) {
-      // YYYYMMDDTHHMMSSZ
       d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
     } else {
       d = new Date(cleanTs);
@@ -39,8 +35,13 @@ function formatTime(ts) {
   } else {
     d = new Date(ts);
   }
-  
-  if (isNaN(d.getTime())) return ts;
+  return isNaN(d.getTime()) ? new Date(0) : d;
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = parseDateSafe(ts);
+  if (d.getTime() === 0) return ts;
   
   const diff = Date.now() - d.getTime();
   if (diff < 0) return 'Just now';
@@ -291,11 +292,11 @@ export default function LiveMap({
     if (timeRange === 'critical') {
       return filtered.sort((a, b) => {
         if (b.severity !== a.severity) return b.severity - a.severity;
-        return new Date(b.timestamp) - new Date(a.timestamp);
+        return parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp);
       });
     }
 
-    return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return filtered.sort((a, b) => parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp));
   }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
 
   const categoryCounts = useMemo(() => {
