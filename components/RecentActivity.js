@@ -41,7 +41,7 @@ export default function RecentActivity({ recentFiles }) {
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{file.category}</div>
             </div>
             <span className={`threat-badge ${file.threatLevel}`}>{file.threatLevel}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "var(--font-jetbrains-fallback)", flexShrink: 0 }}>
               {formatTime(file.lastModified)}
             </span>
           </div>

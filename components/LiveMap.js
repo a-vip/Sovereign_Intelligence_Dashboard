@@ -90,6 +90,8 @@ export default function LiveMap({
   const [refreshing, setRefreshing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
+  const [visibleRssCount, setVisibleRssCount] = useState(30);
+  const [visibleEventCount, setVisibleEventCount] = useState(30);
 
   const [timeRange, setTimeRange] = useState('recent'); 
   const [isVisible, setIsVisible] = useState(true);
@@ -529,7 +531,7 @@ export default function LiveMap({
             border: '1px solid rgba(16, 185, 129, 0.2)',
             borderRadius: '4px',
             padding: isMobile ? '3px 6px' : '4px 8px',
-            fontFamily: 'JetBrains Mono, monospace',
+            fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: isMobile ? '9px' : '10px',
             color: '#10b981',
             fontWeight: 'bold'
@@ -584,7 +586,7 @@ export default function LiveMap({
                   padding: isMobile ? '3px 6px' : '4px 8px',
                   fontSize: isMobile ? '9px' : '10px',
                   fontWeight: 'bold',
-                  fontFamily: 'JetBrains Mono, monospace',
+                  fontFamily: 'var(--font-jetbrains-fallback)',
                   cursor: 'pointer',
                   letterSpacing: '0.5px',
                   display: 'flex',
@@ -705,7 +707,7 @@ export default function LiveMap({
           display: 'inline-block',
           whiteSpace: 'nowrap',
           animation: `ticker-marquee ${tickerSpeed === 'fast' ? '30s' : tickerSpeed === 'normal' ? '60s' : '110s'} linear infinite`,
-          fontFamily: 'JetBrains Mono, Courier New, monospace',
+          fontFamily: 'var(--font-jetbrains-fallback)',
           fontSize: '10px',
           color: '#00f0ff',
           fontWeight: 'bold',
@@ -1068,76 +1070,105 @@ export default function LiveMap({
             ) : filteredRssItems.length === 0 ? (
               <div className="feed-empty">No RSS items match current filters</div>
             ) : (
-              filteredRssItems.map((item, idx) => {
-                let badgeColor = '#00f0ff';
-                if (item.sid === 'arxiv') badgeColor = '#38bdf8';
-                else if (item.sid === 'aje') badgeColor = '#ff2d55';
-                else if (item.sid === 'hrw') badgeColor = '#facc15';
-                else if (item.sid === 'nature') badgeColor = '#22c55e';
+              <>
+                {filteredRssItems.slice(0, visibleRssCount).map((item, idx) => {
+                  let badgeColor = '#00f0ff';
+                  if (item.sid === 'arxiv') badgeColor = '#38bdf8';
+                  else if (item.sid === 'aje') badgeColor = '#ff2d55';
+                  else if (item.sid === 'hrw') badgeColor = '#facc15';
+                  else if (item.sid === 'nature') badgeColor = '#22c55e';
 
-                return (
-                  <a 
-                    key={item.id || idx} 
-                    href={item.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="feed-item"
-                    style={{ 
-                      textDecoration: 'none', 
-                      display: 'block', 
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      padding: '12px 14px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <div className="feed-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span className="feed-category" style={{ 
-                        background: `${badgeColor}15`, 
-                        color: badgeColor, 
-                        borderColor: `${badgeColor}30`,
-                        fontSize: '9px',
-                        fontWeight: '800',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        border: `1px solid ${badgeColor}30`,
-                        letterSpacing: '0.05em',
-                        fontFamily: 'monospace'
-                      }}>
-                        {item.source}
-                      </span>
-                      <span className="feed-time" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
-                        {formatTime(item.published_at)}
-                      </span>
-                    </div>
-                    <div className="feed-title" style={{ 
-                      fontSize: '12.5px', 
-                      fontWeight: '600', 
-                      lineHeight: '1.45', 
-                      color: '#e2e8f0',
-                      fontFamily: 'system-ui, -apple-system, sans-serif',
-                      transition: 'color 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#00f0ff'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#e2e8f0'}
+                  return (
+                    <a 
+                      key={item.id || idx} 
+                      href={item.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="feed-item"
+                      style={{ 
+                        textDecoration: 'none', 
+                        display: 'block', 
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        padding: '12px 14px',
+                        transition: 'all 0.2s ease'
+                      }}
                     >
-                      {item.title}
-                    </div>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      marginTop: '8px', 
-                      fontSize: '8.5px', 
-                      fontFamily: 'monospace', 
-                      color: 'rgba(255,255,255,0.25)',
-                      letterSpacing: '0.05em'
-                    }}>
-                      <span>OSINT FEED SYSTEM</span>
-                      <span style={{ color: '#00f0ff', opacity: 0.8 }}>LINK SECURED ↗</span>
-                    </div>
-                  </a>
-                );
-              })
+                      <div className="feed-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span className="feed-category" style={{ 
+                          background: `${badgeColor}15`, 
+                          color: badgeColor, 
+                          borderColor: `${badgeColor}30`,
+                          fontSize: '9px',
+                          fontWeight: '800',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          border: `1px solid ${badgeColor}30`,
+                          letterSpacing: '0.05em',
+                          fontFamily: 'monospace'
+                        }}>
+                          {item.source}
+                        </span>
+                        <span className="feed-time" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                          {formatTime(item.published_at)}
+                        </span>
+                      </div>
+                      <div className="feed-title" style={{ 
+                        fontSize: '12.5px', 
+                        fontWeight: '600', 
+                        lineHeight: '1.45', 
+                        color: '#e2e8f0',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        transition: 'color 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#00f0ff'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#e2e8f0'}
+                      >
+                        {item.title}
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        marginTop: '8px', 
+                        fontSize: '8.5px', 
+                        fontFamily: 'monospace', 
+                        color: 'rgba(255,255,255,0.25)',
+                        letterSpacing: '0.05em'
+                      }}>
+                        <span>OSINT FEED SYSTEM</span>
+                        <span style={{ color: '#00f0ff', opacity: 0.8 }}>LINK SECURED ↗</span>
+                      </div>
+                    </a>
+                  );
+                })}
+                {filteredRssItems.length > visibleRssCount && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setVisibleRssCount(prev => prev + 30);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12.5px',
+                      background: 'rgba(15, 23, 42, 0.45)',
+                      border: 'none',
+                      borderTop: '1px solid rgba(56, 189, 248, 0.1)',
+                      color: '#00f0ff',
+                      fontFamily: 'monospace',
+                      fontSize: '10.5px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center',
+                      letterSpacing: '0.05em',
+                      outline: 'none',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.45)'}
+                  >
+                    [ LOAD MORE FEEDS (+30) ]
+                  </button>
+                )}
+              </>
             )
           ) : feedType === 'satellites' ? (
             filteredSatellites.length === 0 ? (
@@ -1208,35 +1239,64 @@ export default function LiveMap({
               })
             )
           ) : (
-            filteredEvents.map((ev, idx) => (
-              <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
-                <div className="feed-item-header">
-                  <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
-                    {ev.category}
-                  </span>
-                  {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
-                  <span className="feed-verification" style={{ 
-                    fontSize: '8px', 
-                    background: ev.url ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)', 
-                    color: ev.url ? '#22c55e' : '#eab308', 
-                    padding: '2px 6px', 
-                    borderRadius: '4px', 
-                    border: ev.url ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
-                    fontWeight: '800', 
-                    letterSpacing: '0.05em',
-                    fontFamily: 'monospace'
-                  }}>
-                    {ev.url ? 'VERIFIED' : 'UNVERIFIED'}
-                  </span>
-                  <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
-                    S{ev.severity}
-                  </span>
-                  <span className="feed-time">{formatTime(ev.timestamp)}</span>
+            <>
+              {filteredEvents.slice(0, visibleEventCount).map((ev, idx) => (
+                <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
+                  <div className="feed-item-header">
+                    <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
+                      {ev.category}
+                    </span>
+                    {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
+                    <span className="feed-verification" style={{ 
+                      fontSize: '8px', 
+                      background: ev.url ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)', 
+                      color: ev.url ? '#22c55e' : '#eab308', 
+                      padding: '2px 6px', 
+                      borderRadius: '4px', 
+                      border: ev.url ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
+                      fontWeight: '800', 
+                      letterSpacing: '0.05em',
+                      fontFamily: 'monospace'
+                    }}>
+                      {ev.url ? 'VERIFIED' : 'UNVERIFIED'}
+                    </span>
+                    <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
+                      S{ev.severity}
+                    </span>
+                    <span className="feed-time">{formatTime(ev.timestamp)}</span>
+                  </div>
+                  <div className="feed-title">{ev.title}</div>
+                  {ev.location && <div className="feed-location">📍 {ev.location}</div>}
                 </div>
-                <div className="feed-title">{ev.title}</div>
-                {ev.location && <div className="feed-location">📍 {ev.location}</div>}
-              </div>
-            ))
+              ))}
+              {filteredEvents.length > visibleEventCount && (
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setVisibleEventCount(prev => prev + 30);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12.5px',
+                    background: 'rgba(15, 23, 42, 0.45)',
+                    border: 'none',
+                    borderTop: '1px solid rgba(56, 189, 248, 0.1)',
+                    color: '#00f0ff',
+                    fontFamily: 'monospace',
+                    fontSize: '10.5px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    textAlign: 'center',
+                    letterSpacing: '0.05em',
+                    outline: 'none',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.08)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.45)'}
+                >
+                  [ LOAD MORE EVENTS (+30) ]
+                </button>
+              )}
+            </>
           )}
           {feedType !== 'rss' && filteredEvents.length === 0 && <div className="feed-empty">No events match current filters</div>}
         </div>

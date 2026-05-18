@@ -103,7 +103,7 @@ export default function QualitativeExplorer({ documents, onTagFilter, activeTag 
             <div className="modal-header">
               <div>
                 <div className="modal-title">{selectedDoc.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontFamily: "var(--font-jetbrains-fallback)" }}>
                   {selectedDoc.relativePath}
                 </div>
               </div>

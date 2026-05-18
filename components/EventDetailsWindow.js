@@ -177,7 +177,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
            <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '1px', color: '#64748b' }}>SIGINT://DETAILS</span>
            <span style={{ fontSize: '0.7rem', color: '#334155' }}>|</span>
-           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace" }}>{event.id?.substring(0, 8).toUpperCase()}</span>
+           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', fontFamily: "var(--font-jetbrains-fallback)" }}>{event.id?.substring(0, 8).toUpperCase()}</span>
         </div>
         <button 
           onClick={onClose}
@@ -204,7 +204,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
               SEV-{event.severity}
             </span>
           </div>
-          <span style={{ color: '#475569', fontSize: '0.7rem', fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ color: '#475569', fontSize: '0.7rem', fontFamily: "var(--font-jetbrains-fallback)" }}>
             {formatTime(event.timestamp)}
           </span>
         </div>
@@ -221,7 +221,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
             {event.location || 'GLOBAL / REMOTE'}
           </div>
           {(event.lat && event.lon) && (
-            <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "'JetBrains Mono', monospace", display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "var(--font-jetbrains-fallback)", display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
               <span>GEO_REF: {event.lat.toFixed(4)}N, {event.lon.toFixed(4)}E</span>
               {onReportIssue && (
                 <button

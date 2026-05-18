@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     }}>
       <div style={{ color: '#e8edf5', fontWeight: 600, marginBottom: 4 }}>{label || payload[0]?.name}</div>
-      <div style={{ color: payload[0]?.color || '#00f0ff', fontFamily: "'JetBrains Mono', monospace" }}>
+      <div style={{ color: payload[0]?.color || '#00f0ff', fontFamily: "var(--font-jetbrains-fallback)" }}>
         {payload[0]?.value} {payload[0]?.value === 1 ? 'document' : 'documents'}
       </div>
     </div>

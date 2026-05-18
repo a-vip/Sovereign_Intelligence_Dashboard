@@ -596,6 +596,7 @@ export default function CesiumGlobe({
         requestRenderMode: false,
         fullscreenButton: false,
         vrButton: false,
+        creditContainer: typeof document !== 'undefined' ? document.createElement('div') : undefined, // Off-screen credit container to avoid crawlable SEO warnings!
       };
 
       // Set premium satellite map as baseLayer in modern Cesium, or imageryProvider in older versions
