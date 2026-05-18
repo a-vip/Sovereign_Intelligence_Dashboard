@@ -45,6 +45,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
   const [mapError, setMapError] = useState(false);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
+  const [showLegend, setShowLegend] = useState(true);
 
   const leafletContainerRef = useRef(null);
   const leafletMapRef = useRef(null);
@@ -122,12 +123,25 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       const ray = camera.getPickRay(windowPosition);
       const target = scene.globe.pick(ray, scene);
 
-      if (Cesium.defined(target)) {
-        const currentPitchDeg = Cesium.Math.toDegrees(camera.pitch);
-        const targetPitchRad = currentPitchDeg < -75 
-          ? Cesium.Math.toRadians(-45.0) 
-          : Cesium.Math.toRadians(-90.0);
+      const currentPitchDeg = Cesium.Math.toDegrees(camera.pitch);
+      const targetPitchRad = currentPitchDeg < -75 
+        ? Cesium.Math.toRadians(-45.0) 
+        : Cesium.Math.toRadians(-90.0);
 
+      if (Cesium.defined(target)) {
+        // Safe math: pivot smoothly around target point, maintaining correct range to prevent camera sliding/glitching!
+        const range = Cesium.Cartesian3.distance(camera.position, target);
+        camera.flyTo({
+          destination: target,
+          orientation: {
+            heading: camera.heading,
+            pitch: targetPitchRad,
+            range: range
+          },
+          duration: 1.0
+        });
+      } else {
+        // Fallback to top-down or current position if looking off the globe
         camera.flyTo({
           destination: camera.position,
           orientation: {
@@ -138,7 +152,9 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           duration: 1.0
         });
       }
-    } catch(e) {}
+    } catch(e) {
+      console.error("Failed to toggle camera tilt smoothly:", e);
+    }
   };
 
   // Pre-calculate repelled coordinates to prevent overlapping clusters on both maps!
@@ -859,33 +875,61 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           </div>
 
           {/* Tactical Controls Legend Overlay (Bottom Left) */}
-          <div style={{
-            position: 'absolute',
-            bottom: '48px',
-            left: '20px',
-            zIndex: 10,
-            background: 'rgba(8, 12, 24, 0.85)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            borderRadius: '6px',
-            padding: '8px 12px',
-            fontFamily: 'Courier New, monospace',
-            fontSize: '10px',
-            color: '#e2e8f0',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(8px)',
-            pointerEvents: 'none',
-            letterSpacing: '0.02em',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px'
-          }}>
-            <div style={{ fontWeight: '800', color: '#00f0ff', marginBottom: '2px', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '2px' }}>
-              📡 MAP NAVIGATION HUD
+          {showLegend && (
+            <div style={{
+              position: 'absolute',
+              bottom: '48px',
+              left: '20px',
+              zIndex: 10,
+              background: 'rgba(8, 12, 24, 0.85)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              fontFamily: 'Courier New, monospace',
+              fontSize: '10px',
+              color: '#e2e8f0',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(8px)',
+              pointerEvents: 'auto',
+              letterSpacing: '0.02em',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                fontWeight: '800', 
+                color: '#00f0ff', 
+                marginBottom: '2px', 
+                borderBottom: '1px solid rgba(56, 189, 248, 0.25)', 
+                paddingBottom: '2px',
+                gap: '24px'
+              }}>
+                <span>📡 MAP NAVIGATION HUD</span>
+                <span 
+                  onClick={() => setShowLegend(false)}
+                  style={{
+                    cursor: 'pointer',
+                    color: 'rgba(56, 189, 248, 0.6)',
+                    fontWeight: 'bold',
+                    fontSize: '12px',
+                    padding: '0 4px',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(56, 189, 248, 0.6)'}
+                  title="Close Controls HUD"
+                >
+                  ×
+                </span>
+              </div>
+              <div style={{ pointerEvents: 'none' }}>🖱️ <span style={{ color: '#38bdf8' }}>Drag:</span> Pan / Orbit</div>
+              <div style={{ pointerEvents: 'none' }}>⌨️ <span style={{ color: '#38bdf8' }}>Shift + Drag:</span> Rotate & Tilt</div>
+              <div style={{ pointerEvents: 'none' }}>🔄 <span style={{ color: '#38bdf8' }}>Scroll:</span> Zoom <span style={{ color: 'rgba(56, 189, 248, 0.6)' }}>[Shift+Scroll to Tilt]</span></div>
             </div>
-            <div>🖱️ <span style={{ color: '#38bdf8' }}>Drag:</span> Pan / Orbit</div>
-            <div>⌨️ <span style={{ color: '#38bdf8' }}>Shift + Drag:</span> Rotate & Tilt</div>
-            <div>🔄 <span style={{ color: '#38bdf8' }}>Scroll:</span> Zoom <span style={{ color: 'rgba(56, 189, 248, 0.6)' }}>[Shift+Scroll to Tilt]</span></div>
-          </div>
+          )}
         </>
       )}
 

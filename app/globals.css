@@ -459,7 +459,7 @@ body {
 .sigint-container {
   display: grid;
   grid-template-columns: 360px 1fr;
-  height: calc(100vh - 180px);
+  height: calc(100vh - 110px);
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--glass-border);
