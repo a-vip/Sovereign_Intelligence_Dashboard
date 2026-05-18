@@ -8,6 +8,39 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const tilesetRef = useRef(null);
+
+  // Track physical keyboard state to differentiate keyboard-scroll shortcuts from trackpad pinch-to-zoom!
+  const keysPressedRef = useRef({ ctrl: false, shift: false, alt: false });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Control') keysPressedRef.current.ctrl = true;
+      if (e.key === 'Shift') keysPressedRef.current.shift = true;
+      if (e.key === 'Alt') keysPressedRef.current.alt = true;
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.key === 'Control') keysPressedRef.current.ctrl = false;
+      if (e.key === 'Shift') keysPressedRef.current.shift = false;
+      if (e.key === 'Alt') keysPressedRef.current.alt = false;
+    };
+
+    const handleBlur = () => {
+      keysPressedRef.current = { ctrl: false, shift: false, alt: false };
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
   
   const [mapError, setMapError] = useState(false);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
@@ -597,8 +630,9 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
         delta = delta * 18; 
       }
 
-      // 1. TILT/ANGLE ACTION: If Ctrl or Shift is held down while scrolling
-      if (e.ctrlKey || e.shiftKey || e.altKey) {
+      // 1. TILT/ANGLE ACTION: ONLY if physical Ctrl, Shift, or Alt key is held down on the keyboard!
+      const isPhysicalKeyPressed = keysPressedRef.current.ctrl || keysPressedRef.current.shift || keysPressedRef.current.alt;
+      if (isPhysicalKeyPressed) {
         const tiltAngle = (delta / 120.0) * 0.08; // 0.08 radians (about 4.5 degrees) per scroll tick
 
         try {
