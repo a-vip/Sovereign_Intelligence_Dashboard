@@ -62,9 +62,9 @@ function getDeterministicJitter(seedText, maxDegrees = 0.6) {
   return { lat: jitterLat, lon: jitterLon };
 }
 
-function getCountryCoords(country, title = '') {
+function getCountryCoords(country, title = '', summary = '') {
   const c = (country || '').toLowerCase().trim();
-  const t = (title || '').toLowerCase();
+  const t = ((title || '') + ' ' + (summary || '')).toLowerCase();
   
   // Safe token-boundary checker to prevent substring false positives (e.g. 'flood' matching US state abbreviation 'fl')
   const hasWord = (text, word) => {
@@ -126,7 +126,8 @@ function getCountryCoords(country, title = '') {
 
   // 3. High-Precision Title-Based Country Name Match (Traps global articles reporting specific countries)
   if (!baseCoords) {
-    if (t.includes('egypt')) { baseCoords = { lat: 26.8206, lon: 30.8025 }; resolvedLocation = 'Egypt'; }
+    if (t.includes('china')) { baseCoords = { lat: 35.8617, lon: 104.1954 }; resolvedLocation = 'China'; }
+    else if (t.includes('egypt')) { baseCoords = { lat: 26.8206, lon: 30.8025 }; resolvedLocation = 'Egypt'; }
     else if (t.includes('angola')) { baseCoords = { lat: -11.2027, lon: 17.8739 }; resolvedLocation = 'Angola'; }
     else if (t.includes('russia')) { baseCoords = { lat: 61.5240, lon: 105.3188 }; resolvedLocation = 'Russia'; }
     else if (t.includes('japan')) { baseCoords = { lat: 36.2048, lon: 138.2529 }; resolvedLocation = 'Japan'; }
@@ -360,6 +361,28 @@ function getCountryCoords(country, title = '') {
 
   // Smart Fallbacks (Only if no specific state or country was matched above!)
   if (!baseCoords) {
+    const publisherMap = {
+      'reuters': { lat: 51.5074, lon: -0.1278, location: 'Reuters Editorial, London' },
+      'al jazeera': { lat: 25.2854, lon: 51.5310, location: 'Al Jazeera HQ, Doha' },
+      'arxiv': { lat: 42.4406, lon: -76.5026, location: 'Cornell University, Ithaca' },
+      'gdacs': { lat: 46.2227, lon: 6.1428, location: 'GDACS Hub, Geneva' },
+      'reliefweb': { lat: 46.2227, lon: 6.1428, location: 'UN OCHA, Geneva' },
+      'financial times': { lat: 51.5074, lon: -0.1278, location: 'Financial Times, London' },
+      'ft.com': { lat: 51.5074, lon: -0.1278, location: 'Financial Times, London' },
+      'stop killer robots': { lat: 51.5074, lon: -0.1278, location: 'Stop Killer Robots Secretariat, London' }
+    };
+
+    const cleanSource = c.toLowerCase();
+    for (const [pub, coords] of Object.entries(publisherMap)) {
+      if (cleanSource.includes(pub) || t.includes(pub)) {
+        baseCoords = { lat: coords.lat, lon: coords.lon };
+        resolvedLocation = coords.location;
+        break;
+      }
+    }
+  }
+
+  if (!baseCoords) {
     if (t.includes('surveillance') || t.includes('security') || c.includes('wired') || c.includes('eff')) {
       baseCoords = { lat: 37.0902, lon: -95.7129 };
       resolvedLocation = 'United States';
@@ -439,7 +462,7 @@ function parseLocalRadarDossiers() {
           }
         }
         
-        const coords = getCountryCoords(source || 'Global', title);
+        const coords = getCountryCoords(source || 'Global', title, summary);
         
         events.push({
           id: generateHashId(link, title),
@@ -515,7 +538,7 @@ async function fetchGdelt(timespan) {
           ts = ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z');
         }
         const locationName = a.sourcecountry || 'Global';
-        const coords = getCountryCoords(locationName, a.title);
+        const coords = getCountryCoords(locationName, a.title, a.title);
         return {
           id: generateHashId(a.url, a.title),
           title: a.title || 'Untitled Signal',
@@ -578,7 +601,7 @@ export async function GET(request) {
 
     // Assign high-fidelity coordinates
     sortedEvents.forEach(e => {
-      const coords = getCountryCoords(e.location || 'Global', e.title);
+      const coords = getCountryCoords(e.location || 'Global', e.title, e.details?.summary || e.description || '');
       if (coords) {
         if (!e.lat || !e.lon) {
           e.lat = coords.lat;
