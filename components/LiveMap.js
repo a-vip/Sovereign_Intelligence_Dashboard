@@ -58,6 +58,7 @@ export default function LiveMap({
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [mapMode, setMapMode] = useState('2d'); // 2D satellite default for buttery performance!
   const [mapStyle, setMapStyle] = useState('dark'); // 'satellite' (Google Hybrid) or 'dark' (Tactical Dark theme)
+  const [autoRotate, setAutoRotate] = useState(true); // Auto rotate globe default
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
@@ -649,6 +650,8 @@ export default function LiveMap({
           mapMode={mapMode}
           mapStyle={mapStyle}
           onMapModeChange={setMapMode}
+          autoRotate={autoRotate}
+          onInteraction={() => setAutoRotate(false)}
           onPointClick={(point) => {
             const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
             setSelectedEvent(fullEvent || point);
@@ -835,6 +838,34 @@ export default function LiveMap({
                       TACTICAL DARK
                     </button>
                   </div>
+                </div>
+
+                {/* Auto Rotate Toggle Option */}
+                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>AUTOMATION</div>
+                  <button
+                    className={`sev-btn${autoRotate ? ' active' : ''}`}
+                    style={{
+                      background: autoRotate ? '#38bdf8' : 'transparent',
+                      color: autoRotate ? '#020617' : '#8892a4',
+                      borderColor: '#38bdf8',
+                      width: '100%',
+                      fontSize: '9px',
+                      padding: '5px 0',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      border: '1px solid #38bdf8',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    onClick={() => setAutoRotate(!autoRotate)}
+                  >
+                    🔄 {autoRotate ? 'AUTO ROTATE ACTIVE' : 'ENABLE AUTO ROTATION'}
+                  </button>
                 </div>
 
                 {/* Tactical Widgets */}

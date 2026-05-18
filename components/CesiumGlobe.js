@@ -4,7 +4,15 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null, mapMode = '2d', mapStyle = 'satellite', onMapModeChange = null }) {
+export default function CesiumGlobe({ 
+  displayedMarkers = [], 
+  onPointClick = null, 
+  mapMode = '2d', 
+  mapStyle = 'satellite', 
+  onMapModeChange = null,
+  autoRotate = true,
+  onInteraction = null
+}) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const tilesetRef = useRef(null);
@@ -66,6 +74,42 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
   useEffect(() => {
     onPointClickRef.current = onPointClick;
   }, [onPointClick]);
+
+  // 4. Buttery smooth auto rotation of the globe until user interacts with the camera!
+  useEffect(() => {
+    if (!viewerRef.current || !autoRotate || mapError) return;
+
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    let lastTime = performance.now();
+    let listener;
+
+    const rotateCamera = (scene, time) => {
+      const currentTime = performance.now();
+      const delta = (currentTime - lastTime) / 1000.0;
+      lastTime = currentTime;
+
+      // Slow, relaxing drift around the Earth (e.g. 0.035 radians per second)
+      const rotationSpeed = 0.035; 
+      viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, rotationSpeed * delta);
+    };
+
+    listener = viewer.scene.postRender.addEventListener(rotateCamera);
+
+    return () => {
+      if (listener && viewer && viewer.scene && !viewer.isDestroyed()) {
+        viewer.scene.postRender.removeEventListener(rotateCamera);
+      }
+    };
+  }, [autoRotate, mapError]);
+
+  const handleUserInteraction = () => {
+    if (autoRotate && onInteraction) {
+      onInteraction();
+    }
+  };
 
   const handleZoomIn = () => {
     if (!viewerRef.current) return;
@@ -705,6 +749,9 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       {/* 2D Leaflet Map Container (Active strictly as a robust fallback only) */}
       <div 
         ref={leafletContainerRef} 
+        onMouseDown={handleUserInteraction}
+        onTouchStart={handleUserInteraction}
+        onWheel={handleUserInteraction}
         style={{ 
           width: '100%', 
           height: '100%', 
@@ -721,6 +768,9 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       {/* 3D Cesium Map Container (Primary Map - renders beautiful satellite globe by default!) */}
       <div 
         ref={containerRef} 
+        onMouseDown={handleUserInteraction}
+        onTouchStart={handleUserInteraction}
+        onWheel={handleUserInteraction}
         style={{ 
           width: '100%', 
           height: '100%', 
