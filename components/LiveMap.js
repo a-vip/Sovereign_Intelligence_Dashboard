@@ -404,7 +404,7 @@ export default function LiveMap({
               boxShadow: '0 0 6px #10b981',
               animation: 'pulse 2s infinite'
             }} />
-            <span>• LIVE</span>
+            <span>LIVE</span>
           </div>
 
           {/* Compact Refresh Avatar */}
@@ -443,18 +443,18 @@ export default function LiveMap({
                   border: '1px solid rgba(245, 158, 11, 0.3)',
                   color: '#f59e0b',
                   borderRadius: '6px',
-                  padding: '4px 10px',
-                  fontSize: '10px',
+                  padding: '3px 8px',
+                  fontSize: '9px',
                   fontWeight: 'bold',
                   fontFamily: 'monospace',
                   cursor: 'pointer',
                   letterSpacing: '0.5px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   transition: 'all 0.2s',
                   boxShadow: '0 0 10px rgba(245, 158, 11, 0.05)',
-                  height: '26px'
+                  height: '22px'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
@@ -467,7 +467,7 @@ export default function LiveMap({
                 title="Submit Suggestions & Report System Issues"
               >
                 <span>💡</span>
-                <span>FEEDBACK ENGINE</span>
+                <span>FEEDBACK</span>
               </button>
 
               <div 
