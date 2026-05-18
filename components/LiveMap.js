@@ -40,6 +40,7 @@ export default function LiveMap() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
+  const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
 
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
@@ -206,15 +207,101 @@ export default function LiveMap() {
   }, [markers]);
 
   return (
-    <div className="sigint-container">
+    <div 
+      className="sigint-container"
+      style={{
+        gridTemplateColumns: isFeedCollapsed ? '0px 1fr' : '360px 1fr',
+        transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        position: 'relative'
+      }}
+    >
+      {/* Floating Collapse Handle (Shown when feed is collapsed) */}
+      {isFeedCollapsed && (
+        <button
+          onClick={() => setIsFeedCollapsed(false)}
+          style={{
+            position: 'absolute',
+            left: '20px',
+            top: '20px',
+            background: 'rgba(8, 12, 24, 0.9)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            borderRadius: '8px',
+            padding: '8px 16px',
+            color: '#e2e8f0',
+            fontFamily: 'Courier New, monospace',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            letterSpacing: '0.05em',
+            cursor: 'pointer',
+            zIndex: 30,
+            backdropFilter: 'blur(8px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(56, 189, 248, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#00f0ff';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.2)';
+            e.currentTarget.style.transform = 'scale(1.02)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.25)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(56, 189, 248, 0.05)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <span>FEED ({filteredEvents.length})</span>
+          <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>&gt;</span>
+        </button>
+      )}
+
       {/* Event Feed Sidebar */}
-      <div className="sigint-feed">
-        <div className="feed-type-tabs">
+      <div 
+        className="sigint-feed"
+        style={{
+          transform: isFeedCollapsed ? 'translateX(-100%)' : 'translateX(0)',
+          opacity: isFeedCollapsed ? 0 : 1,
+          width: isFeedCollapsed ? '0px' : '360px',
+          minWidth: isFeedCollapsed ? '0px' : '360px',
+          maxWidth: isFeedCollapsed ? '0px' : '360px',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRight: isFeedCollapsed ? 'none' : '1px solid var(--border-color)',
+          visibility: isFeedCollapsed ? 'hidden' : 'visible',
+        }}
+      >
+        <div className="feed-type-tabs" style={{ display: 'flex', alignItems: 'stretch' }}>
           <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} onClick={() => setFeedType('live')}>
             LIVE SIGNALS
           </button>
           <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} onClick={() => setFeedType('reports')}>
             INTEL REPORTS
+          </button>
+          
+          {/* Elegant Collapse Arrow Button inside Feed Header */}
+          <button
+            onClick={() => setIsFeedCollapsed(true)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.3)',
+              padding: '0 12px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s',
+              borderLeft: '1px solid var(--border-color)',
+              fontWeight: 'bold',
+              fontFamily: 'monospace'
+            }}
+            title="Collapse Feed Sidebar"
+            onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+            onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.3)'}
+          >
+            &lt;
           </button>
         </div>
         
