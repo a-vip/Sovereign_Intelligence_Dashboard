@@ -88,7 +88,7 @@ export default function LiveMap({
   const [refreshing, setRefreshing] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
 
-  const [timeRange, setTimeRange] = useState('today'); 
+  const [timeRange, setTimeRange] = useState('recent'); 
   const [isVisible, setIsVisible] = useState(true);
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -209,7 +209,7 @@ export default function LiveMap({
   const fetchEvents = useCallback(async () => {
     if (!isVisible) return; // Don't fetch if tab is hidden
     try {
-      const res = await fetch(`/api/events?timespan=${timeRange}`);
+      const res = await fetch('/api/events?timespan=today');
       const data = await res.json();
       if (data.events?.length) {
         setAllFetchedEvents(data.events);
@@ -245,7 +245,7 @@ export default function LiveMap({
     fetchEvents();
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
-  }, [fetchEvents, timeRange]); // Refetch when timeRange changes
+  }, [fetchEvents]);
 
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
@@ -288,8 +288,15 @@ export default function LiveMap({
       });
     }
 
+    if (timeRange === 'critical') {
+      return filtered.sort((a, b) => {
+        if (b.severity !== a.severity) return b.severity - a.severity;
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      });
+    }
+
     return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  }, [displayedEvents, categories, feedType, searchQuery]);
+  }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -607,8 +614,8 @@ export default function LiveMap({
         </div>
         
         <div className="feed-tabs">
-          <button className={`feed-tab ${timeRange === 'today' ? 'active' : ''}`} onClick={() => setTimeRange('today')}>TODAY</button>
-          <button className={`feed-tab live-tab ${timeRange === '6h' ? 'active' : ''}`} onClick={() => setTimeRange('6h')}>6 HOURS</button>
+          <button className={`feed-tab ${timeRange === 'recent' ? 'active' : ''}`} onClick={() => setTimeRange('recent')}>LATEST</button>
+          <button className={`feed-tab live-tab ${timeRange === 'critical' ? 'active' : ''}`} onClick={() => setTimeRange('critical')}>CRITICAL</button>
         </div>
         
         {/* Live Search Bar */}
