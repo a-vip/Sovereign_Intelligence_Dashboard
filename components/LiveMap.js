@@ -277,7 +277,39 @@ export default function LiveMap({
 
   // Memoize filtered data to prevent unnecessary re-renders
   const displayedMarkers = useMemo(() => {
-    let filtered = markers.filter(m => categories[m.category] && m.severity >= minSeverity);
+    // 1. Map base GDELT/INTEL markers safely
+    const baseMarkers = markers.map(m => ({
+      ...m,
+      lat: parseFloat(m.lat),
+      lon: parseFloat(m.lon)
+    }));
+
+    // 2. Map RSS Feed items containing valid locations to standard marker layouts
+    const rssMarkers = rssItems
+      .filter(item => item.latitude !== null && item.longitude !== null && !isNaN(parseFloat(item.latitude)) && !isNaN(parseFloat(item.longitude)))
+      .map(item => ({
+        id: item.id || `rss-${item.url}`,
+        name: item.title,
+        title: item.title,
+        category: item.category || 'Political',
+        severity: item.severity || 1,
+        location: item.location || 'Unknown',
+        lat: parseFloat(item.latitude),
+        lon: parseFloat(item.longitude),
+        timestamp: item.published_at,
+        url: item.url,
+        details: {
+          summary: `Source: ${item.source}. Geotagged live feed article.`,
+          isRssItem: true
+        }
+      }));
+
+    // 3. Combine base SIGINT with tactical RSS feeds
+    const allCombined = [...baseMarkers, ...rssMarkers];
+
+    // Filter combined list by checkbox categories & minSeverity
+    let filtered = allCombined.filter(m => categories[m.category] && m.severity >= minSeverity);
+
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(m => {
@@ -289,7 +321,7 @@ export default function LiveMap({
       });
     }
     return filtered;
-  }, [markers, categories, minSeverity, searchQuery]);
+  }, [markers, rssItems, categories, minSeverity, searchQuery]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -962,7 +994,30 @@ export default function LiveMap({
           autoRotate={autoRotate}
           onInteraction={() => setAutoRotate(false)}
           onPointClick={(point) => {
-            const fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
+            // First check GDELT events
+            let fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
+            // If not found, look up RSS items to populate dynamic audit details
+            if (!fullEvent) {
+              const matchedRss = rssItems.find(item => item.id === point.id || item.title === point.name);
+              if (matchedRss) {
+                fullEvent = {
+                  id: matchedRss.id,
+                  title: matchedRss.title,
+                  category: matchedRss.category || 'Political',
+                  severity: matchedRss.severity || 1,
+                  location: matchedRss.location || 'Unknown',
+                  lat: parseFloat(matchedRss.latitude),
+                  lon: parseFloat(matchedRss.longitude),
+                  timestamp: matchedRss.published_at,
+                  url: matchedRss.url,
+                  source: matchedRss.source || 'RSS Feed',
+                  details: {
+                    summary: `Source: ${matchedRss.source}. Geotagged live feed article.`,
+                    isRssItem: true
+                  }
+                };
+              }
+            }
             setSelectedEvent(fullEvent || point);
           }}
         />
