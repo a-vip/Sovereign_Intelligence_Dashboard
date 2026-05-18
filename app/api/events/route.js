@@ -73,6 +73,7 @@ function getCountryCoords(country, title = '', summary = '') {
   
   let baseCoords = null;
   let resolvedLocation = '';
+  let specificity = 0;
 
   // 1. High-Fidelity City & Region Geolocation Scanner (Explicit Title Matches)
   if (t.includes('mcallen')) { baseCoords = { lat: 26.2034, lon: -98.2300 }; resolvedLocation = 'McAllen, Texas, USA'; }
@@ -101,6 +102,8 @@ function getCountryCoords(country, title = '', summary = '') {
   else if (t.includes('taipei') || t.includes('taiwan')) { baseCoords = { lat: 25.0330, lon: 121.5654 }; resolvedLocation = 'Taipei, Taiwan'; }
   else if (t.includes('israel') || t.includes('gaza') || t.includes('palestine')) { baseCoords = { lat: 31.0461, lon: 34.8516 }; resolvedLocation = 'Israel/Palestine'; }
 
+  if (baseCoords) specificity = 3;
+
   // 2. High-Precision US States Title Geocoder (MUST execute before general US keywords to prevent stacks/clusters in Kansas!)
   if (!baseCoords) {
     if (t.includes('texas') || hasWord(t, 'tx')) { baseCoords = { lat: 31.9686, lon: -99.9018 }; resolvedLocation = 'Texas, USA'; }
@@ -123,6 +126,8 @@ function getCountryCoords(country, title = '', summary = '') {
     else if (t.includes('utah') || hasWord(t, 'ut')) { baseCoords = { lat: 39.3210, lon: -111.0937 }; resolvedLocation = 'Utah, USA'; }
     else if (t.includes('oregon') || hasWord(t, 'or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
   }
+
+  if (baseCoords && specificity === 0) specificity = 2;
 
   // 3. High-Precision Title-Based Country Name Match (Traps global articles reporting specific countries)
   if (!baseCoords) {
@@ -230,6 +235,8 @@ function getCountryCoords(country, title = '', summary = '') {
     else if (t.includes('united states') || hasWord(t, 'us') || hasWord(t, 'usa') || t.includes('trump') || t.includes('hegseth') || t.includes('biden') || t.includes('white house') || t.includes('pentagon') || t.includes('congress') || t.includes('dnc') || t.includes('rnc') || t.includes('senate') || t.includes('supreme court') || t.includes('fbi') || t.includes('cia') || t.includes('nsa') || t.includes('dhs') || t.includes('ice') || t.includes('american') || t.includes('america')) { baseCoords = { lat: 37.0902, lon: -95.7129 }; resolvedLocation = 'United States'; }
   }
 
+  if (baseCoords && specificity === 0) specificity = 1;
+
   // 4. Country-Code Secondary Fallback Match (Only if title did NOT specify any country keywords)
   if (!baseCoords) {
     if (c === 'jp') { baseCoords = { lat: 36.2048, lon: 138.2529 }; resolvedLocation = 'Japan'; }
@@ -336,6 +343,8 @@ function getCountryCoords(country, title = '', summary = '') {
     else if (c === 'us') { baseCoords = { lat: 37.0902, lon: -95.7129 }; resolvedLocation = 'United States'; }
   }
 
+  if (baseCoords && specificity === 0) specificity = 1;
+
   // 4. High-Fidelity US States Classifiers (to distribute US events accurately instead of stacking in Kansas)
   if (!baseCoords) {
     if (t.includes('texas') || hasWord(t, 'tx')) { baseCoords = { lat: 31.9686, lon: -99.9018 }; resolvedLocation = 'Texas, USA'; }
@@ -359,6 +368,8 @@ function getCountryCoords(country, title = '', summary = '') {
     else if (t.includes('oregon') || hasWord(t, 'or')) { baseCoords = { lat: 43.8041, lon: -120.5542 }; resolvedLocation = 'Oregon, USA'; }
   }
 
+  if (baseCoords && specificity === 0) specificity = 2;
+
   // Smart Fallbacks (Only if no specific state or country was matched above!)
   if (!baseCoords) {
     const publisherMap = {
@@ -377,6 +388,7 @@ function getCountryCoords(country, title = '', summary = '') {
       if (cleanSource.includes(pub) || t.includes(pub)) {
         baseCoords = { lat: coords.lat, lon: coords.lon };
         resolvedLocation = coords.location;
+        specificity = 1.5;
         break;
       }
     }
@@ -386,9 +398,11 @@ function getCountryCoords(country, title = '', summary = '') {
     if (t.includes('surveillance') || t.includes('security') || c.includes('wired') || c.includes('eff')) {
       baseCoords = { lat: 37.0902, lon: -95.7129 };
       resolvedLocation = 'United States';
+      specificity = 1;
     } else if (c.includes('reliefweb') || c.includes('human rights') || c.includes('hrw')) {
       baseCoords = { lat: 46.8182, lon: 8.2275 };
       resolvedLocation = 'Geneva, Switzerland';
+      specificity = 1;
     } else {
       const LANDMASS_COORDS = [
         { lat: 39.8283, lon: -98.5795, name: 'North America' },  // North America
@@ -412,6 +426,7 @@ function getCountryCoords(country, title = '', summary = '') {
       const selected = LANDMASS_COORDS[index];
       baseCoords = { lat: selected.lat, lon: selected.lon };
       resolvedLocation = selected.name;
+      specificity = 0;
     }
   }
 
@@ -420,7 +435,8 @@ function getCountryCoords(country, title = '', summary = '') {
   return {
     lat: baseCoords.lat + jitter.lat,
     lon: baseCoords.lon + jitter.lon,
-    resolvedLocation: resolvedLocation || country || 'Global'
+    resolvedLocation: resolvedLocation || country || 'Global',
+    specificity
   };
 }
 
@@ -476,6 +492,7 @@ function parseLocalRadarDossiers() {
           location: coords?.resolvedLocation || source || 'Global',
           lat: coords ? coords.lat : null,
           lon: coords ? coords.lon : null,
+          specificity: coords ? coords.specificity : 0,
           details: { summary }
         });
       }
@@ -551,6 +568,7 @@ async function fetchGdelt(timespan) {
           location: coords?.resolvedLocation || locationName,
           lat: coords ? coords.lat : null,
           lon: coords ? coords.lon : null,
+          specificity: coords ? coords.specificity : 0,
           details: { ...a }
         };
       }).filter(e => e.quality > 1);
@@ -610,23 +628,64 @@ export async function GET(request) {
         if (coords.resolvedLocation && (!e.location || e.location === 'Global' || e.location.length <= 3)) {
           e.location = coords.resolvedLocation;
         }
+        e.specificity = Math.max(e.specificity || 0, coords.specificity || 0);
       }
     });
 
-    // Deep event deduplication by URL and title similarity
-    const seenEventTitles = new Set();
-    const seenEventUrls = new Set();
+    // Deep event deduplication by URL and title fuzzy similarity
     const allEvents = [];
 
     sortedEvents.forEach(e => {
-      const titleNorm = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
       const urlNorm = (e.url || '').split('?')[0];
+      const titleNorm = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
 
-      if (urlNorm && seenEventUrls.has(urlNorm)) return;
-      if (titleNorm && seenEventTitles.has(titleNorm)) return;
+      let duplicateIndex = -1;
+      for (let i = 0; i < allEvents.length; i++) {
+        const accepted = allEvents[i];
+        
+        // Exact URL match
+        const acceptedUrlNorm = (accepted.url || '').split('?')[0];
+        if (urlNorm && acceptedUrlNorm && urlNorm === acceptedUrlNorm) {
+          duplicateIndex = i;
+          break;
+        }
+        
+        // Exact normalized title match
+        const acceptedTitleNorm = (accepted.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+        if (titleNorm && acceptedTitleNorm && titleNorm === acceptedTitleNorm) {
+          duplicateIndex = i;
+          break;
+        }
+        
+        // Fuzzy title similarity match (Jaccard similarity threshold of 60%)
+        const similarity = calculateTitleFuzzySimilarity(e.title, accepted.title);
+        if (similarity >= 0.6) {
+          duplicateIndex = i;
+          break;
+        }
+      }
 
-      if (urlNorm) seenEventUrls.add(urlNorm);
-      if (titleNorm) seenEventTitles.add(titleNorm);
+      if (duplicateIndex !== -1) {
+        const accepted = allEvents[duplicateIndex];
+        const acceptedSpec = accepted.specificity || 0;
+        const currentSpec = e.specificity || 0;
+
+        // Keep the one with HIGHER geocoding specificity (prefer specific cities to general countries)
+        if (currentSpec > acceptedSpec) {
+          if (e.details) {
+            e.details = { ...e.details };
+            if (typeof e.details.summary === 'string') {
+              let cleanSummary = e.details.summary.replace(/\s+/g, ' ').trim();
+              if (cleanSummary.length > 280) {
+                cleanSummary = cleanSummary.substring(0, 277) + '...';
+              }
+              e.details.summary = cleanSummary;
+            }
+          }
+          allEvents[duplicateIndex] = e;
+        }
+        return;
+      }
 
       // Make details and summary neat and concise to save pagespeed/bandwidth
       if (e.details) {
@@ -716,4 +775,45 @@ export async function POST(request) {
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+function getTitleKeywords(title) {
+  const stopWords = new Set([
+    'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'arent', 'as', 'at',
+    'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
+    'can', 'cannot', 'could', 'couldnt', 'did', 'didnt', 'do', 'does', 'doesnt', 'doing', 'dont', 'down', 'during',
+    'each', 'few', 'for', 'from', 'further', 'had', 'hadnt', 'has', 'hasnt', 'have', 'havent', 'having', 'he', 'hed',
+    'hell', 'hes', 'her', 'here', 'heres', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'hows', 'i', 'id', 'ill',
+    'im', 'ive', 'if', 'in', 'into', 'is', 'isnt', 'it', 'its', 'itself', 'lets', 'me', 'more', 'most', 'mustnt', 'my',
+    'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves',
+    'out', 'over', 'own', 'same', 'shant', 'she', 'shed', 'shell', 'shes', 'should', 'shouldnt', 'so', 'some', 'such',
+    'than', 'that', 'thats', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'theres', 'these', 'they',
+    'theyd', 'theyll', 'theyre', 'theyve', 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very',
+    'was', 'wasnt', 'we', 'wed', 'well', 'were', 'werent', 'weve', 'what', 'whats', 'when', 'whens', 'where', 'wheres',
+    'which', 'while', 'who', 'whos', 'whom', 'why', 'whys', 'with', 'wont', 'would', 'wouldnt', 'you', 'youd', 'youll',
+    'youre', 'youve', 'your', 'yours', 'yourself', 'yourselves',
+    'says', 'hails', 'braced', 'heavy', 'rains', 'warns', 'warn', 'facing', 'amid', 'over', 'will', 'new', 'first', 'near'
+  ]);
+  
+  return new Set(
+    (title || '').toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !stopWords.has(word))
+  );
+}
+
+function calculateTitleFuzzySimilarity(title1, title2) {
+  const words1 = getTitleKeywords(title1);
+  const words2 = getTitleKeywords(title2);
+  
+  if (words1.size === 0 || words2.size === 0) return 0;
+  
+  let intersection = 0;
+  words1.forEach(word => {
+    if (words2.has(word)) intersection++;
+  });
+  
+  const union = words1.size + words2.size - intersection;
+  return intersection / union;
 }
