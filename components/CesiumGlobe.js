@@ -92,7 +92,8 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
     try {
       const map = L.map(leafletContainerRef.current, {
         zoomControl: false,
-        attributionControl: false
+        attributionControl: false,
+        scrollWheelZoom: true
       }).setView([20.0, 12.0], 2);
 
       leafletMapRef.current = map;
@@ -208,6 +209,14 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
 
       // Initialize clean premium satellite globe
       viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
+
+      // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
+      if (viewer.scene.screenSpaceCameraController) {
+        viewer.scene.screenSpaceCameraController.zoomEventTypes = [
+          Cesium.CameraEventType.RIGHT_DRAG,
+          Cesium.CameraEventType.PINCH
+        ];
+      }
 
       // Force verification & manual layer loading fallback to ensure we never get a blank blue globe
       if (viewer.imageryLayers.length === 0) {
@@ -449,6 +458,53 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
       console.error("Failed to swap Leaflet base map style:", e);
     }
   }, [mapError, mapStyle]);
+
+  // 8. Capture and normalize wheel zoom for perfect laptop trackpad and mouse scroll zoom!
+  useEffect(() => {
+    if (mapError || !viewerRef.current) return;
+    const viewer = viewerRef.current;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e) => {
+      // Prevent default page scroll/zoom so browser page doesn't bounce
+      e.preventDefault();
+
+      const camera = viewer.camera;
+      const scene = viewer.scene;
+      
+      // Get current height above the globe to scale zoom sensitivity beautifully
+      let height = 10000000.0;
+      try {
+        const cartographic = scene.globe.ellipsoid.cartesianToCartographic(camera.position);
+        if (cartographic) {
+          height = Math.max(100.0, cartographic.height);
+        }
+      } catch (err) {
+        // Fallback
+      }
+
+      // Amplify trackpad deltas so they feel natural and active, keeping standard mousewheel inputs clean!
+      let delta = e.deltaY;
+      if (Math.abs(delta) < 15) {
+        // High frequency trackpad scrolling (deltas typically between 0.5 and 5)
+        delta = delta * 18; 
+      }
+
+      // Zoom factor: scale based on current camera altitude
+      const zoomRate = height * 0.16;
+      // Normalizing standard mouse vs trackpad tickrate
+      const amount = (delta / 120.0) * zoomRate;
+
+      // Adjust camera positioning along its forward direction vector
+      camera.move(camera.direction, -amount);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [mapError]);
 
   const is2DActive = mapError;
 
