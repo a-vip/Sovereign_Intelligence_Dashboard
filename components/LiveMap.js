@@ -295,18 +295,26 @@ export default function LiveMap({
       }}>
         {/* Left: Shield Logo & Compact Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #00f0ff, #ec4899)',
-            borderRadius: '4px',
-            width: '20px',
-            height: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 8px rgba(0, 240, 255, 0.4)'
-          }}>
-            <Shield size={12} color="#fff" />
-          </div>
+          <img 
+            src="/icon.svg" 
+            alt="Sovereign Logo" 
+            style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '5px',
+              boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
+              transition: 'all 0.2s ease-in-out',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.boxShadow = '0 0 12px rgba(59, 130, 246, 0.8)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 0 8px rgba(59, 130, 246, 0.5)';
+            }}
+          />
           <div>
             <h1 style={{
               fontSize: isMobile ? '12px' : '14px',
