@@ -59,6 +59,49 @@ export default function EventDetailsWindow({ event, onClose }) {
   // Accordion state
   const [expandedSection, setExpandedSection] = useState('summary');
 
+  // Self-Healing Link Verification State
+  const [currentUrl, setCurrentUrl] = useState(event.url);
+  const [verificationStatus, setVerificationStatus] = useState('checking'); // 'checking', 'active', 'healed', 'broken'
+  const [verificationMessage, setVerificationMessage] = useState('Verifying source link integrity...');
+
+  useEffect(() => {
+    // Reset state on event change
+    setCurrentUrl(event.url);
+    setVerificationStatus(event.url ? 'checking' : 'broken');
+    setVerificationMessage(event.url ? 'Verifying source link integrity...' : 'No external source link provided.');
+
+    if (!event.url) return;
+
+    let active = true;
+    async function checkLink() {
+      try {
+        const res = await fetch(`/api/events/verify-link?id=${event.id}&url=${encodeURIComponent(event.url)}&title=${encodeURIComponent(event.title)}&source=${encodeURIComponent(event.source || '')}`);
+        const data = await res.json();
+        if (!active) return;
+
+        if (data.status === 'active') {
+          setVerificationStatus('active');
+          setVerificationMessage('Source link verified active and authentic.');
+        } else if (data.status === 'healed') {
+          setVerificationStatus('healed');
+          setCurrentUrl(data.url);
+          setVerificationMessage('Broken link healed! Verified alternative press wire found.');
+          event.url = data.url; // Locally correct the event url
+        } else {
+          setVerificationStatus('broken');
+          setVerificationMessage('Primary source link is dead (404/broken).');
+        }
+      } catch (e) {
+        if (!active) return;
+        setVerificationStatus('broken');
+        setVerificationMessage('Link verification protocol offline.');
+      }
+    }
+
+    checkLink();
+    return () => { active = false; };
+  }, [event]);
+
   const catColor = CAT_COLORS[event.category] || '#38bdf8';
   const sevColor = SEV_COLORS[event.severity] || '#38bdf8';
 
@@ -184,13 +227,73 @@ export default function EventDetailsWindow({ event, onClose }) {
           )}
         </div>
 
-        {/* Source Link */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-           <span style={{ color: '#64748b', fontSize: '0.7rem' }}>SOURCE:</span>
-           <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>{event.source || 'Verified Intelligence'}</span>
-           {event.url && (
-            <a href={event.url} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', marginLeft: 'auto' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        {/* Source Badges */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginBottom: '20px' }}>
+          <span style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '4px' }}>SOURCES:</span>
+          {(event.source || 'Verified Intelligence')
+            .split(/[\/\&]|\band\b/i)
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map((src, idx) => {
+              const lowerSrc = src.toLowerCase();
+              const lowerUrl = (currentUrl || '').toLowerCase();
+              const isMatch = lowerUrl.includes(lowerSrc.replace(/\s+/g, '')) || 
+                              (lowerSrc.includes('reuters') && lowerUrl.includes('reuters')) ||
+                              (lowerSrc.includes('bbc') && lowerUrl.includes('bbc')) ||
+                              (lowerSrc.includes('guardian') && lowerUrl.includes('theguardian')) ||
+                              (lowerSrc.includes('al jazeera') && lowerUrl.includes('aljazeera'));
+
+              return (
+                <span 
+                  key={idx} 
+                  style={{ 
+                    background: isMatch ? 'rgba(56, 189, 248, 0.12)' : 'rgba(30, 41, 59, 0.5)',
+                    color: isMatch ? '#38bdf8' : '#64748b', 
+                    border: isMatch ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(30, 41, 59, 0.8)',
+                    padding: '3px 8px', 
+                    borderRadius: '4px', 
+                    fontSize: '0.65rem', 
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    boxShadow: isMatch ? '0 0 10px rgba(56, 189, 248, 0.1)' : 'none'
+                  }}
+                >
+                  {src}
+                  {isMatch && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#38bdf8' }} />}
+                </span>
+              );
+            })}
+          {currentUrl && (
+            <a 
+              href={currentUrl} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              style={{ 
+                color: '#38bdf8', 
+                marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '4px',
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.15)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.15)';
+              }}
+              title="Audit Active Press Link"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             </a>
           )}
         </div>
@@ -257,8 +360,18 @@ export default function EventDetailsWindow({ event, onClose }) {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
                   <span style={{ color: '#64748b' }}>VERIFICATION NODE:</span>
-                  <span style={{ color: event.url ? '#22c55e' : '#eab308', fontWeight: 700, fontFamily: 'monospace' }}>
-                    {event.url ? '✓ SRC_VERIFIED' : '⚠ SRC_PENDING'}
+                  <span style={{ 
+                    color: verificationStatus === 'active' ? '#22c55e' : verificationStatus === 'healed' ? '#00f0ff' : verificationStatus === 'checking' ? '#38bdf8' : '#ef4444', 
+                    fontWeight: 700, 
+                    fontFamily: 'monospace',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {verificationStatus === 'checking' && '🔍 SRC_CHECKING...'}
+                    {verificationStatus === 'active' && '✓ SRC_VERIFIED'}
+                    {verificationStatus === 'healed' && '⚡ SRC_HEALED'}
+                    {verificationStatus === 'broken' && '⚠ SRC_BROKEN'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
@@ -267,15 +380,37 @@ export default function EventDetailsWindow({ event, onClose }) {
                     FC-{event.id?.substring(0, 6).toUpperCase()}
                   </span>
                 </div>
+                
+                {/* Real-time Diagnostics log */}
+                <div style={{ 
+                  marginTop: '4px',
+                  paddingTop: '6px', 
+                  borderTop: '1px solid rgba(56, 189, 248, 0.08)',
+                  fontSize: '9px', 
+                  color: '#64748b', 
+                  fontStyle: 'italic', 
+                  display: 'flex', 
+                  gap: '6px', 
+                  alignItems: 'center' 
+                }}>
+                  <span style={{ 
+                    width: '6px', 
+                    height: '6px', 
+                    borderRadius: '50%', 
+                    background: verificationStatus === 'active' ? '#22c55e' : verificationStatus === 'healed' ? '#00f0ff' : verificationStatus === 'checking' ? '#38bdf8' : '#ef4444',
+                    display: 'inline-block'
+                  }} />
+                  {verificationMessage}
+                </div>
               </div>
               
               <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
                 <strong>Fact-Check Summary:</strong> This signal is logged persistently inside our Neon database. Sourced from trusted press wires, cross-referenced using fuzzy geocoding specificity algorithms, and cataloged by the Sovereign AI background ingestion protocol.
               </div>
               
-              {event.url ? (
+              {currentUrl ? (
                 <a 
-                  href={event.url} 
+                  href={currentUrl} 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   style={{ 
@@ -284,23 +419,28 @@ export default function EventDetailsWindow({ event, onClose }) {
                     justifyContent: 'center', 
                     gap: '8px', 
                     padding: '8px', 
-                    background: 'rgba(56, 189, 248, 0.1)', 
-                    color: '#38bdf8', 
-                    border: '1px solid rgba(56, 189, 248, 0.3)', 
+                    background: verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)', 
+                    color: verificationStatus === 'healed' ? '#00f0ff' : '#38bdf8', 
+                    border: verificationStatus === 'healed' ? '1px solid rgba(0, 240, 255, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)', 
                     borderRadius: '4px', 
                     fontSize: '11px', 
                     fontWeight: 700, 
                     textDecoration: 'none',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    boxShadow: verificationStatus === 'healed' ? '0 0 12px rgba(0, 240, 255, 0.15)' : 'none'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)'; }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.2)' : 'rgba(56, 189, 248, 0.2)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)'; 
+                  }}
                 >
-                  🌐 AUDIT ORIGINAL PRESS WIRE
+                  {verificationStatus === 'healed' ? '⚡ AUDIT HEALED PRESS WIRE' : '🌐 AUDIT ORIGINAL PRESS WIRE'}
                 </a>
               ) : (
                 <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 600 }}>
-                  ⚠ LINK UNVERIFIED
+                  ⚠ LINK UNVERIFIED (BROKEN)
                 </div>
               )}
             </div>
