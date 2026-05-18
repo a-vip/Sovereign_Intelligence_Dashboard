@@ -381,18 +381,18 @@ export default function LiveMap({
         </div>
 
         {/* Right Section: Compact Status indicators & Access Control */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
           {/* Pulsing Signal Count (MTS style) */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: isMobile ? '4px' : '6px',
             background: 'rgba(16, 185, 129, 0.08)',
             border: '1px solid rgba(16, 185, 129, 0.2)',
             borderRadius: '4px',
-            padding: '4px 8px',
+            padding: isMobile ? '3px 6px' : '4px 8px',
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '10px',
+            fontSize: isMobile ? '9px' : '10px',
             color: '#10b981',
             fontWeight: 'bold'
           }}>
@@ -442,19 +442,19 @@ export default function LiveMap({
                   background: 'rgba(245, 158, 11, 0.08)',
                   border: '1px solid rgba(245, 158, 11, 0.3)',
                   color: '#f59e0b',
-                  borderRadius: '6px',
-                  padding: '3px 8px',
-                  fontSize: '9px',
+                  borderRadius: '4px',
+                  padding: isMobile ? '3px 6px' : '4px 8px',
+                  fontSize: isMobile ? '9px' : '10px',
                   fontWeight: 'bold',
-                  fontFamily: 'monospace',
+                  fontFamily: 'JetBrains Mono, monospace',
                   cursor: 'pointer',
                   letterSpacing: '0.5px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: isMobile ? '4px' : '6px',
                   transition: 'all 0.2s',
                   boxShadow: '0 0 10px rgba(245, 158, 11, 0.05)',
-                  height: '22px'
+                  outline: 'none'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
