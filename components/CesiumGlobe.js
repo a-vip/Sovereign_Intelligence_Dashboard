@@ -46,6 +46,17 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
   const [showLegend, setShowLegend] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 900);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const leafletContainerRef = useRef(null);
   const leafletMapRef = useRef(null);
@@ -817,7 +828,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           </div>
 
           {/* Tactical Controls Legend Overlay (Bottom Left) */}
-          {showLegend && (
+          {showLegend && !isMobile && (
             <div style={{
               position: 'absolute',
               bottom: '48px',
