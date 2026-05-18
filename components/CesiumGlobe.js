@@ -898,9 +898,17 @@ export default function CesiumGlobe({
       const points = [];
       const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
       
-      const nowMin = Date.now() / 1000 / 60;
-      const EarthRotationSpeed = 360 / 1440;
-      const earthRotationDrift = (nowMin * EarthRotationSpeed) % 360;
+      // Exact RAAN alignment math to lock the satellite perfectly centered on its orbit path!
+      const satLatRad = (selectedSatellite.latitude * Math.PI) / 180;
+      const sinThetaSat = Math.sin(satLatRad) / Math.sin(inclinationRad || 0.001);
+      const clampedSinTheta = Math.max(-1.0, Math.min(1.0, sinThetaSat));
+      const thetaSat = Math.asin(clampedSinTheta);
+      
+      const yPrimeSat = Math.cos(inclinationRad) * Math.sin(thetaSat);
+      const xPrimeSat = Math.cos(thetaSat);
+      const lonOrbitSat = Math.atan2(yPrimeSat, xPrimeSat);
+      
+      const RAAN_effective = selectedSatellite.longitude - (lonOrbitSat * 180) / Math.PI;
 
       for (let i = 0; i <= 360; i += 2) {
         const theta = (i * Math.PI) / 180;
@@ -913,7 +921,7 @@ export default function CesiumGlobe({
         const xPrime = Math.cos(theta);
         let lonOrbit = Math.atan2(yPrime, xPrime);
         
-        let longitude = (lonOrbit * 180) / Math.PI + (selectedSatellite.raan || 45.0) - earthRotationDrift;
+        let longitude = (lonOrbit * 180) / Math.PI + RAAN_effective;
         longitude = ((longitude + 180) % 360) - 180;
         if (longitude < -180) longitude += 360;
 
@@ -951,16 +959,15 @@ export default function CesiumGlobe({
         if (points[idx]) futurePoints.push(points[idx]);
       }
 
-      // 1. Projected Orbit Path (Neon Cyan Glow - Future direction)
+      // 1. Projected Orbit Path (Neon Cyan Glowing Arrow - Future direction)
       viewer.entities.add({
         id: 'sat-orbit-predicted',
         polyline: {
           positions: futurePoints,
-          width: 3.0,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.25,
-            color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.85)
-          }),
+          width: 5.0, // Thicker to highlight the direction arrow clearly
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.85)
+          ),
           arcType: Cesium.ArcType.NONE
         }
       });
