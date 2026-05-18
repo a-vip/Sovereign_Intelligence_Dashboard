@@ -312,7 +312,7 @@ export default function LiveMap({
               boxShadow: '0 0 6px #10b981',
               animation: 'pulse 2s infinite'
             }} />
-            <span>• {displayedMarkers.length}</span>
+            <span>• LIVE</span>
           </div>
 
           {/* Compact Refresh Avatar */}

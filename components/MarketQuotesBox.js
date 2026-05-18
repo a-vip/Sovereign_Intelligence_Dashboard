@@ -20,10 +20,21 @@ export default function MarketQuotesBox({ onClose }) {
   const [lastUpdated, setLastUpdated] = useState('just now');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Position state for dragging (default centered above live feed panel)
-  const [pos, setPos] = useState({ x: 300, y: 70 });
+  // Position state for dragging (default centered horizontally on mobile, positioned elegantly on desktop)
+  const [pos, setPos] = useState({ x: 340, y: 80 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
+
+  // Center horizontally on mobile viewports on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const mobile = window.innerWidth < 900;
+      if (mobile) {
+        const startX = Math.max(10, (window.innerWidth - 280) / 2);
+        setPos({ x: startX, y: 70 });
+      }
+    }
+  }, []);
 
   const handleDragStart = (e) => {
     if (e.button !== 0) return; // Left click only
@@ -36,12 +47,27 @@ export default function MarketQuotesBox({ onClose }) {
     };
   };
 
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setDragging(true);
+    dragRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startPosX: pos.x,
+      startPosY: pos.y,
+    };
+  };
+
   useEffect(() => {
     const handleDrag = (e) => {
       if (!dragging) return;
+      const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+      
       setPos({
-        x: dragRef.current.startPosX + (e.clientX - dragRef.current.startX),
-        y: dragRef.current.startPosY + (e.clientY - dragRef.current.startY),
+        x: dragRef.current.startPosX + (clientX - dragRef.current.startX),
+        y: dragRef.current.startPosY + (clientY - dragRef.current.startY),
       });
     };
 
@@ -50,10 +76,14 @@ export default function MarketQuotesBox({ onClose }) {
     if (dragging) {
       window.addEventListener('mousemove', handleDrag);
       window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDrag, { passive: false });
+      window.addEventListener('touchend', handleDragEnd);
     }
     return () => {
       window.removeEventListener('mousemove', handleDrag);
       window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleDrag);
+      window.removeEventListener('touchend', handleDragEnd);
     };
   }, [dragging]);
 
@@ -132,6 +162,7 @@ export default function MarketQuotesBox({ onClose }) {
       {/* Header */}
       <div
         onMouseDown={handleDragStart}
+        onTouchStart={handleTouchStart}
         style={{
           display: 'flex',
           alignItems: 'center',
