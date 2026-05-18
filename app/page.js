@@ -84,10 +84,10 @@ export default function DashboardPage() {
         <div className="loading-globe-container" style={{ minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <AsciiGlobe />
         </div>
-        <div className="loading-text" style={{ textTransform: 'uppercase', letterSpacing: '2px', color: '#10b981', textShadow: '0 0 10px rgba(16, 185, 129, 0.4)' }}>
+        <div className="loading-text" style={{ textTransform: 'uppercase', letterSpacing: '2px', color: '#00f0ff', textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}>
           Initializing Sovereign Intelligence
         </div>
-        <div className="loading-sub" style={{ fontFamily: 'Courier New, monospace', color: 'rgba(16, 185, 129, 0.6)' }}>
+        <div className="loading-sub" style={{ fontFamily: 'Courier New, monospace', color: 'rgba(0, 240, 255, 0.6)' }}>
           [ SIGNAL LOCK ACQUIRED // PARSING VAULT DATA STREAMS ]
         </div>
       </div>
