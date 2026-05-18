@@ -216,6 +216,20 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
           Cesium.CameraEventType.RIGHT_DRAG,
           Cesium.CameraEventType.PINCH
         ];
+
+        // Add Shift + Drag and Ctrl + Drag as intuitive 3D rotation and tilt controls on laptops!
+        viewer.scene.screenSpaceCameraController.tiltEventTypes = [
+          Cesium.CameraEventType.MIDDLE_DRAG,
+          Cesium.CameraEventType.PINCH,
+          {
+            eventType: Cesium.CameraEventType.LEFT_DRAG,
+            modifier: Cesium.KeyboardEventModifier.CTRL
+          },
+          {
+            eventType: Cesium.CameraEventType.LEFT_DRAG,
+            modifier: Cesium.KeyboardEventModifier.SHIFT
+          }
+        ];
       }
 
       // Force verification & manual layer loading fallback to ensure we never get a blank blue globe
@@ -472,6 +486,7 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
 
       const camera = viewer.camera;
       const scene = viewer.scene;
+      const Cesium = window.Cesium;
       
       // Get current height above the globe to scale zoom sensitivity beautifully
       let height = 10000000.0;
@@ -491,9 +506,33 @@ export default function CesiumGlobe({ displayedMarkers = [], onPointClick = null
         delta = delta * 18; 
       }
 
-      // Zoom factor: scale based on current camera altitude
+      // 1. TILT/ANGLE ACTION: If Ctrl or Shift is held down while scrolling
+      if (e.ctrlKey || e.shiftKey || e.altKey) {
+        const tiltAngle = (delta / 120.0) * 0.08; // 0.08 radians (about 4.5 degrees) per scroll tick
+
+        try {
+          // Get ground intersection point in the center of the viewport
+          const windowPosition = new Cesium.Cartesian2(container.clientWidth / 2, container.clientHeight / 2);
+          const ray = camera.getPickRay(windowPosition);
+          const target = scene.globe.pick(ray, scene);
+
+          if (Cesium.defined(target)) {
+            // Smoothly rotate the camera around the ground center point
+            const right = camera.right;
+            camera.lookAtTransform(Cesium.Matrix4.fromTranslation(target));
+            camera.rotate(right, tiltAngle);
+            camera.lookAtTransform(Cesium.Matrix4.IDENTITY); // Restore reference frame
+          } else {
+            camera.lookUp(tiltAngle); // Safe fallback
+          }
+        } catch (err) {
+          camera.lookUp(tiltAngle);
+        }
+        return;
+      }
+
+      // 2. ZOOM ACTION: Normal scroll zoom
       const zoomRate = height * 0.16;
-      // Normalizing standard mouse vs trackpad tickrate
       const amount = (delta / 120.0) * zoomRate;
 
       // Adjust camera positioning along its forward direction vector
