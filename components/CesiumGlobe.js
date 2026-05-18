@@ -30,6 +30,7 @@ export default function CesiumGlobe({
   showSatellites = false,
   satellites = [],
   selectedSatellite = null,
+  isTracked = false,
   onSatelliteClick = null
 }) {
   const containerRef = useRef(null);
@@ -892,7 +893,7 @@ export default function CesiumGlobe({
       });
     }
 
-    // Render clicked Satellite flight path orbit ring!
+    // Render clicked Satellite flight path orbit ring, scanning laser beam & ground footprint footprint!
     if (showSatellites && selectedSatellite) {
       const points = [];
       const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
@@ -919,20 +920,131 @@ export default function CesiumGlobe({
         points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, selectedSatellite.altitude * 1000));
       }
 
+      // Find the index of the orbit point closest to the satellite's current coordinates to establish motion direction
+      let closestIdx = 0;
+      let minDistance = Infinity;
+      const satPos = Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, selectedSatellite.altitude * 1000);
+      
+      points.forEach((pt, idx) => {
+        const dist = Cesium.Cartesian3.distance(pt, satPos);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIdx = idx;
+        }
+      });
+
+      // Split into History Trail (180 degrees behind) and Projected Path (180 degrees ahead)
+      const historyPoints = [];
+      const futurePoints = [];
+
+      for (let offset = -180; offset <= 0; offset += 2) {
+        let idx = closestIdx + Math.round(offset / 2);
+        if (idx < 0) idx += points.length;
+        if (idx >= points.length) idx -= points.length;
+        if (points[idx]) historyPoints.push(points[idx]);
+      }
+
+      for (let offset = 0; offset <= 180; offset += 2) {
+        let idx = closestIdx + Math.round(offset / 2);
+        if (idx < 0) idx += points.length;
+        if (idx >= points.length) idx -= points.length;
+        if (points[idx]) futurePoints.push(points[idx]);
+      }
+
+      // 1. Projected Orbit Path (Neon Cyan Glow - Future direction)
       viewer.entities.add({
-        id: 'sat-orbit-ring',
+        id: 'sat-orbit-predicted',
         polyline: {
-          positions: points,
-          width: 2.0,
+          positions: futurePoints,
+          width: 3.0,
           material: new Cesium.PolylineGlowMaterialProperty({
             glowPower: 0.25,
-            color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.65)
+            color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.85)
           }),
           arcType: Cesium.ArcType.NONE
         }
       });
+
+      // 2. History Orbit Trail (Neon Purple Glow - Past path)
+      viewer.entities.add({
+        id: 'sat-orbit-history',
+        polyline: {
+          positions: historyPoints,
+          width: 1.5,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.15,
+            color: Cesium.Color.fromCssColorString('#a855f7').withAlpha(0.4)
+          }),
+          arcType: Cesium.ArcType.NONE
+        }
+      });
+
+      // 3. Vertical Tactical Nadir Scan Beam (Laser connecting satellite to ground point)
+      viewer.entities.add({
+        id: 'sat-nadir-beam',
+        polyline: {
+          positions: [
+            Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, selectedSatellite.altitude * 1000),
+            Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, 0)
+          ],
+          width: 2.0,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.35,
+            color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.6)
+          })
+        }
+      });
+
+      // 4. Ground-Conforming Expanding Footprint Radar Footprint (pulsing loop)
+      let scanningRadius = 300000.0;
+      viewer.entities.add({
+        id: 'sat-nadir-footprint',
+        position: Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, 0),
+        ellipse: {
+          semiMajorAxis: new Cesium.CallbackProperty(() => {
+            scanningRadius += 4000.0;
+            if (scanningRadius > 600000.0) scanningRadius = 300000.0;
+            return scanningRadius;
+          }, false),
+          semiMinorAxis: new Cesium.CallbackProperty(() => {
+            return scanningRadius;
+          }, false),
+          material: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.08),
+          outline: true,
+          outlineColor: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.55),
+          outlineWidth: 1.5,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+        }
+      });
+
+      // 5. Dynamic Camera Locked Tracking (Close-up dynamic orbit tracking)
+      if (isTracked) {
+        const satEntity = viewer.entities.getById(`sat-${selectedSatellite.code}`);
+        if (satEntity) {
+          const currentTracked = viewer.trackedEntity;
+          viewer.trackedEntity = satEntity;
+          
+          // Smooth zoom to tracking view if we just locked on!
+          if (currentTracked !== satEntity) {
+            viewer.zoomTo(satEntity, new Cesium.HeadingPitchRange(
+              Cesium.Math.toRadians(0),
+              Cesium.Math.toRadians(-28),
+              1000000.0 // 1,000 km close-up offset distance
+            ));
+          }
+        }
+      } else {
+        if (viewer.trackedEntity) {
+          viewer.trackedEntity = undefined;
+        }
+      }
+    } else {
+      // Release camera tracking if no satellite is selected
+      if (viewerRef.current && viewerRef.current.trackedEntity) {
+        viewerRef.current.trackedEntity = undefined;
+      }
     }
-  }, [repelledMarkers, mapError, scriptsLoaded, showSatellites, satellites, selectedSatellite]);
+  }, [repelledMarkers, mapError, scriptsLoaded, showSatellites, satellites, selectedSatellite, isTracked]);
 
   // 6. Handle Base Map Style changes dynamically in real time (Satellite vs Tactical Dark)
   useEffect(() => {

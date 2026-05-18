@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { Shield, RefreshCw, User, LogOut, Heart } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
+import SatelliteDetailWindow from './SatelliteDetailWindow';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
@@ -133,6 +134,7 @@ export default function LiveMap({
   const [showSatellites, setShowSatellites] = useState(true);
   const [satellites, setSatellites] = useState([]);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
+  const [isTracked, setIsTracked] = useState(false);
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -1273,8 +1275,10 @@ export default function LiveMap({
           showSatellites={showSatellites}
           satellites={satellites}
           selectedSatellite={selectedSatellite}
+          isTracked={isTracked}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
+            setIsTracked(false); // Reset tracking when selecting a new satellite
             setAutoRotate(false);
           }}
         />
@@ -1843,103 +1847,15 @@ export default function LiveMap({
 
       {/* Dynamic Satellite Telemetry Sci-Fi Console */}
       {showSatellites && selectedSatellite && (
-        <div style={{
-          position: 'absolute',
-          bottom: isMobile ? '120px' : '30px',
-          right: isMobile ? '20px' : '300px',
-          width: '280px',
-          background: 'rgba(11, 17, 32, 0.88)',
-          border: '1px solid #00f0ff',
-          borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(0, 240, 255, 0.2), inset 0 0 12px rgba(0, 240, 255, 0.1)',
-          backdropFilter: 'blur(10px)',
-          padding: '16px',
-          zIndex: 1000,
-          fontFamily: 'Courier New, monospace',
-          color: '#ffffff',
-          animation: 'fadeIn 0.3s ease-out'
-        }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 240, 255, 0.3)', paddingBottom: '8px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ animation: 'pulse 1.5s infinite', width: '6px', height: '6px', background: '#00f0ff', borderRadius: '50%' }} />
-              <strong style={{ color: '#00f0ff', fontSize: '11px', letterSpacing: '0.1em' }}>TELEMETRY ONLINE</strong>
-            </div>
-            <button 
-              onClick={() => setSelectedSatellite(null)} 
-              style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.5)', cursor: 'pointer', fontSize: '14px', outline: 'none' }}
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Sci-Fi Radar SVG outline / wireframe graphic */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', position: 'relative' }}>
-            <svg width="80" height="80" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(0, 240, 255, 0.15)" strokeWidth="1" />
-              <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(0, 240, 255, 0.25)" strokeWidth="1" strokeDasharray="3, 3" />
-              <circle cx="50" cy="50" r="15" fill="none" stroke="rgba(0, 240, 255, 0.35)" strokeWidth="1" />
-              <line x1="5" y1="50" x2="95" y2="50" stroke="rgba(0, 240, 255, 0.2)" strokeWidth="0.5" />
-              <line x1="50" y1="5" x2="50" y2="95" stroke="rgba(0, 240, 255, 0.2)" strokeWidth="0.5" />
-              <line x1="50" y1="50" x2="50" y2="5" stroke="#00f0ff" strokeWidth="1.5">
-                <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="4s" repeatCount="indefinite" />
-              </line>
-              <circle cx="50" cy="18" r="3" fill="#00f0ff">
-                <animate attributeName="opacity" values="0.2; 1; 0.2" dur="1s" repeatCount="indefinite" />
-              </circle>
-            </svg>
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '9px', color: 'rgba(0, 240, 255, 0.5)' }}>
-              {selectedSatellite.code}
-            </div>
-          </div>
-
-          {/* Stats Readout Grid */}
-          <div style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>NAME:</span>
-              <span style={{ color: '#00f0ff', fontWeight: 'bold' }}>{selectedSatellite.name}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>NORAD CATALOG:</span>
-              <span>#{selectedSatellite.code}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LIVE ALTITUDE:</span>
-              <span style={{ color: '#facc15' }}>{selectedSatellite.altitude} km</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>ORBIT VELOCITY:</span>
-              <span style={{ color: '#22c55e' }}>{selectedSatellite.velocity} km/s</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LATITUDE:</span>
-              <span>{parseFloat(selectedSatellite.latitude).toFixed(4)}°</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LONGITUDE:</span>
-              <span>{parseFloat(selectedSatellite.longitude).toFixed(4)}°</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>INCLINATION:</span>
-              <span>{selectedSatellite.inclination}°</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>ORBIT PERIOD:</span>
-              <span>{selectedSatellite.period} mins</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '3px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>OPERATOR/ORIGIN:</span>
-              <span>{selectedSatellite.country}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>LAUNCH DATE:</span>
-              <span>{selectedSatellite.launchDate}</span>
-            </div>
-          </div>
-          <div style={{ borderTop: '1px solid rgba(0, 240, 255, 0.2)', marginTop: '12px', paddingTop: '8px', fontSize: '8.5px', color: 'rgba(0, 240, 255, 0.5)', textAlign: 'center', letterSpacing: '0.05em' }}>
-            {selectedSatellite.desc || 'ACTIVE SPACE OBSERVATION VEHICLE'}
-          </div>
-        </div>
+        <SatelliteDetailWindow
+          satellite={selectedSatellite}
+          onClose={() => {
+            setSelectedSatellite(null);
+            setIsTracked(false);
+          }}
+          isTracked={isTracked}
+          onTrackToggle={() => setIsTracked(!isTracked)}
+        />
       )}
     </div>
   </div>
