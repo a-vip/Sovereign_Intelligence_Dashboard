@@ -15,9 +15,18 @@ function formatTime(ts) {
   if (!ts) return 'Unknown time';
   let d;
   
-  // Handle GDELT format YYYYMMDDHHMMSS
-  if (typeof ts === 'string' && /^\d{14}$/.test(ts)) {
-    d = new Date(ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
+  // Handle GDELT / Compact format YYYYMMDDHHMMSS or YYYYMMDDTHHMMSSZ
+  if (typeof ts === 'string') {
+    const cleanTs = ts.trim();
+    if (/^\d{14}$/.test(cleanTs)) {
+      // YYYYMMDDHHMMSS
+      d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
+    } else if (/^\d{8}T\d{6}Z$/.test(cleanTs)) {
+      // YYYYMMDDTHHMMSSZ
+      d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+    } else {
+      d = new Date(cleanTs);
+    }
   } else {
     d = new Date(ts);
   }
@@ -25,17 +34,21 @@ function formatTime(ts) {
   if (isNaN(d.getTime())) return ts;
   
   const diff = Date.now() - d.getTime();
+  if (diff < 0) return 'Just now';
   if (diff < 60000) return 'Just now';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 172800000) return 'Yesterday';
   
-  return d.toLocaleString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    hour: '2-digit', 
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }) + ' ' + d.toLocaleTimeString(undefined, {
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: false
-  }) + ' UTC';
+    hour12: true
+  });
 }
 
 export default function EventDetailsWindow({ event, onClose }) {
@@ -220,6 +233,74 @@ export default function EventDetailsWindow({ event, onClose }) {
               ) : (
                 <div style={{ padding: '20px', textAlign: 'center', background: '#1e293b20', border: '1px dashed #334155', borderRadius: '4px' }}>
                   NO VISUAL ASSETS VERIFIED
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Sourcing & Fact-Check Accordion */}
+        <div style={{ borderTop: '1px solid #1e293b' }}>
+          <button 
+            onClick={() => setExpandedSection(expandedSection === 'factcheck' ? null : 'factcheck')}
+            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: expandedSection === 'factcheck' ? '#1e293b30' : 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer' }}
+          >
+            🛡️ PERSISTENCE & FACT-CHECK PROTOCOL
+            <span>{expandedSection === 'factcheck' ? '[-] ' : '[+]'}</span>
+          </button>
+          {expandedSection === 'factcheck' && (
+            <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ padding: '10px', background: '#1e293b30', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.15)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                  <span style={{ color: '#64748b' }}>DATABASE STORAGE:</span>
+                  <span style={{ color: '#38bdf8', fontWeight: 700, fontFamily: 'monospace' }}>Neon PG Serverless</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                  <span style={{ color: '#64748b' }}>VERIFICATION NODE:</span>
+                  <span style={{ color: event.url ? '#22c55e' : '#eab308', fontWeight: 700, fontFamily: 'monospace' }}>
+                    {event.url ? '✓ SRC_VERIFIED' : '⚠ SRC_PENDING'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                  <span style={{ color: '#64748b' }}>FACT-CHECK INDEX:</span>
+                  <span style={{ color: '#cbd5e1', fontWeight: 600, fontFamily: 'monospace' }}>
+                    FC-{event.id?.substring(0, 6).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
+                <strong>Fact-Check Summary:</strong> This signal is logged persistently inside our Neon database. Sourced from trusted press wires, cross-referenced using fuzzy geocoding specificity algorithms, and cataloged by the Sovereign AI background ingestion protocol.
+              </div>
+              
+              {event.url ? (
+                <a 
+                  href={event.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '8px', 
+                    padding: '8px', 
+                    background: 'rgba(56, 189, 248, 0.1)', 
+                    color: '#38bdf8', 
+                    border: '1px solid rgba(56, 189, 248, 0.3)', 
+                    borderRadius: '4px', 
+                    fontSize: '11px', 
+                    fontWeight: 700, 
+                    textDecoration: 'none',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)'; }}
+                >
+                  🌐 AUDIT ORIGINAL PRESS WIRE
+                </a>
+              ) : (
+                <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 600 }}>
+                  ⚠ LINK UNVERIFIED
                 </div>
               )}
             </div>

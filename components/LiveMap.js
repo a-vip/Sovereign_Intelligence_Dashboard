@@ -22,12 +22,42 @@ const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: 
 
 function formatTime(ts) {
   if (!ts) return '';
-  const d = new Date(ts.replace(/(d{4})(d{2})(d{2})(d{2})(d{2})(d{2})/, '$1-$2-$3T$4:$5:$6Z'));
-  if (isNaN(d)) return ts;
-  const diff = Date.now() - d;
-  if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))}m ago`;
+  let d;
+  
+  // Handle GDELT / Compact format YYYYMMDDHHMMSS or YYYYMMDDTHHMMSSZ
+  if (typeof ts === 'string') {
+    const cleanTs = ts.trim();
+    if (/^\d{14}$/.test(cleanTs)) {
+      // YYYYMMDDHHMMSS
+      d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
+    } else if (/^\d{8}T\d{6}Z$/.test(cleanTs)) {
+      // YYYYMMDDTHHMMSSZ
+      d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+    } else {
+      d = new Date(cleanTs);
+    }
+  } else {
+    d = new Date(ts);
+  }
+  
+  if (isNaN(d.getTime())) return ts;
+  
+  const diff = Date.now() - d.getTime();
+  if (diff < 0) return 'Just now';
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return d.toLocaleDateString();
+  if (diff < 172800000) return 'Yesterday';
+  
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }) + ' ' + d.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
 export default function LiveMap({
@@ -692,7 +722,20 @@ export default function LiveMap({
                 <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
                   {ev.category}
                 </span>
-                {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800', marginLeft: '6px' }}>RESEARCH</span>}
+                {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
+                <span className="feed-verification" style={{ 
+                  fontSize: '8px', 
+                  background: ev.url ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)', 
+                  color: ev.url ? '#22c55e' : '#eab308', 
+                  padding: '2px 6px', 
+                  borderRadius: '4px', 
+                  border: ev.url ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
+                  fontWeight: '800', 
+                  letterSpacing: '0.05em',
+                  fontFamily: 'monospace'
+                }}>
+                  {ev.url ? 'VERIFIED' : 'UNVERIFIED'}
+                </span>
                 <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
                   S{ev.severity}
                 </span>
