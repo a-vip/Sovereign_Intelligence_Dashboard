@@ -842,7 +842,7 @@ export default function LiveMap({
 
                 {/* Auto Rotate Toggle Option */}
                 <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>AUTOMATION</div>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>ROTATION</div>
                   <button
                     className={`sev-btn${autoRotate ? ' active' : ''}`}
                     style={{
