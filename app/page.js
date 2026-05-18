@@ -205,8 +205,6 @@ export default function DashboardPage() {
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => setShowSupportDropdown(!showSupportDropdown)}
-              onMouseEnter={() => setShowSupportDropdown(true)}
-              onMouseLeave={() => setShowSupportDropdown(false)}
               className="refresh-btn"
               style={{
                 background: 'rgba(236, 72, 153, 0.1)',
@@ -223,28 +221,58 @@ export default function DashboardPage() {
             
             {showSupportDropdown && (
               <div 
-                onMouseEnter={() => setShowSupportDropdown(true)}
-                onMouseLeave={() => setShowSupportDropdown(false)}
                 style={{
                   position: 'absolute',
                   top: 'calc(100% + 8px)',
                   right: 0,
-                  width: '180px',
-                  background: 'rgba(8, 12, 24, 0.95)',
-                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  width: '190px',
+                  background: 'rgba(8, 12, 24, 0.96)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
                   borderRadius: '8px',
-                  padding: '8px',
-                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(6, 182, 212, 0.1)',
+                  padding: '10px',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.15)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px',
+                  gap: '8px',
                   zIndex: 1000,
-                  backdropFilter: 'blur(10px)',
-                  animation: 'fadeIn 0.2s ease-out'
+                  backdropFilter: 'blur(12px)',
+                  animation: 'fadeIn 0.15s ease-out'
                 }}
               >
+                {/* Header with Close Button */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: '1px solid rgba(6, 182, 212, 0.2)',
+                  paddingBottom: '6px',
+                  marginBottom: '2px',
+                  width: '100%'
+                }}>
+                  <span style={{ fontSize: '9px', fontWeight: '800', color: '#06b6d4', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                    SUPPORT CREATOR
+                  </span>
+                  <span 
+                    onClick={() => setShowSupportDropdown(false)}
+                    style={{
+                      cursor: 'pointer',
+                      color: 'rgba(6, 182, 212, 0.6)',
+                      fontWeight: 'bold',
+                      fontSize: '14px',
+                      lineHeight: '1',
+                      padding: '0 4px',
+                      transition: 'color 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(6, 182, 212, 0.6)'}
+                    title="Close Support Menu"
+                  >
+                    ×
+                  </span>
+                </div>
+
                 <a 
-                  href="https://www.patreon.com" 
+                  href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="support-btn patreon"
@@ -276,7 +304,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '12px' }}>☕</span> Patreon
                 </a>
                 <a 
-                  href="https://www.buymeacoffee.com" 
+                  href="https://buymeacoffee.com/avip" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="support-btn coffee"
