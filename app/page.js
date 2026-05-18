@@ -87,7 +87,7 @@ export default function DashboardPage() {
   if (loading || !minLoaderFinished) {
     return (
       <div className="loading-screen">
-        <div className="loading-globe-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="loading-globe-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
           <AsciiGlobe />
         </div>
         <div className="loading-text">
