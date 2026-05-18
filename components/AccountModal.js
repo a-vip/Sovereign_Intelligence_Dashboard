@@ -1,74 +1,160 @@
 'use client';
-import { useState } from 'react';
-import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff } from 'lucide-react';
 
 export default function AccountModal({ onClose, currentUser, onAuthSuccess, handleLogout }) {
-  const [fullName, setFullName] = useState(currentUser?.fullName || '');
-  const [email, setEmail] = useState(currentUser?.email || '');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'security', 'system'
   
+  // Step-by-step wizard states
+  const [wizardType, setWizardType] = useState(''); // '', 'name', 'email', 'password'
+  const [wizardStep, setWizardStep] = useState(1); // 1: Verify Password, 2: Input Details / Set Password
+  const [authPassword, setAuthPassword] = useState('');
+  
+  // Input fields for wizards
+  const [newName, setNewName] = useState(currentUser?.fullName || '');
+  const [newEmail, setNewEmail] = useState(currentUser?.email || '');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Preference fields
+  const [mapStyle, setMapStyle] = useState('dark');
+  const [mapMode, setMapMode] = useState('2d');
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [tickerSpeed, setTickerSpeed] = useState('slow');
+  const [minSeverity, setMinSeverity] = useState(1);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Load preferences from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setMapStyle(localStorage.getItem('operator_pref_mapStyle') || 'dark');
+    setMapMode(localStorage.getItem('operator_pref_mapMode') || '2d');
+    setAutoRotate(localStorage.getItem('operator_pref_autoRotate') !== 'false');
+    setTickerSpeed(localStorage.getItem('operator_pref_tickerSpeed') || 'slow');
+    setMinSeverity(parseInt(localStorage.getItem('operator_pref_minSeverity') || '1'));
+  }, []);
+
+  const handlePreferenceChange = (key, value) => {
+    localStorage.setItem(`operator_pref_${key}`, value);
+    window.dispatchEvent(new Event('operator_pref_changed'));
+    
+    // Update local state
+    if (key === 'mapStyle') setMapStyle(value);
+    if (key === 'mapMode') setMapMode(value);
+    if (key === 'autoRotate') setAutoRotate(value);
+    if (key === 'tickerSpeed') setTickerSpeed(value);
+    if (key === 'minSeverity') setMinSeverity(value);
+  };
+
+  const startWizard = (type) => {
+    setWizardType(type);
+    setWizardStep(1);
+    setAuthPassword('');
+    setError(null);
+    setSuccess(false);
+    
+    // Pre-fill existing credentials
+    if (type === 'name') setNewName(currentUser?.fullName || '');
+    if (type === 'email') setNewEmail(currentUser?.email || '');
+    if (type === 'password') {
+      setNewPassword('');
+      setConfirmPassword('');
+    }
+  };
+
+  const handleVerifyPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(false);
-
-    if (newPassword && newPassword !== confirmNewPassword) {
-      setError('Password validation failed: new passwords do not match.');
-      setLoading(false);
-      return;
-    }
-
-    if (newPassword && newPassword.length < 6) {
-      setError('Password validation failed: new password must be at least 6 characters.');
-      setLoading(false);
-      return;
-    }
 
     try {
-      const res = await fetch('/api/auth/update', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: currentUser.id,
-          fullName,
-          email,
-          currentPassword,
-          newPassword: newPassword || undefined
+          email: currentUser.email,
+          password: authPassword
         })
       });
 
       const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.error || 'Account update failed');
+        throw new Error(data.error || 'Authentication check failed: invalid password.');
       }
 
-      setSuccess(true);
-      
-      // Delay closing modal slightly to show success animation
-      setTimeout(() => {
-        onAuthSuccess(data.user);
-        onClose();
-      }, 1500);
-
+      // Password verified successfully! Advance to configuration step.
+      setWizardStep(2);
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogoutAction = () => {
-    handleLogout();
-    onClose();
+  const handleCommitChange = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (wizardType === 'password') {
+      if (newPassword !== confirmPassword) {
+        setError('New passwords do not match.');
+        setLoading(false);
+        return;
+      }
+      if (newPassword.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const payload = {
+        userId: currentUser.id,
+        currentPassword: authPassword
+      };
+
+      if (wizardType === 'name') payload.fullName = newName;
+      if (wizardType === 'email') payload.email = newEmail;
+      if (wizardType === 'password') payload.newPassword = newPassword;
+
+      const res = await fetch('/api/auth/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save configuration details.');
+      }
+
+      setSuccess(true);
+      setSuccessMsg(
+        wizardType === 'name' ? 'Operator handle updated successfully' :
+        wizardType === 'email' ? 'Registered email address altered successfully' :
+        'Operator credentials rotated successfully'
+      );
+
+      // Save updated operator in parent session
+      onAuthSuccess(data.user);
+
+      // Close wizard after brief success display
+      setTimeout(() => {
+        setWizardType('');
+        setSuccess(false);
+      }, 1500);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,7 +169,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
       backdropFilter: 'blur(16px)',
       animation: 'fadeIn 0.3s ease-out',
     }}>
-      {/* Background Cyber-Grid Effect */}
+      {/* Background Grid */}
       <div style={{
         position: 'absolute',
         inset: 0,
@@ -92,392 +178,548 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
         pointerEvents: 'none'
       }} />
 
-      {/* Main Glassmorphic Panel */}
+      {/* Main Options Container */}
       <div style={{
         position: 'relative',
-        width: '100%',
-        maxWidth: '480px',
-        background: 'rgba(8, 12, 24, 0.9)',
+        width: 'calc(100% - 32px)',
+        maxWidth: '680px',
+        height: 'min(560px, 90vh)',
+        background: 'rgba(8, 12, 24, 0.95)',
         border: '1px solid rgba(6, 182, 212, 0.25)',
         borderRadius: '16px',
-        padding: '32px',
-        boxShadow: '0 0 40px rgba(6, 182, 212, 0.15), inset 0 0 20px rgba(6, 182, 212, 0.05)',
+        boxShadow: '0 0 45px rgba(6, 182, 212, 0.15)',
+        display: 'flex',
+        flexDirection: 'column',
         overflow: 'hidden',
         animation: 'slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
       }}>
-        {/* HUD Tactical Corners */}
-        <div style={{ position: 'absolute', top: 12, left: 12, width: 16, height: 16, borderTop: '2px solid #06b6d4', borderLeft: '2px solid #06b6d4', opacity: 0.6 }} />
-        <div style={{ position: 'absolute', top: 12, right: 12, width: 16, height: 16, borderTop: '2px solid #06b6d4', borderRight: '2px solid #06b6d4', opacity: 0.6 }} />
-        <div style={{ position: 'absolute', bottom: 12, left: 12, width: 16, height: 16, borderBottom: '2px solid #06b6d4', borderLeft: '2px solid #06b6d4', opacity: 0.6 }} />
-        <div style={{ position: 'absolute', bottom: 12, right: 12, width: 16, height: 16, borderBottom: '2px solid #06b6d4', borderRight: '2px solid #06b6d4', opacity: 0.6 }} />
+        {/* HUD Corners */}
+        <div style={{ position: 'absolute', top: 12, left: 12, width: 14, height: 14, borderTop: '2px solid #06b6d4', borderLeft: '2px solid #06b6d4', opacity: 0.5, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: 12, right: 12, width: 14, height: 14, borderTop: '2px solid #06b6d4', borderRight: '2px solid #06b6d4', opacity: 0.5, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: 12, left: 12, width: 14, height: 14, borderBottom: '2px solid #06b6d4', borderLeft: '2px solid #06b6d4', opacity: 0.5, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: 12, right: 12, width: 14, height: 14, borderBottom: '2px solid #06b6d4', borderRight: '2px solid #06b6d4', opacity: 0.5, pointerEvents: 'none' }} />
 
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: 20,
-            right: 20,
-            background: 'transparent',
-            border: 'none',
-            color: 'rgba(16, 185, 129, 0.6)',
-            cursor: 'pointer',
-            padding: 4,
-            borderRadius: '50%',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#10b981';
-            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(16, 185, 129, 0.6)';
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          <X size={18} />
-        </button>
-
-        {/* Header Icon */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'rgba(6, 182, 212, 0.1)',
-            border: '1px solid rgba(6, 182, 212, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#06b6d4',
-            boxShadow: '0 0 15px rgba(6, 182, 212, 0.1)',
-          }}>
-            <Shield size={32} />
-          </div>
-        </div>
-
-        {/* Title */}
-        <h2 style={{
-          textAlign: 'center',
-          color: '#ffffff',
-          fontSize: '20px',
-          fontWeight: 700,
-          letterSpacing: '1px',
-          textTransform: 'uppercase',
-          margin: '0 0 4px 0'
+        {/* Header Block */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 24px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'rgba(2, 6, 23, 0.4)'
         }}>
-          Operator Profile Setup
-        </h2>
-        <p style={{
-          textAlign: 'center',
-          color: '#8892a4',
-          fontSize: '11px',
-          margin: '0 0 20px 0',
-          fontFamily: 'Courier New, monospace'
-        }}>
-          [ ID: {currentUser?.id?.substring(0, 8)} • ROLE: {currentUser?.role?.toUpperCase()} ]
-        </p>
-
-        {/* Error Notification */}
-        {error && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            color: '#ef4444',
-            fontSize: '12px',
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            animation: 'shake 0.3s'
-          }}>
-            <ShieldAlert size={15} style={{ flexShrink: 0, marginTop: '1px' }} />
-            <span>{error}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Shield size={18} style={{ color: '#06b6d4' }} />
+            <div>
+              <h2 style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', letterSpacing: '1px', textTransform: 'uppercase', margin: 0 }}>
+                OPERATOR PROFILE & SETTINGS
+              </h2>
+              <span style={{ fontSize: '9px', fontFamily: 'monospace', color: '#8892a4' }}>
+                ID: {currentUser?.id?.substring(0, 8)} • SECURE CHANNEL ACTIVE
+              </span>
+            </div>
           </div>
-        )}
-
-        {/* Success State */}
-        {success ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '30px 0',
-            animation: 'fadeIn 0.3s'
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
+          <button 
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer',
+              padding: 4,
               borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid #10b981',
+              transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#10b981',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
-              marginBottom: '16px',
-              animation: 'scaleIn 0.3s'
-            }}>
-              <Check size={24} />
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.4)';
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Content Body Grid */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="settings-body">
+          {/* Navigation Sidebar */}
+          <div style={{
+            width: '180px',
+            borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+            background: 'rgba(2, 6, 23, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '16px 8px'
+          }} className="settings-sidebar">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <button
+                onClick={() => { setActiveTab('profile'); setWizardType(''); }}
+                style={{
+                  width: '100%',
+                  background: activeTab === 'profile' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                  border: activeTab === 'profile' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                  color: activeTab === 'profile' ? '#06b6d4' : '#8892a4',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <User size={13} />
+                PROFILE INFO
+              </button>
+              <button
+                onClick={() => { setActiveTab('security'); setWizardType(''); }}
+                style={{
+                  width: '100%',
+                  background: activeTab === 'security' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                  border: activeTab === 'security' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                  color: activeTab === 'security' ? '#06b6d4' : '#8892a4',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Key size={13} />
+                SECURITY
+              </button>
+              <button
+                onClick={() => { setActiveTab('system'); setWizardType(''); }}
+                style={{
+                  width: '100%',
+                  background: activeTab === 'system' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                  border: activeTab === 'system' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                  color: activeTab === 'system' ? '#06b6d4' : '#8892a4',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Settings size={13} />
+                SYSTEM PREFS
+              </button>
             </div>
-            <p style={{
-              color: '#10b981',
-              fontSize: '14px',
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-              margin: '0 0 8px 0',
-              textTransform: 'uppercase'
-            }}>
-              Credentials Verified & Updated
-            </p>
-            <p style={{
-              color: 'rgba(16, 185, 129, 0.6)',
-              fontSize: '11px',
-              fontFamily: 'Courier New, monospace',
-              margin: 0
-            }}>
-              [ SYNCING SECURE TELEMETRY TO DATABASE ]
-            </p>
+
+            {/* Logout trigger */}
+            <button
+              onClick={() => { handleLogout(); onClose(); }}
+              style={{
+                width: '100%',
+                background: 'rgba(239, 68, 68, 0.05)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                color: '#ef4444',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+            >
+              <LogOut size={13} />
+              LOGOUT
+            </button>
           </div>
-        ) : (
-          /* Form Block */
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* Main Option Panel */}
+          <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }} className="settings-content">
             
-            {/* Operator Name */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Full Name
-              </label>
-              <div style={{ position: 'relative' }}>
-                <User size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'rgba(2, 6, 23, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '8px 10px 8px 32px',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
-                />
-              </div>
-            </div>
-
-            {/* Email Address */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Email Address
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'rgba(2, 6, 23, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '8px 10px 8px 32px',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
-                />
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-
-            {/* Current Password (Identity verification - always required to commit any edits!) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', fontWeight: 600, color: '#ff6b35', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Current Password <span style={{ color: 'rgba(255,255,255,0.3)' }}>(Required to save changes)</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
-                <input
-                  type="password"
-                  placeholder="Enter current password to authorize"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'rgba(2, 6, 23, 0.6)',
-                    border: '1px solid rgba(255, 99, 71, 0.25)',
-                    borderRadius: '8px',
-                    padding: '8px 10px 8px 32px',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    outline: 'none',
-                    transition: 'all 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#ff6b35'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 99, 71, 0.25)'}
-                />
-              </div>
-            </div>
-
-            {/* New Password (Optional) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                New Password <span style={{ color: 'rgba(255,255,255,0.3)' }}>(Optional)</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
-                <input
-                  type="password"
-                  placeholder="Leave blank to keep current password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(2, 6, 23, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '8px 10px 8px 32px',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
-                />
-              </div>
-            </div>
-
-            {/* Confirm New Password (Optional) */}
-            {newPassword && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', animation: 'fadeIn 0.2s' }}>
-                <label style={{ fontSize: '10px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                  Confirm New Password
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
-                  <input
-                    type="password"
-                    placeholder="Verify new password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    required={!!newPassword}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(2, 6, 23, 0.6)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px',
-                      padding: '8px 10px 8px 32px',
-                      color: '#ffffff',
-                      fontSize: '12px',
-                      outline: 'none',
-                      transition: 'border-color 0.2s',
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
-                  />
+            {/* SUB-WIZARD DIALOG PANEL OVERLAY (DELIBERATE STEP-BY-STEP PROCESSOR) */}
+            {wizardType ? (
+              <div style={{ animation: 'fadeIn 0.25s' }}>
+                {/* Wizard Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <button 
+                    onClick={() => setWizardType('')}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#8892a4', borderRadius: '4px', padding: '3px 8px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    ← CANCEL PROTOCOL
+                  </button>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#06b6d4', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    // ROTATION PROTOCOL: {wizardType}
+                  </span>
                 </div>
+
+                {/* Progress Indicators */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
+                  <div style={{ flex: 1, height: '4px', background: '#06b6d4', borderRadius: '2px' }} />
+                  <div style={{ flex: 1, height: '4px', background: wizardStep >= 2 ? '#06b6d4' : 'rgba(255,255,255,0.1)', borderRadius: '2px', transition: 'background 0.3s' }} />
+                  <div style={{ flex: 1, height: '4px', background: success ? '#10b981' : 'rgba(255,255,255,0.1)', borderRadius: '2px', transition: 'background 0.3s' }} />
+                </div>
+
+                {/* Feedback Messages */}
+                {error && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '10px 12px', color: '#ef4444', fontSize: '11px', marginBottom: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <ShieldAlert size={14} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {success ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px' }}>
+                    <Check size={28} style={{ color: '#10b981', marginBottom: '8px' }} />
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981', letterSpacing: '0.5px' }}>{successMsg}</span>
+                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'rgba(16,185,129,0.6)', marginTop: '4px' }}>[ SYNC SUCCESSFUL ]</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* STEP 1: Verify Current Password */}
+                    {wizardStep === 1 && (
+                      <form onSubmit={handleVerifyPassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ border: '1px solid rgba(255,99,71,0.25)', background: 'rgba(255,99,71,0.02)', borderRadius: '8px', padding: '12px' }}>
+                          <h4 style={{ fontSize: '11px', fontWeight: 'bold', color: '#ff6b35', textTransform: 'uppercase', margin: '0 0 6px 0', letterSpacing: '0.5px' }}>
+                            🔒 Identity Verification Check Required
+                          </h4>
+                          <p style={{ fontSize: '10px', color: '#8892a4', margin: 0, lineHeight: '1.4' }}>
+                            You are about to modify sensitive credentials. To unlock config access, please input your current operator access code password.
+                          </p>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Current Password</label>
+                          <div style={{ position: 'relative' }}>
+                            <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                            <input
+                              type="password"
+                              placeholder="Enter password to authorize"
+                              value={authPassword}
+                              onChange={(e) => setAuthPassword(e.target.value)}
+                              required
+                              autoFocus
+                              style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          style={{ background: '#06b6d4', color: '#020617', border: 'none', borderRadius: '6px', padding: '10px 0', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        >
+                          {loading ? 'VERIFYING...' : 'AUTHORIZE PROTOCOL'}
+                          {!loading && <ChevronRight size={13} />}
+                        </button>
+                      </form>
+                    )}
+
+                    {/* STEP 2: Configure Details */}
+                    {wizardStep === 2 && (
+                      <form onSubmit={handleCommitChange} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        
+                        {/* 2A. Name configuration */}
+                        {wizardType === 'name' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Configure New Full Name</label>
+                            <div style={{ position: 'relative' }}>
+                              <User size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                              <input
+                                type="text"
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                required
+                                autoFocus
+                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2B. Email configuration */}
+                        {wizardType === 'email' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Configure New Email Address</label>
+                            <div style={{ position: 'relative' }}>
+                              <Mail size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                              <input
+                                type="email"
+                                value={newEmail}
+                                onChange={(e) => setNewEmail(e.target.value)}
+                                required
+                                autoFocus
+                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2C. Password configuration */}
+                        {wizardType === 'password' && (
+                          <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>New Password</label>
+                              <div style={{ position: 'relative' }}>
+                                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                                <input
+                                  type="password"
+                                  placeholder="Minimum 6 characters"
+                                  value={newPassword}
+                                  onChange={(e) => setNewPassword(e.target.value)}
+                                  required
+                                  autoFocus
+                                  style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                                />
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Verify New Password</label>
+                              <div style={{ position: 'relative' }}>
+                                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                                <input
+                                  type="password"
+                                  placeholder="Verify new access code"
+                                  value={confirmPassword}
+                                  onChange={(e) => setConfirmPassword(e.target.value)}
+                                  required
+                                  style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                                />
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          style={{ background: '#10b981', color: '#020617', border: 'none', borderRadius: '6px', padding: '10px 0', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', boxShadow: '0 0 10px rgba(16,185,129,0.15)' }}
+                        >
+                          {loading ? 'COMMITTING CHANGE...' : 'CONFIRM & SAVE'}
+                          {!loading && <ChevronRight size={13} />}
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
               </div>
+            ) : (
+              <>
+                {/* 1. Profile Settings Tab */}
+                {activeTab === 'profile' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                        Operator Information
+                      </h3>
+                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                        Configure secure handle and routing details below.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Name Card */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '2px' }}>OPERATOR HANDLE</div>
+                          <div style={{ fontSize: '13px', color: '#ffffff', fontWeight: 'bold' }}>{currentUser?.fullName}</div>
+                        </div>
+                        <button
+                          onClick={() => startWizard('name')}
+                          style={{ background: 'transparent', border: '1px solid #06b6d4', color: '#06b6d4', borderRadius: '6px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(6,182,212,0.1)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          EDIT HANDLE
+                        </button>
+                      </div>
+
+                      {/* Email Card */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '2px' }}>REGISTERED EMAIL</div>
+                          <div style={{ fontSize: '13px', color: '#ffffff', fontWeight: 'bold' }}>{currentUser?.email}</div>
+                        </div>
+                        <button
+                          onClick={() => startWizard('email')}
+                          style={{ background: 'transparent', border: '1px solid #06b6d4', color: '#06b6d4', borderRadius: '6px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(6,182,212,0.1)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          EDIT EMAIL
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Security Tab */}
+                {activeTab === 'security' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                        Credentials & Access Keys
+                      </h3>
+                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                        Safeguard access codes and verify channel integrity.
+                      </p>
+                    </div>
+
+                    <div style={{ background: 'rgba(6,182,212,0.02)', border: '1px solid rgba(6,182,212,0.12)', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', justifySelf: 'stretch', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#ffffff', marginBottom: '4px' }}>ACCESS PASSWORD</div>
+                        <div style={{ fontSize: '10px', color: '#8892a4', lineHeight: '1.4' }}>Rotate credentials regularly using secure, randomized codes.</div>
+                      </div>
+                      <button
+                        onClick={() => startWizard('password')}
+                        style={{ background: '#06b6d4', color: '#020617', border: 'none', borderRadius: '6px', padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 0 10px rgba(6,182,212,0.2)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#22d3ee'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#06b6d4'}
+                      >
+                        ROTATE ACCESS PASSWORD
+                      </button>
+                    </div>
+
+                    {/* Cyber Encryption Details Box */}
+                    <div style={{ margin: '8px 0', padding: '12px', background: 'rgba(2, 6, 23, 0.4)', border: '1px solid rgba(255, 255, 255, 0.03)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9px', color: '#10b981', fontFamily: 'Courier New, monospace' }}>
+                        <Check size={9} style={{ strokeWidth: 3 }} /> DATABASE ENCRYPT CHANNEL... COMPLETED
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9px', color: '#10b981', fontFamily: 'Courier New, monospace' }}>
+                        <Check size={9} style={{ strokeWidth: 3 }} /> CRYPTO SIGNATURE METHOD... PBKDF2-SHA512
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. System Preferences Tab (Our highly customized suggested features!) */}
+                {activeTab === 'system' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                        Tactical View Preferences
+                      </h3>
+                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                        Configure default behaviors to automatically trigger when the link loads.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="preferences-grid">
+                      {/* Map Style Option */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Default Base Map Style</div>
+                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Google Satellite vs CartoDB Dark Matter.</div>
+                        </div>
+                        <select
+                          value={mapStyle}
+                          onChange={(e) => handlePreferenceChange('mapStyle', e.target.value)}
+                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="satellite">Satellite (Hybrid)</option>
+                          <option value="dark">Tactical Dark</option>
+                        </select>
+                      </div>
+
+                      {/* Map Mode Option */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Default Map View Mode</div>
+                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Flat 2D Satellite vs 3D Buildings.</div>
+                        </div>
+                        <select
+                          value={mapMode}
+                          onChange={(e) => handlePreferenceChange('mapMode', e.target.value)}
+                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="2d">2D Satellite Map</option>
+                          <option value="3d">3D Google Buildings</option>
+                        </select>
+                      </div>
+
+                      {/* Auto Rotation Default Option */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Globe Auto-Rotation</div>
+                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Enable earth rotation instantly on load.</div>
+                        </div>
+                        <select
+                          value={autoRotate ? 'true' : 'false'}
+                          onChange={(e) => handlePreferenceChange('autoRotate', e.target.value === 'true')}
+                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="true">Active (ON)</option>
+                          <option value="false">Static (OFF)</option>
+                        </select>
+                      </div>
+
+                      {/* Marquee Speed Option */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Alert Marquee Ticker Speed</div>
+                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Speed configuration for headline ticker.</div>
+                        </div>
+                        <select
+                          value={tickerSpeed}
+                          onChange={(e) => handlePreferenceChange('tickerSpeed', e.target.value)}
+                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="slow">Slow (110s) - Recommended</option>
+                          <option value="normal">Normal (60s)</option>
+                          <option value="fast">Fast (30s)</option>
+                        </select>
+                      </div>
+
+                      {/* Severity Threshold Option */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Startup Threat Severity filter</div>
+                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Filter out events with severities below limit.</div>
+                        </div>
+                        <select
+                          value={minSeverity}
+                          onChange={(e) => handlePreferenceChange('minSeverity', parseInt(e.target.value))}
+                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value={1}>Severity 1+ (Show All)</option>
+                          <option value={2}>Severity 2+ (Elevated)</option>
+                          <option value={3}>Severity 3+ (High)</option>
+                          <option value={4}>Severity 4+ (Critical)</option>
+                          <option value={5}>Severity 5 (Catastrophic)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              {/* Logout Button */}
-              <button
-                type="button"
-                onClick={handleLogoutAction}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  color: '#ef4444',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: '8px',
-                  padding: '10px 16px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                  e.currentTarget.style.borderColor = '#ef4444';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                }}
-              >
-                <LogOut size={14} />
-                LOGOUT
-              </button>
-
-              {/* Submit Save Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  flex: 1,
-                  background: '#06b6d4',
-                  color: '#020617',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px 0',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  letterSpacing: '1px',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 0 12px rgba(6, 182, 212, 0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.background = '#22d3ee';
-                    e.currentTarget.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.35)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.background = '#06b6d4';
-                    e.currentTarget.style.boxShadow = '0 0 12px rgba(6, 182, 212, 0.2)';
-                  }
-                }}
-              >
-                {loading ? 'SAVING...' : 'SAVE CHANGES'}
-                {!loading && <ChevronRight size={14} />}
-              </button>
-            </div>
-          </form>
-        )}
+          </div>
+        </div>
       </div>
 
       {/* Styled Animations Injected */}
@@ -498,6 +740,28 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
           0%, 100% { transform: translateX(0); }
           25% { transform: translateX(-5px); }
           75% { transform: translateX(5px); }
+        }
+        @media (max-width: 600px) {
+          .settings-body {
+            flex-direction: column !important;
+          }
+          .settings-sidebar {
+            width: 100% !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            flex-direction: row !important;
+            justifyContent: space-between !important;
+            padding: 8px 16px !important;
+          }
+          .settings-sidebar > div {
+            flex-direction: row !important;
+            flex: 1 !important;
+            gap: 6px !important;
+          }
+          .settings-sidebar button {
+            padding: 6px 10px !important;
+            font-size: 9px !important;
+          }
         }
       `}</style>
     </div>

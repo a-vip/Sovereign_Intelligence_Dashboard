@@ -41,7 +41,13 @@ export default function LiveMap({
   const [markers, setMarkers] = useState([]);
   const [allFetchedEvents, setAllFetchedEvents] = useState([]);
   const [categories, setCategories] = useState({ Conflict: true, Surveillance: true, Political: true, Humanitarian: true, Economic: true, Disaster: true });
-  const [minSeverity, setMinSeverity] = useState(1);
+  const [minSeverity, setMinSeverity] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('operator_pref_minSeverity');
+      return stored !== null ? parseInt(stored) : 1;
+    }
+    return 1;
+  });
   const [status, setStatus] = useState('loading');
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -57,12 +63,50 @@ export default function LiveMap({
   const [isPulsing, setIsPulsing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
-  const [mapMode, setMapMode] = useState('2d'); // 2D satellite default for buttery performance!
-  const [mapStyle, setMapStyle] = useState('dark'); // 'satellite' (Google Hybrid) or 'dark' (Tactical Dark theme)
-  const [autoRotate, setAutoRotate] = useState(true); // Auto rotate globe default
+  const [mapMode, setMapMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('operator_pref_mapMode') || '2d';
+    }
+    return '2d';
+  });
+  const [mapStyle, setMapStyle] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('operator_pref_mapStyle') || 'dark';
+    }
+    return 'dark';
+  });
+  const [autoRotate, setAutoRotate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('operator_pref_autoRotate');
+      return stored !== null ? stored === 'true' : true;
+    }
+    return true;
+  });
+  const [tickerSpeed, setTickerSpeed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('operator_pref_tickerSpeed') || 'slow';
+    }
+    return 'slow';
+  });
   
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
+
+  // Handle preferences changes dynamically via standard browser events
+  useEffect(() => {
+    const handlePrefChange = () => {
+      setMapMode(localStorage.getItem('operator_pref_mapMode') || '2d');
+      setMapStyle(localStorage.getItem('operator_pref_mapStyle') || 'dark');
+      const rotate = localStorage.getItem('operator_pref_autoRotate');
+      setAutoRotate(rotate !== null ? rotate === 'true' : true);
+      const sev = localStorage.getItem('operator_pref_minSeverity');
+      setMinSeverity(sev !== null ? parseInt(sev) : 1);
+      setTickerSpeed(localStorage.getItem('operator_pref_tickerSpeed') || 'slow');
+    };
+
+    window.addEventListener('operator_pref_changed', handlePrefChange);
+    return () => window.removeEventListener('operator_pref_changed', handlePrefChange);
+  }, []);
 
   // Handle window resizing and mobile status
   useEffect(() => {
@@ -441,7 +485,7 @@ export default function LiveMap({
         <div style={{
           display: 'inline-block',
           whiteSpace: 'nowrap',
-          animation: 'ticker-marquee 110s linear infinite',
+          animation: `ticker-marquee ${tickerSpeed === 'fast' ? '30s' : tickerSpeed === 'normal' ? '60s' : '110s'} linear infinite`,
           fontFamily: 'JetBrains Mono, Courier New, monospace',
           fontSize: '10px',
           color: '#00f0ff',
