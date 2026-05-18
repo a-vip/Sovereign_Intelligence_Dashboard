@@ -39,6 +39,7 @@ export default function LiveMap() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
+  const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
 
   const [timeRange, setTimeRange] = useState('today'); 
   const [isVisible, setIsVisible] = useState(true);
@@ -439,129 +440,138 @@ export default function LiveMap() {
               )}
             </div>
 
-            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px' }}>
-              <div className="overlay-title">MAP MODE</div>
-              <div className="severity-buttons" style={{ marginTop: '8px', marginBottom: '12px', display: 'flex', gap: '6px' }}>
-                <button
-                  className={`sev-btn${mapMode === '3d' ? ' active' : ''}`}
-                  style={{
-                    background: mapMode === '3d' ? '#38bdf8' : 'transparent',
-                    color: mapMode === '3d' ? '#020617' : '#8892a4',
-                    borderColor: '#38bdf8',
-                    flex: 1,
-                    fontSize: '9px',
-                    padding: '6px 0',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    border: '1px solid #38bdf8',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => setMapMode('3d')}
-                >
-                  3D BUILDINGS
-                </button>
-                <button
-                  className={`sev-btn${mapMode === '2d' ? ' active' : ''}`}
-                  style={{
-                    background: mapMode === '2d' ? '#38bdf8' : 'transparent',
-                    color: mapMode === '2d' ? '#020617' : '#8892a4',
-                    borderColor: '#38bdf8',
-                    flex: 1,
-                    fontSize: '9px',
-                    padding: '6px 0',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    border: '1px solid #38bdf8',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => setMapMode('2d')}
-                >
-                  2D SATELLITE
-                </button>
-              </div>
-            </div>
-
+            {/* Map Options Expandable Section */}
             <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
-              <div className="overlay-title">BASE MAP STYLE</div>
-              <div className="severity-buttons" style={{ marginTop: '8px', marginBottom: '12px', display: 'flex', gap: '6px' }}>
-                <button
-                  className={`sev-btn${mapStyle === 'satellite' ? ' active' : ''}`}
-                  style={{
-                    background: mapStyle === 'satellite' ? '#38bdf8' : 'transparent',
-                    color: mapStyle === 'satellite' ? '#020617' : '#8892a4',
-                    borderColor: '#38bdf8',
-                    flex: 1,
-                    fontSize: '9px',
-                    padding: '6px 0',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    border: '1px solid #38bdf8',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => setMapStyle('satellite')}
-                >
-                  SATELLITE
-                </button>
-                <button
-                  className={`sev-btn${mapStyle === 'dark' ? ' active' : ''}`}
-                  style={{
-                    background: mapStyle === 'dark' ? '#38bdf8' : 'transparent',
-                    color: mapStyle === 'dark' ? '#020617' : '#8892a4',
-                    borderColor: '#38bdf8',
-                    flex: 1,
-                    fontSize: '9px',
-                    padding: '6px 0',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    border: '1px solid #38bdf8',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => setMapStyle('dark')}
-                >
-                  TACTICAL DARK
-                </button>
-              </div>
-            </div>
-
-            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
-              <div className="overlay-title">TACTICAL WIDGETS</div>
-              <button
-                className={`sev-btn${showMarkets ? ' active' : ''}`}
-                style={{
-                  marginTop: '8px',
-                  background: showMarkets ? '#10b981' : 'transparent',
-                  color: showMarkets ? '#020617' : '#8892a4',
-                  borderColor: '#10b981',
-                  width: '100%',
-                  fontSize: '9px',
-                  padding: '6px 0',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  border: '1px solid #10b981',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-                onClick={() => setShowMarkets(!showMarkets)}
+              <div 
+                className="overlay-title" 
+                onClick={() => setIsMapOptionsExpanded(!isMapOptionsExpanded)} 
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
-                📊 {showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS'}
-              </button>
-            </div>
-
-            <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
-              <div className="overlay-title">MAP SYSTEM</div>
-              <div style={{ fontSize: '9px', color: '#8892a4', marginTop: '4px', fontFamily: 'monospace' }}>
-                POWERED BY: GOOGLE 3D TILES
-                <br />
-                RENDERER: CESIUMJS WebGL
+                <span>MAP OPTIONS</span>
+                <span style={{ fontSize: '10px', color: '#38bdf8' }}>{isMapOptionsExpanded ? '▼' : '▶'}</span>
               </div>
+
+              {isMapOptionsExpanded && (
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Map Mode */}
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>MAP MODE</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className={`sev-btn${mapMode === '3d' ? ' active' : ''}`}
+                        style={{
+                          background: mapMode === '3d' ? '#38bdf8' : 'transparent',
+                          color: mapMode === '3d' ? '#020617' : '#8892a4',
+                          borderColor: '#38bdf8',
+                          flex: 1,
+                          fontSize: '9px',
+                          padding: '5px 0',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          border: '1px solid #38bdf8',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => setMapMode('3d')}
+                      >
+                        3D BUILDINGS
+                      </button>
+                      <button
+                        className={`sev-btn${mapMode === '2d' ? ' active' : ''}`}
+                        style={{
+                          background: mapMode === '2d' ? '#38bdf8' : 'transparent',
+                          color: mapMode === '2d' ? '#020617' : '#8892a4',
+                          borderColor: '#38bdf8',
+                          flex: 1,
+                          fontSize: '9px',
+                          padding: '5px 0',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          border: '1px solid #38bdf8',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => setMapMode('2d')}
+                      >
+                        2D SATELLITE
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Base Map Style */}
+                  <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>BASE MAP STYLE</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className={`sev-btn${mapStyle === 'satellite' ? ' active' : ''}`}
+                        style={{
+                          background: mapStyle === 'satellite' ? '#38bdf8' : 'transparent',
+                          color: mapStyle === 'satellite' ? '#020617' : '#8892a4',
+                          borderColor: '#38bdf8',
+                          flex: 1,
+                          fontSize: '9px',
+                          padding: '5px 0',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          border: '1px solid #38bdf8',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => setMapStyle('satellite')}
+                      >
+                        SATELLITE
+                      </button>
+                      <button
+                        className={`sev-btn${mapStyle === 'dark' ? ' active' : ''}`}
+                        style={{
+                          background: mapStyle === 'dark' ? '#38bdf8' : 'transparent',
+                          color: mapStyle === 'dark' ? '#020617' : '#8892a4',
+                          borderColor: '#38bdf8',
+                          flex: 1,
+                          fontSize: '9px',
+                          padding: '5px 0',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          border: '1px solid #38bdf8',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => setMapStyle('dark')}
+                      >
+                        TACTICAL DARK
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tactical Widgets */}
+                  <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>TACTICAL WIDGETS</div>
+                    <button
+                      className={`sev-btn${showMarkets ? ' active' : ''}`}
+                      style={{
+                        background: showMarkets ? '#10b981' : 'transparent',
+                        color: showMarkets ? '#020617' : '#8892a4',
+                        borderColor: '#10b981',
+                        width: '100%',
+                        fontSize: '9px',
+                        padding: '5px 0',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        border: '1px solid #10b981',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                      onClick={() => setShowMarkets(!showMarkets)}
+                    >
+                      📊 {showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         ) : (
