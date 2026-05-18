@@ -51,6 +51,7 @@ export default function CesiumGlobe({
   }, []);
   
   const [mapError, setMapError] = useState(false);
+  const [viewerReady, setViewerReady] = useState(false);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
   const [showLegend, setShowLegend] = useState(true);
@@ -77,7 +78,7 @@ export default function CesiumGlobe({
 
   // 4. Buttery smooth auto rotation of the globe until user interacts with the camera!
   useEffect(() => {
-    if (!viewerRef.current || !autoRotate || mapError) return;
+    if (!viewerRef.current || !autoRotate || mapError || !viewerReady) return;
 
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
@@ -103,7 +104,7 @@ export default function CesiumGlobe({
         viewer.scene.postRender.removeEventListener(rotateCamera);
       }
     };
-  }, [autoRotate, mapError]);
+  }, [autoRotate, mapError, viewerReady]);
 
   const handleUserInteraction = () => {
     if (autoRotate && onInteraction) {
@@ -480,6 +481,7 @@ export default function CesiumGlobe({
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       viewerRef.current = viewer;
+      setViewerReady(true);
 
       // Clean up on unmount
       return () => {
@@ -488,6 +490,7 @@ export default function CesiumGlobe({
           viewerRef.current.destroy();
           viewerRef.current = null;
         }
+        setViewerReady(false);
         tilesetRef.current = null;
       };
     } catch (e) {
