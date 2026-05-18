@@ -4,9 +4,9 @@ import { RefreshCw, X, TrendingUp, TrendingDown } from 'lucide-react';
 
 const INITIAL_QUOTES = [
   { symbol: 'S&P500', icon: '📈', name: 'S&P500', price: 7409, chg: -1.2, isUp: false },
-  { symbol: 'FTSE 100', icon: '🇬🇧', name: 'FTSE 100', price: 10195, chg: -1.7, isUp: false },
-  { symbol: 'Shanghai Composite', icon: '🇨🇳', name: 'Shanghai Composite', price: 4135, chg: -2.5, isUp: false },
-  { symbol: 'Nikkei', icon: '🇯🇵', name: 'Nikkei', price: 61409, chg: -2.0, isUp: false },
+  { symbol: 'FTSE 100', region: 'GB', name: 'FTSE 100', price: 10195, chg: -1.7, isUp: false },
+  { symbol: 'Shanghai Composite', region: 'CN', name: 'Shanghai Composite', price: 4135, chg: -2.5, isUp: false },
+  { symbol: 'Nikkei', region: 'JP', name: 'Nikkei', price: 61409, chg: -2.0, isUp: false },
   { symbol: 'Gold', icon: '🥇', name: 'Gold', price: 4543, chg: -0.4, isUp: false },
   { symbol: 'Silver', icon: '🥈', name: 'Silver', price: 76.74, chg: -1.0, isUp: false },
   { symbol: 'BTC', icon: '₿', name: 'BTC', price: 77194, chg: -1.2, isUp: false },
@@ -20,8 +20,8 @@ export default function MarketQuotesBox({ onClose }) {
   const [lastUpdated, setLastUpdated] = useState('just now');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Position state for dragging
-  const [pos, setPos] = useState({ x: 300, y: 80 });
+  // Position state for dragging (default centered above live feed panel)
+  const [pos, setPos] = useState({ x: 300, y: 70 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
@@ -116,7 +116,7 @@ export default function MarketQuotesBox({ onClose }) {
         position: 'absolute',
         left: `${pos.x}px`,
         top: `${pos.y}px`,
-        width: '320px',
+        width: '280px',
         background: 'rgba(8, 12, 24, 0.95)',
         border: '1px solid rgba(56, 189, 248, 0.25)',
         borderRadius: '12px',
@@ -136,14 +136,14 @@ export default function MarketQuotesBox({ onClose }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 16px',
+          padding: '10px 14px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           cursor: dragging ? 'grabbing' : 'grab',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ color: '#10b981', fontSize: '18px', fontWeight: 'bold' }}>$</span>
-          <span style={{ fontSize: '13px', fontWeight: '800', letterSpacing: '0.1em', color: '#ffffff' }}>MARKETS</span>
+          <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.1em', color: '#ffffff' }}>MARKETS</span>
           <span style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.35)', marginLeft: '4px' }}>{lastUpdated}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -164,7 +164,7 @@ export default function MarketQuotesBox({ onClose }) {
             onMouseEnter={e => e.currentTarget.style.color = '#38bdf8'}
             onMouseLeave={e => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.4)'}
           >
-            <RefreshCw size={14} className={isRefreshing ? 'spinning' : ''} />
+            <RefreshCw size={12} className={isRefreshing ? 'spinning' : ''} />
           </button>
           <button
             onClick={onClose}
@@ -189,7 +189,7 @@ export default function MarketQuotesBox({ onClose }) {
               e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
             }}
           >
-            <X size={14} />
+            <X size={12} />
           </button>
         </div>
       </div>
@@ -197,32 +197,32 @@ export default function MarketQuotesBox({ onClose }) {
       {/* Column Labels */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1.4fr 1fr 1fr',
-          padding: '8px 16px 4px 16px',
-          fontSize: '9px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: '6px 12px 4px 12px',
+          fontSize: '8.5px',
           fontWeight: 'bold',
           color: 'rgba(255, 255, 255, 0.3)',
           letterSpacing: '0.05em',
           borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
         }}
       >
-        <div>SYMBOL</div>
-        <div style={{ textAlign: 'right' }}>PRICE</div>
-        <div style={{ textAlign: 'right' }}>CHG</div>
+        <div style={{ width: '135px' }}>SYMBOL</div>
+        <div style={{ width: '65px', textAlign: 'right' }}>PRICE</div>
+        <div style={{ width: '55px', textAlign: 'right' }}>CHG</div>
       </div>
 
       {/* Quotes List */}
-      <div style={{ padding: '6px 0' }}>
+      <div style={{ padding: '4px 0' }}>
         {quotes.map((q, idx) => (
           <div
             key={q.symbol}
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1.4fr 1fr 1fr',
-              padding: '6px 16px',
-              fontSize: '11px',
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
+              padding: '5px 12px',
+              fontSize: '10.5px',
               transition: 'background 0.2s',
               background: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent',
             }}
@@ -230,25 +230,44 @@ export default function MarketQuotesBox({ onClose }) {
             onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent'}
           >
             {/* Symbol name and arrow */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', width: '135px', minWidth: '135px', overflow: 'hidden' }}>
               {q.isUp ? (
                 <TrendingUp size={11} color="#22c55e" style={{ flexShrink: 0 }} />
               ) : (
                 <TrendingDown size={11} color="#ef4444" style={{ flexShrink: 0 }} />
               )}
-              <span style={{ color: '#e2e8f0', fontWeight: '500', whiteSpace: 'nowrap' }}>
-                {q.name} <span style={{ fontSize: '10px' }}>{q.icon}</span>
+              <span style={{ color: '#e2e8f0', fontWeight: '500', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={q.name}>
+                {q.name}
               </span>
+              {q.icon && <span style={{ fontSize: '10px', flexShrink: 0 }}>{q.icon}</span>}
+              {q.region && (
+                <span 
+                  style={{ 
+                    fontSize: '8px', 
+                    color: '#38bdf8', 
+                    border: '1px solid rgba(56, 189, 248, 0.25)', 
+                    padding: '0px 2.5px', 
+                    borderRadius: '3px', 
+                    background: 'rgba(56, 189, 248, 0.05)', 
+                    fontWeight: '800',
+                    flexShrink: 0,
+                    letterSpacing: '0.02em'
+                  }}
+                >
+                  {q.region}
+                </span>
+              )}
             </div>
 
             {/* Price */}
-            <div style={{ textAlign: 'right', color: '#f8fafc', fontWeight: 'bold' }}>
+            <div style={{ width: '65px', textAlign: 'right', color: '#f8fafc', fontWeight: 'bold' }}>
               {q.price.toLocaleString(undefined, { minimumFractionDigits: q.price > 1000 ? 0 : 2 })}
             </div>
 
             {/* Change */}
             <div
               style={{
+                width: '55px',
                 textAlign: 'right',
                 color: q.isUp ? '#22c55e' : '#ef4444',
                 fontWeight: 'bold',
