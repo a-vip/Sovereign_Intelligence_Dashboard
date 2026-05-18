@@ -10,6 +10,7 @@ const POLL_INTERVAL = 30000; // 30 seconds live update
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [minLoaderFinished, setMinLoaderFinished] = useState(false);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -20,6 +21,10 @@ export default function DashboardPage() {
 
   // Read stored session on client boot
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinLoaderFinished(true);
+    }, 2800); // 2.8s minimum loading display duration to appreciate cyber loader!
+
     const storedUser = localStorage.getItem('operator_session');
     if (storedUser) {
       try {
@@ -28,6 +33,7 @@ export default function DashboardPage() {
         console.error(e);
       }
     }
+    return () => clearTimeout(timer);
   }, []);
 
   const handleAuthSuccess = (user) => {
@@ -78,7 +84,7 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [fetchData, isVisible]);
 
-  if (loading) {
+  if (loading || !minLoaderFinished) {
     return (
       <div className="loading-screen" style={{ gap: '24px' }}>
         <div className="loading-globe-container" style={{ minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -112,7 +118,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
-          <div className="header-icon"><Shield size={24} color="#fff" /></div>
+          <div className="header-icon"><Shield size={18} color="#fff" /></div>
           <div>
             <h1 className="header-title">Sovereign Intelligence</h1>
             <div className="header-subtitle">LAWS Tracking • State Violations • Corporate Complicity</div>
