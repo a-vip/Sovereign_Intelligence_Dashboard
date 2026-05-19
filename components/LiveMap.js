@@ -334,9 +334,10 @@ export default function LiveMap({
   });
   const [mapStyle, setMapStyle] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('operator_pref_mapStyle') || 'dark';
+      const stored = localStorage.getItem('operator_pref_mapStyle');
+      return (stored === 'dark' || !stored) ? 'tactical' : stored;
     }
-    return 'dark';
+    return 'tactical';
   });
   const [autoRotate, setAutoRotate] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -1806,6 +1807,8 @@ export default function LiveMap({
                   >
                     <option value="tactical">🛰️ TACTICAL DARK</option>
                     <option value="satellite">🌍 HIGH-RES ORBITAL</option>
+                    <option value="buildings">🏢 3D URBAN BUILDINGS</option>
+                    <option value="lights">🌃 EARTH AT NIGHT</option>
                   </select>
                 </div>
 

@@ -654,14 +654,21 @@ export default function CesiumGlobe({
 
     let viewer;
     try {
-      // Premium imagery provider url based on user style selection (Google Hybrid or Tactical Dark)
-      const mapUrl = mapStyle === 'dark'
-        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-        : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      // Premium imagery provider url based on user style selection (Google Hybrid, Tactical Dark, or Earth at Night)
+      let mapUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      let creditStr = 'Google Maps';
+
+      if (mapStyle === 'tactical' || mapStyle === 'dark') {
+        mapUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        creditStr = 'CartoDB Dark Matter';
+      } else if (mapStyle === 'lights') {
+        mapUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
+        creditStr = 'Esri Earth at Night';
+      }
 
       const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
         url: mapUrl,
-        credit: mapStyle === 'dark' ? 'CartoDB Dark Matter' : 'Google Maps'
+        credit: creditStr
       });
 
       const viewerOptions = {
@@ -881,7 +888,7 @@ export default function CesiumGlobe({
     }
   }, [mapError, scriptsLoaded]);
 
-  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode
+  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode or Viewport Style
   useEffect(() => {
     if (!scriptsLoaded || mapError || !viewerRef.current) return;
     
@@ -889,14 +896,16 @@ export default function CesiumGlobe({
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
-    if (mapMode === '3d') {
+    const shouldShow3d = mapMode === '3d' || mapStyle === 'buildings';
+
+    if (shouldShow3d) {
       // Toggle 3D buildings overlay on
       if (tilesetRef.current) {
         tilesetRef.current.show = true;
       } else if (tilesetLoadingStatus === 'idle') {
         setTilesetLoadingStatus('loading');
         setTilesetLoaded(false);
-        console.log("Zoomed/Toggled in! Dynamically loading Google Photorealistic 3D Tileset overlay...");
+        console.log("Dynamically loading Google Photorealistic 3D Tileset overlay...");
 
         const googleTilesUrl = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`;
         Cesium.Cesium3DTileset.fromUrl(googleTilesUrl, {
@@ -917,12 +926,12 @@ export default function CesiumGlobe({
         });
       }
     } else {
-      // Toggle 3D buildings overlay off (keep the beautiful satellite globe visible)
+      // Toggle 3D buildings overlay off
       if (tilesetRef.current) {
         tilesetRef.current.show = false;
       }
     }
-  }, [mapMode, tilesetLoadingStatus, mapError, scriptsLoaded]);
+  }, [mapMode, mapStyle, tilesetLoadingStatus, mapError, scriptsLoaded]);
 
   // 5. Update threat markers on Cesium Globe
   useEffect(() => {
@@ -1283,13 +1292,20 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     try {
-      const mapUrl = mapStyle === 'dark'
-        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-        : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      let mapUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      let creditStr = 'Google Maps';
+
+      if (mapStyle === 'tactical' || mapStyle === 'dark') {
+        mapUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        creditStr = 'CartoDB Dark Matter';
+      } else if (mapStyle === 'lights') {
+        mapUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
+        creditStr = 'Esri Earth at Night';
+      }
 
       const provider = new Cesium.UrlTemplateImageryProvider({
         url: mapUrl,
-        credit: mapStyle === 'dark' ? 'CartoDB Dark Matter' : 'Google Maps'
+        credit: creditStr
       });
 
       // Remove the base layer at index 0 and add the new styled layer at index 0!
@@ -1318,13 +1334,20 @@ export default function CesiumGlobe({
         }
       });
 
-      const tileUrl = mapStyle === 'dark' 
-        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-        : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      let tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      let attribStr = 'Google';
+
+      if (mapStyle === 'tactical' || mapStyle === 'dark') {
+        tileUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        attribStr = 'CartoDB';
+      } else if (mapStyle === 'lights') {
+        tileUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
+        attribStr = 'Esri';
+      }
 
       L.tileLayer(tileUrl, {
         maxZoom: 19,
-        attribution: mapStyle === 'dark' ? 'CartoDB' : 'Google'
+        attribution: attribStr
       }).addTo(map);
       console.log(`Leaflet fallback base map style swapped to: ${mapStyle}`);
     } catch (e) {
