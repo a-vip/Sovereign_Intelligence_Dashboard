@@ -404,6 +404,7 @@ export default function LiveMap({
         lon: parseFloat(item.longitude),
         timestamp: item.published_at,
         url: item.url,
+        source: item.source,
         details: {
           summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
           isRssItem: true
@@ -423,7 +424,8 @@ export default function LiveMap({
         const locMatch = (m.location || '').toLowerCase().includes(q);
         const catMatch = (m.category || '').toLowerCase().includes(q);
         const descMatch = (m.description || m.details?.summary || '').toLowerCase().includes(q);
-        return nameMatch || locMatch || catMatch || descMatch;
+        const sourceMatch = (m.source || m.details?.source || '').toLowerCase().includes(q);
+        return nameMatch || locMatch || catMatch || descMatch || sourceMatch;
       });
     }
     return filtered;
