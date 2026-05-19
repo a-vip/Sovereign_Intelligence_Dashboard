@@ -1284,40 +1284,7 @@ export default function CesiumGlobe({
     }
   }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError]);
 
-  // 6. Handle Base Map Style changes dynamically in real time (Satellite vs Tactical Dark)
-  useEffect(() => {
-    if (!scriptsLoaded || mapError || !viewerRef.current) return;
-    const viewer = viewerRef.current;
-    const Cesium = window.Cesium;
-    if (!Cesium) return;
 
-    try {
-      let mapUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
-      let creditStr = 'Google Maps';
-
-      if (mapStyle === 'tactical' || mapStyle === 'dark') {
-        mapUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-        creditStr = 'CartoDB Dark Matter';
-      } else if (mapStyle === 'lights') {
-        mapUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
-        creditStr = 'Esri Earth at Night';
-      }
-
-      const provider = new Cesium.UrlTemplateImageryProvider({
-        url: mapUrl,
-        credit: creditStr
-      });
-
-      // Remove the base layer at index 0 and add the new styled layer at index 0!
-      if (viewer.imageryLayers.length > 0) {
-        viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
-      }
-      viewer.imageryLayers.addImageryProvider(provider, 0);
-      console.log(`Cesium base map style swapped dynamically to: ${mapStyle}`);
-    } catch (e) {
-      console.error("Failed to swap Cesium base map style dynamically:", e);
-    }
-  }, [mapStyle, mapError, scriptsLoaded]);
 
   // 7. Update Leaflet base map layer on mapStyle changes
   useEffect(() => {
@@ -1425,7 +1392,7 @@ export default function CesiumGlobe({
     container.addEventListener('wheel', handleWheel, { passive: false });
   }, [mapError, scriptsLoaded]);
 
-  // A. Dynamic Map Style Switcher (Dark, Satellite, Terrain, Street Map)
+  // A. Dynamic Map Style Switcher (Tactical Dark, Satellite, Earth at Night, Terrain, Street)
   useEffect(() => {
     if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
     const viewer = viewerRef.current;
@@ -1438,9 +1405,12 @@ export default function CesiumGlobe({
     let url = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'; // Satellite hybrid default
     let credit = 'Google Maps';
 
-    if (mapStyle === 'dark') {
+    if (mapStyle === 'tactical' || mapStyle === 'dark') {
       url = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
       credit = 'CartoDB Dark Matter';
+    } else if (mapStyle === 'lights') {
+      url = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
+      credit = 'Esri Earth at Night';
     } else if (mapStyle === 'terrain') {
       url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}';
       credit = 'ESRI World Physical';
@@ -1460,6 +1430,7 @@ export default function CesiumGlobe({
       } else {
         layers.add(newLayer);
       }
+      console.log(`Cesium base map style swapped dynamically to: ${mapStyle}`);
     } catch (err) {
       console.warn("Dynamic imagery layer swap failed:", err);
     }
