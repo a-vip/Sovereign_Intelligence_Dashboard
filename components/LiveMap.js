@@ -368,6 +368,7 @@ export default function LiveMap({
   const [oilGasEnabled, setOilGasEnabled] = useState(false);
   const [internetCablesEnabled, setInternetCablesEnabled] = useState(false);
   const [dayNightEnabled, setDayNightEnabled] = useState(false);
+  const [gpsJammingEnabled, setGpsJammingEnabled] = useState(false);
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -1685,6 +1686,7 @@ export default function LiveMap({
           oilGasEnabled={oilGasEnabled}
           internetCablesEnabled={internetCablesEnabled}
           dayNightEnabled={dayNightEnabled}
+          gpsJammingEnabled={gpsJammingEnabled}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite
@@ -1910,27 +1912,33 @@ export default function LiveMap({
                     }} />
                   </div>
 
-                  {/* GPS Jamming - Grayed out */}
+                  {/* GPS Jamming Option */}
                   <div 
+                    onClick={() => setGpsJammingEnabled(!gpsJammingEnabled)}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '3px 4px',
-                      opacity: 0.35,
-                      cursor: 'not-allowed',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
                       userSelect: 'none'
                     }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
-                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>📡</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: gpsJammingEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: gpsJammingEnabled ? 1 : 0.4 }}>📡</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>GPS Jamming</span>
                     </div>
                     <div style={{
                       width: '6px',
                       height: '6px',
                       borderRadius: '50%',
-                      background: '#334155'
+                      background: gpsJammingEnabled ? '#ef4444' : '#334155',
+                      boxShadow: gpsJammingEnabled ? '0 0 6px #ef4444' : 'none',
+                      transition: 'all 0.2s ease'
                     }} />
                   </div>
 

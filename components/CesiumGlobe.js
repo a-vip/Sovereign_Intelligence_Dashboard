@@ -104,7 +104,8 @@ export default function CesiumGlobe({
   internetCablesEnabled = true,
   powerMineralsEnabled = false,
   dayNightEnabled = true,
-  globe3dEnabled = true
+  globe3dEnabled = true,
+  gpsJammingEnabled = false
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -113,6 +114,7 @@ export default function CesiumGlobe({
   const powerLayerRef = useRef(null);
   const cableEntitiesRef = useRef([]);
   const oilGasEntitiesRef = useRef([]);
+  const gpsJammingEntitiesRef = useRef([]);
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '' });
   const setHoverTooltipRef = useRef(setHoverTooltip);
@@ -778,22 +780,29 @@ export default function CesiumGlobe({
           const isCable = props && props.isCable ? props.isCable.getValue() : false;
           const isLandingStation = props && props.isLandingStation ? props.isLandingStation.getValue() : false;
           const isOilGas = props && props.isOilGas ? props.isOilGas.getValue() : false;
+          const isGpsJamming = props && props.isGpsJamming ? props.isGpsJamming.getValue() : false;
           const title = props && props.title ? props.title.getValue() : (hoveredEntity.name || '');
 
-          if (isCable || isLandingStation || isOilGas) {
+          if (isCable || isLandingStation || isOilGas || isGpsJamming) {
             document.body.style.cursor = 'pointer';
+            let tooltipContent = title;
+            if (isGpsJamming) {
+              const intensityVal = props.intensity ? props.intensity.getValue() : 0;
+              const catVal = props.category ? props.category.getValue() : 'low';
+              tooltipContent = `📡 GPS Interference Corridor\nRegion: ${title}\nSeverity: ${catVal.toUpperCase()}\nDegradation: ${(intensityVal * 100).toFixed(0)}%`;
+            }
             if (typeof setHoverTooltipRef.current === 'function') {
               setHoverTooltipRef.current({
                 show: true,
                 x: movement.endPosition.x,
                 y: movement.endPosition.y,
-                content: title
+                content: tooltipContent
               });
             }
             return;
           }
 
-          // Clear cables tooltip for other entities
+          // Clear cables/jamming tooltip for other entities
           if (typeof setHoverTooltipRef.current === 'function') {
             setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
           }
@@ -1659,6 +1668,102 @@ export default function CesiumGlobe({
       clearOilGas();
     };
   }, [oilGasEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // E2. GPS Jamming & ADS-B Interference Corridors (H3 Hexagonal Grid Ingestion)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const getHexagonPoints = (lat, lon, radiusKm) => {
+      const points = [];
+      const kmPerDegree = 111.32;
+      const latOffset = radiusKm / kmPerDegree;
+      const lonOffset = radiusKm / (kmPerDegree * Math.cos(lat * Math.PI / 180));
+      
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * 60) * Math.PI / 180;
+        const vertexLat = lat + latOffset * Math.sin(angle);
+        const vertexLon = lon + lonOffset * Math.cos(angle);
+        points.push(vertexLon, vertexLat);
+      }
+      return points;
+    };
+
+    const clearGpsJamming = () => {
+      if (gpsJammingEntitiesRef.current && gpsJammingEntitiesRef.current.length > 0) {
+        gpsJammingEntitiesRef.current.forEach(entity => {
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.entities.remove(entity);
+          }
+        });
+        gpsJammingEntitiesRef.current = [];
+      }
+    };
+
+    if (!gpsJammingEnabled) {
+      clearGpsJamming();
+      return;
+    }
+
+    fetch('/api/gps-jamming')
+      .then(res => {
+        if (!res.ok) throw new Error("GPS Jamming data request failed");
+        return res.json();
+      })
+      .then(data => {
+        if (!data || !data.cells) return;
+        clearGpsJamming();
+
+        const newEntities = [];
+
+        data.cells.forEach(cell => {
+          const points = getHexagonPoints(cell.lat, cell.lon, cell.radiusKm);
+          
+          // Configurable opacity: less translucency representing more GPS jamming (severe is highly opaque, low is very translucent)
+          let opacity = 0.3; // Low default
+          if (cell.category === 'high') {
+            opacity = 0.82; // Intense, solid-like appearance (18% translucent)
+          } else if (cell.category === 'medium') {
+            opacity = 0.52; // Moderate (48% translucent)
+          }
+
+          try {
+            const entity = viewer.entities.add({
+              name: cell.source,
+              polygon: {
+                hierarchy: Cesium.Cartesian3.fromDegreesArray(points),
+                material: Cesium.Color.fromCssColorString(cell.color).withAlpha(opacity),
+                outline: true,
+                outlineColor: Cesium.Color.fromCssColorString(cell.color).withAlpha(0.35),
+                outlineWidth: 1.0,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+              },
+              properties: {
+                isGpsJamming: true,
+                title: cell.source,
+                intensity: cell.intensity,
+                category: cell.category
+              }
+            });
+            newEntities.push(entity);
+          } catch (err) {
+            console.error("Failed to render GPS jamming hexagon polygon:", err);
+          }
+        });
+
+        gpsJammingEntitiesRef.current = newEntities;
+        console.log(`Rendered ${newEntities.length} active GPS jamming honeycomb cells.`);
+      })
+      .catch(err => {
+        console.warn("Failed to load GPS jamming vector cells:", err);
+      });
+
+    return () => {
+      clearGpsJamming();
+    };
+  }, [gpsJammingEnabled, scriptsLoaded, mapError, viewerReady]);
 
   // F. Undersea Internet Fiber Optic Cables (TeleGeography Submarine Cable API)
   useEffect(() => {
