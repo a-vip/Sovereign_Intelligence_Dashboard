@@ -856,68 +856,98 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     if (!Cesium) return;
 
-    // Remove only existing threat entities (leaving satellites completely untouched!)
-    const existingThreats = viewer.entities.values.filter(e => e.id && e.id.startsWith('threat-'));
-    existingThreats.forEach(e => viewer.entities.remove(e));
+    // Create a Set of incoming threat IDs for quick lookup
+    const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
 
+    // Surgically remove only threat entities that are no longer in the repelledMarkers list
+    const existingThreats = viewer.entities.values.filter(e => e.id && e.id.startsWith('threat-'));
+    existingThreats.forEach(e => {
+      if (e.id.startsWith('threat-pulse-')) {
+        const parentId = e.id.replace('threat-pulse-', 'threat-');
+        if (!incomingIds.has(parentId)) {
+          viewer.entities.remove(e);
+        }
+      } else if (!incomingIds.has(e.id)) {
+        viewer.entities.remove(e);
+      }
+    });
+
+    // Surgically add new threat markers or update existing ones without recreating them!
     repelledMarkers.forEach(m => {
       if (m.repelledLat === undefined || m.repelledLon === undefined) return;
 
       const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
       const threatId = `threat-${m.id || m.title}`;
+      const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0);
 
-      // Threat circle billboard marker (perfectly clamped to terrain and 3D building rooftops!)
-      viewer.entities.add({
-        id: threatId,
-        name: m.title || m.name,
-        position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
-        billboard: {
-          image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, '#ffffff', 1.5),
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of buildings/terrain!
-          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-          verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          disableDepthTestDistance: 100000.0, // Disable depth testing when zoomed in closer than 100km to bypass 3D buildings, but keep depth testing enabled at global scale so back-side points are hidden!
-        },
-        label: {
-          text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
-          font: 'bold 9pt monospace',
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 3,
-          showBackground: true,
-          backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85), // PREMIUM GLASSMORPHIC DARK SLATE BOX BACKGROUND!
-          backgroundPadding: new Cesium.Cartesian2(10, 6), // Crisp padding
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
-          disableDepthTestDistance: 100000.0, // Match billboard occlusion culling
-          show: false,
-        },
-        properties: m,
-      });
+      const existing = viewer.entities.getById(threatId);
+      if (existing) {
+        // Surgically update properties on the existing persistent entity
+        const currentPos = existing.position.getValue(Cesium.JulianDate.now());
+        if (!Cesium.Cartesian3.equals(currentPos, newPos)) {
+          existing.position = newPos;
+        }
+        if (existing.label) {
+          existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
+        }
+        existing.properties = m;
+      } else {
+        // Threat circle billboard marker (perfectly clamped to terrain and 3D building rooftops!)
+        viewer.entities.add({
+          id: threatId,
+          name: m.title || m.name,
+          position: newPos,
+          billboard: {
+            image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, '#ffffff', 1.5),
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of buildings/terrain!
+            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            disableDepthTestDistance: 100000.0, // Disable depth testing when zoomed in closer than 100km to bypass 3D buildings, but keep depth testing enabled at global scale so back-side points are hidden!
+          },
+          label: {
+            text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
+            font: 'bold 9pt monospace',
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 3,
+            showBackground: true,
+            backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85), // PREMIUM GLASSMORPHIC DARK SLATE BOX BACKGROUND!
+            backgroundPadding: new Cesium.Cartesian2(10, 6), // Crisp padding
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
+            disableDepthTestDistance: 100000.0, // Match billboard occlusion culling
+            show: false,
+          },
+          properties: m,
+        });
+      }
 
       // Expandable rippling radar waves (strictly pulse at severity 5, conforming beautifully to terrain!)
       if (m.severity >= 5) {
-        let currentRadius = 15000.0;
-        viewer.entities.add({
-          id: `threat-pulse-${m.id || m.title}`,
-          position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
-          ellipse: {
-            semiMajorAxis: new Cesium.CallbackProperty(() => {
-              currentRadius += 3000.0;
-              if (currentRadius > 180000.0) currentRadius = 15000.0;
-              return currentRadius;
-            }, false),
-            semiMinorAxis: new Cesium.CallbackProperty(() => {
-              return currentRadius;
-            }, false),
-            material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.18),
-            outline: true,
-            outlineColor: Cesium.Color.fromCssColorString(sevColorStr),
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Conform to the actual terrain/buildings!
-          }
-        });
+        const pulseId = `threat-pulse-${m.id || m.title}`;
+        if (!viewer.entities.getById(pulseId)) {
+          let currentRadius = 15000.0;
+          viewer.entities.add({
+            id: pulseId,
+            position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
+            ellipse: {
+              semiMajorAxis: new Cesium.CallbackProperty(() => {
+                currentRadius += 3000.0;
+                if (currentRadius > 180000.0) currentRadius = 15000.0;
+                return currentRadius;
+              }, false),
+              semiMinorAxis: new Cesium.CallbackProperty(() => {
+                return currentRadius;
+              }, false),
+              material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.18),
+              outline: true,
+              outlineColor: Cesium.Color.fromCssColorString(sevColorStr),
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Conform to the actual terrain/buildings!
+            }
+          });
+        }
       }
     });
   }, [repelledMarkers, mapError, scriptsLoaded]);
@@ -930,49 +960,82 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     if (!Cesium) return;
 
-    // Remove only existing satellite entities (leaving threat markers completely untouched!)
-    const existingSats = viewer.entities.values.filter(e => e.id && e.id.startsWith('sat-'));
-    existingSats.forEach(e => viewer.entities.remove(e));
+    // Create a Set of incoming satellite IDs for quick lookup
+    const incomingSatIds = new Set(satellites.map(sat => `sat-${sat.code}`));
 
-    // Render 3D Orbiting Satellites in Space!
+    // Surgically remove only satellite entities that are no longer in the satellites list
+    const existingSats = viewer.entities.values.filter(e => e.id && e.id.startsWith('sat-'));
+    existingSats.forEach(e => {
+      // Don't clear paths and Nadir beams here (they are cleared selectively below if needed)
+      if (e.id.startsWith('sat-') && !e.id.startsWith('sat-orbit') && !e.id.startsWith('sat-nadir') && !incomingSatIds.has(e.id)) {
+        viewer.entities.remove(e);
+      }
+    });
+
+    // Render 3D Orbiting Satellites in Space dynamically or update existing persistent ones
     if (showSatellites && satellites && satellites.length > 0) {
       satellites.forEach(sat => {
         const altInMeters = sat.altitude * 1000;
         const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
-        
-        viewer.entities.add({
-          id: `sat-${sat.code}`,
-          name: sat.name,
-          position: Cesium.Cartesian3.fromDegrees(sat.longitude, sat.latitude, altInMeters),
-          billboard: {
-            image: createEmojiCanvas('🛰️', isSelected ? 36 : 24),
-            heightReference: Cesium.HeightReference.NONE, // Floating in space!
-            disableDepthTestDistance: 100000.0,
-            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER
-          },
-          label: {
-            text: isSelected 
+        const satId = `sat-${sat.code}`;
+        const newPos = Cesium.Cartesian3.fromDegrees(sat.longitude, sat.latitude, altInMeters);
+
+        const existingSat = viewer.entities.getById(satId);
+        if (existingSat) {
+          // Surgically update positions and billboard scales to prevent any flicker!
+          existingSat.position = newPos;
+          if (existingSat.label) {
+            existingSat.label.text = isSelected 
               ? `${sat.name}\nAlt: ${sat.altitude}km • Inc: ${sat.inclination}° • V: ${sat.velocity}km/s`
-              : sat.name,
-            font: isSelected ? 'bold 8pt monospace' : '7pt monospace',
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 2,
-            showBackground: true,
-            backgroundColor: Cesium.Color.fromCssColorString('#0b1120').withAlpha(0.85),
-            backgroundPadding: new Cesium.Cartesian2(6, 4),
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -20),
-            heightReference: Cesium.HeightReference.NONE,
-            show: true,
-            disableDepthTestDistance: 100000.0
-          },
-          properties: { ...sat, isSatellite: true }
-        });
+              : sat.name;
+            existingSat.label.font = isSelected ? 'bold 8pt monospace' : '7pt monospace';
+          }
+          if (existingSat.billboard) {
+            existingSat.billboard.image = createEmojiCanvas('🛰️', isSelected ? 36 : 24);
+          }
+          existingSat.properties = { ...sat, isSatellite: true };
+        } else {
+          // Add new satellite marker if not present
+          viewer.entities.add({
+            id: satId,
+            name: sat.name,
+            position: newPos,
+            billboard: {
+              image: createEmojiCanvas('🛰️', isSelected ? 36 : 24),
+              heightReference: Cesium.HeightReference.NONE, // Floating in space!
+              disableDepthTestDistance: 100000.0,
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              verticalOrigin: Cesium.VerticalOrigin.CENTER
+            },
+            label: {
+              text: isSelected 
+                ? `${sat.name}\nAlt: ${sat.altitude}km • Inc: ${sat.inclination}° • V: ${sat.velocity}km/s`
+                : sat.name,
+              font: isSelected ? 'bold 8pt monospace' : '7pt monospace',
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              fillColor: Cesium.Color.WHITE,
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 2,
+              showBackground: true,
+              backgroundColor: Cesium.Color.fromCssColorString('#0b1120').withAlpha(0.85),
+              backgroundPadding: new Cesium.Cartesian2(6, 4),
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              pixelOffset: new Cesium.Cartesian2(0, -20),
+              heightReference: Cesium.HeightReference.NONE,
+              show: true,
+              disableDepthTestDistance: 100000.0
+            },
+            properties: { ...sat, isSatellite: true }
+          });
+        }
       });
     }
+
+    // Always clear old selected satellite trajectory trails first to re-plot them correctly
+    ['sat-orbit-predicted', 'sat-orbit-history', 'sat-nadir-beam', 'sat-nadir-footprint'].forEach(id => {
+      const ent = viewer.entities.getById(id);
+      if (ent) viewer.entities.remove(ent);
+    });
 
     // Render clicked Satellite flight path orbit ring, scanning laser beam & ground footprint footprint!
     if (showSatellites && selectedSatellite) {
