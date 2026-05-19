@@ -1725,13 +1725,13 @@ export default function LiveMap({
               🛰️ OVERLAYS
             </span>
             <button
-              onClick={(e) => { e.stopPropagation(); setIsCatExpanded(!isCatExpanded); }}
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
               style={{
                 background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer',
                 fontSize: '10px', display: 'flex', alignItems: 'center'
               }}
             >
-              {isCatExpanded ? '▼' : '▶'}
+              ▼
             </button>
           </div>
 
@@ -1784,6 +1784,31 @@ export default function LiveMap({
             {isMapOptionsExpanded && (
               <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 
+                {/* Map style selection */}
+                <div style={{ marginBottom: '4px', paddingBottom: '6px', borderBottom: '1px solid rgba(56, 189, 248, 0.15)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>MAP VIEWPORT STYLE</div>
+                  <select
+                    value={mapStyle}
+                    onChange={(e) => setMapStyle(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: '#0f172a',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      borderRadius: '4px',
+                      padding: '4px 6px',
+                      color: '#e2e8f0',
+                      fontSize: '9px',
+                      fontWeight: '800',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    <option value="tactical">🛰️ TACTICAL DARK</option>
+                    <option value="satellite">🌍 HIGH-RES ORBITAL</option>
+                  </select>
+                </div>
+
                 {/* Checklist options with right-side status indicators */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   
@@ -2105,6 +2130,35 @@ export default function LiveMap({
                   </div>
 
                 </div>
+
+                {/* Tactical Widgets */}
+                <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>TACTICAL WIDGETS</div>
+                  <button
+                    className={`sev-btn${showMarkets ? ' active' : ''}`}
+                    style={{
+                      background: showMarkets ? '#10b981' : 'transparent',
+                      color: showMarkets ? '#020617' : '#8892a4',
+                      borderColor: '#10b981',
+                      width: '100%',
+                      fontSize: '9px',
+                      padding: '5px 0',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      border: '1px solid #10b981',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    onClick={() => setShowMarkets(!showMarkets)}
+                  >
+                    📊 {showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS'}
+                  </button>
+                </div>
+
               </div>
             )}
           </div>
