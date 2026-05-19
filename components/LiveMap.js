@@ -64,23 +64,72 @@ function formatTime(ts) {
 
 function AsciiLoader({ text }) {
   const [frame, setFrame] = useState(0);
-  const frames = [
-    "[    ] ░░░░░░░░░░ 0%",
-    "[=   ] ▓░░░░░░░░░ 10%",
-    "[==  ] ▓▓░░░░░░░░ 30%",
-    "[=== ] ▓▓▓░░░░░░░ 50%",
-    "[====] ▓▓▓▓░░░░░░ 70%",
-    "[ ===] ▓▓▓▓▓▓░░░░ 85%",
-    "[  ==] ▓▓▓▓▓▓▓▓░░ 95%",
-    "[   =] ▓▓▓▓▓▓▓▓▓▓ 100%"
+  const [msgIdx, setMsgIdx] = useState(0);
+
+  const messages = [
+    "Establishing handshake with SIGINT satellite array",
+    "Parsing global OSINT disarmament feeds",
+    "Ingesting trustworthy multi-source intelligence reports",
+    "Harvesting active GDELT geospatial event logs",
+    "Synchronizing verified sovereign research dossiers",
+    "Resolving Reuters, AJE, Nature, and GDACS feeds",
+    "Validating cryptographic network block signatures",
+    "Mapping multi-point coordinates onto 3D engine"
+  ];
+
+  const asciiArt = [
+    // Frame 0
+    `    .---.      _______     .---.
+   /  .  \\    |  ___  |   /  .  \\
+  |  / \\  |   | |   | |  |  / \\  |
+  |  \\_/  |   | |___| |  |  \\_/  |
+   \\  '  /    |_______|   \\  '  /
+    '---'                  '---'
+       [📡 SCANNING ORBITAL SECTOR]`,
+
+    // Frame 1
+    `    .---.      _______     .---.
+   /  *  \\    |  ___  |   /  *  \\
+  |  / \\  |   | | | | |  |  / \\  |
+  |  \\_/  |   | |___| |  |  \\_/  |
+   \\  *  /    |_______|   \\  *  /
+    '---'                  '---'
+       [📡 DOWNLINK PIPELINE ALIGNED]`,
+
+    // Frame 2
+    `    .---.      _______     .---.
+   /  o  \\    |  ___  |   /  o  \\
+  |  / \\  |   | |o|o| |  |  / \\  |
+  |  \\_/  |   | |___| |  |  \\_/  |
+   \\  o  /    |_______|   \\  o  /
+    '---'                  '---'
+       [📡 RESOLVING SIGNAL DECODE]`
+  ];
+
+  const progressFrames = [
+    "[»          ] 12% - INGESTING base telemetry...",
+    "[»»»        ] 35% - FILTERING disarmament files...",
+    "[»»»»»      ] 58% - SYNCING global intelligence...",
+    "[»»»»»»»»   ] 82% - GEOTAGGING local points...",
+    "[»»»»»»»»»» ] 99% - DEPLOYING spatial interface..."
   ];
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setFrame(prev => (prev + 1) % frames.length);
-    }, 150);
-    return () => clearInterval(timer);
+    const artTimer = setInterval(() => {
+      setFrame(prev => (prev + 1) % asciiArt.length);
+    }, 300);
+
+    const msgTimer = setInterval(() => {
+      setMsgIdx(prev => (prev + 1) % messages.length);
+    }, 1500);
+
+    return () => {
+      clearInterval(artTimer);
+      clearInterval(msgTimer);
+    };
   }, []);
+
+  const progressFrame = progressFrames[frame % progressFrames.length];
 
   return (
     <div style={{
@@ -88,26 +137,75 @@ function AsciiLoader({ text }) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '40px 10px',
+      padding: '30px 10px',
       fontFamily: 'monospace',
       color: '#00f0ff',
-      background: 'rgba(2, 6, 23, 0.35)',
-      border: '1px dashed rgba(0, 240, 255, 0.2)',
+      background: 'rgba(2, 6, 23, 0.45)',
+      border: '1px dashed rgba(0, 240, 255, 0.25)',
       borderRadius: '8px',
       margin: '20px 14px',
       textAlign: 'center',
-      boxShadow: '0 0 15px rgba(0, 240, 255, 0.05)'
+      boxShadow: '0 0 25px rgba(0, 240, 255, 0.1)',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <pre style={{ margin: 0, fontSize: '10px', lineHeight: '1.3', color: '#00f0ff', opacity: 0.85 }}>
-{`   ╔═══════════════════════════════╗
-   ║  SOVEREIGN OSINT DATALINK     ║
-   ╚═══════════════════════════════╝`}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px)',
+        backgroundSize: '15px 15px',
+        pointerEvents: 'none'
+      }} />
+
+      <pre style={{ 
+        margin: 0, 
+        fontSize: '11px', 
+        lineHeight: '1.25', 
+        color: '#00f0ff',
+        textShadow: '0 0 8px rgba(0, 240, 255, 0.4)',
+        zIndex: 1,
+        whiteSpace: 'pre'
+      }}>
+        {asciiArt[frame]}
       </pre>
-      <div style={{ fontSize: '9px', margin: '12px 0 8px', letterSpacing: '2px', color: '#38bdf8', fontWeight: 'bold' }}>
-        {text.toUpperCase()}...
+
+      <div style={{ 
+        fontSize: '9px', 
+        marginTop: '15px', 
+        letterSpacing: '1px', 
+        color: '#38bdf8', 
+        fontWeight: 'bold',
+        zIndex: 1,
+        textTransform: 'uppercase'
+      }}>
+        {text}
       </div>
-      <div style={{ fontSize: '10px', color: '#00f0ff', opacity: 0.9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-        {frames[frame]}
+
+      <div style={{
+        fontSize: '8.5px',
+        margin: '6px 0 10px',
+        color: '#94a3b8',
+        zIndex: 1,
+        padding: '0 8px',
+        minHeight: '22px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        lineHeight: '1.3'
+      }}>
+        ⚡ {messages[msgIdx]}
+      </div>
+
+      <div style={{ 
+        fontSize: '9.5px', 
+        color: '#00f0ff', 
+        zIndex: 1,
+        background: 'rgba(0, 240, 255, 0.05)',
+        padding: '4px 10px',
+        borderRadius: '4px',
+        border: '1px solid rgba(0, 240, 255, 0.15)'
+      }}>
+        {progressFrame}
       </div>
     </div>
   );
