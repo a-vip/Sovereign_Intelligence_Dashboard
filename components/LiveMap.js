@@ -62,6 +62,57 @@ function formatTime(ts) {
   });
 }
 
+function AsciiLoader({ text }) {
+  const [frame, setFrame] = useState(0);
+  const frames = [
+    "[    ] ░░░░░░░░░░ 0%",
+    "[=   ] ▓░░░░░░░░░ 10%",
+    "[==  ] ▓▓░░░░░░░░ 30%",
+    "[=== ] ▓▓▓░░░░░░░ 50%",
+    "[====] ▓▓▓▓░░░░░░ 70%",
+    "[ ===] ▓▓▓▓▓▓░░░░ 85%",
+    "[  ==] ▓▓▓▓▓▓▓▓░░ 95%",
+    "[   =] ▓▓▓▓▓▓▓▓▓▓ 100%"
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrame(prev => (prev + 1) % frames.length);
+    }, 150);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 10px',
+      fontFamily: 'monospace',
+      color: '#00f0ff',
+      background: 'rgba(2, 6, 23, 0.35)',
+      border: '1px dashed rgba(0, 240, 255, 0.2)',
+      borderRadius: '8px',
+      margin: '20px 14px',
+      textAlign: 'center',
+      boxShadow: '0 0 15px rgba(0, 240, 255, 0.05)'
+    }}>
+      <pre style={{ margin: 0, fontSize: '10px', lineHeight: '1.3', color: '#00f0ff', opacity: 0.85 }}>
+{`   ╔═══════════════════════════════╗
+   ║  SOVEREIGN OSINT DATALINK     ║
+   ╚═══════════════════════════════╝`}
+      </pre>
+      <div style={{ fontSize: '9px', margin: '12px 0 8px', letterSpacing: '2px', color: '#38bdf8', fontWeight: 'bold' }}>
+        {text.toUpperCase()}...
+      </div>
+      <div style={{ fontSize: '10px', color: '#00f0ff', opacity: 0.9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+        {frames[frame]}
+      </div>
+    </div>
+  );
+}
+
 export default function LiveMap({
   currentUser,
   handleLogout,
@@ -1140,10 +1191,7 @@ export default function LiveMap({
         <div className="feed-list">
           {feedType === 'rss' ? (
             rssLoading && filteredRssItems.length === 0 ? (
-              <div className="feed-empty" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '40px 10px', alignItems: 'center' }}>
-                <span className="loading-ring" style={{ width: '20px', height: '20px', borderWidth: '2px' }} />
-                <span style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '1px', color: 'rgba(255,255,255,0.4)' }}>SCRAPING TACTICAL FEEDS...</span>
-              </div>
+              <AsciiLoader text="Scraping Tactical Feeds" />
             ) : filteredRssItems.length === 0 ? (
               <div className="feed-empty">No RSS items match current filters</div>
             ) : (
@@ -1330,79 +1378,84 @@ export default function LiveMap({
               })
             )
           ) : (
-            <>
-              {filteredEvents.slice(0, visibleEventCount).map((ev, idx) => {
-                const vStatus = ev.url ? (ev.details?.verificationStatus || 'pending') : 'unverified';
-                const badgeStyles = vStatus === 'unverified'
-                  ? { bg: 'rgba(234, 179, 8, 0.12)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.25)', label: 'UNVERIFIED' }
-                  : vStatus === 'active' 
-                  ? { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', label: '✓ VERIFIED' }
-                  : vStatus === 'healed'
-                  ? { bg: 'rgba(0, 240, 255, 0.12)', color: '#00f0ff', border: '1px solid rgba(0, 240, 255, 0.25)', label: '⚡ HEALED' }
-                  : vStatus === 'broken'
-                  ? { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', label: '⚠ BROKEN LINK' }
-                  : { bg: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', label: '🔎 PENDING CHECK' };
+            status === 'loading' && filteredEvents.length === 0 ? (
+              <AsciiLoader text="Decrypting SIGINT Network" />
+            ) : filteredEvents.length === 0 ? (
+              <div className="feed-empty">No events match current filters</div>
+            ) : (
+              <>
+                {filteredEvents.slice(0, visibleEventCount).map((ev, idx) => {
+                  const vStatus = ev.url ? (ev.details?.verificationStatus || 'pending') : 'unverified';
+                  const badgeStyles = vStatus === 'unverified'
+                    ? { bg: 'rgba(234, 179, 8, 0.12)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.25)', label: 'UNVERIFIED' }
+                    : vStatus === 'active' 
+                    ? { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', label: '✓ VERIFIED' }
+                    : vStatus === 'healed'
+                    ? { bg: 'rgba(0, 240, 255, 0.12)', color: '#00f0ff', border: '1px solid rgba(0, 240, 255, 0.25)', label: '⚡ HEALED' }
+                    : vStatus === 'broken'
+                    ? { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', label: '⚠ BROKEN LINK' }
+                    : { bg: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', label: '🔎 PENDING CHECK' };
 
-                return (
-                  <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
-                    <div className="feed-item-header">
-                      <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
-                        {ev.category}
-                      </span>
-                      {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
-                      <span className="feed-verification" style={{ 
-                        fontSize: '8px', 
-                        background: badgeStyles.bg, 
-                        color: badgeStyles.color, 
-                        padding: '2px 6px', 
-                        borderRadius: '4px', 
-                        border: badgeStyles.border, 
-                        fontWeight: '800', 
-                        letterSpacing: '0.05em',
-                        fontFamily: 'monospace'
-                      }}>
-                        {badgeStyles.label}
-                      </span>
-                      <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
-                        S{ev.severity}
-                      </span>
-                      <span className="feed-time">{formatTime(ev.timestamp)}</span>
+                  return (
+                    <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
+                      <div className="feed-item-header">
+                        <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
+                          {ev.category}
+                        </span>
+                        {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
+                        <span className="feed-verification" style={{ 
+                          fontSize: '8px', 
+                          background: badgeStyles.bg, 
+                          color: badgeStyles.color, 
+                          padding: '2px 6px', 
+                          borderRadius: '4px', 
+                          border: badgeStyles.border, 
+                          fontWeight: '800', 
+                          letterSpacing: '0.05em',
+                          fontFamily: 'monospace'
+                        }}>
+                          {badgeStyles.label}
+                        </span>
+                        <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
+                          S{ev.severity}
+                        </span>
+                        <span className="feed-time">{formatTime(ev.timestamp)}</span>
+                      </div>
+                      <div className="feed-title">{ev.title}</div>
+                      {ev.location && <div className="feed-location">📍 {ev.location}</div>}
                     </div>
-                    <div className="feed-title">{ev.title}</div>
-                    {ev.location && <div className="feed-location">📍 {ev.location}</div>}
-                  </div>
-                );
-              })}
-              {filteredEvents.length > visibleEventCount && (
-                <button 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setVisibleEventCount(prev => prev + 30);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12.5px',
-                    background: 'rgba(15, 23, 42, 0.45)',
-                    border: 'none',
-                    borderTop: '1px solid rgba(56, 189, 248, 0.1)',
-                    color: '#00f0ff',
-                    fontFamily: 'monospace',
-                    fontSize: '10.5px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    textAlign: 'center',
-                    letterSpacing: '0.05em',
-                    outline: 'none',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.08)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.45)'}
-                >
-                  [ LOAD MORE EVENTS (+30) ]
-                </button>
-              )}
-            </>
+                  );
+                })}
+                {filteredEvents.length > visibleEventCount && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setVisibleEventCount(prev => prev + 30);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12.5px',
+                      background: 'rgba(15, 23, 42, 0.45)',
+                      border: 'none',
+                      borderTop: '1px solid rgba(56, 189, 248, 0.1)',
+                      color: '#00f0ff',
+                      fontFamily: 'monospace',
+                      fontSize: '10.5px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center',
+                      letterSpacing: '0.05em',
+                      outline: 'none',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.45)'}
+                  >
+                    [ LOAD MORE EVENTS (+30) ]
+                  </button>
+                )}
+              </>
+            )
           )}
-          {feedType !== 'rss' && filteredEvents.length === 0 && <div className="feed-empty">No events match current filters</div>}
         </div>
       </div>
 
