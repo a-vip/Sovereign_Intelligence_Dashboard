@@ -445,15 +445,62 @@ export default function LiveMap({
     return counts;
   }, [markers]);
 
-  // Create ticker alert items
+  // Create ticker alert items combining GDELT events & dynamic RSS feeds
   const tickerItems = useMemo(() => {
-    if (!allFetchedEvents || allFetchedEvents.length === 0) {
-      return ["[SIGNAL LOCK] Listening for live SIGINT telemetry..."];
+    const items = [];
+    
+    // 1. Map GDELT events
+    if (allFetchedEvents && allFetchedEvents.length > 0) {
+      allFetchedEvents.slice(0, 6).forEach(ev => {
+        items.push({
+          text: `[${ev.category.toUpperCase()} // ${formatTime(ev.timestamp)}] ${ev.title.toUpperCase()}`,
+          timestamp: ev.timestamp,
+          event: ev
+        });
+      });
     }
-    // Limit to latest 6 alerts and duplicate to make the marquee perfectly infinite/seamless
-    const base = allFetchedEvents.slice(0, 6).map(ev => `[${ev.category.toUpperCase()} // ${formatTime(ev.timestamp)}] ${ev.title.toUpperCase()}`);
-    return [...base, ...base, ...base];
-  }, [allFetchedEvents]);
+    
+    // 2. Map RSS feeds
+    if (rssItems && rssItems.length > 0) {
+      rssItems
+        .filter(item => selectedRssSources.includes(item.sid))
+        .slice(0, 6)
+        .forEach(item => {
+          items.push({
+            text: `[OSINT // ${formatTime(item.published_at)}] ${item.title.toUpperCase()}`,
+            timestamp: item.published_at,
+            event: {
+              id: item.id || `rss-${item.url}`,
+              title: item.title,
+              category: item.category || 'Political',
+              severity: item.severity || 1,
+              location: item.location || 'Unknown',
+              lat: item.latitude ? parseFloat(item.latitude) : null,
+              lon: item.longitude ? parseFloat(item.longitude) : null,
+              timestamp: item.published_at,
+              url: item.url,
+              source: item.source,
+              details: {
+                summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
+                isRssItem: true
+              }
+            }
+          });
+        });
+    }
+
+    if (items.length === 0) {
+      return [{ text: "[SIGNAL LOCK] Listening for live SIGINT telemetry...", event: null }];
+    }
+
+    // Sort by timestamp descending and take top 6
+    const sorted = items
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 6);
+      
+    // Duplicate to make the marquee perfectly infinite/seamless
+    return [...sorted, ...sorted, ...sorted];
+  }, [allFetchedEvents, rssItems, selectedRssSources]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: '#020617', overflow: 'hidden' }}>
@@ -713,7 +760,37 @@ export default function LiveMap({
           fontWeight: 'bold',
           letterSpacing: '0.05em'
         }}>
-          {tickerItems.join('   •   ')}
+          {tickerItems.map((item, idx) => (
+            <span 
+              key={idx} 
+              onClick={() => {
+                if (item.event) {
+                  setSelectedEvent(item.event);
+                }
+              }}
+              style={{
+                cursor: item.event ? 'pointer' : 'default',
+                marginRight: '24px',
+                transition: 'all 0.15s ease',
+                display: 'inline-block'
+              }}
+              onMouseEnter={(e) => {
+                if (item.event) {
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.textShadow = '0 0 8px rgba(0, 240, 255, 0.8)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (item.event) {
+                  e.currentTarget.style.color = '#00f0ff';
+                  e.currentTarget.style.textShadow = 'none';
+                }
+              }}
+            >
+              {item.text}
+              {idx < tickerItems.length - 1 && <span style={{ color: 'rgba(255,255,255,0.15)', marginLeft: '24px', pointerEvents: 'none' }}>•</span>}
+            </span>
+          ))}
         </div>
       </div>
 
