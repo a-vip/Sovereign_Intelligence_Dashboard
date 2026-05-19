@@ -19,6 +19,39 @@ const createEmojiCanvas = (emoji, size = 32) => {
   return canvas;
 };
 
+const createCircleCanvas = (color, size = 16, outlineColor = '#ffffff', outlineWidth = 1.5) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  // Add padding for outline border and shadow
+  const totalSize = size + outlineWidth * 2 + 4;
+  canvas.width = totalSize;
+  canvas.height = totalSize;
+  const ctx = canvas.getContext('2d');
+  
+  const center = totalSize / 2;
+  const radius = size / 2;
+  
+  // Shadow/glow styling
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
+  
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.fill();
+  
+  // Outline
+  ctx.shadowColor = 'transparent'; // Turn off shadow for outline
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = outlineWidth;
+  ctx.strokeStyle = outlineColor;
+  ctx.stroke();
+  
+  return canvas;
+};
+
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
@@ -836,13 +869,12 @@ export default function CesiumGlobe({
         id: m.id || m.title,
         name: m.title || m.name,
         position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
-        point: {
-          pixelSize: 6 + (m.severity || 1) * 1.5,
-          color: Cesium.Color.fromCssColorString(sevColorStr), // Colored strictly by severity!
-          outlineColor: Cesium.Color.WHITE, // BEAUTIFUL OUTLINE WHITE BORDER!
-          outlineWidth: 1.5, // Elegant thin crisp outline border
+        billboard: {
+          image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, '#ffffff', 1.5),
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of buildings/terrain!
-          disableDepthTestDistance: Number.POSITIVE_INFINITY, // Disable depth testing at all zoom scales to prevent globe curved ellipsoid clipping!
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          verticalOrigin: Cesium.VerticalOrigin.CENTER,
+          disableDepthTestDistance: 100000.0, // Disable depth testing when zoomed in closer than 100km to bypass 3D buildings, but keep depth testing enabled at global scale so back-side points are hidden!
         },
         label: {
           text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
@@ -857,7 +889,7 @@ export default function CesiumGlobe({
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
-          disableDepthTestDistance: Number.POSITIVE_INFINITY, // Match point occlusion culling
+          disableDepthTestDistance: 100000.0, // Match billboard occlusion culling
           show: false,
         },
         properties: m,
