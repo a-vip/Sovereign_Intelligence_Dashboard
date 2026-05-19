@@ -856,17 +856,19 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     if (!Cesium) return;
 
-    // Clear previously rendered entities
-    viewer.entities.removeAll();
+    // Remove only existing threat entities (leaving satellites completely untouched!)
+    const existingThreats = viewer.entities.values.filter(e => e.id && e.id.startsWith('threat-'));
+    existingThreats.forEach(e => viewer.entities.remove(e));
 
     repelledMarkers.forEach(m => {
       if (m.repelledLat === undefined || m.repelledLon === undefined) return;
 
       const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
+      const threatId = `threat-${m.id || m.title}`;
 
       // Threat circle billboard marker (perfectly clamped to terrain and 3D building rooftops!)
       viewer.entities.add({
-        id: m.id || m.title,
+        id: threatId,
         name: m.title || m.name,
         position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
         billboard: {
@@ -899,6 +901,7 @@ export default function CesiumGlobe({
       if (m.severity >= 5) {
         let currentRadius = 15000.0;
         viewer.entities.add({
+          id: `threat-pulse-${m.id || m.title}`,
           position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
           ellipse: {
             semiMajorAxis: new Cesium.CallbackProperty(() => {
@@ -917,6 +920,19 @@ export default function CesiumGlobe({
         });
       }
     });
+  }, [repelledMarkers, mapError, scriptsLoaded]);
+
+  // 6. Update dynamic orbiting satellites and flight paths
+  useEffect(() => {
+    if (!scriptsLoaded || mapError || !viewerRef.current) return;
+
+    const Cesium = window.Cesium;
+    const viewer = viewerRef.current;
+    if (!Cesium) return;
+
+    // Remove only existing satellite entities (leaving threat markers completely untouched!)
+    const existingSats = viewer.entities.values.filter(e => e.id && e.id.startsWith('sat-'));
+    existingSats.forEach(e => viewer.entities.remove(e));
 
     // Render 3D Orbiting Satellites in Space!
     if (showSatellites && satellites && satellites.length > 0) {
@@ -1089,15 +1105,17 @@ export default function CesiumGlobe({
         }
       });
 
-      // 5. Dynamic Camera Locked Tracking (Close-up dynamic orbit tracking)
+      // 5. Dynamic Camera Locked Tracking (Assign ONLY ONCE on lock, allowing free user camera navigation around sat!)
       if (isTracked) {
         const satEntity = viewer.entities.getById(`sat-${selectedSatellite.code}`);
         if (satEntity) {
           const currentTracked = viewer.trackedEntity;
-          viewer.trackedEntity = satEntity;
           
-          // Smooth zoom to tracking view if we just locked on!
+          // Only assign trackedEntity ONCE if we aren't already tracking it!
           if (currentTracked !== satEntity) {
+            viewer.trackedEntity = satEntity;
+            
+            // Smooth zoom to tracking view on first lock-on
             viewer.zoomTo(satEntity, new Cesium.HeadingPitchRange(
               Cesium.Math.toRadians(0),
               Cesium.Math.toRadians(-28),
@@ -1116,7 +1134,7 @@ export default function CesiumGlobe({
         viewerRef.current.trackedEntity = undefined;
       }
     }
-  }, [repelledMarkers, mapError, scriptsLoaded, showSatellites, satellites, selectedSatellite, isTracked]);
+  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError]);
 
   // 6. Handle Base Map Style changes dynamically in real time (Satellite vs Tactical Dark)
   useEffect(() => {
