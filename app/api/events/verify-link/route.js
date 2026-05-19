@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import fs from 'fs';
 import path from 'path';
+import { verifyLink, findAlternativeLink } from '@/lib/verification';
 
-// Path for local database files (used only in local dev environment when POSTGRES_URL is missing)
 const LOCAL_EVENTS_FILE = path.resolve('events-local.json');
 
 function readJsonFile(filePath) {
@@ -25,214 +25,37 @@ function writeJsonFile(filePath, data) {
   }
 }
 
-const SCRAPER_BLOCKING_DOMAINS = [
-  'reuters.com',
-  'bloomberg.com',
-  'nytimes.com',
-  'wsj.com',
-  'theguardian.com',
-  'economist.com',
-  'ft.com'
-];
-
-function isScraperBlockingDomain(url) {
+async function updateEventStatus(id, finalUrl, status, originalUrl = null) {
+  if (!id) return;
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    return SCRAPER_BLOCKING_DOMAINS.some(domain => hostname.includes(domain));
-  } catch (e) {
-    return false;
-  }
-}
-
-async function verifyLink(url, title = '', source = '') {
-  if (!url) return { active: false };
-  
-  // Strategy for domains protected by Datadome/Cloudflare
-  if (isScraperBlockingDomain(url)) {
-    console.log(`[Google News Verification Check]: ${url} matches CDN-protected publisher. Querying search index...`);
-    try {
-      const words = title.split(/\s+/).filter(Boolean);
-      const keyPhrase = words.slice(0, 6).join(' ');
-      const cleanPhrase = keyPhrase.replace(/[^\w\s-]/g, '').trim();
-      
-      if (cleanPhrase) {
-        const query = `${cleanPhrase} ${source || ''}`;
-        const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
-        const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(4000) });
-        
-        if (searchRes.ok) {
-          const xml = await searchRes.text();
-          const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
-          
-          for (const item of items) {
-            const linkMatch = item.match(/<link>(.*?)<\/link>/);
-            if (linkMatch) {
-              const googleLink = linkMatch[1].trim();
-              const resolvedUrl = await resolveGoogleNewsLink(googleLink);
-              
-              const origHost = new URL(url).hostname.toLowerCase().replace('www.', '');
-              const newHost = new URL(resolvedUrl).hostname.toLowerCase().replace('www.', '');
-              
-              if (origHost === newHost || newHost.includes(origHost) || origHost.includes(newHost)) {
-                console.log(`[Google News Verified]: Matching healthy article on ${newHost} -> ${resolvedUrl}`);
-                return { active: true, url: resolvedUrl };
-              }
-            }
+    if (process.env.POSTGRES_URL) {
+      const dbRes = await sql`SELECT details FROM sigint_events WHERE id = ${id}`;
+      if (dbRes.rows && dbRes.rows.length > 0) {
+        const existingDetails = dbRes.rows[0].details || {};
+        existingDetails.verificationStatus = status;
+        if (originalUrl) {
+          existingDetails.originalUrl = originalUrl;
+        }
+        await sql`UPDATE sigint_events SET url = ${finalUrl}, details = ${existingDetails} WHERE id = ${id}`;
+      }
+    } else {
+      const localEvents = readJsonFile(LOCAL_EVENTS_FILE);
+      const updated = localEvents.map(e => {
+        if (e.id === id) {
+          const details = e.details || {};
+          details.verificationStatus = status;
+          if (originalUrl) {
+            details.originalUrl = originalUrl;
           }
+          return { ...e, url: finalUrl, details };
         }
-      }
-    } catch (e) {
-      console.warn('Google News verification search failed, falling back to direct check:', e);
-    }
-    
-    // Fallback: direct check but ignore 403 blocks since they could be active under real browsers
-    try {
-      const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(3000) });
-      if (res.status === 404 || res.status === 410) return { active: false };
-      return { active: true, url };
-    } catch (e) {
-      return { active: false };
-    }
-  }
-  
-  // Strategy for standard domains (direct fetch with soft-404 parsing)
-  try {
-    const res = await fetch(url, { 
-      method: 'GET', 
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-      },
-      signal: AbortSignal.timeout(4000) 
-    });
-    
-    if (res.status === 404 || res.status === 410) {
-      return { active: false };
-    }
-    
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('text/html')) {
-      const htmlText = await res.text();
-      const lowerText = htmlText.toLowerCase();
-      
-      const soft404Indicators = [
-        "we can't find that page",
-        "page not found",
-        "404 page not found",
-        "article not found",
-        "404 error",
-        "page not exist",
-        "page could not be found",
-        "error-404",
-        "soft 404",
-        "reuters.com/errors/404"
-      ];
-      
-      for (const indicator of soft404Indicators) {
-        if (lowerText.includes(indicator)) {
-          console.warn(`Soft 404 indicator matched: "${indicator}" for url: ${url}. Marking as broken.`);
-          return { active: false };
-        }
-      }
-    }
-    
-    return { active: true, url };
-  } catch (e) {
-    return { active: false };
-  }
-}
-
-async function resolveGoogleNewsLink(googleUrl) {
-  try {
-    const res = await fetch(googleUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      },
-      signal: AbortSignal.timeout(3000)
-    });
-    return res.url; // Following redirect automatically retrieves the direct canonical news publisher url
-  } catch (e) {
-    return googleUrl;
-  }
-}
-
-async function findAlternativeLink(title, source) {
-  const words = title.split(/\s+/).filter(Boolean);
-  const keyPhrase = words.slice(0, 6).join(' ');
-  const cleanPhrase = keyPhrase.replace(/[^\w\s-]/g, '').trim();
-  
-  // STRATEGY A: Google News RSS Search (High-authority news syndication index)
-  try {
-    if (cleanPhrase) {
-      const query = `${cleanPhrase} ${source || ''}`;
-      const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
-      
-      const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(4000) });
-      if (searchRes.ok) {
-        const xml = await searchRes.text();
-        const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
-        
-        for (const item of items) {
-          const linkMatch = item.match(/<link>(.*?)<\/link>/);
-          if (linkMatch) {
-            const googleLink = linkMatch[1].trim();
-            console.log(`Resolving Google News search candidate: ${googleLink}`);
-            const resolvedUrl = await resolveGoogleNewsLink(googleLink);
-            const status = await verifyLink(resolvedUrl, title, source);
-            if (status.active) {
-              console.log(`Successfully verified alternative Google News source link: ${status.url}`);
-              return status.url;
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Google News backup crawler error:', e);
-  }
-
-  // STRATEGY B: DuckDuckGo HTML Search Fallback
-  try {
-    if (cleanPhrase) {
-      const query = `${cleanPhrase} ${source || ''}`;
-      const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-      
-      const searchRes = await fetch(searchUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        },
-        signal: AbortSignal.timeout(4000)
+        return e;
       });
-      
-      if (searchRes.ok) {
-        const html = await searchRes.text();
-        const links = [];
-        const regex = /uddg=([^&"]+)/g;
-        let match;
-        while ((match = regex.exec(html)) !== null) {
-          try {
-            const decoded = decodeURIComponent(match[1]);
-            if (decoded.startsWith('http') && !decoded.includes('duckduckgo.com') && !decoded.includes('wikipedia.org')) {
-              links.push(decoded);
-            }
-          } catch (e) {}
-        }
-        
-        for (const link of links.slice(0, 5)) {
-          const status = await verifyLink(link, title, source);
-          if (status.active) {
-            console.log(`Successfully verified alternative DuckDuckGo fallback link: ${status.url}`);
-            return status.url;
-          }
-        }
-      }
+      writeJsonFile(LOCAL_EVENTS_FILE, updated);
     }
-  } catch (e) {
-    console.error('DuckDuckGo fallback search error:', e);
+  } catch (err) {
+    console.error(`Failed to cache verification status for event id ${id}:`, err);
   }
-
-  return null;
 }
 
 export async function GET(request) {
@@ -247,49 +70,63 @@ export async function GET(request) {
   }
 
   try {
-    const verification = await verifyLink(url, title || '', source || '');
+    // 1. Check cache first to avoid slow HTTP calls on subsequent clicks!
+    let cachedStatus = null;
+    let cachedUrl = null;
     
-    if (verification.active) {
-      // If the link was resolved/healed to a healthy redirect URL on the same domain
-      if (verification.url !== url) {
-        if (id) {
-          if (process.env.POSTGRES_URL) {
-            await sql`UPDATE sigint_events SET url = ${verification.url} WHERE id = ${id}`;
-          } else {
-            const localEvents = readJsonFile(LOCAL_EVENTS_FILE);
-            const updated = localEvents.map(e => e.id === id ? { ...e, url: verification.url } : e);
-            writeJsonFile(LOCAL_EVENTS_FILE, updated);
-          }
+    if (id) {
+      if (process.env.POSTGRES_URL) {
+        const dbRes = await sql`SELECT url, details FROM sigint_events WHERE id = ${id}`;
+        if (dbRes.rows && dbRes.rows.length > 0) {
+          const row = dbRes.rows[0];
+          cachedStatus = row.details?.verificationStatus;
+          cachedUrl = row.url;
         }
-        return NextResponse.json({ 
-          status: 'healed', 
-          originalUrl: url,
-          url: verification.url, 
-          message: 'Path pattern updated and self-healed successfully!' 
-        });
+      } else {
+        const localEvents = readJsonFile(LOCAL_EVENTS_FILE);
+        const ev = localEvents.find(e => e.id === id);
+        if (ev) {
+          cachedStatus = ev.details?.verificationStatus;
+          cachedUrl = ev.url;
+        }
       }
-      
-      return NextResponse.json({ 
-        status: 'active', 
-        url, 
-        message: 'Link verified successfully' 
+    }
+
+    if (cachedStatus && cachedStatus !== 'pending') {
+      console.log(`[Cache Hit] Serving pre-verified link status: ${cachedStatus} for id: ${id}`);
+      return NextResponse.json({
+        status: cachedStatus,
+        url: cachedUrl || url,
+        message: 'Link verification served directly from persistent secure database cache.'
       });
     }
 
-    // Link is broken, trigger self-healing backup finder!
+    // 2. Perform live verification check
+    const verification = await verifyLink(url, title || '', source || '');
+    
+    if (verification.active) {
+      const isHealed = verification.url !== url;
+      const finalStatus = isHealed ? 'healed' : 'active';
+      
+      if (id) {
+        await updateEventStatus(id, verification.url, finalStatus, isHealed ? url : null);
+      }
+
+      return NextResponse.json({ 
+        status: finalStatus, 
+        originalUrl: url,
+        url: verification.url, 
+        message: isHealed ? 'Path pattern updated and self-healed successfully!' : 'Link verified successfully'
+      });
+    }
+
+    // 3. Link is broken, trigger self-healing backup finder!
     console.warn(`Link verification failed for: ${url}. Initiating self-healing search for title: ${title}`);
     const alternativeUrl = await findAlternativeLink(title || '', source || '');
 
     if (alternativeUrl) {
-      // Update database row to persist the healed link!
       if (id) {
-        if (process.env.POSTGRES_URL) {
-          await sql`UPDATE sigint_events SET url = ${alternativeUrl} WHERE id = ${id}`;
-        } else {
-          const localEvents = readJsonFile(LOCAL_EVENTS_FILE);
-          const updated = localEvents.map(e => e.id === id ? { ...e, url: alternativeUrl } : e);
-          writeJsonFile(LOCAL_EVENTS_FILE, updated);
-        }
+        await updateEventStatus(id, alternativeUrl, 'healed', url);
       }
 
       return NextResponse.json({
@@ -298,6 +135,11 @@ export async function GET(request) {
         url: alternativeUrl,
         message: 'Original link was broken (404/dead). Successfully self-healed and retrieved working press wire backup!'
       });
+    }
+
+    // 4. Broken and unhealable
+    if (id) {
+      await updateEventStatus(id, url, 'broken');
     }
 
     return NextResponse.json({

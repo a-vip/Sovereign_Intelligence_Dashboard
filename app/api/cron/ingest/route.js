@@ -3,6 +3,7 @@ import { initDb, saveEvents, saveRssItems } from '@/lib/db';
 import crypto from 'crypto';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss } from '@/lib/rssParser';
+import { verifyLink, findAlternativeLink } from '@/lib/verification';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,12 +89,53 @@ export async function GET(request) {
       }
     }));
 
-    const newEvents = [...osintEvents, ...researchEvents];
+    const rawCombined = [...osintEvents, ...researchEvents];
+    const verifiedEvents = [];
 
-    if (newEvents.length > 0) {
-      await saveEvents(newEvents);
-      // Log new events to vault
-      await logToVault(newEvents);
+    if (rawCombined.length > 0) {
+      console.log(`[Verification Bot]: Commencing concurrent verification checks on ${rawCombined.length} harvested signals...`);
+      
+      // Process in small parallel chunks to avoid rate limits on news sites
+      const CONCURRENCY_LIMIT = 8;
+      for (let i = 0; i < rawCombined.length; i += CONCURRENCY_LIMIT) {
+        const chunk = rawCombined.slice(i, i + CONCURRENCY_LIMIT);
+        await Promise.all(chunk.map(async (ev) => {
+          try {
+            if (ev.details?.isResearch) {
+              ev.details.verificationStatus = 'active';
+              verifiedEvents.push(ev);
+              return;
+            }
+
+            const verification = await verifyLink(ev.url, ev.title, ev.source);
+            if (verification.active) {
+              const isHealed = verification.url !== ev.url;
+              ev.details.verificationStatus = isHealed ? 'healed' : 'active';
+              if (isHealed) {
+                ev.details.originalUrl = ev.url;
+                ev.url = verification.url;
+              }
+            } else {
+              const alternativeUrl = await findAlternativeLink(ev.title, ev.source);
+              if (alternativeUrl) {
+                ev.details.originalUrl = ev.url;
+                ev.url = alternativeUrl;
+                ev.details.verificationStatus = 'healed';
+              } else {
+                ev.details.verificationStatus = 'broken';
+              }
+            }
+          } catch (e) {
+            console.warn(`[Verification Bot Alert]: Failed to verify link for "${ev.title}":`, e.message);
+            ev.details.verificationStatus = 'pending';
+          }
+          verifiedEvents.push(ev);
+        }));
+      }
+
+      await saveEvents(verifiedEvents);
+      // Log verified events to vault
+      await logToVault(verifiedEvents);
     }
 
     // 3. Fetch and parse Live RSS feeds, then save to Neon
@@ -110,7 +152,7 @@ export async function GET(request) {
     
     return NextResponse.json({ 
       success: true, 
-      count: newEvents.length,
+      count: verifiedEvents.length,
       osint: osintEvents.length,
       research: researchEvents.length,
       rssIngested: newRssCount

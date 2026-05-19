@@ -1331,35 +1331,48 @@ export default function LiveMap({
             )
           ) : (
             <>
-              {filteredEvents.slice(0, visibleEventCount).map((ev, idx) => (
-                <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
-                  <div className="feed-item-header">
-                    <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
-                      {ev.category}
-                    </span>
-                    {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
-                    <span className="feed-verification" style={{ 
-                      fontSize: '8px', 
-                      background: ev.url ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)', 
-                      color: ev.url ? '#22c55e' : '#eab308', 
-                      padding: '2px 6px', 
-                      borderRadius: '4px', 
-                      border: ev.url ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
-                      fontWeight: '800', 
-                      letterSpacing: '0.05em',
-                      fontFamily: 'monospace'
-                    }}>
-                      {ev.url ? 'VERIFIED' : 'UNVERIFIED'}
-                    </span>
-                    <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
-                      S{ev.severity}
-                    </span>
-                    <span className="feed-time">{formatTime(ev.timestamp)}</span>
+              {filteredEvents.slice(0, visibleEventCount).map((ev, idx) => {
+                const vStatus = ev.url ? (ev.details?.verificationStatus || 'pending') : 'unverified';
+                const badgeStyles = vStatus === 'unverified'
+                  ? { bg: 'rgba(234, 179, 8, 0.12)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.25)', label: 'UNVERIFIED' }
+                  : vStatus === 'active' 
+                  ? { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', label: '✓ VERIFIED' }
+                  : vStatus === 'healed'
+                  ? { bg: 'rgba(0, 240, 255, 0.12)', color: '#00f0ff', border: '1px solid rgba(0, 240, 255, 0.25)', label: '⚡ HEALED' }
+                  : vStatus === 'broken'
+                  ? { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', label: '⚠ BROKEN LINK' }
+                  : { bg: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', label: '🔎 PENDING CHECK' };
+
+                return (
+                  <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
+                    <div className="feed-item-header">
+                      <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
+                        {ev.category}
+                      </span>
+                      {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
+                      <span className="feed-verification" style={{ 
+                        fontSize: '8px', 
+                        background: badgeStyles.bg, 
+                        color: badgeStyles.color, 
+                        padding: '2px 6px', 
+                        borderRadius: '4px', 
+                        border: badgeStyles.border, 
+                        fontWeight: '800', 
+                        letterSpacing: '0.05em',
+                        fontFamily: 'monospace'
+                      }}>
+                        {badgeStyles.label}
+                      </span>
+                      <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
+                        S{ev.severity}
+                      </span>
+                      <span className="feed-time">{formatTime(ev.timestamp)}</span>
+                    </div>
+                    <div className="feed-title">{ev.title}</div>
+                    {ev.location && <div className="feed-location">📍 {ev.location}</div>}
                   </div>
-                  <div className="feed-title">{ev.title}</div>
-                  {ev.location && <div className="feed-location">📍 {ev.location}</div>}
-                </div>
-              ))}
+                );
+              })}
               {filteredEvents.length > visibleEventCount && (
                 <button 
                   onClick={(e) => {

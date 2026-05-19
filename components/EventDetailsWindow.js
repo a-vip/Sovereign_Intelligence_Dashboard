@@ -67,10 +67,25 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
   useEffect(() => {
     // Reset state on event change
     setCurrentUrl(event.url);
-    setVerificationStatus(event.url ? 'checking' : 'broken');
-    setVerificationMessage(event.url ? 'Verifying source link integrity...' : 'No external source link provided.');
+    
+    const cachedStatus = event.url ? (event.details?.verificationStatus || 'checking') : 'broken';
+    setVerificationStatus(cachedStatus);
+    
+    const cachedMessage = !event.url 
+      ? 'No external source link provided.'
+      : cachedStatus === 'active'
+      ? 'Source link verified active and authentic (served from database cache).'
+      : cachedStatus === 'healed'
+      ? 'Broken link healed! Verified alternative press wire found (served from database cache).'
+      : cachedStatus === 'broken'
+      ? 'Primary source link is dead (404/broken).'
+      : 'Verifying source link integrity...';
+      
+    setVerificationMessage(cachedMessage);
 
-    if (!event.url) return;
+    if (!event.url || cachedStatus === 'active' || cachedStatus === 'healed' || cachedStatus === 'broken') {
+      return;
+    }
 
     let active = true;
     async function checkLink() {
