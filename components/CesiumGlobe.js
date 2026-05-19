@@ -784,20 +784,39 @@ export default function CesiumGlobe({
           const title = props && props.title ? props.title.getValue() : (hoveredEntity.name || '');
 
           if (isCable || isLandingStation || isOilGas || isGpsJamming) {
-            document.body.style.cursor = 'pointer';
-            let tooltipContent = title;
             if (isGpsJamming) {
+              const catVal = props.category ? props.category.getValue() : 'none';
+              if (catVal === 'none') {
+                // Ignore background honeycomb grid during interactive hover picks
+                document.body.style.cursor = 'default';
+                if (typeof setHoverTooltipRef.current === 'function') {
+                  setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
+                }
+                return;
+              }
+              
+              document.body.style.cursor = 'pointer';
               const intensityVal = props.intensity ? props.intensity.getValue() : 0;
-              const catVal = props.category ? props.category.getValue() : 'low';
-              tooltipContent = `📡 GPS Interference Corridor\nRegion: ${title}\nSeverity: ${catVal.toUpperCase()}\nDegradation: ${(intensityVal * 100).toFixed(0)}%`;
-            }
-            if (typeof setHoverTooltipRef.current === 'function') {
-              setHoverTooltipRef.current({
-                show: true,
-                x: movement.endPosition.x,
-                y: movement.endPosition.y,
-                content: tooltipContent
-              });
+              const tooltipContent = `📡 GPS Interference Corridor\nRegion: ${title}\nSeverity: ${catVal.toUpperCase()}\nDegradation: ${(intensityVal * 100).toFixed(0)}%`;
+              
+              if (typeof setHoverTooltipRef.current === 'function') {
+                setHoverTooltipRef.current({
+                  show: true,
+                  x: movement.endPosition.x,
+                  y: movement.endPosition.y,
+                  content: tooltipContent
+                });
+              }
+            } else {
+              document.body.style.cursor = 'pointer';
+              if (typeof setHoverTooltipRef.current === 'function') {
+                setHoverTooltipRef.current({
+                  show: true,
+                  x: movement.endPosition.x,
+                  y: movement.endPosition.y,
+                  content: title
+                });
+              }
             }
             return;
           }
@@ -1722,11 +1741,18 @@ export default function CesiumGlobe({
           const points = getHexagonPoints(cell.lat, cell.lon, cell.radiusKm);
           
           // Configurable opacity: less translucency representing more GPS jamming (severe is highly opaque, low is very translucent)
-          let opacity = 0.3; // Low default
+          let opacity = 0.0; // Background mesh cells are empty/fully transparent by default
+          let outlineColor = Cesium.Color.fromCssColorString('#eab308').withAlpha(0.08); // Subtle, thin gold grid outline
+          
           if (cell.category === 'high') {
-            opacity = 0.82; // Intense, solid-like appearance (18% translucent)
+            opacity = 0.85; // Highly opaque crimson red
+            outlineColor = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.4);
           } else if (cell.category === 'medium') {
-            opacity = 0.52; // Moderate (48% translucent)
+            opacity = 0.55; // Deep translucent orange
+            outlineColor = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.35);
+          } else if (cell.category === 'low') {
+            opacity = 0.28; // Neon translucent gold/yellow
+            outlineColor = Cesium.Color.fromCssColorString('#eab308').withAlpha(0.25);
           }
 
           try {
@@ -1734,10 +1760,12 @@ export default function CesiumGlobe({
               name: cell.source,
               polygon: {
                 hierarchy: Cesium.Cartesian3.fromDegreesArray(points),
-                material: Cesium.Color.fromCssColorString(cell.color).withAlpha(opacity),
+                material: opacity > 0 
+                  ? Cesium.Color.fromCssColorString(cell.color).withAlpha(opacity)
+                  : Cesium.Color.TRANSPARENT,
                 outline: true,
-                outlineColor: Cesium.Color.fromCssColorString(cell.color).withAlpha(0.35),
-                outlineWidth: 1.0,
+                outlineColor: outlineColor,
+                outlineWidth: 0.8, // Elegant hairline outline
                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
               },
               properties: {
