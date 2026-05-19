@@ -80,32 +80,45 @@ function AsciiLoader({ text }) {
   ];
 
   const asciiArt = [
-    // Frame 0: Lotus Bud
-    `       _
-      ( )
-     (   )
-      \\_/`,
+    // Frame 0: Central Bud
+    `      .
+     (o)
+      '`,
 
-    // Frame 1: Bud Soft Opening
-    `       _
-     /| |\\
-    ( | | )
-     \\| |/
-      \\_/`,
+    // Frame 1: Bud Opening Inner Ring
+    `     .-.
+    ( o )
+     '-'`,
 
-    // Frame 2: Petals Unfolding
-    `      \\   /
-     /| | |\\
-    ( | | | )
-     \\| | |/
-      \\_/`,
+    // Frame 2: Four cardinal petal tips emerging
+    `     \\|/
+    ( o )
+     /|\\`,
 
-    // Frame 3: Lotus Flower in Full Bloom
-    `    \\  |  /
-   --\\ | /--
-    ( | | | )
-     \\| | |/
-      \\_/`
+    // Frame 3: Symmetrical horizontal petals opening
+    `     \\|/
+    -( o )-
+     /|\\`,
+
+    // Frame 4: Layered symmetrical petal lines extending
+    `    \\ | /
+   --( o )--
+    / | \\`,
+
+    // Frame 5: Outer radial petals blooming wider
+    `   \\  |  /
+  -- ( o ) --
+   /  |  \\`,
+
+    // Frame 6: Magnificent complete radial blossom
+    `  \\   |   /
+ --  ( o )  --
+  /   |   \\`,
+
+    // Frame 7: Sacred Geometry Infinite Lotus Bloom
+    ` \\    |    /
+--   ( o )   --
+ /    |    \\`
   ];
 
   const progressFrames = [
