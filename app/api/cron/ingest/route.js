@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss } from '@/lib/rssParser';
 import { verifyLink, findAlternativeLink } from '@/lib/verification';
+import { geocodeText, decodeHtmlEntities } from '@/lib/geocoder';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,21 +58,28 @@ export async function GET(request) {
     try {
       const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(6000) });
       const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
-      osintEvents = (gdeltData.articles || []).map(a => ({
-        id: generateId(a.url, a.title),
-        title: a.title || 'Untitled',
-        url: a.url,
-        source: a.domain || 'Unknown',
-        timestamp: a.seendate || new Date().toISOString(),
-        category: categorize(a.title || ''),
-        severity: scoreSeverity(a.title || ''),
-        location: a.sourcecountry || null,
-        details: { 
-          ...a, 
-          media: extractMedia(a),
-          probability: getEscalationProb(a.title || '', scoreSeverity(a.title || ''))
-        }
-      }));
+      osintEvents = (gdeltData.articles || []).map(a => {
+        const decodedTitle = decodeHtmlEntities(a.title || 'Untitled');
+        const geo = geocodeText(decodedTitle, a.sourcecountry || '', a.domain || null);
+        
+        return {
+          id: generateId(a.url, decodedTitle),
+          title: decodedTitle,
+          url: a.url,
+          source: a.domain || 'Unknown',
+          timestamp: a.seendate || new Date().toISOString(),
+          category: categorize(decodedTitle),
+          severity: scoreSeverity(decodedTitle),
+          location: geo.name,
+          lat: geo.lat,
+          lon: geo.lon,
+          details: { 
+            ...a, 
+            media: extractMedia(a),
+            probability: getEscalationProb(decodedTitle, scoreSeverity(decodedTitle))
+          }
+        };
+      });
     } catch (e) {
       console.warn('GDELT OSINT fetch failed or timed out. Proceeding with research feeds.', e.message);
     }
