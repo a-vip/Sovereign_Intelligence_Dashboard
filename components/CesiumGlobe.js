@@ -837,12 +837,12 @@ export default function CesiumGlobe({
         name: m.title || m.name,
         position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
         point: {
-          pixelSize: Math.min(10 + (m.severity || 1) * 3, 24),
+          pixelSize: 6 + (m.severity || 1) * 1.5,
           color: Cesium.Color.fromCssColorString(sevColorStr), // Colored strictly by severity!
           outlineColor: Cesium.Color.WHITE, // BEAUTIFUL OUTLINE WHITE BORDER!
-          outlineWidth: 2.5, // Crisp faint white border
+          outlineWidth: 1.5, // Elegant thin crisp outline border
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of buildings/terrain!
-          disableDepthTestDistance: 100000.0, // Only disable depth test when zoomed in closer than 100km to bypass 3D buildings clipping, keeping standard occlusion active at global scale!
+          disableDepthTestDistance: Number.POSITIVE_INFINITY, // Disable depth testing at all zoom scales to prevent globe curved ellipsoid clipping!
         },
         label: {
           text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
@@ -857,7 +857,7 @@ export default function CesiumGlobe({
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
-          disableDepthTestDistance: 100000.0, // Match point occlusion culling
+          disableDepthTestDistance: Number.POSITIVE_INFINITY, // Match point occlusion culling
           show: false,
         },
         properties: m,
