@@ -1452,7 +1452,7 @@ export default function CesiumGlobe({
     }
   }, [dayNightEnabled, scriptsLoaded, mapError, viewerReady]);
 
-  // D. IEM Weather Radar Tiles & Rain Post-Processing Particle Effects
+  // D. RainViewer Weather Radar Tiles & Rain Post-Processing Particle Effects
   useEffect(() => {
     if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
     const viewer = viewerRef.current;
@@ -1461,20 +1461,59 @@ export default function CesiumGlobe({
 
     let weatherLayer = null;
     let rainStage = null;
+    let isActive = true;
 
     if (weatherEnabled) {
-      // 1. Add IEM NEXRAD Weather Radar Tiles
-      const weatherProvider = new Cesium.UrlTemplateImageryProvider({
-        url: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
-        credit: 'IEM Weather Radar',
-        alpha: 0.65
-      });
-      
-      try {
-        weatherLayer = viewer.imageryLayers.addImageryProvider(weatherProvider);
-      } catch (err) {
-        console.warn("Weather radar tiles failed to add:", err);
-      }
+      // 1. Fetch RainViewer's latest global radar frame metadata
+      fetch('https://api.rainviewer.com/public/weather-maps.json')
+        .then(res => {
+          if (!res.ok) throw new Error("RainViewer metadata request failed");
+          return res.json();
+        })
+        .then(data => {
+          if (!isActive || !viewerRef.current || viewer.isDestroyed()) return;
+
+          const host = data.host || 'https://tilecache.rainviewer.com';
+          const pastFrames = data.radar?.past;
+          if (!pastFrames || pastFrames.length === 0) {
+            console.warn("No RainViewer past radar frames found.");
+            return;
+          }
+
+          // Use the latest available past frame path
+          const latestFrame = pastFrames[pastFrames.length - 1];
+          const path = latestFrame.path;
+
+          // Universal Blue scheme (2) for high-aesthetic neon theme fit, with smoothing option (1)
+          const tileUrl = `${host}${path}/256/{z}/{x}/{y}/2/1_1.png`;
+
+          const weatherProvider = new Cesium.UrlTemplateImageryProvider({
+            url: tileUrl,
+            credit: 'RainViewer Real-time Global Radar',
+            alpha: 0.65
+          });
+
+          try {
+            weatherLayer = viewer.imageryLayers.addImageryProvider(weatherProvider);
+            console.log("RainViewer global real-time weather radar loaded successfully.");
+          } catch (err) {
+            console.warn("RainViewer radar tiles failed to add:", err);
+          }
+        })
+        .catch(err => {
+          console.warn("Failed to retrieve RainViewer global radar metadata. Falling back to NEXRAD:", err);
+          
+          // Failover to local NEXRAD just in case
+          const fallbackProvider = new Cesium.UrlTemplateImageryProvider({
+            url: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
+            credit: 'IEM Weather Radar (Fallback)',
+            alpha: 0.65
+          });
+
+          try {
+            weatherLayer = viewer.imageryLayers.addImageryProvider(fallbackProvider);
+          } catch (e) {}
+        });
 
       // 2. Add screen space rain post-process storm overlay
       try {
@@ -1486,6 +1525,7 @@ export default function CesiumGlobe({
     }
 
     return () => {
+      isActive = false;
       if (viewer && !viewer.isDestroyed()) {
         if (weatherLayer) {
           try {
