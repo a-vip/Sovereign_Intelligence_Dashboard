@@ -1,17 +1,17 @@
 
-      <div style="background: #0f172a; border-bottom: 2px solid #ef4444; padding: 12px; font-family: monospace; color: #f8fafc; font-size: 13px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 12px; z-index: 99999; position: relative;">
-        <span style="color: #eab308; font-weight: bold;">[💡 LOCAL DEVELOPMENT EMAIL SIMULATOR]</span>
-        <span>Target: workwithavip@gmail.com</span>
-        <span>|</span>
-        <span style="color: #cbd5e1;">Received Feedback Intelligence Report</span>
-      </div>
-      
+        <div style="background: #0f172a; border-bottom: 2px solid #ef4444; padding: 12px; font-family: monospace; color: #f8fafc; font-size: 13px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 12px; z-index: 99999; position: relative;">
+          <span style="color: #ef4444; font-weight: bold;">[🔒 LOCAL DEVELOPMENT EMAIL SIMULATOR]</span>
+          <span>Target: test@operator.com</span>
+          <span>|</span>
+          <a href="http://localhost:3000/api/auth/verify?token=88b2e9c79397b404f0bd857ff87d69e7abc3d3d4d62766ad5f58cd6121acd9e3&email=test%40operator.com" style="color: #38bdf8; text-decoration: underline; font-weight: bold;">Click Here to Simulate Verification Link</a>
+        </div>
+        
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Sovereign Feedback Intelligence Report</title>
+      <title>Authenticate Sovereign Account</title>
       <style>
         body {
           margin: 0;
@@ -66,24 +66,12 @@
         .content {
           padding: 36px 32px;
         }
-        .feed-header {
-          border-left: 4px solid #06b6d4;
-          padding-left: 14px;
+        .welcome-text {
+          font-size: 15px;
+          line-height: 1.6;
+          color: #e2e8f0;
+          margin-top: 0;
           margin-bottom: 24px;
-        }
-        .feed-type {
-          font-size: 11px;
-          font-family: 'Courier New', Courier, monospace;
-          color: #38bdf8;
-          text-transform: uppercase;
-          letter-spacing: 1.5px;
-          margin-bottom: 4px;
-        }
-        .feed-subject {
-          font-size: 18px;
-          font-weight: 700;
-          color: #ffffff;
-          margin: 0;
         }
         .info-box {
           background: rgba(2, 6, 23, 0.6);
@@ -94,10 +82,46 @@
         }
         .instructions {
           font-size: 14px;
-          line-height: 1.6;
-          color: #e2e8f0;
-          white-space: pre-wrap;
-          margin: 0;
+          line-height: 1.5;
+          color: #94a3b8;
+          margin: 0 0 16px 0;
+        }
+        .cta-container {
+          text-align: center;
+          margin: 24px 0;
+        }
+        .btn-authenticate {
+          display: inline-block;
+          background-color: #06b6d4;
+          color: #020617 !important;
+          text-decoration: none !important;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+          padding: 14px 36px;
+          border-radius: 6px;
+          box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+          transition: all 0.2s ease;
+        }
+        .btn-authenticate:hover {
+          background-color: #22d3ee;
+          box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+        }
+        .raw-link-title {
+          font-size: 11px;
+          font-family: 'Courier New', Courier, monospace;
+          color: #64748b;
+          margin-top: 24px;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+        }
+        .raw-link {
+          font-size: 12px;
+          font-family: 'Courier New', Courier, monospace;
+          color: #06b6d4;
+          word-break: break-all;
+          text-decoration: none;
         }
         .telemetry-table {
           width: 100%;
@@ -105,18 +129,16 @@
           margin-top: 24px;
           font-size: 11px;
           font-family: 'Courier New', Courier, monospace;
-          color: #64748b;
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          color: #475569;
+          border-top: 1px solid rgba(255, 255, 255, 0.03);
           padding-top: 16px;
         }
         .telemetry-table td {
-          padding: 6px 0;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+          padding: 4px 0;
         }
         .telemetry-label {
-          color: #94a3b8;
-          font-weight: bold;
-          width: 150px;
+          color: #64748b;
+          width: 120px;
         }
         .footer {
           padding: 24px 32px;
@@ -129,53 +151,61 @@
         .footer p {
           margin: 4px 0;
         }
+        .footer-warning {
+          color: #64748b;
+          font-style: italic;
+          margin-top: 12px !important;
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <div class="logo-box">💡</div>
-          <h1 class="title">Sovereign Feedback Engine</h1>
-          <p class="subtitle">[ SECURE INTELLIGENCE SUGGESTION REPORT ]</p>
+          <div class="logo-box">🛡️</div>
+          <h1 class="title">Monitor the Situation</h1>
+          <p class="subtitle">[ SOVEREIGN COMMAND GATEWAY ]</p>
         </div>
         
         <div class="content">
-          <div class="feed-header">
-            <div class="feed-type">GENERAL REPORT</div>
-            <h2 class="feed-subject">Test Suggestion</h2>
-          </div>
+          <p class="welcome-text">
+            Greetings, <strong>Test Operator</strong>. An account registry request has been initialized for this address. Before access is fully authenticated, please verify your email connection.
+          </p>
           
           <div class="info-box">
-            <p class="instructions">This is a test suggestion to verify the feedback engine is working correctly.</p>
-          </div>
-
-          <table class="telemetry-table">
-            <tr>
-              <td class="telemetry-label">SUBMITTER HANDLE:</td>
-              <td style="color: #ffffff;">Avi</td>
-            </tr>
-            <tr>
-              <td class="telemetry-label">SUBMITTER EMAIL:</td>
-              <td style="color: #06b6d4;">workwithavip@gmail.com</td>
-            </tr>
+            <p class="instructions">
+              Click the button below to securely authenticate your email address. This verification handshake link is time-locked and will expire in <strong>15 minutes</strong>.
+            </p>
             
-            <tr>
-              <td class="telemetry-label">TRANSMISSION TIME:</td>
-              <td>2026-05-18T11:07:52.336Z</td>
-            </tr>
-            <tr>
-              <td class="telemetry-label">GATEWAY ORIGIN:</td>
-              <td>localhost:3000</td>
-            </tr>
-          </table>
+            <div class="cta-container">
+              <a href="http://localhost:3000/api/auth/verify?token=88b2e9c79397b404f0bd857ff87d69e7abc3d3d4d62766ad5f58cd6121acd9e3&email=test%40operator.com" class="btn-authenticate">AUTHENTICATE EMAIL</a>
+            </div>
+            
+            <div class="raw-link-title">Or copy this link into your browser:</div>
+            <a href="http://localhost:3000/api/auth/verify?token=88b2e9c79397b404f0bd857ff87d69e7abc3d3d4d62766ad5f58cd6121acd9e3&email=test%40operator.com" class="raw-link">http://localhost:3000/api/auth/verify?token=88b2e9c79397b404f0bd857ff87d69e7abc3d3d4d62766ad5f58cd6121acd9e3&email=test%40operator.com</a>
+            
+            <table class="telemetry-table">
+              <tr>
+                <td class="telemetry-label">SECURITY PROTOCOL:</td>
+                <td>SHA256-TOKENIZED-OTP</td>
+              </tr>
+              <tr>
+                <td class="telemetry-label">GATEWAY ORIGIN:</td>
+                <td>localhost:3000</td>
+              </tr>
+              <tr>
+                <td class="telemetry-label">TELEMETRY ID:</td>
+                <td>88b2e9c79397b404...</td>
+              </tr>
+            </table>
+          </div>
         </div>
         
         <div class="footer">
-          <p>This transmission is secure. Dispatched strictly to system administrator.</p>
-          <p style="color: #64748b; font-style: italic;">© Sovereign Intelligence Dashboard // Monitor the Situation</p>
+          <p>If you did not request this registry handshake, you can safely ignore this email.</p>
+          <p class="footer-warning">© Sovereign Intelligence Dashboard // Monitor the Situation</p>
         </div>
       </div>
     </body>
     </html>
   
-    
+      

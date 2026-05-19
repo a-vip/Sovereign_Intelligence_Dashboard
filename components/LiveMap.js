@@ -307,7 +307,7 @@ export default function LiveMap({
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
-  const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(true);
+  const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -360,6 +360,13 @@ export default function LiveMap({
   const [satellites, setSatellites] = useState([]);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [isTracked, setIsTracked] = useState(false);
+
+  // Map Layer Toggle States (all deselected by default except Events & Auto Rotate)
+  const [eventsEnabled, setEventsEnabled] = useState(true);
+  const [weatherEnabled, setWeatherEnabled] = useState(false);
+  const [oilGasEnabled, setOilGasEnabled] = useState(false);
+  const [internetCablesEnabled, setInternetCablesEnabled] = useState(false);
+  const [dayNightEnabled, setDayNightEnabled] = useState(false);
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -1672,6 +1679,11 @@ export default function LiveMap({
           satellites={satellites}
           selectedSatellite={selectedSatellite}
           isTracked={isTracked}
+          eventsEnabled={eventsEnabled}
+          weatherEnabled={weatherEnabled}
+          oilGasEnabled={oilGasEnabled}
+          internetCablesEnabled={internetCablesEnabled}
+          dayNightEnabled={dayNightEnabled}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite
@@ -1710,23 +1722,22 @@ export default function LiveMap({
             }}
           >
             <span style={{ fontSize: '9px', fontWeight: '800', color: '#38bdf8', letterSpacing: '0.05em' }}>
-              🛰️ TACTICAL MONITORS
+              🛰️ OVERLAYS
             </span>
             <button
-              onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+              onClick={(e) => { e.stopPropagation(); setIsCatExpanded(!isCatExpanded); }}
               style={{
-                background: 'none', border: 'none', color: '#8892a4', cursor: 'pointer',
-                fontSize: '10px', fontWeight: 'bold'
+                background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer',
+                fontSize: '10px', display: 'flex', alignItems: 'center'
               }}
             >
-              [-]
+              {isCatExpanded ? '▼' : '▶'}
             </button>
           </div>
 
           <div className="overlay-section">
-            <div className="overlay-title" onClick={() => setIsCatExpanded(!isCatExpanded)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}>
+            <div className="overlay-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>CATEGORIES</span>
-              <span>{isCatExpanded ? '▼' : '▶'}</span>
             </div>
 
             {isCatExpanded && (
@@ -1771,184 +1782,328 @@ export default function LiveMap({
             </div>
 
             {isMapOptionsExpanded && (
-              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {/* Map Mode */}
-                <div>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>MAP MODE</div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      className={`sev-btn${mapMode === '3d' ? ' active' : ''}`}
-                      style={{
-                        background: mapMode === '3d' ? '#38bdf8' : 'transparent',
-                        color: mapMode === '3d' ? '#020617' : '#8892a4',
-                        borderColor: '#38bdf8',
-                        flex: 1,
-                        fontSize: '9px',
-                        padding: '5px 0',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: '1px solid #38bdf8',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => setMapMode('3d')}
-                    >
-                      3D BUILDINGS
-                    </button>
-                    <button
-                      className={`sev-btn${mapMode === '2d' ? ' active' : ''}`}
-                      style={{
-                        background: mapMode === '2d' ? '#38bdf8' : 'transparent',
-                        color: mapMode === '2d' ? '#020617' : '#8892a4',
-                        borderColor: '#38bdf8',
-                        flex: 1,
-                        fontSize: '9px',
-                        padding: '5px 0',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: '1px solid #38bdf8',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => setMapMode('2d')}
-                    >
-                      2D SATELLITE
-                    </button>
-                  </div>
-                </div>
-
-                {/* Base Map Style */}
-                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>BASE MAP STYLE</div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      className={`sev-btn${mapStyle === 'satellite' ? ' active' : ''}`}
-                      style={{
-                        background: mapStyle === 'satellite' ? '#38bdf8' : 'transparent',
-                        color: mapStyle === 'satellite' ? '#020617' : '#8892a4',
-                        borderColor: '#38bdf8',
-                        flex: 1,
-                        fontSize: '9px',
-                        padding: '5px 0',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: '1px solid #38bdf8',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => setMapStyle('satellite')}
-                    >
-                      SATELLITE
-                    </button>
-                    <button
-                      className={`sev-btn${mapStyle === 'dark' ? ' active' : ''}`}
-                      style={{
-                        background: mapStyle === 'dark' ? '#38bdf8' : 'transparent',
-                        color: mapStyle === 'dark' ? '#020617' : '#8892a4',
-                        borderColor: '#38bdf8',
-                        flex: 1,
-                        fontSize: '9px',
-                        padding: '5px 0',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: '1px solid #38bdf8',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => setMapStyle('dark')}
-                    >
-                      TACTICAL DARK
-                    </button>
-                  </div>
-                </div>
-
-                {/* Auto Rotate Toggle Option */}
-                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>ROTATION</div>
-                  <button
-                    className={`sev-btn${autoRotate ? ' active' : ''}`}
+              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                
+                {/* Checklist options with right-side status indicators */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  
+                  {/* Events Option */}
+                  <div 
+                    onClick={() => setEventsEnabled(!eventsEnabled)}
                     style={{
-                      background: autoRotate ? '#38bdf8' : 'transparent',
-                      color: autoRotate ? '#020617' : '#8892a4',
-                      borderColor: '#38bdf8',
-                      width: '100%',
-                      fontSize: '9px',
-                      padding: '5px 0',
-                      fontWeight: '800',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
                       cursor: 'pointer',
                       borderRadius: '4px',
-                      border: '1px solid #38bdf8',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
                     }}
-                    onClick={() => setAutoRotate(!autoRotate)}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    🔄 {autoRotate ? 'AUTO ROTATE ACTIVE' : 'ENABLE AUTO ROTATION'}
-                  </button>
-                </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: eventsEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: eventsEnabled ? 1 : 0.4 }}>👁️</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Events</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: eventsEnabled ? '#ffffff' : '#334155',
+                      boxShadow: eventsEnabled ? '0 0 6px #ffffff' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
 
-                {/* Orbital Satellites Tracker Toggle */}
-                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>ORBITAL RADAR</div>
-                  <button
-                    className={`sev-btn${showSatellites ? ' active' : ''}`}
+                  {/* Auto Rotate Option */}
+                  <div 
+                    onClick={() => {
+                      const newRotate = !autoRotate;
+                      setAutoRotate(newRotate);
+                      localStorage.setItem('operator_pref_autoRotate', String(newRotate));
+                      window.dispatchEvent(new Event('operator_pref_changed'));
+                    }}
                     style={{
-                      background: showSatellites ? '#00f0ff' : 'transparent',
-                      color: showSatellites ? '#020617' : '#8892a4',
-                      borderColor: '#00f0ff',
-                      width: '100%',
-                      fontSize: '9px',
-                      padding: '5px 0',
-                      fontWeight: '800',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
                       cursor: 'pointer',
                       borderRadius: '4px',
-                      border: '1px solid #00f0ff',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
                     }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: autoRotate ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: autoRotate ? 1 : 0.4 }}>🔄</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Auto Rotate</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: autoRotate ? '#00f0ff' : '#334155',
+                      boxShadow: autoRotate ? '0 0 6px #00f0ff' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* Weather Option */}
+                  <div 
+                    onClick={() => setWeatherEnabled(!weatherEnabled)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: weatherEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: weatherEnabled ? 1 : 0.4 }}>🌧️</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Weather</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: weatherEnabled ? '#00f0ff' : '#334155',
+                      boxShadow: weatherEnabled ? '0 0 6px #00f0ff' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* GPS Jamming - Grayed out */}
+                  <div 
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      opacity: 0.35,
+                      cursor: 'not-allowed',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>📡</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>GPS Jamming</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#334155'
+                    }} />
+                  </div>
+
+                  {/* Military Bases - Grayed out */}
+                  <div 
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      opacity: 0.35,
+                      cursor: 'not-allowed',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>🛡️</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Military Bases</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#334155'
+                    }} />
+                  </div>
+
+                  {/* Power & Minerals - Grayed out */}
+                  <div 
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      opacity: 0.35,
+                      cursor: 'not-allowed',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>⚡</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Power & Minerals</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#334155'
+                    }} />
+                  </div>
+
+                  {/* Oil & Gas Option */}
+                  <div 
+                    onClick={() => setOilGasEnabled(!oilGasEnabled)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: oilGasEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: oilGasEnabled ? 1 : 0.4 }}>💧</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Oil & Gas</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: oilGasEnabled ? '#f59e0b' : '#334155',
+                      boxShadow: oilGasEnabled ? '0 0 6px #f59e0b' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* Internet & Cables Option */}
+                  <div 
+                    onClick={() => setInternetCablesEnabled(!internetCablesEnabled)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: internetCablesEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: internetCablesEnabled ? 1 : 0.4 }}>🌐</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Internet & Cables</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: internetCablesEnabled ? '#ec4899' : '#334155',
+                      boxShadow: internetCablesEnabled ? '0 0 6px #ec4899' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* Active Fires - Grayed out */}
+                  <div 
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      opacity: 0.35,
+                      cursor: 'not-allowed',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>🔥</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Active Fires</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#334155'
+                    }} />
+                  </div>
+
+                  {/* Satellite Tracking Option */}
+                  <div 
                     onClick={() => {
-                      setShowSatellites(!showSatellites);
-                      if (showSatellites) {
+                      const newSatVal = !showSatellites;
+                      setShowSatellites(newSatVal);
+                      if (!newSatVal) {
                         setSelectedSatellite(null);
                       }
                     }}
-                  >
-                    📡 {showSatellites ? 'TRACKING ACTIVE' : 'OBSERVE SATELLITES'}
-                  </button>
-                </div>
-
-                {/* Tactical Widgets */}
-                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>TACTICAL WIDGETS</div>
-                  <button
-                    className={`sev-btn${showMarkets ? ' active' : ''}`}
                     style={{
-                      background: showMarkets ? '#10b981' : 'transparent',
-                      color: showMarkets ? '#020617' : '#8892a4',
-                      borderColor: '#10b981',
-                      width: '100%',
-                      fontSize: '9px',
-                      padding: '5px 0',
-                      fontWeight: '800',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
                       cursor: 'pointer',
                       borderRadius: '4px',
-                      border: '1px solid #10b981',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
                     }}
-                    onClick={() => setShowMarkets(!showMarkets)}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    📊 {showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS'}
-                  </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: showSatellites ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: showSatellites ? 1 : 0.4 }}>🛰️</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Satellite Tracking</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: showSatellites ? '#00f0ff' : '#334155',
+                      boxShadow: showSatellites ? '0 0 6px #00f0ff' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* Day / Night Option */}
+                  <div 
+                    onClick={() => setDayNightEnabled(!dayNightEnabled)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: dayNightEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: dayNightEnabled ? 1 : 0.4 }}>🌗</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Day / Night</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: dayNightEnabled ? '#00f0ff' : '#334155',
+                      boxShadow: dayNightEnabled ? '0 0 6px #00f0ff' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
                 </div>
               </div>
             )}

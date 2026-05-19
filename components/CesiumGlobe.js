@@ -52,6 +52,38 @@ const createCircleCanvas = (color, size = 16, outlineColor = '#ffffff', outlineW
   return canvas;
 };
 
+const createDropletCanvas = (color, size = 32) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+  ctx.font = `${size - 10}px sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('💧', size / 2, size / 2);
+  return canvas;
+};
+
+const createPowerCanvas = (color, size = 32) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+  ctx.font = `${size - 10}px sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚡', size / 2, size / 2);
+  return canvas;
+};
+
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
@@ -65,11 +97,28 @@ export default function CesiumGlobe({
   selectedSatellite = null,
   isTracked = false,
   onSatelliteClick = null,
-  resetKey = 0
+  resetKey = 0,
+  eventsEnabled = true,
+  weatherEnabled = true,
+  oilGasEnabled = true,
+  internetCablesEnabled = true,
+  powerMineralsEnabled = false,
+  dayNightEnabled = true,
+  globe3dEnabled = true
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const tilesetRef = useRef(null);
+  const petroleumLayerRef = useRef(null);
+  const powerLayerRef = useRef(null);
+  const cableEntitiesRef = useRef([]);
+  const oilGasEntitiesRef = useRef([]);
+
+  const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '' });
+  const setHoverTooltipRef = useRef(setHoverTooltip);
+  useEffect(() => {
+    setHoverTooltipRef.current = setHoverTooltip;
+  }, [setHoverTooltip]);
 
   // Track physical keyboard state to differentiate keyboard-scroll shortcuts from trackpad pinch-to-zoom!
   const keysPressedRef = useRef({ ctrl: false, shift: false, alt: false });
@@ -353,7 +402,7 @@ export default function CesiumGlobe({
 
   // Pre-calculate repelled coordinates to prevent overlapping clusters on both maps!
   const repelledMarkers = useMemo(() => {
-    if (!displayedMarkers || displayedMarkers.length === 0) return [];
+    if (!eventsEnabled || !displayedMarkers || displayedMarkers.length === 0) return [];
     
     // Create mutable copy of displayed markers with lat/lon coordinates
     const points = displayedMarkers.map((m, idx) => ({
@@ -408,7 +457,7 @@ export default function CesiumGlobe({
       repelledLat: p.lat,
       repelledLon: p.lon
     }));
-  }, [displayedMarkers]);
+  }, [displayedMarkers, eventsEnabled]);
 
   // 1. Initialize Leaflet ONLY as a graceful robust fallback if WebGL/Cesium fails
   useEffect(() => {
@@ -718,6 +767,30 @@ export default function CesiumGlobe({
         }
 
         if (hoveredEntity) {
+          const props = hoveredEntity.properties;
+          const isCable = props && props.isCable ? props.isCable.getValue() : false;
+          const isLandingStation = props && props.isLandingStation ? props.isLandingStation.getValue() : false;
+          const isOilGas = props && props.isOilGas ? props.isOilGas.getValue() : false;
+          const title = props && props.title ? props.title.getValue() : (hoveredEntity.name || '');
+
+          if (isCable || isLandingStation || isOilGas) {
+            document.body.style.cursor = 'pointer';
+            if (typeof setHoverTooltipRef.current === 'function') {
+              setHoverTooltipRef.current({
+                show: true,
+                x: movement.endPosition.x,
+                y: movement.endPosition.y,
+                content: title
+              });
+            }
+            return;
+          }
+
+          // Clear cables tooltip for other entities
+          if (typeof setHoverTooltipRef.current === 'function') {
+            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
+          }
+
           const isSat = getIsSatellite(hoveredEntity);
           
           if (isSat) {
@@ -760,6 +833,9 @@ export default function CesiumGlobe({
         } else {
           // Hovered over background, oceans, space, or 3D buildings (Google Tiles feature)
           document.body.style.cursor = 'default';
+          if (typeof setHoverTooltipRef.current === 'function') {
+            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
+          }
           viewer.entities.values.forEach(entity => {
             if (entity.label) {
               const entIsSat = getIsSatellite(entity);
@@ -1324,10 +1400,376 @@ export default function CesiumGlobe({
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-    };
   }, [mapError, scriptsLoaded]);
+
+  // A. Dynamic Map Style Switcher (Dark, Satellite, Terrain, Street Map)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const layers = viewer.imageryLayers;
+    
+    // Choose correct tile URL based on chosen style
+    let url = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'; // Satellite hybrid default
+    let credit = 'Google Maps';
+
+    if (mapStyle === 'dark') {
+      url = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      credit = 'CartoDB Dark Matter';
+    } else if (mapStyle === 'terrain') {
+      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}';
+      credit = 'ESRI World Physical';
+    } else if (mapStyle === 'street') {
+      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      credit = 'OpenStreetMap';
+    }
+
+    const provider = new Cesium.UrlTemplateImageryProvider({ url, credit });
+    
+    try {
+      const newLayer = new Cesium.ImageryLayer(provider);
+      // Remove the very first layer (base) and insert this one instead
+      if (layers.length > 0) {
+        layers.remove(layers.get(0));
+        layers.add(newLayer, 0);
+      } else {
+        layers.add(newLayer);
+      }
+    } catch (err) {
+      console.warn("Dynamic imagery layer swap failed:", err);
+    }
+  }, [mapStyle, scriptsLoaded, mapError, viewerReady]);
+
+  // C. Day / Night Dynamic Sunlight Shading and Terminator shadows
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    viewer.scene.globe.enableLighting = dayNightEnabled;
+    viewer.scene.globe.dynamicAtmosphereColor = dayNightEnabled;
+    
+    if (dayNightEnabled) {
+      viewer.clock.shouldAnimate = true;
+      viewer.clock.multiplier = 1.0;
+    }
+  }, [dayNightEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // D. IEM Weather Radar Tiles & Rain Post-Processing Particle Effects
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    let weatherLayer = null;
+    let rainStage = null;
+
+    if (weatherEnabled) {
+      // 1. Add IEM NEXRAD Weather Radar Tiles
+      const weatherProvider = new Cesium.UrlTemplateImageryProvider({
+        url: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
+        credit: 'IEM Weather Radar',
+        alpha: 0.65
+      });
+      
+      try {
+        weatherLayer = viewer.imageryLayers.addImageryProvider(weatherProvider);
+      } catch (err) {
+        console.warn("Weather radar tiles failed to add:", err);
+      }
+
+      // 2. Add screen space rain post-process storm overlay
+      try {
+        rainStage = Cesium.PostProcessStageLibrary.createRainStage();
+        viewer.scene.postProcessStages.add(rainStage);
+      } catch (err) {
+        console.warn("Cesium rain stage post-process failed:", err);
+      }
+    }
+
+    return () => {
+      if (viewer && !viewer.isDestroyed()) {
+        if (weatherLayer) {
+          try {
+            viewer.imageryLayers.remove(weatherLayer);
+          } catch (e) {}
+        }
+        if (rainStage) {
+          try {
+            viewer.scene.postProcessStages.remove(rainStage);
+          } catch (e) {}
+        }
+      }
+    };
+  }, [weatherEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // E. Oil & Gas Pipelines (Global Energy Monitor Vector Ingestion)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    // Helper to generate a crisp, solid vector teardrop marker filled dynamically by pipeline category (no bulky white outline)
+    const createTeardropCanvas = (colorHex) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 10;
+      canvas.height = 12;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return canvas;
+      
+      ctx.beginPath();
+      ctx.moveTo(5, 0); // Tip of droplet
+      ctx.bezierCurveTo(8.5, 3.5, 9.5, 6.5, 9.5, 8.5);
+      ctx.arc(5, 8.5, 4.5, 0, Math.PI);
+      ctx.bezierCurveTo(0.5, 6.5, 1.5, 3.5, 5, 0);
+      ctx.closePath();
+      
+      ctx.fillStyle = colorHex;
+      ctx.fill();
+      
+      return canvas;
+    };
+
+    const clearOilGas = () => {
+      if (oilGasEntitiesRef.current && oilGasEntitiesRef.current.length > 0) {
+        oilGasEntitiesRef.current.forEach(entity => {
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.entities.remove(entity);
+          }
+        });
+        oilGasEntitiesRef.current = [];
+      }
+    };
+
+    if (!oilGasEnabled) {
+      clearOilGas();
+      return;
+    }
+
+    fetch('/api/oil-gas')
+      .then(res => {
+        if (!res.ok) throw new Error("Oil & Gas request failed");
+        return res.json();
+      })
+      .then(data => {
+        if (!data) return;
+        clearOilGas();
+
+        const newEntities = [];
+
+        // 1. Draw Pipeline Vector Paths (Thin, gorgeous custom colored lines draped on ground)
+        if (data.lines && data.lines.length > 0) {
+          data.lines.forEach(line => {
+            const degreesArray = [];
+            line.coordinates.forEach(coord => {
+              degreesArray.push(coord[0], coord[1]);
+            });
+
+            try {
+              const entity = viewer.entities.add({
+                name: line.project,
+                polyline: {
+                  positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
+                  width: 0.8, // Elegant hairline
+                  material: Cesium.Color.fromCssColorString(line.color).withAlpha(0.35), // Faint and translucent
+                  clampToGround: true
+                },
+                properties: {
+                  isOilGas: true,
+                  isPipeline: true,
+                  title: line.project
+                }
+              });
+              newEntities.push(entity);
+            } catch (err) {}
+          });
+        }
+
+        // 2. Draw Plants, Refineries, and Terminals (Dynamic solid translucent micro-droplets color-coded correctly)
+        if (data.points && data.points.length > 0) {
+          data.points.forEach(point => {
+            try {
+              const entity = viewer.entities.add({
+                name: point.name,
+                position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1]),
+                billboard: {
+                  image: createTeardropCanvas(point.color),
+                  width: 4, // Even smaller and cleaner
+                  height: 6,
+                  color: new Cesium.Color(1.0, 1.0, 1.0, 0.45), // Gorgeous translucent appearance (45% opacity)
+                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+                },
+                properties: {
+                  isOilGas: true,
+                  isPlant: true,
+                  title: point.name
+                }
+              });
+              newEntities.push(entity);
+            } catch (err) {}
+          });
+        }
+
+        oilGasEntitiesRef.current = newEntities;
+      })
+      .catch(err => {
+        console.warn("Failed to load vector pipelines and refineries:", err);
+      });
+
+    return () => {
+      clearOilGas();
+    };
+  }, [oilGasEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // F. Undersea Internet Fiber Optic Cables (TeleGeography Submarine Cable API)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const clearCables = () => {
+      if (cableEntitiesRef.current && cableEntitiesRef.current.length > 0) {
+        cableEntitiesRef.current.forEach(entity => {
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.entities.remove(entity);
+          }
+        });
+        cableEntitiesRef.current = [];
+      }
+    };
+
+    if (!internetCablesEnabled) {
+      clearCables();
+      return;
+    }
+
+    Promise.all([
+      fetch('/api/cables').then(res => {
+        if (!res.ok) throw new Error("Cables proxy request failed");
+        return res.json();
+      }),
+      fetch('/api/landing-stations').then(res => {
+        if (!res.ok) throw new Error("Landing stations proxy request failed");
+        return res.json();
+      })
+    ])
+      .then(([cablesGeo, landingGeo]) => {
+        if (!cablesGeo || !cablesGeo.features) return;
+
+        clearCables();
+        const newEntities = [];
+
+        // 1. Draw Undersea Cable Lines (Delicate, Color-coded)
+        cablesGeo.features.forEach(feature => {
+          const { geometry, properties } = feature;
+          if (!geometry || !geometry.coordinates) return;
+
+          const colorHex = properties.color || '#ec4899';
+          const color = Cesium.Color.fromCssColorString(colorHex);
+
+          const renderLine = (coords) => {
+            const degreesArray = [];
+            coords.forEach(coord => {
+              degreesArray.push(coord[0], coord[1]);
+            });
+
+            try {
+              const entity = viewer.entities.add({
+                name: properties.name,
+                polyline: {
+                  positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
+                  width: 0.6, // Ultra-thin, delicate, elegant hairline lines
+                  material: color.withAlpha(0.3) // Faint and elegant translucent style
+                },
+                properties: {
+                  isCable: true,
+                  title: properties.name
+                }
+              });
+              newEntities.push(entity);
+            } catch (err) {}
+          };
+
+          if (geometry.type === 'LineString') {
+            renderLine(geometry.coordinates);
+          } else if (geometry.type === 'MultiLineString') {
+            geometry.coordinates.forEach(coords => renderLine(coords));
+          }
+        });
+
+        // 2. Draw Landing Station Points (Delicate circles matching color coding)
+        if (landingGeo && landingGeo.features) {
+          landingGeo.features.forEach(feature => {
+            const { geometry, properties } = feature;
+            if (!geometry || !geometry.coordinates) return;
+
+            try {
+              const entity = viewer.entities.add({
+                name: properties.name,
+                position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1]),
+                point: {
+                  pixelSize: 2.0, // Very small and cute circles
+                  color: Cesium.Color.fromCssColorString('#a855f7').withAlpha(0.4), // Faint purple/violet circle
+                  outlineColor: Cesium.Color.WHITE.withAlpha(0.4), // Faint outline
+                  outlineWidth: 0.4
+                },
+                properties: {
+                  isLandingStation: true,
+                  title: properties.name
+                }
+              });
+              newEntities.push(entity);
+            } catch (err) {}
+          });
+        }
+
+        cableEntitiesRef.current = newEntities;
+      })
+      .catch(err => {
+        console.warn("Failed to dynamically draw global subsea cables or landing points:", err);
+      });
+
+    return () => {
+      clearCables();
+    };
+  }, [internetCablesEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // G. Power Grid & Minerals (OpenInfraMap Tiling Services)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const layers = viewer.imageryLayers;
+
+    if (powerMineralsEnabled) {
+      if (!powerLayerRef.current) {
+        try {
+          const provider = new Cesium.UrlTemplateImageryProvider({
+            url: 'https://tiles.openinframap.org/power/{z}/{x}/{y}.png',
+            credit: 'OpenInfraMap Power'
+          });
+          const layer = new Cesium.ImageryLayer(provider);
+          layers.add(layer);
+          powerLayerRef.current = layer;
+        } catch (err) {
+          console.warn("Failed to load power grid tiles:", err);
+        }
+      }
+    } else {
+      if (powerLayerRef.current) {
+        layers.remove(powerLayerRef.current);
+        powerLayerRef.current = null;
+      }
+    }
+  }, [powerMineralsEnabled, scriptsLoaded, mapError, viewerReady]);
 
   const is2DActive = mapError;
 
@@ -1537,6 +1979,28 @@ export default function CesiumGlobe({
           }} />
           <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
           <span>SYNCHRONIZING GOOGLE 3D TILES...</span>
+        </div>
+      )}
+
+      {hoverTooltip.show && (
+        <div style={{
+          position: 'absolute',
+          left: `${hoverTooltip.x + 12}px`,
+          top: `${hoverTooltip.y - 12}px`,
+          background: 'rgba(15, 23, 42, 0.95)',
+          border: '1px solid rgba(139, 92, 246, 0.6)',
+          borderRadius: '4px',
+          padding: '5px 9px',
+          color: '#ffffff',
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6)',
+          whiteSpace: 'nowrap',
+          backdropFilter: 'blur(4px)'
+        }}>
+          {hoverTooltip.content}
         </div>
       )}
 
