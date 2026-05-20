@@ -177,32 +177,47 @@ function AsciiLoader({ text }) {
   ];
 
   const progressFrames = [
-    "[░░░░░░░░░░░░]",
-    "[▓░░░░░░░░░░░]",
-    "[▓▓░░░░░░░░░░]",
-    "[▓▓▓▓░░░░░░░░]",
-    "[▓▓▓▓▓▓░░░░░░]",
-    "[▓▓▓▓▓▓▓▓░░░░]",
-    "[▓▓▓▓▓▓▓▓▓▓░░]",
-    "[▓▓▓▓▓▓▓▓▓▓▓▓]"
+    "[░░░░░░░░░░░░░░░░░░░░░░░░]",
+    "[▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░]",
+    "[▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░]",
+    "[▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░]",
+    "[▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓]"
   ];
 
   useEffect(() => {
-    const artTimer = setInterval(() => {
-      setFrame(prev => (prev + 1) % asciiArt.length);
-    }, 450); // Slower, more organic flower bloom transition
+    let timer;
+    const tick = () => {
+      setFrame(prev => {
+        if (prev === 4) {
+          // We were at full bloom. Now reset to stage 0 and schedule next frame in 450ms
+          timer = setTimeout(tick, 450);
+          return 0;
+        } else {
+          const next = prev + 1;
+          if (next === 4) {
+            // Reached majestic full bloom! Stay here for 1800ms before resetting
+            timer = setTimeout(tick, 1800);
+          } else {
+            timer = setTimeout(tick, 450);
+          }
+          return next;
+        }
+      });
+    };
+
+    timer = setTimeout(tick, 450);
 
     const msgTimer = setInterval(() => {
       setMsgIdx(prev => (prev + 1) % messages.length);
     }, 1200);
 
     return () => {
-      clearInterval(artTimer);
+      clearTimeout(timer);
       clearInterval(msgTimer);
     };
   }, []);
 
-  const progressFrame = progressFrames[frame % progressFrames.length];
+  const progressFrame = progressFrames[frame];
 
   return (
     <div style={{
@@ -231,16 +246,19 @@ function AsciiLoader({ text }) {
       }} />
 
       <pre style={{ 
-        margin: 0, 
+        margin: '0 auto', 
         fontSize: '7.5px', 
-        lineHeight: '1.15', 
+        lineHeight: '1.2', 
         color: '#00f0ff',
         textShadow: '0 0 8px rgba(0, 240, 255, 0.35)',
         zIndex: 1,
         whiteSpace: 'pre',
+        fontFamily: 'var(--font-jetbrains-fallback), monospace',
+        textAlign: 'left',
+        width: 'fit-content',
         minHeight: '135px',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         justifyContent: 'center'
       }}>
         {asciiArt[frame]}
