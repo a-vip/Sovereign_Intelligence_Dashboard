@@ -792,7 +792,7 @@ export default function CesiumGlobe({
               const operator = props.operator ? props.operator.getValue() : 'Unknown';
               const location = props.location ? props.location.getValue() : 'Unknown';
               const statusVal = props.status ? props.status.getValue() : 'active';
-              const tooltipContent = `🏢 Sovereign Data Center\nName: ${title}\nOperator: ${operator}\nLocation: ${location}\nStatus: ${statusVal.toUpperCase()}`;
+              const tooltipContent = `🏢 ${title}\nOperator: ${operator}\nLocation: ${location}\nStatus: ${statusVal.toUpperCase()}`;
               
               if (typeof setHoverTooltipRef.current === 'function') {
                 setHoverTooltipRef.current({
@@ -1847,20 +1847,19 @@ export default function CesiumGlobe({
         data.dataCenters.forEach(dc => {
           if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') return;
 
-          // Color representation: glowing orange for planned/proposed, neon cyan for active
+          // Color representation: glowing orange for planned/proposed, neon cyan for active (with organic translucency)
           const nodeColor = dc.status === 'planned' 
-            ? Cesium.Color.fromCssColorString('#f97316') 
-            : Cesium.Color.fromCssColorString('#00f0ff');
+            ? Cesium.Color.fromCssColorString('#f97316').withAlpha(0.65) 
+            : Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.65);
 
           try {
             const entity = viewer.entities.add({
               name: dc.name,
               position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat),
               point: {
-                pixelSize: 5.5,
+                pixelSize: 3.5,
                 color: nodeColor,
-                outlineColor: Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.85),
-                outlineWidth: 1.0,
+                outlineWidth: 0,
                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
               },
               properties: {

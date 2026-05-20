@@ -609,13 +609,31 @@ body {
   position: absolute; bottom: 48px; right: 16px; z-index: 500;
   background: rgba(10,15,26,0.92); border: 1px solid rgba(0, 240, 255, 0.18) !important;
   border-radius: var(--radius-md); padding: 16px; min-width: 220px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.25) transparent;
   backdrop-filter: blur(16px);
   box-shadow: 0 16px 64px rgba(0,0,0,0.65), 0 0 24px rgba(0, 240, 255, 0.08) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.overlay-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.overlay-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overlay-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.25);
+  border-radius: 2px;
+}
+.overlay-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.45);
+}
 .overlay-panel.minimized {
   min-width: 120px;
   padding: 8px;
+  overflow: hidden;
 }
 .overlay-section { margin-bottom: 14px; }
 .overlay-section:last-child { margin-bottom: 0; }
