@@ -628,7 +628,46 @@ export default function LiveMap({
         return nameMatch || locMatch || catMatch || descMatch || sourceMatch;
       });
     }
-    return filtered;
+
+    // Apply deterministic spiraling coordinate jitter to resolve any overlapping/stacked coordinates
+    const coordCounts = {};
+    const jittered = filtered.map(m => {
+      const latVal = parseFloat(m.lat);
+      const lonVal = parseFloat(m.lon);
+      if (isNaN(latVal) || isNaN(lonVal)) {
+        return m;
+      }
+      
+      // Use 4 decimal places for overlap detection key (approx 11m resolution)
+      const key = `${latVal.toFixed(4)},${lonVal.toFixed(4)}`;
+      if (coordCounts[key] === undefined) {
+        coordCounts[key] = 0;
+      }
+      const count = coordCounts[key];
+      coordCounts[key] += 1;
+
+      if (count === 0) {
+        return { ...m, lat: latVal, lon: lonVal }; // Keep first element at exact spot
+      }
+
+      // Distribute subsequent overlapping items in a neat spiral ring
+      const angle = count * 0.95; // Golden-angle-like step for even layout distribution
+      const radius = 0.0022 * Math.sqrt(count); // Radial distance (approx. 200m step)
+      
+      const dLat = radius * Math.cos(angle);
+      // Adjust longitude based on local latitude compression
+      const latRad = latVal * Math.PI / 180.0;
+      const cosLat = Math.max(0.1, Math.cos(latRad));
+      const dLon = (radius * Math.sin(angle)) / cosLat;
+
+      return {
+        ...m,
+        lat: latVal + dLat,
+        lon: lonVal + dLon
+      };
+    });
+
+    return jittered;
   }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources]);
 
   const filteredEvents = useMemo(() => {

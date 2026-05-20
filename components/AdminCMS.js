@@ -294,7 +294,7 @@ export default function AdminCMS({ currentUser, onClose }) {
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                       <td style={{...s.td, fontSize: '11px', color: '#64748b'}}>
-                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}
+                        {(item.createdAt || item.created_at) ? new Date(item.createdAt || item.created_at).toLocaleDateString() : '—'}
                       </td>
                       <td style={s.td}>
                         <span style={{
@@ -303,8 +303,8 @@ export default function AdminCMS({ currentUser, onClose }) {
                           borderRadius: '4px',
                           fontSize: '10px',
                           fontWeight: 700,
-                          background: item.type === 'bug' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                          color: item.type === 'bug' ? '#ef4444' : '#22c55e',
+                          background: (item.type || '').toLowerCase() === 'bug' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                          color: (item.type || '').toLowerCase() === 'bug' ? '#ef4444' : '#22c55e',
                           letterSpacing: '0.5px',
                           textTransform: 'uppercase'
                         }}>
@@ -312,14 +312,14 @@ export default function AdminCMS({ currentUser, onClose }) {
                         </span>
                       </td>
                       <td style={{...s.td, fontSize: '11px', color: '#c8d0df'}}>
-                        <div style={{ fontWeight: 600 }}>{item.operatorName || 'Anonymous'}</div>
-                        <div style={{ fontSize: '9px', color: '#64748b' }}>{item.operatorEmail || '—'}</div>
+                        <div style={{ fontWeight: 600 }}>{item.operatorName || item.operator_name || 'Anonymous'}</div>
+                        <div style={{ fontSize: '9px', color: '#64748b' }}>{item.operatorEmail || item.operator_email || '—'}</div>
                       </td>
                       <td style={{...s.td, maxWidth: '200px', fontWeight: 500, color: '#e8edf5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                         {item.subject}
                       </td>
                       <td style={{...s.td, maxWidth: '300px', fontSize: '11px', color: '#8892a4', whiteSpace: 'normal', wordBreak: 'break-word'}}>
-                        {item.details}
+                        {typeof item.details === 'string' ? item.details : (item.details?.summary || JSON.stringify(item.details) || '—')}
                       </td>
                       <td style={s.td}>
                         {item.screenshot ? (
