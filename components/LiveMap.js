@@ -308,7 +308,8 @@ export default function LiveMap({
   showAuthModal,
   setShowAuthModal,
   handleAuthSuccess,
-  onAvatarClick
+  onAvatarClick,
+  onOpenCms
 }) {
   const [markers, setMarkers] = useState([]);
   const [allFetchedEvents, setAllFetchedEvents] = useState([]);
@@ -874,6 +875,42 @@ export default function LiveMap({
           {/* Profile User avatar (Access Control trigger) */}
           {currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Admin CMS Button (visible only to admin users) */}
+              {currentUser.role === 'admin' && (
+                <button
+                  onClick={onOpenCms}
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.08)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    color: '#a855f7',
+                    borderRadius: '4px',
+                    padding: isMobile ? '3px 6px' : '4px 8px',
+                    fontSize: isMobile ? '9px' : '10px',
+                    fontWeight: 'bold',
+                    fontFamily: 'var(--font-jetbrains-fallback)',
+                    cursor: 'pointer',
+                    letterSpacing: '0.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isMobile ? '4px' : '6px',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 0 10px rgba(168, 85, 247, 0.05)',
+                    outline: 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)';
+                    e.currentTarget.style.boxShadow = '0 0 12px rgba(168, 85, 247, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
+                    e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.05)';
+                  }}
+                  title="Open Content Management System"
+                >
+                  <span>⚙️</span>
+                  <span>CMS</span>
+                </button>
+              )}
               {/* Submit Feedback / Report Bug Button */}
               <button
                 onClick={() => onAvatarClick('suggestions')}

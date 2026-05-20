@@ -5,6 +5,7 @@ import LiveMapWrapper from '@/components/LiveMapWrapper';
 import AsciiGlobe from '@/components/AsciiGlobe';
 import AuthModal from '@/components/AuthModal';
 import AccountModal from '@/components/AccountModal';
+import AdminCMS from '@/components/AdminCMS';
 
 const POLL_INTERVAL = 30000; // 30 seconds live update
 
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   const [accountModalTab, setAccountModalTab] = useState('profile');
   const [prefilledSuggestion, setPrefilledSuggestion] = useState(null);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
+  const [showCmsPanel, setShowCmsPanel] = useState(false);
 
   const openAccountModal = (tab = 'profile', prefill = null) => {
     setPrefilledSuggestion(prefill);
@@ -133,6 +135,7 @@ export default function DashboardPage() {
         setShowAuthModal={setShowAuthModal}
         handleAuthSuccess={handleAuthSuccess}
         onAvatarClick={openAccountModal}
+        onOpenCms={() => setShowCmsPanel(true)}
       />
 
       {/* Access Control HUD Overlay */}
@@ -152,6 +155,14 @@ export default function DashboardPage() {
           handleLogout={handleLogout}
           initialTab={accountModalTab}
           prefilledSuggestion={prefilledSuggestion}
+        />
+      )}
+
+      {/* Admin CMS Panel Overlay */}
+      {showCmsPanel && currentUser?.role === 'admin' && (
+        <AdminCMS
+          currentUser={currentUser}
+          onClose={() => setShowCmsPanel(false)}
         />
       )}
     </main>
