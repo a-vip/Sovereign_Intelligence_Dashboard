@@ -97,24 +97,6 @@ function AsciiLoader({ text }) {
     "⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿"
   ];
 
-  const eyeBase = [
-    "⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿",
-    "⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠿⠿⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿",
-    "    ⣿⣿⣿⣿⣿⡿⠟⠉⠀⠀⠀⠀⠀⠀⠉⠻⢿⣿⣿⣿⣿⣿    ",
-    "    ⣿⣿⣿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⣿⣿⣿    ",
-    "    ⣿⠟⠁⠀⠀⠀⢀⣤⣾⣿⣿⣿⣿⣷⣦⡀⠀⠀⠀⠈⠻⣿    ",
-    "    ⠋⠀⠀⠀⠀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⠀⠀⠀⠀⠙    ",
-    "    ⠀⠀⠀⠀⣼⣿⣿⣿⣿⡿⠛⠛⢿⣿⣿⣿⣿⣧⠀⠀⠀⠀    ",
-    "    ⠀⠀⠀⠀⣿⣿⣿⣿⣿⡇⠀⠀⢸⣿⣿⣿⣿⣿⠀⠀⠀⠀    ",
-    "    ⠀⠀⠀⠀⢻⣿⣿⣿⣿⣧⠀⠀⣼⣿⣿⣿⣿⡟⠀⠀⠀⠀    ",
-    "    ⡄⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⢠    ",
-    "    ⣿⣄⠀⠀⠀⠀⠉⠛⠿⢿⣿⣿⡿⠿⠛⠉⠀⠀⠀⠀⣠⣿    ",
-    "    ⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿    ",
-    "    ⣿⣿⣿⣿⣿⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿    ",
-    "    ⣿⣿⣿⣿⣿⣿⣿⣷⣶⣤⣤⣤⣤⣤⣶⣾⣿⣿⣿⣿⣿⣿    ",
-    "    ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿    "
-  ];
-
   const asciiArt = [
     // Stage 0: Bud / Sprout roots
     lotusBase.map((line, idx) => idx >= 12 ? line : "                              ").join("\n"),
@@ -125,33 +107,28 @@ function AsciiLoader({ text }) {
     // Stage 3: Near complete
     lotusBase.map((line, idx) => idx >= 3 ? line : "                              ").join("\n"),
     // Stage 4: Majestic Lotus Full Bloom
-    lotusBase.join("\n"),
-    // Stage 5: Sovereign Surveillance Eye
-    eyeBase.join("\n")
+    lotusBase.join("\n")
   ];
 
   const progressFrames = [
-    "▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱ 05%",
-    "▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱ 25%",
-    "▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱ 50%",
-    "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱ 75%",
-    "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰ 100%",
-    "🔒 SECURED // TACTICAL NODE ONLINE"
+    "▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱ 10%",
+    "▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱ 30%",
+    "▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱ 55%",
+    "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱ 80%",
+    "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰ 100%"
   ];
 
   useEffect(() => {
     let timer;
     const tick = () => {
       setFrame(prev => {
-        if (prev === 5) {
+        if (prev === 4) {
           timer = setTimeout(tick, 450);
           return 0;
         } else {
           const next = prev + 1;
           if (next === 4) {
-            timer = setTimeout(tick, 1200); // Wait on full lotus
-          } else if (next === 5) {
-            timer = setTimeout(tick, 2000); // Wait on Sovereign Eye
+            timer = setTimeout(tick, 2000); // Remain in majestic full bloom for 2000ms
           } else {
             timer = setTimeout(tick, 450);
           }
