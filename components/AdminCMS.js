@@ -16,6 +16,8 @@ export default function AdminCMS({ currentUser, onClose }) {
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [correctingCoordsItem, setCorrectingCoordsItem] = useState(null);
+  const [coordsForm, setCoordsForm] = useState({ targetId: '', title: '', newLocation: '', newLat: '', newLon: '' });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -179,6 +181,110 @@ export default function AdminCMS({ currentUser, onClose }) {
     }
   };
 
+  const handleCorrectCoordsClick = (item) => {
+    const rawTitle = (item.subject || '').replace('Incorrect Coordinates for: ', '').trim();
+    const detailsStr = typeof item.details === 'string' ? item.details : (item.details?.details || '');
+    
+    let detailsLat = '';
+    let detailsLon = '';
+    let detailsLocation = '';
+    
+    // Parse latitude & longitude (e.g. "51.5074, -0.1278")
+    const coordsMatch = detailsStr.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (coordsMatch) {
+      detailsLat = coordsMatch[1];
+      detailsLon = coordsMatch[2];
+      
+      // Parse location name if trailing coordinate string: e.g. "51.5074, -0.1278, London"
+      const afterCoordsPart = detailsStr.split(coordsMatch[0])[1] || '';
+      const lineEndMatch = afterCoordsPart.match(/^\s*,\s*([^/\n\r\t]+)/);
+      if (lineEndMatch) {
+        detailsLocation = lineEndMatch[1].trim();
+      }
+    }
+    
+    setCoordsForm({
+      targetId: item.targetId || item.target_id || '',
+      title: rawTitle || 'Threat Marker Event',
+      newLocation: detailsLocation || '',
+      newLat: detailsLat || '',
+      newLon: detailsLon || ''
+    });
+    
+    setCorrectingCoordsItem(item);
+  };
+
+  const handleSaveCoordsCorrection = async () => {
+    if (!coordsForm.newLat || !coordsForm.newLon) {
+      showToast('Latitude and Longitude are required', 'error');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const targetId = coordsForm.targetId;
+      if (!targetId) {
+        throw new Error('Target Event ID is missing from coordinate correction payload.');
+      }
+
+      const isRss = targetId.startsWith('rss-') || targetId.includes('http');
+      
+      const primaryEndpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
+      const primaryPayload = isRss 
+        ? { id: targetId, location: coordsForm.newLocation || undefined, latitude: parseFloat(coordsForm.newLat), longitude: parseFloat(coordsForm.newLon) }
+        : { id: targetId, location: coordsForm.newLocation || undefined, lat: parseFloat(coordsForm.newLat), lon: parseFloat(coordsForm.newLon) };
+        
+      const fallbackEndpoint = isRss ? '/api/admin/events' : '/api/admin/rss';
+      const fallbackPayload = isRss
+        ? { id: targetId, location: coordsForm.newLocation || undefined, lat: parseFloat(coordsForm.newLat), lon: parseFloat(coordsForm.newLon) }
+        : { id: targetId, location: coordsForm.newLocation || undefined, latitude: parseFloat(coordsForm.newLat), longitude: parseFloat(coordsForm.newLon) };
+
+      // 1. Try to update coordinates on database
+      let updateRes = await fetch(primaryEndpoint, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(primaryPayload)
+      });
+      
+      if (!updateRes.ok) {
+        // Fallback endpoint
+        updateRes = await fetch(fallbackEndpoint, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(fallbackPayload)
+        });
+        
+        if (!updateRes.ok) {
+          throw new Error('Target event/RSS node not found or failed to update in database.');
+        }
+      }
+      
+      // 2. Automatically delete/resolve feedback suggeestion
+      const deleteRes = await fetch('/api/admin/feedback', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: correctingCoordsItem.id })
+      });
+      
+      if (!deleteRes.ok) {
+        throw new Error('Coordinates successfully corrected, but failed to automatically resolve feedback report.');
+      }
+      
+      showToast('Coordinates corrected & report resolved successfully!');
+      setCorrectingCoordsItem(null);
+      fetchData();
+      
+      // Dispatch refresh event to update the live globe instantly
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const totalPages = Math.ceil(total / limit) || 1;
 
@@ -336,6 +442,40 @@ export default function AdminCMS({ currentUser, onClose }) {
                         )}
                       </td>
                       <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap'}}>
+                        {(item.type || '').toLowerCase() === 'map' && (
+                          <button 
+                            style={{ 
+                              background: 'rgba(0, 240, 255, 0.1)', 
+                              border: '1px solid rgba(0, 240, 255, 0.3)', 
+                              borderRadius: '6px', 
+                              color: '#00f0ff', 
+                              cursor: 'pointer', 
+                              padding: '5px 10px', 
+                              fontSize: '9px', 
+                              fontWeight: 'bold', 
+                              fontFamily: 'monospace', 
+                              marginRight: '8px', 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              transition: 'all 0.15s ease'
+                            }} 
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = '#00f0ff';
+                              e.currentTarget.style.color = '#000000';
+                              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.4)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'rgba(0, 240, 255, 0.1)';
+                              e.currentTarget.style.color = '#00f0ff';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                            onClick={() => handleCorrectCoordsClick(item)} 
+                            title="Correct coordinates and resolve"
+                          >
+                            <MapPin size={10} /> CORRECT LOCATION
+                          </button>
+                        )}
                         <button style={s.actionBtn('#ff2d55')} onClick={() => handleFeedbackDelete(item)} title="Delete / Resolve"><Trash2 size={14} /></button>
                       </td>
                     </tr>
@@ -461,6 +601,102 @@ export default function AdminCMS({ currentUser, onClose }) {
 
             <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
               <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Coordinate Correction Modal */}
+      {correctingCoordsItem && (
+        <div style={s.editOverlay} onClick={(e) => { if (e.target === e.currentTarget) setCorrectingCoordsItem(null); }}>
+          <div style={{...s.editPanel, border: '1px solid rgba(0, 240, 255, 0.45)', boxShadow: '0 0 50px rgba(0, 240, 255, 0.2)'}}>
+            {/* Header */}
+            <div style={{...s.editHeader, background: 'rgba(0, 240, 255, 0.03)'}}>
+              <div style={{...s.editTitle, color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <MapPin size={16} /> Coordinate Correction Hub
+              </div>
+              <button style={s.closeBtn} onClick={() => setCorrectingCoordsItem(null)}><X size={16} /></button>
+            </div>
+
+            {/* Event Context Box */}
+            <div style={{ margin: '16px 20px', padding: '12px 16px', background: 'rgba(0, 240, 255, 0.03)', border: '1px solid rgba(0, 240, 255, 0.15)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(0, 240, 255, 0.6)', letterSpacing: '0.5px', marginBottom: '4px', textTransform: 'uppercase' }}>
+                TARGET DOSSIER
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#e8edf5', lineHeight: 1.4 }}>
+                {coordsForm.title}
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'monospace', marginTop: '6px' }}>
+                NODE ID: {coordsForm.targetId}
+              </div>
+            </div>
+
+            {/* Instruction Warning */}
+            <div style={{ margin: '0 20px 16px 20px', padding: '10px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '6px', fontSize: '11px', color: '#facc15', lineHeight: 1.4 }}>
+              <strong>Operational Command:</strong> Entering new coordinates below will instantly update the persistent database record and hot-reload the tactical globe feed.
+            </div>
+
+            {/* Form Fields */}
+            <div style={s.fieldGroup}>
+              <div style={s.fieldLabel}>Corrected Location Name</div>
+              <input 
+                style={s.fieldInput} 
+                placeholder="e.g. London, United Kingdom" 
+                value={coordsForm.newLocation} 
+                onChange={e => setCoordsForm(f => ({...f, newLocation: e.target.value}))} 
+              />
+            </div>
+
+            <div style={s.coordRow}>
+              <div>
+                <div style={s.fieldLabel}>Latitude (Decimal)</div>
+                <input 
+                  style={s.fieldInput} 
+                  type="number" 
+                  step="0.000001" 
+                  placeholder="e.g. 51.5074" 
+                  value={coordsForm.newLat} 
+                  onChange={e => setCoordsForm(f => ({...f, newLat: e.target.value}))} 
+                />
+              </div>
+              <div>
+                <div style={s.fieldLabel}>Longitude (Decimal)</div>
+                <input 
+                  style={s.fieldInput} 
+                  type="number" 
+                  step="0.000001" 
+                  placeholder="e.g. -0.1278" 
+                  value={coordsForm.newLon} 
+                  onChange={e => setCoordsForm(f => ({...f, newLon: e.target.value}))} 
+                />
+              </div>
+            </div>
+
+            {/* Submit Action */}
+            <button 
+              style={{
+                ...s.saveBtn,
+                background: 'rgba(0, 240, 255, 0.15)',
+                border: '1px solid rgba(0, 240, 255, 0.4)',
+                color: '#00f0ff',
+                boxShadow: '0 0 15px rgba(0, 240, 255, 0.1)',
+                marginTop: '24px',
+                transition: 'all 0.2s'
+              }} 
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#00f0ff';
+                e.currentTarget.style.color = '#000000';
+                e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 240, 255, 0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
+                e.currentTarget.style.color = '#00f0ff';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 240, 255, 0.1)';
+              }}
+              onClick={handleSaveCoordsCorrection} 
+              disabled={saving}
+            >
+              <Save size={14} /> {saving ? 'APPLYING CORRECTION...' : 'APPLY CORRECTION & RESOLVE'}
             </button>
           </div>
         </div>

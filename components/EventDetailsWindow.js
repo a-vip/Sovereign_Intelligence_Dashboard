@@ -245,8 +245,8 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue }) {
                   onClick={() => onReportIssue('suggestions', {
                     type: 'map',
                     subject: `Incorrect Coordinates for: ${event.title}`,
-                    targetId: `${event.lat.toFixed(4)}, ${event.lon.toFixed(4)} (ID: ${event.id})`,
-                    details: `The threat marker for "${event.title}" is located at coordinates ${event.lat.toFixed(4)}, ${event.lon.toFixed(4)} but is placed on the incorrect part of the map. Correct coordinates should be:`
+                    targetId: String(event.id),
+                    details: `Current: ${event.location || 'Unknown'} (${event.lat?.toFixed(5)}, ${event.lon?.toFixed(5)})\nSuggested Coordinates / Location:\n[Format: Latitude, Longitude, Location Name]\ne.g. 51.5074, -0.1278, London`
                   })}
                   style={{
                     background: 'transparent',

@@ -512,6 +512,17 @@ export default function LiveMap({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
+  // Listen for Admin CMS updates to immediately refresh map markers & data feeds
+  useEffect(() => {
+    const handleAdminRefresh = () => {
+      console.log("[SIGINT] Event update detected, refreshing tactical globe data...");
+      fetchEvents();
+      fetchRss(true);
+    };
+    window.addEventListener('event_updated', handleAdminRefresh);
+    return () => window.removeEventListener('event_updated', handleAdminRefresh);
+  }, [fetchEvents, fetchRss]);
+
   const fetchEvents = useCallback(async () => {
     if (!isVisible) return; // Don't fetch if tab is hidden
     try {
