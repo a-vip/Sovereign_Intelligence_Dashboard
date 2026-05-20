@@ -18,6 +18,7 @@ export default function AdminCMS({ currentUser, onClose }) {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const limit = 50;
 
   const headers = { 'x-user-id': currentUser?.id || '', 'Content-Type': 'application/json' };
@@ -33,6 +34,7 @@ export default function AdminCMS({ currentUser, onClose }) {
       let url;
       if (activeTab === 'events') url = `/api/admin/events?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
       else if (activeTab === 'rss') url = `/api/admin/rss?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
+      else if (activeTab === 'feedback') url = `/api/admin/feedback?page=${page}&limit=${limit}`;
       else url = `/api/admin/archive?page=${page}&limit=${limit}`;
 
       const res = await fetch(url, { headers });
@@ -41,6 +43,8 @@ export default function AdminCMS({ currentUser, onClose }) {
 
       if (activeTab === 'rss') {
         setData(json.items || []);
+      } else if (activeTab === 'feedback') {
+        setData(json.suggestions || []);
       } else {
         setData(json.events || []);
       }
@@ -60,6 +64,7 @@ export default function AdminCMS({ currentUser, onClose }) {
   useEffect(() => {
     setPage(1);
   }, [activeTab, search]);
+
 
   const handleEdit = (item) => {
     setEditingItem(item);
@@ -158,6 +163,23 @@ export default function AdminCMS({ currentUser, onClose }) {
     }
   };
 
+  const handleFeedbackDelete = async (item) => {
+    if (!confirm(`Delete/Resolve feedback: "${item.subject?.substring(0, 50)}..."?`)) return;
+    try {
+      const res = await fetch('/api/admin/feedback', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: item.id })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      showToast('Feedback deleted');
+      fetchData();
+    } catch (err) {
+      showToast('Delete failed: ' + err.message, 'error');
+    }
+  };
+
+
   const totalPages = Math.ceil(total / limit) || 1;
 
   const s = {
@@ -207,14 +229,16 @@ export default function AdminCMS({ currentUser, onClose }) {
           <button style={s.tab(activeTab === 'events')} onClick={() => setActiveTab('events')}>Live Events</button>
           <button style={s.tab(activeTab === 'rss')} onClick={() => setActiveTab('rss')}>RSS Feed</button>
           <button style={s.tab(activeTab === 'archive')} onClick={() => setActiveTab('archive')}>Archive</button>
+          <button style={s.tab(activeTab === 'feedback')} onClick={() => setActiveTab('feedback')}>Feedback</button>
           <div style={{ marginLeft: 'auto', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
             {total} items
           </div>
         </div>
 
-        {/* Search (not for archive) */}
-        {activeTab !== 'archive' && (
+        {/* Search (not for archive/feedback) */}
+        {activeTab !== 'archive' && activeTab !== 'feedback' && (
+
           <div style={s.searchBar}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
@@ -241,58 +265,123 @@ export default function AdminCMS({ currentUser, onClose }) {
           ) : (
             <table style={s.table}>
               <thead>
-                <tr>
-                  <th style={s.th}>ID</th>
-                  <th style={{...s.th, maxWidth: '350px'}}>Title</th>
-                  <th style={s.th}>Cat</th>
-                  <th style={s.th}>Sev</th>
-                  <th style={s.th}>Location</th>
-                  {activeTab === 'archive' && <th style={s.th}>Archived</th>}
-                  <th style={{...s.th, textAlign: 'right'}}>Actions</th>
-                </tr>
+                {activeTab === 'feedback' ? (
+                  <tr>
+                    <th style={s.th}>Date</th>
+                    <th style={s.th}>Type</th>
+                    <th style={s.th}>Operator</th>
+                    <th style={{...s.th, maxWidth: '200px'}}>Subject</th>
+                    <th style={{...s.th, maxWidth: '300px'}}>Details</th>
+                    <th style={s.th}>Screenshot</th>
+                    <th style={{...s.th, textAlign: 'right'}}>Actions</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th style={s.th}>ID</th>
+                    <th style={{...s.th, maxWidth: '350px'}}>Title</th>
+                    <th style={s.th}>Cat</th>
+                    <th style={s.th}>Sev</th>
+                    <th style={s.th}>Location</th>
+                    {activeTab === 'archive' && <th style={s.th}>Archived</th>}
+                    <th style={{...s.th, textAlign: 'right'}}>Actions</th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {data.map(item => (
-                  <tr key={item.id} style={{ transition: 'background 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{...s.td, fontFamily: 'var(--font-jetbrains-fallback, monospace)', fontSize: '10px', color: '#64748b', maxWidth: '60px'}}>
-                      {item.id?.substring(0, 8)}
-                    </td>
-                    <td style={{...s.td, maxWidth: '350px', color: '#e8edf5', fontWeight: 500}}>
-                      {item.title?.substring(0, 80)}{item.title?.length > 80 ? '...' : ''}
-                    </td>
-                    <td style={s.td}>
-                      <span style={{ fontSize: '11px', color: '#a78bfa' }}>{item.category || '—'}</span>
-                    </td>
-                    <td style={s.td}>
-                      <span style={s.sevBadge(item.severity || 1)}>{SEV_LABELS[item.severity] || 'LOW'}</span>
-                    </td>
-                    <td style={{...s.td, fontSize: '11px', maxWidth: '120px'}}>
-                      {item.location?.substring(0, 25) || '—'}
-                    </td>
-                    {activeTab === 'archive' && (
-                      <td style={{...s.td, fontSize: '10px', color: '#64748b'}}>
-                        {item.archived_at ? new Date(item.archived_at).toLocaleDateString() : '—'}
+                  activeTab === 'feedback' ? (
+                    <tr key={item.id} style={{ transition: 'background 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <td style={{...s.td, fontSize: '11px', color: '#64748b'}}>
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}
                       </td>
-                    )}
-                    <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap'}}>
-                      {activeTab === 'archive' ? (
-                        <>
-                          <button style={s.actionBtn('#22c55e')} onClick={() => handleRestore(item)} title="Restore to live"><RotateCcw size={14} /></button>
-                          <button style={s.actionBtn('#ff2d55')} onClick={() => handlePermanentDelete(item)} title="Delete permanently"><Trash2 size={14} /></button>
-                        </>
-                      ) : (
-                        <>
-                          <button style={s.actionBtn('#00f0ff')} onClick={() => handleEdit(item)} title="Edit"><Edit3 size={14} /></button>
-                          <button style={s.actionBtn('#facc15')} onClick={() => handleArchive(item)} title="Archive"><Archive size={14} /></button>
-                        </>
+                      <td style={s.td}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          background: item.type === 'bug' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                          color: item.type === 'bug' ? '#ef4444' : '#22c55e',
+                          letterSpacing: '0.5px',
+                          textTransform: 'uppercase'
+                        }}>
+                          {item.type || 'SUGGESTION'}
+                        </span>
+                      </td>
+                      <td style={{...s.td, fontSize: '11px', color: '#c8d0df'}}>
+                        <div style={{ fontWeight: 600 }}>{item.operatorName || 'Anonymous'}</div>
+                        <div style={{ fontSize: '9px', color: '#64748b' }}>{item.operatorEmail || '—'}</div>
+                      </td>
+                      <td style={{...s.td, maxWidth: '200px', fontWeight: 500, color: '#e8edf5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                        {item.subject}
+                      </td>
+                      <td style={{...s.td, maxWidth: '300px', fontSize: '11px', color: '#8892a4', whiteSpace: 'normal', wordBreak: 'break-word'}}>
+                        {item.details}
+                      </td>
+                      <td style={s.td}>
+                        {item.screenshot ? (
+                          <img 
+                            src={item.screenshot} 
+                            alt="Screenshot" 
+                            onClick={() => setLightboxImage(item.screenshot)}
+                            style={{ width: '40px', height: '24px', objectFit: 'cover', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'block', transition: 'transform 0.15s' }}
+                            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                          />
+                        ) : (
+                          <span style={{ color: '#475569', fontSize: '11px' }}>None</span>
+                        )}
+                      </td>
+                      <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap'}}>
+                        <button style={s.actionBtn('#ff2d55')} onClick={() => handleFeedbackDelete(item)} title="Delete / Resolve"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={item.id} style={{ transition: 'background 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <td style={{...s.td, fontFamily: 'var(--font-jetbrains-fallback, monospace)', fontSize: '10px', color: '#64748b', maxWidth: '60px'}}>
+                        {item.id?.substring(0, 8)}
+                      </td>
+                      <td style={{...s.td, maxWidth: '350px', color: '#e8edf5', fontWeight: 500}}>
+                        {item.title?.substring(0, 80)}{item.title?.length > 80 ? '...' : ''}
+                      </td>
+                      <td style={s.td}>
+                        <span style={{ fontSize: '11px', color: '#a78bfa' }}>{item.category || '—'}</span>
+                      </td>
+                      <td style={s.td}>
+                        <span style={s.sevBadge(item.severity || 1)}>{SEV_LABELS[item.severity] || 'LOW'}</span>
+                      </td>
+                      <td style={{...s.td, fontSize: '11px', maxWidth: '120px'}}>
+                        {item.location?.substring(0, 25) || '—'}
+                      </td>
+                      {activeTab === 'archive' && (
+                        <td style={{...s.td, fontSize: '10px', color: '#64748b'}}>
+                          {item.archived_at ? new Date(item.archived_at).toLocaleDateString() : '—'}
+                        </td>
                       )}
-                    </td>
-                  </tr>
+                      <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap'}}>
+                        {activeTab === 'archive' ? (
+                          <>
+                            <button style={s.actionBtn('#22c55e')} onClick={() => handleRestore(item)} title="Restore to live"><RotateCcw size={14} /></button>
+                            <button style={s.actionBtn('#ff2d55')} onClick={() => handlePermanentDelete(item)} title="Delete permanently"><Trash2 size={14} /></button>
+                          </>
+                        ) : (
+                          <>
+                            <button style={s.actionBtn('#00f0ff')} onClick={() => handleEdit(item)} title="Edit"><Edit3 size={14} /></button>
+                            <button style={s.actionBtn('#facc15')} onClick={() => handleArchive(item)} title="Archive"><Archive size={14} /></button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  )
                 ))}
               </tbody>
             </table>
+
           )}
         </div>
 
@@ -379,6 +468,25 @@ export default function AdminCMS({ currentUser, onClose }) {
 
       {/* Toast */}
       {toast && <div style={s.toast(toast.type)}>{toast.msg}</div>}
+
+      {/* Lightbox for screenshots */}
+      {lightboxImage && (
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}
+          onClick={() => setLightboxImage(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <img src={lightboxImage} alt="Feedback Screenshot" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', boxShadow: '0 0 50px rgba(0,0,0,0.8)' }} />
+            <button 
+              style={{ marginTop: '16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#00f0ff', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}
+              onClick={() => setLightboxImage(null)}
+            >
+              Close Telemetry Image
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
