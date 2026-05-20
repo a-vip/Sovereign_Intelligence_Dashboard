@@ -369,6 +369,7 @@ export default function LiveMap({
   const [internetCablesEnabled, setInternetCablesEnabled] = useState(false);
   const [dayNightEnabled, setDayNightEnabled] = useState(false);
   const [gpsJammingEnabled, setGpsJammingEnabled] = useState(false);
+  const [dataCentersEnabled, setDataCentersEnabled] = useState(false);
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -1687,6 +1688,7 @@ export default function LiveMap({
           internetCablesEnabled={internetCablesEnabled}
           dayNightEnabled={dayNightEnabled}
           gpsJammingEnabled={gpsJammingEnabled}
+          dataCentersEnabled={dataCentersEnabled}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite
@@ -1938,6 +1940,36 @@ export default function LiveMap({
                       borderRadius: '50%',
                       background: gpsJammingEnabled ? '#ef4444' : '#334155',
                       boxShadow: gpsJammingEnabled ? '0 0 6px #ef4444' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* Data Centers Option */}
+                  <div 
+                    onClick={() => setDataCentersEnabled(!dataCentersEnabled)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: dataCentersEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: dataCentersEnabled ? 1 : 0.4 }}>🏢</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Data Centers</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: dataCentersEnabled ? '#00f0ff' : '#334155',
+                      boxShadow: dataCentersEnabled ? '0 0 6px #00f0ff' : 'none',
                       transition: 'all 0.2s ease'
                     }} />
                   </div>

@@ -105,7 +105,8 @@ export default function CesiumGlobe({
   powerMineralsEnabled = false,
   dayNightEnabled = true,
   globe3dEnabled = true,
-  gpsJammingEnabled = false
+  gpsJammingEnabled = false,
+  dataCentersEnabled = false
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -115,6 +116,7 @@ export default function CesiumGlobe({
   const cableEntitiesRef = useRef([]);
   const oilGasEntitiesRef = useRef([]);
   const gpsJammingEntitiesRef = useRef([]);
+  const dataCenterEntitiesRef = useRef([]);
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '' });
   const setHoverTooltipRef = useRef(setHoverTooltip);
@@ -781,10 +783,26 @@ export default function CesiumGlobe({
           const isLandingStation = props && props.isLandingStation ? props.isLandingStation.getValue() : false;
           const isOilGas = props && props.isOilGas ? props.isOilGas.getValue() : false;
           const isGpsJamming = props && props.isGpsJamming ? props.isGpsJamming.getValue() : false;
+          const isDataCenter = props && props.isDataCenter ? props.isDataCenter.getValue() : false;
           const title = props && props.title ? props.title.getValue() : (hoveredEntity.name || '');
 
-          if (isCable || isLandingStation || isOilGas || isGpsJamming) {
-            if (isGpsJamming) {
+          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter) {
+            if (isDataCenter) {
+              document.body.style.cursor = 'pointer';
+              const operator = props.operator ? props.operator.getValue() : 'Unknown';
+              const location = props.location ? props.location.getValue() : 'Unknown';
+              const statusVal = props.status ? props.status.getValue() : 'active';
+              const tooltipContent = `🏢 Sovereign Data Center\nName: ${title}\nOperator: ${operator}\nLocation: ${location}\nStatus: ${statusVal.toUpperCase()}`;
+              
+              if (typeof setHoverTooltipRef.current === 'function') {
+                setHoverTooltipRef.current({
+                  show: true,
+                  x: movement.endPosition.x,
+                  y: movement.endPosition.y,
+                  content: tooltipContent
+                });
+              }
+            } else if (isGpsJamming) {
               const catVal = props.category ? props.category.getValue() : 'none';
               if (catVal === 'none') {
                 // Ignore background honeycomb grid during interactive hover picks
@@ -1792,6 +1810,84 @@ export default function CesiumGlobe({
       clearGpsJamming();
     };
   }, [gpsJammingEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // E3. Global Data Centers Map Layer Ingestion & Point Plotting (ATLAS OSINT Dataset)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const clearDataCenters = () => {
+      if (dataCenterEntitiesRef.current && dataCenterEntitiesRef.current.length > 0) {
+        dataCenterEntitiesRef.current.forEach(entity => {
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.entities.remove(entity);
+          }
+        });
+        dataCenterEntitiesRef.current = [];
+      }
+    };
+
+    if (!dataCentersEnabled) {
+      clearDataCenters();
+      return;
+    }
+
+    fetch('/api/datacenters')
+      .then(res => {
+        if (!res.ok) throw new Error("Data Centers data request failed");
+        return res.json();
+      })
+      .then(data => {
+        if (!data || !data.dataCenters) return;
+        clearDataCenters();
+
+        const newEntities = [];
+        data.dataCenters.forEach(dc => {
+          if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') return;
+
+          // Color representation: glowing orange for planned/proposed, neon cyan for active
+          const nodeColor = dc.status === 'planned' 
+            ? Cesium.Color.fromCssColorString('#f97316') 
+            : Cesium.Color.fromCssColorString('#00f0ff');
+
+          try {
+            const entity = viewer.entities.add({
+              name: dc.name,
+              position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat),
+              point: {
+                pixelSize: 5.5,
+                color: nodeColor,
+                outlineColor: Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.85),
+                outlineWidth: 1.0,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+              },
+              properties: {
+                isDataCenter: true,
+                title: dc.name,
+                operator: dc.operator || 'Independent',
+                location: `${dc.city}, ${dc.country}`,
+                status: dc.status || 'active'
+              }
+            });
+            newEntities.push(entity);
+          } catch (err) {
+            console.error("Failed to render data center node:", err);
+          }
+        });
+
+        dataCenterEntitiesRef.current = newEntities;
+        console.log(`Rendered ${newEntities.length} global data center server nodes.`);
+      })
+      .catch(err => {
+        console.warn("Failed to load global data centers vector points:", err);
+      });
+
+    return () => {
+      clearDataCenters();
+    };
+  }, [dataCentersEnabled, scriptsLoaded, mapError, viewerReady]);
 
   // F. Undersea Internet Fiber Optic Cables (TeleGeography Submarine Cable API)
   useEffect(() => {
