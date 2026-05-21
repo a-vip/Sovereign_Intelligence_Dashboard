@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, saveRssItems } from '@/lib/db';
+import { initDb, saveEvents, saveRssItems, saveAiRegulations } from '@/lib/db';
 import crypto from 'crypto';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss } from '@/lib/rssParser';
@@ -157,16 +157,140 @@ export async function GET(request) {
     } catch (e) {
       console.warn('RSS ingestion failed during cron run:', e.message);
     }
+
+    // 4. Live Sync and parse AI Regulations from Google My Maps NetworkLink KML
+    let regSyncedCount = 0;
+    try {
+      regSyncedCount = await syncAiRegulations();
+    } catch (e) {
+      console.warn('AI Regulations live sync failed during cron run:', e.message);
+    }
     
     return NextResponse.json({ 
       success: true, 
       count: verifiedEvents.length,
       osint: osintEvents.length,
       research: researchEvents.length,
-      rssIngested: newRssCount
+      rssIngested: newRssCount,
+      aiRegulationsSynced: regSyncedCount
     });
   } catch (error) {
     console.error('Scheduled ingestion error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+async function syncAiRegulations() {
+  try {
+    const url = 'https://www.google.com/maps/d/kml?mid=1grbvr9Ic-qJ-LTC9DHqpdzi2M-mtxl4&forcekml=1';
+    console.log('[AI Regulations Ingestion]: Syncing from live Google My Maps KML Link...');
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+    
+    const kml = await res.text();
+    if (!kml.includes('<kml') || !kml.includes('<Placemark>')) {
+      throw new Error('Fetched content is not a valid KML file');
+    }
+    
+    const folderRegex = /<Folder>([\s\S]*?)<\/Folder>/g;
+    const cleanCdata = (str) => {
+      if (!str) return '';
+      return str.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').trim();
+    };
+    
+    const results = [];
+    let folderMatch;
+    let index = 0;
+    
+    while ((folderMatch = folderRegex.exec(kml))) {
+      const folderContent = folderMatch[1];
+      const folderNameMatch = folderContent.match(/<name>(.*?)<\/name>/);
+      const rawArea = folderNameMatch ? folderNameMatch[1] : 'Other';
+      const area = cleanCdata(rawArea);
+      
+      let placemarkMatch;
+      const localPlacemarkRegex = /<Placemark>([\s\S]*?)<\/Placemark>/g;
+      
+      while ((placemarkMatch = localPlacemarkRegex.exec(folderContent))) {
+        const placemarkContent = placemarkMatch[1];
+        
+        const nameMatch = placemarkContent.match(/<name>(.*?)<\/name>/);
+        if (!nameMatch) continue;
+        const rawName = cleanCdata(nameMatch[1]);
+        
+        const splitMatch = rawName.split(/\s+[-–—]\s+/);
+        let jurisdiction = 'Global';
+        let title = rawName;
+        
+        if (splitMatch.length > 1) {
+          jurisdiction = splitMatch[0].trim();
+          title = splitMatch.slice(1).join(' - ').trim();
+        }
+        
+        const descMatch = placemarkContent.match(/<description>(.*?)<\/description>/);
+        const sourceUrl = descMatch ? cleanCdata(descMatch[1]) : '';
+        
+        const styleMatch = placemarkContent.match(/<styleUrl>#(.*?)<\/styleUrl>/);
+        const styleUrl = styleMatch ? styleMatch[1] : '';
+        let status = 'Proposed';
+        
+        if (styleUrl.includes('0F9D58')) {
+          status = 'In effect';
+        } else if (styleUrl.includes('0288D1')) {
+          status = 'Passed';
+        } else if (styleUrl.includes('FFEA00') || styleUrl.includes('FFD600') || styleUrl.includes('FBC02D')) {
+          status = 'Proposed';
+        } else if (styleUrl.includes('673AB7')) {
+          status = 'Policy';
+        }
+        
+        const coordMatch = placemarkContent.match(/<coordinates>([\s\S]*?)<\/coordinates>/);
+        if (!coordMatch) continue;
+        const coordStr = coordMatch[1].trim();
+        const coordParts = coordStr.split(',');
+        if (coordParts.length < 2) continue;
+        
+        const lon = parseFloat(coordParts[0]);
+        const lat = parseFloat(coordParts[1]);
+        
+        if (isNaN(lon) || isNaN(lat)) continue;
+        
+        let date = '2026-05-15';
+        const yearMatch = title.match(/\b(201\d|202\d)\b/);
+        if (yearMatch) {
+          date = `${yearMatch[1]}-01-01`;
+        }
+        
+        const description = `Official Source / Legislation: ${sourceUrl || 'Not provided'}\n\nThis maps the AI regulation tracking for "${title}" under the "${area}" focus area in "${jurisdiction}".`;
+        
+        results.push({
+          id: `reg-kml-${index++}`,
+          title: `${jurisdiction} - ${title}`,
+          jurisdiction: jurisdiction,
+          status: status,
+          area: area,
+          date: date,
+          description: description,
+          lat: lat,
+          lon: lon
+        });
+      }
+    }
+    
+    if (results.length > 0) {
+      console.log(`[AI Regulations Ingestion]: Successfully parsed ${results.length} live regulations.`);
+      
+      const fs = require('fs');
+      const path = require('path');
+      const localFilePath = path.resolve('ai-regulations-local.json');
+      fs.writeFileSync(localFilePath, JSON.stringify(results, null, 2), 'utf8');
+      
+      await saveAiRegulations(results);
+      return results.length;
+    }
+    return 0;
+  } catch (err) {
+    console.error('[AI Regulations Ingestion Error]:', err.message);
+    return 0;
   }
 }

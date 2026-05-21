@@ -256,6 +256,7 @@ export default function LiveMap({
   const [status, setStatus] = useState('loading');
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [focusCoordinate, setFocusCoordinate] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
@@ -321,6 +322,7 @@ export default function LiveMap({
   const [dayNightEnabled, setDayNightEnabled] = useState(false);
   const [gpsJammingEnabled, setGpsJammingEnabled] = useState(false);
   const [dataCentersEnabled, setDataCentersEnabled] = useState(false);
+  const [aiRegulationsEnabled, setAiRegulationsEnabled] = useState(false);
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -503,6 +505,21 @@ export default function LiveMap({
     await Promise.all([fetchEvents(), fetchRss(false)]);
     setRefreshing(false);
   }, [fetchEvents, fetchRss]);
+
+  const handleEventUpdate = useCallback((updatedEvent) => {
+    // 1. Update the open detail window instantly
+    setSelectedEvent(updatedEvent);
+    
+    // 2. Trigger map camera focus transition to new geocoded coordinates
+    setFocusCoordinate({
+      lat: updatedEvent.lat,
+      lon: updatedEvent.lon,
+      timestamp: Date.now()
+    });
+
+    // 3. Dispatch global custom event to trigger DB refreshes across elements
+    window.dispatchEvent(new CustomEvent('sigint-db-update'));
+  }, []);
 
   useEffect(() => {
     fetchEvents();
@@ -1683,6 +1700,7 @@ export default function LiveMap({
       <div ref={mapAreaRef} className="sigint-map-area">
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
+          focusCoordinate={focusCoordinate}
           mapMode={mapMode}
           mapStyle={mapStyle}
           onMapModeChange={setMapMode}
@@ -1690,10 +1708,24 @@ export default function LiveMap({
           onInteraction={() => setAutoRotate(false)}
           onPointClick={(point) => {
             // First check GDELT events
-            let fullEvent = allFetchedEvents.find(ev => ev.id === point.id || ev.title === point.name || `db-${ev.id}` === point.id || ev.id === point.id?.replace('db-', ''));
+            let fullEvent = allFetchedEvents.find(ev => {
+              const evIdStr = String(ev.id || '');
+              const pointIdStr = String(point.id || '');
+              const cleanPointId = pointIdStr.replace('db-', '').replace('rss-', '');
+              return evIdStr === pointIdStr || 
+                     ev.title === point.name || 
+                     `db-${evIdStr}` === pointIdStr || 
+                     `rss-${evIdStr}` === pointIdStr ||
+                     evIdStr === cleanPointId;
+            });
             // If not found, look up RSS items to populate dynamic audit details
             if (!fullEvent) {
-              const matchedRss = rssItems.find(item => item.id === point.id || item.title === point.name);
+              const matchedRss = rssItems.find(item => {
+                const itemIdStr = String(item.id || '');
+                const pointIdStr = String(point.id || '');
+                const cleanPointId = pointIdStr.replace('rss-', '');
+                return itemIdStr === pointIdStr || item.title === point.name || itemIdStr === cleanPointId;
+              });
               if (matchedRss) {
                 fullEvent = {
                   id: matchedRss.id,
@@ -1726,6 +1758,7 @@ export default function LiveMap({
           dayNightEnabled={dayNightEnabled}
           gpsJammingEnabled={gpsJammingEnabled}
           dataCentersEnabled={dataCentersEnabled}
+          aiRegulationsEnabled={aiRegulationsEnabled}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite
@@ -2007,6 +2040,36 @@ export default function LiveMap({
                       borderRadius: '50%',
                       background: dataCentersEnabled ? '#00f0ff' : '#334155',
                       boxShadow: dataCentersEnabled ? '0 0 6px #00f0ff' : 'none',
+                      transition: 'all 0.2s ease'
+                    }} />
+                  </div>
+
+                  {/* AI Regulation Option */}
+                  <div 
+                    onClick={() => setAiRegulationsEnabled(!aiRegulationsEnabled)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '3px 4px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: aiRegulationsEnabled ? '#f3f4f6' : '#64748b' }}>
+                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: aiRegulationsEnabled ? 1 : 0.4 }}>⚖️</span>
+                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>AI Regulation</span>
+                    </div>
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: aiRegulationsEnabled ? '#a855f7' : '#334155',
+                      boxShadow: aiRegulationsEnabled ? '0 0 6px #a855f7' : 'none',
                       transition: 'all 0.2s ease'
                     }} />
                   </div>
@@ -2523,6 +2586,8 @@ export default function LiveMap({
       {selectedEvent && (
         <EventDetailsWindow
           event={selectedEvent}
+          currentUser={currentUser}
+          onEventUpdate={handleEventUpdate}
           onClose={() => setSelectedEvent(null)}
           onReportIssue={onAvatarClick}
           SEV_COLORS={SEV_COLORS}

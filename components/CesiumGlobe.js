@@ -89,6 +89,7 @@ export default function CesiumGlobe({
   onPointClick = null, 
   mapMode = '2d', 
   mapStyle = 'satellite', 
+  focusCoordinate = null, 
   onMapModeChange = null,
   autoRotate = true,
   onInteraction = null,
@@ -106,7 +107,8 @@ export default function CesiumGlobe({
   dayNightEnabled = true,
   globe3dEnabled = true,
   gpsJammingEnabled = false,
-  dataCentersEnabled = false
+  dataCentersEnabled = false,
+  aiRegulationsEnabled = false
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -117,12 +119,39 @@ export default function CesiumGlobe({
   const oilGasEntitiesRef = useRef([]);
   const gpsJammingEntitiesRef = useRef([]);
   const dataCenterEntitiesRef = useRef([]);
+  const aiRegulationsEntitiesRef = useRef([]);
+
+  const [mapError, setMapError] = useState(false);
+  const [scriptsLoaded, setScriptsLoaded] = useState(false);
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '' });
   const setHoverTooltipRef = useRef(setHoverTooltip);
   useEffect(() => {
     setHoverTooltipRef.current = setHoverTooltip;
   }, [setHoverTooltip]);
+
+  const [leafletAiRegulations, setLeafletAiRegulations] = useState([]);
+
+  // Fetch AI regulations for Leaflet fallback when 3D is error/disabled
+  useEffect(() => {
+    if (!mapError || !aiRegulationsEnabled || !scriptsLoaded) {
+      setLeafletAiRegulations([]);
+      return;
+    }
+    fetch('/api/ai-regulations')
+      .then(res => {
+        if (!res.ok) throw new Error("AI Regulations data request failed");
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.aiRegulations) {
+          setLeafletAiRegulations(data.aiRegulations);
+        }
+      })
+      .catch(err => {
+        console.warn("Failed to load Leaflet AI regulations:", err);
+      });
+  }, [aiRegulationsEnabled, mapError, scriptsLoaded]);
 
   // Track physical keyboard state to differentiate keyboard-scroll shortcuts from trackpad pinch-to-zoom!
   const keysPressedRef = useRef({ ctrl: false, shift: false, alt: false });
@@ -157,9 +186,6 @@ export default function CesiumGlobe({
     };
   }, []);
   
-  const [mapError, setMapError] = useState(false);
-  const [scriptsLoaded, setScriptsLoaded] = useState(false);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -542,6 +568,54 @@ export default function CesiumGlobe({
       });
     });
 
+    // Render 2D AI Regulations Fallback
+    if (aiRegulationsEnabled && leafletAiRegulations && leafletAiRegulations.length > 0) {
+      const REG_COLORS = {
+        'In effect': '#22c55e',
+        'Passed': '#38bdf8',
+        'Proposed': '#facc15',
+        'Policy': '#a855f7'
+      };
+
+      leafletAiRegulations.forEach(item => {
+        if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
+        const color = REG_COLORS[item.status] || '#a855f7';
+
+        const marker = L.circleMarker([item.lat, item.lon], {
+          radius: 6,
+          fillColor: color,
+          color: '#ffffff',
+          weight: 1.5,
+          opacity: 1,
+          fillOpacity: 0.95
+        }).addTo(map);
+
+        marker.bindTooltip(`
+          <div style="font-family: monospace; font-size: 11px; padding: 6px 10px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); max-width: 250px; white-space: normal; word-break: break-word;">
+            <strong style="display: block; margin-bottom: 4px; color: #ffffff;">⚖️ ${item.title}</strong>
+            <span style="color: ${color}; font-weight: bold;">${item.status.toUpperCase()}</span> • 
+            <span style="color: #94a3b8; font-weight: 500;">${item.area}</span><br/>
+            <span style="color: #64748b; font-size: 9.5px; display: block; margin-top: 4px;">Jurisdiction: ${item.jurisdiction}</span>
+          </div>
+        `, {
+          direction: 'top',
+          className: 'leaflet-tooltip-custom',
+          permanent: false,
+          sticky: true,
+          opacity: 1
+        });
+
+        marker.on('click', () => {
+          if (onPointClickRef.current) {
+            onPointClickRef.current({
+              ...item,
+              isAiRegulation: true
+            });
+          }
+        });
+      });
+    }
+
     // Render 2D Satellites Fallback
     if (showSatellites && satellites) {
       satellites.forEach(sat => {
@@ -612,7 +686,7 @@ export default function CesiumGlobe({
         opacity: 0.75
       }).addTo(map);
     }
-  }, [mapError, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite]);
+  }, [mapError, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
@@ -644,6 +718,36 @@ export default function CesiumGlobe({
       }
     }
   }, [resetKey, mapError]);
+
+  // Handle focusing camera on specific coordinates (e.g. when an admin changes location)
+  useEffect(() => {
+    if (focusCoordinate && focusCoordinate.lat !== undefined && focusCoordinate.lon !== undefined) {
+      const { lat, lon } = focusCoordinate;
+      
+      // 1. Focus 3D Cesium camera
+      if (viewerRef.current) {
+        const viewer = viewerRef.current;
+        const Cesium = window.Cesium;
+        if (Cesium) {
+          viewer.trackedEntity = undefined;
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(lon, lat, 150000.0), // 150km focus height
+            orientation: {
+              heading: viewer.camera.heading, // Maintain current heading/rotation
+              pitch: Cesium.Math.toRadians(-45.0), // Tilt 45 degrees for premium depth look
+              roll: 0.0
+            },
+            duration: 2.0
+          });
+        }
+      }
+
+      // 2. Focus 2D Leaflet Fallback map
+      if (mapError && leafletMapRef.current) {
+        leafletMapRef.current.setView([lat, lon], 8, { animate: true });
+      }
+    }
+  }, [focusCoordinate, mapError]);
 
   // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
   useEffect(() => {
@@ -784,10 +888,26 @@ export default function CesiumGlobe({
           const isOilGas = props && props.isOilGas ? props.isOilGas.getValue() : false;
           const isGpsJamming = props && props.isGpsJamming ? props.isGpsJamming.getValue() : false;
           const isDataCenter = props && props.isDataCenter ? props.isDataCenter.getValue() : false;
+          const isAiRegulation = props && props.isAiRegulation ? props.isAiRegulation.getValue() : false;
           const title = props && props.title ? props.title.getValue() : (hoveredEntity.name || '');
 
-          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter) {
-            if (isDataCenter) {
+          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation) {
+            if (isAiRegulation) {
+              document.body.style.cursor = 'pointer';
+              const status = props.status ? props.status.getValue() : 'Proposed';
+              const jurisdiction = props.jurisdiction ? props.jurisdiction.getValue() : 'Global';
+              const area = props.area ? props.area.getValue() : 'General';
+              const tooltipContent = `⚖️ ${title}\nJurisdiction: ${jurisdiction}\nStatus: ${status.toUpperCase()}\nArea: ${area}`;
+              
+              if (typeof setHoverTooltipRef.current === 'function') {
+                setHoverTooltipRef.current({
+                  show: true,
+                  x: movement.endPosition.x,
+                  y: movement.endPosition.y,
+                  content: tooltipContent
+                });
+              }
+            } else if (isDataCenter) {
               document.body.style.cursor = 'pointer';
               const operator = props.operator ? props.operator.getValue() : 'Unknown';
               const location = props.location ? props.location.getValue() : 'Unknown';
@@ -1887,6 +2007,88 @@ export default function CesiumGlobe({
       clearDataCenters();
     };
   }, [dataCentersEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // E3.5 Global AI Regulations Map Layer Ingestion & Point Plotting
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const clearAiRegulations = () => {
+      if (aiRegulationsEntitiesRef.current && aiRegulationsEntitiesRef.current.length > 0) {
+        aiRegulationsEntitiesRef.current.forEach(entity => {
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.entities.remove(entity);
+          }
+        });
+        aiRegulationsEntitiesRef.current = [];
+      }
+    };
+
+    if (!aiRegulationsEnabled) {
+      clearAiRegulations();
+      return;
+    }
+
+    const REG_COLORS = {
+      'In effect': '#22c55e',
+      'Passed': '#38bdf8',
+      'Proposed': '#facc15',
+      'Policy': '#a855f7'
+    };
+
+    fetch('/api/ai-regulations')
+      .then(res => {
+        if (!res.ok) throw new Error("AI Regulations data request failed");
+        return res.json();
+      })
+      .then(data => {
+        if (!data || !data.aiRegulations) return;
+        clearAiRegulations();
+
+        const newEntities = [];
+        data.aiRegulations.forEach(item => {
+          if (typeof item.lon !== 'number' || typeof item.lat !== 'number') return;
+
+          const statusColor = REG_COLORS[item.status] || '#a855f7';
+
+          try {
+            const entity = viewer.entities.add({
+              id: 'reg-' + item.id,
+              name: item.title,
+              position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat),
+              billboard: {
+                image: createCircleCanvas(statusColor, 12, '#ffffff', 1.5),
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+              },
+              properties: {
+                isAiRegulation: true,
+                title: item.title,
+                jurisdiction: item.jurisdiction,
+                status: item.status,
+                area: item.area,
+                date: item.date,
+                description: item.description
+              }
+            });
+            newEntities.push(entity);
+          } catch (err) {
+            console.error("Failed to render AI regulation node:", err);
+          }
+        });
+
+        aiRegulationsEntitiesRef.current = newEntities;
+        console.log(`Rendered ${newEntities.length} global AI regulation pins.`);
+      })
+      .catch(err => {
+        console.warn("Failed to load global AI regulations vector points:", err);
+      });
+
+    return () => {
+      clearAiRegulations();
+    };
+  }, [aiRegulationsEnabled, scriptsLoaded, mapError, viewerReady]);
 
   // F. Undersea Internet Fiber Optic Cables (TeleGeography Submarine Cable API)
   useEffect(() => {
