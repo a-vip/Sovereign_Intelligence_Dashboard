@@ -124,7 +124,7 @@ export default function CesiumGlobe({
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
 
-  const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '' });
+  const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
   useEffect(() => {
     setHoverTooltipRef.current = setHoverTooltip;
@@ -548,10 +548,21 @@ export default function CesiumGlobe({
       }).addTo(map);
 
       marker.bindTooltip(`
-        <div style="font-family: monospace; font-size: 11px; padding: 6px 10px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); max-width: 250px; white-space: normal; word-break: break-word;">
-          <strong style="display: block; margin-bottom: 4px; color: #ffffff;">${m.title || m.name}</strong>
-          <span style="color: ${sevColorStr}; font-weight: bold;">Severity ${m.severity}</span> • 
-          <span style="color: #94a3b8; font-weight: 500;">${m.category}</span>
+        <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(0, 240, 255, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3); backdrop-filter: blur(8px); width: 240px; white-space: normal; word-break: break-word;">
+          <div style="border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+            <span>⚠️</span>
+            <span style="white-space: normal; word-break: break-word;">${m.title || m.name}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: flex; justify-content: space-between; gap: 16px;">
+              <span style="color: #94a3b8; font-weight: 500; white-space: nowrap;">Severity:</span>
+              <span style="color: ${sevColorStr}; font-weight: bold;">S${m.severity}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 16px;">
+              <span style="color: #94a3b8; font-weight: 500; white-space: nowrap;">Category:</span>
+              <span style="color: #f8fafc; font-weight: bold; word-break: break-word;">${m.category}</span>
+            </div>
+          </div>
         </div>
       `, {
         direction: 'top',
@@ -591,11 +602,29 @@ export default function CesiumGlobe({
         }).addTo(map);
 
         marker.bindTooltip(`
-          <div style="font-family: monospace; font-size: 11px; padding: 6px 10px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); max-width: 250px; white-space: normal; word-break: break-word;">
-            <strong style="display: block; margin-bottom: 4px; color: #ffffff;">⚖️ ${item.title}</strong>
-            <span style="color: ${color}; font-weight: bold;">${item.status.toUpperCase()}</span> • 
-            <span style="color: #94a3b8; font-weight: 500;">${item.area}</span><br/>
-            <span style="color: #64748b; font-size: 9.5px; display: block; margin-top: 4px;">Jurisdiction: ${item.jurisdiction}</span>
+          <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(168, 85, 247, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(168, 85, 247, 0.3); backdrop-filter: blur(8px); width: 260px; white-space: normal; word-break: break-word;">
+            <div style="border-bottom: 1px solid rgba(168, 85, 247, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+              <span>⚖️</span>
+              <span style="white-space: normal; word-break: break-word;">${item.title}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Jurisdiction:</span>
+                <span style="color: #f8fafc; font-weight: bold; text-align: right; word-break: break-word;">${item.jurisdiction}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Status:</span>
+                <span style="color: ${color}; font-weight: bold;">${String(item.status || '').toUpperCase()}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Area:</span>
+                <span style="color: #f8fafc; font-weight: bold; text-align: right; word-break: break-word;">${item.area}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Date:</span>
+                <span style="color: #f8fafc; font-weight: bold;">${item.date || 'Unknown'}</span>
+              </div>
+            </div>
           </div>
         `, {
           direction: 'top',
@@ -633,17 +662,31 @@ export default function CesiumGlobe({
         }).addTo(map);
 
         marker.bindTooltip(`
-          <div style="font-family: monospace; font-size: 11px; padding: 6px 10px; background: rgba(11, 17, 32, 0.95); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 6px; color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); max-width: 250px; white-space: normal; word-break: break-word;">
-            <strong style="color: #00ffff; display: block; margin-bottom: 2px;">📡 ${sat.name}</strong>
-            <span>NORAD: ${sat.code}</span><br/>
-            <span>Alt: ${sat.altitude} km</span><br/>
-            <span>V: ${sat.velocity} km/s</span>
+          <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(0, 240, 255, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3); backdrop-filter: blur(8px); width: 220px; white-space: normal; word-break: break-word;">
+            <div style="border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+              <span>📡</span>
+              <span style="white-space: normal; word-break: break-word;">${sat.name}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">NORAD:</span>
+                <span style="color: #f8fafc; font-weight: bold;">${sat.code}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Altitude:</span>
+                <span style="color: #00ffff; font-weight: bold;">${sat.altitude} km</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Velocity:</span>
+                <span style="color: #00ffff; font-weight: bold;">${sat.velocity} km/s</span>
+              </div>
+            </div>
           </div>
         `, {
           direction: 'top',
           className: 'leaflet-tooltip-custom',
-          permanent: true,
-          sticky: false,
+          permanent: isSelected,
+          sticky: !isSelected,
           opacity: 1
         });
 
@@ -883,35 +926,60 @@ export default function CesiumGlobe({
 
         if (hoveredEntity) {
           const props = hoveredEntity.properties;
-          const isCable = props && props.isCable ? props.isCable.getValue() : false;
-          const isLandingStation = props && props.isLandingStation ? props.isLandingStation.getValue() : false;
-          const isOilGas = props && props.isOilGas ? props.isOilGas.getValue() : false;
-          const isGpsJamming = props && props.isGpsJamming ? props.isGpsJamming.getValue() : false;
-          const isDataCenter = props && props.isDataCenter ? props.isDataCenter.getValue() : false;
-          const isAiRegulation = props && props.isAiRegulation ? props.isAiRegulation.getValue() : false;
-          const title = props && props.title ? props.title.getValue() : (hoveredEntity.name || '');
+          
+          // Safe utility to read properties from Cesium properties or regular JS objects
+          const getPropValue = (propBag, key, defaultValue) => {
+            if (!propBag) return defaultValue;
+            const prop = propBag[key];
+            if (prop === undefined || prop === null) return defaultValue;
+            if (typeof prop.getValue === 'function') {
+              try {
+                return prop.getValue(Cesium.JulianDate.now());
+              } catch (e) {
+                return prop;
+              }
+            }
+            return prop;
+          };
+
+          const isCable = getPropValue(props, 'isCable', false);
+          const isLandingStation = getPropValue(props, 'isLandingStation', false);
+          const isOilGas = getPropValue(props, 'isOilGas', false);
+          const isGpsJamming = getPropValue(props, 'isGpsJamming', false);
+          const isDataCenter = getPropValue(props, 'isDataCenter', false);
+          const isAiRegulation = getPropValue(props, 'isAiRegulation', false);
+          const title = getPropValue(props, 'title', hoveredEntity.name || '');
 
           if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation) {
             if (isAiRegulation) {
               document.body.style.cursor = 'pointer';
-              const status = props.status ? props.status.getValue() : 'Proposed';
-              const jurisdiction = props.jurisdiction ? props.jurisdiction.getValue() : 'Global';
-              const area = props.area ? props.area.getValue() : 'General';
-              const tooltipContent = `⚖️ ${title}\nJurisdiction: ${jurisdiction}\nStatus: ${status.toUpperCase()}\nArea: ${area}`;
+              const status = getPropValue(props, 'status', 'Proposed');
+              const jurisdiction = getPropValue(props, 'jurisdiction', 'Global');
+              const area = getPropValue(props, 'area', 'General');
+              const dateVal = getPropValue(props, 'date', 'Unknown');
+              const tooltipContent = `⚖️ ${title}\nJurisdiction: ${jurisdiction}\nStatus: ${status.toUpperCase()}\nArea: ${area}\nProposed/Effective: ${dateVal}`;
               
               if (typeof setHoverTooltipRef.current === 'function') {
                 setHoverTooltipRef.current({
                   show: true,
                   x: movement.endPosition.x,
                   y: movement.endPosition.y,
-                  content: tooltipContent
+                  content: tooltipContent,
+                  type: 'regulation',
+                  title: title,
+                  details: {
+                    'Jurisdiction': jurisdiction,
+                    'Status': status.toUpperCase(),
+                    'Area': area,
+                    'Proposed/Effective': dateVal
+                  }
                 });
               }
             } else if (isDataCenter) {
               document.body.style.cursor = 'pointer';
-              const operator = props.operator ? props.operator.getValue() : 'Unknown';
-              const location = props.location ? props.location.getValue() : 'Unknown';
-              const statusVal = props.status ? props.status.getValue() : 'active';
+              const operator = getPropValue(props, 'operator', 'Unknown');
+              const location = getPropValue(props, 'location', 'Unknown');
+              const statusVal = getPropValue(props, 'status', 'active');
               const tooltipContent = `🏢 ${title}\nOperator: ${operator}\nLocation: ${location}\nStatus: ${statusVal.toUpperCase()}`;
               
               if (typeof setHoverTooltipRef.current === 'function') {
@@ -919,22 +987,29 @@ export default function CesiumGlobe({
                   show: true,
                   x: movement.endPosition.x,
                   y: movement.endPosition.y,
-                  content: tooltipContent
+                  content: tooltipContent,
+                  type: 'datacenter',
+                  title: title,
+                  details: {
+                    'Operator': operator,
+                    'Location': location,
+                    'Status': statusVal.toUpperCase()
+                  }
                 });
               }
             } else if (isGpsJamming) {
-              const catVal = props.category ? props.category.getValue() : 'none';
+              const catVal = getPropValue(props, 'category', 'none');
               if (catVal === 'none') {
                 // Ignore background honeycomb grid during interactive hover picks
                 document.body.style.cursor = 'default';
                 if (typeof setHoverTooltipRef.current === 'function') {
-                  setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
+                  setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
                 }
                 return;
               }
               
               document.body.style.cursor = 'pointer';
-              const intensityVal = props.intensity ? props.intensity.getValue() : 0;
+              const intensityVal = getPropValue(props, 'intensity', 0);
               const tooltipContent = `📡 GPS Interference Corridor\nRegion: ${title}\nSeverity: ${catVal.toUpperCase()}\nDegradation: ${(intensityVal * 100).toFixed(0)}%`;
               
               if (typeof setHoverTooltipRef.current === 'function') {
@@ -942,17 +1017,62 @@ export default function CesiumGlobe({
                   show: true,
                   x: movement.endPosition.x,
                   y: movement.endPosition.y,
-                  content: tooltipContent
+                  content: tooltipContent,
+                  type: 'gps',
+                  title: 'GPS Interference Corridor',
+                  details: {
+                    'Region': title,
+                    'Severity': catVal.toUpperCase(),
+                    'Degradation': `${(intensityVal * 100).toFixed(0)}%`
+                  }
                 });
               }
             } else {
               document.body.style.cursor = 'pointer';
+              let tooltipContent = title;
+              let type = 'generic';
+              let titlePrefix = '';
+              let details = null;
+              if (isCable) {
+                type = 'cable';
+                titlePrefix = '⚓ ';
+                tooltipContent = `⚓ Undersea Cable\nName: ${title}`;
+                details = { 'Type': 'Undersea Fiber Optic Cable' };
+              } else if (isLandingStation) {
+                type = 'landing_station';
+                titlePrefix = '🔌 ';
+                tooltipContent = `🔌 Cable Landing Station\nName: ${title}`;
+                details = { 'Type': 'Cable Landing Station' };
+              } else if (isOilGas) {
+                const isPipeline = getPropValue(props, 'isPipeline', false);
+                const isPlant = getPropValue(props, 'isPlant', false);
+                if (isPipeline) {
+                  type = 'energy';
+                  titlePrefix = '🛢️ ';
+                  tooltipContent = `🛢️ Pipeline Project\nName: ${title}`;
+                  details = { 'Type': 'Pipeline Project' };
+                } else if (isPlant) {
+                  type = 'energy';
+                  titlePrefix = '🏭 ';
+                  tooltipContent = `🏭 Energy Refinery / Plant\nName: ${title}`;
+                  details = { 'Type': 'Energy Refinery / Plant' };
+                } else {
+                  type = 'energy';
+                  titlePrefix = '🛢️ ';
+                  tooltipContent = `🛢️ Oil/Gas Asset\nName: ${title}`;
+                  details = { 'Type': 'Oil/Gas Asset' };
+                }
+              }
+              
               if (typeof setHoverTooltipRef.current === 'function') {
                 setHoverTooltipRef.current({
                   show: true,
                   x: movement.endPosition.x,
                   y: movement.endPosition.y,
-                  content: title
+                  content: tooltipContent,
+                  type: type,
+                  title: titlePrefix ? `${titlePrefix}${title}` : title,
+                  details: details
                 });
               }
             }
@@ -961,7 +1081,7 @@ export default function CesiumGlobe({
 
           // Clear cables/jamming tooltip for other entities
           if (typeof setHoverTooltipRef.current === 'function') {
-            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
+            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
           }
 
           const isSat = getIsSatellite(hoveredEntity);
@@ -980,9 +1100,32 @@ export default function CesiumGlobe({
               }
             });
           } else if (hoveredEntity.label) {
-            // Hovered over a threat event point: show pointer cursor and show *only* this point's label
+            // Hovered over a threat feed event: show premium stacked React overlay tooltip
             document.body.style.cursor = 'pointer';
-            
+
+            const evtTitle    = getPropValue(props, 'title',     hoveredEntity.name || '');
+            const evtSeverity = getPropValue(props, 'severity',  1);
+            const evtCategory = getPropValue(props, 'category',  'Unknown');
+            const evtLocation = getPropValue(props, 'location',  'Unknown');
+            const evtTs       = getPropValue(props, 'timestamp', null);
+
+            if (typeof setHoverTooltipRef.current === 'function') {
+              setHoverTooltipRef.current({
+                show: true,
+                x: movement.endPosition.x,
+                y: movement.endPosition.y,
+                content: `\u26a0\ufe0f ${evtTitle}`,
+                type: 'event',
+                title: evtTitle,
+                details: {
+                  'Severity': `S${evtSeverity}`,
+                  'Category': String(evtCategory || 'Unknown'),
+                  'Location': String(evtLocation || 'Unknown'),
+                  ...(evtTs ? { 'Date': new Date(evtTs).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) } : {})
+                }
+              });
+            }
+
             viewer.entities.values.forEach(entity => {
               if (entity.label) {
                 const entIsSat = getIsSatellite(entity);
@@ -1007,7 +1150,7 @@ export default function CesiumGlobe({
           // Hovered over background, oceans, space, or 3D buildings (Google Tiles feature)
           document.body.style.cursor = 'default';
           if (typeof setHoverTooltipRef.current === 'function') {
-            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '' });
+            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
           }
           viewer.entities.values.forEach(entity => {
             if (entity.label) {
@@ -2237,6 +2380,75 @@ export default function CesiumGlobe({
 
   const is2DActive = mapError;
 
+  // Safe utility to parse any tooltip string content (e.g. collapsed cached single-line formats)
+  // into a beautifully structured, premium tactical key-value dossier layout.
+  const getStructuredTooltip = () => {
+    if (hoverTooltip.details) {
+      return {
+        title: hoverTooltip.title,
+        details: hoverTooltip.details,
+        emoji: hoverTooltip.type === 'regulation' ? '⚖️' : 
+               hoverTooltip.type === 'datacenter' ? '🏢' :
+               hoverTooltip.type === 'gps' ? '📡' :
+               hoverTooltip.type === 'cable' ? '⚓' :
+               hoverTooltip.type === 'landing_station' ? '🔌' :
+               hoverTooltip.type === 'energy' ? '🛢️' : 
+               hoverTooltip.type === 'event' ? '⚠️' : '🌐'
+      };
+    }
+
+    const content = hoverTooltip.content || '';
+    let cleanStr = content.trim();
+    let emoji = '🌐';
+    if (cleanStr.startsWith('⚖️')) { emoji = '⚖️'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('🏢')) { emoji = '🏢'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('📡')) { emoji = '📡'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('⚓')) { emoji = '⚓'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('🔌')) { emoji = '🔌'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('🏭')) { emoji = '🏭'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('🛢️')) { emoji = '🛢️'; cleanStr = cleanStr.substring(2).trim(); }
+    else if (cleanStr.startsWith('⚠️')) { emoji = '⚠️'; cleanStr = cleanStr.substring(2).trim(); }
+
+    const lines = cleanStr.split(/[\n\r]+/);
+    
+    // If we have single line with combined items or no newlines, parse using regex split
+    if (lines.length === 1 && cleanStr.match(/(Jurisdiction:|Status:|Focus Area:|Area:|Operator:|Location:|Severity:|Degradation:|Proposed\/Effective:|Type:|Name:)/i)) {
+      const regex = /\s*(Jurisdiction:|Status:|Focus Area:|Area:|Operator:|Location:|Severity:|Degradation:|Proposed\/Effective:|Type:|Name:|Proposed\/Effective Date:)/gi;
+      const parts = cleanStr.split(regex);
+      const titleVal = parts[0] ? parts[0].trim() : '';
+      const details = {};
+      for (let i = 1; i < parts.length; i += 2) {
+        if (parts[i] && parts[i + 1]) {
+          const key = parts[i].replace(':', '').trim();
+          details[key] = parts[i + 1].trim();
+        }
+      }
+      return { title: titleVal, details, emoji };
+    } else {
+      // Multiple lines or plain text fallback
+      const titleVal = lines[0] ? lines[0].trim() : '';
+      const details = {};
+      let hasDetails = false;
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        const colonIdx = line.indexOf(':');
+        if (colonIdx !== -1) {
+          const key = line.substring(0, colonIdx).trim();
+          const val = line.substring(colonIdx + 1).trim();
+          details[key] = val;
+          hasDetails = true;
+        }
+      }
+      if (hasDetails) {
+        return { title: titleVal, details, emoji };
+      }
+      // Simple string fallback formatted line-by-line
+      return { title: titleVal, details: null, emoji };
+    }
+  };
+
+  const parsed = getStructuredTooltip();
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#020617' }}>
       
@@ -2451,20 +2663,79 @@ export default function CesiumGlobe({
           position: 'absolute',
           left: `${hoverTooltip.x + 12}px`,
           top: `${hoverTooltip.y - 12}px`,
-          background: 'rgba(15, 23, 42, 0.95)',
-          border: '1px solid rgba(139, 92, 246, 0.6)',
-          borderRadius: '4px',
-          padding: '5px 9px',
+          background: 'rgba(11, 19, 43, 0.98)',
+          border: hoverTooltip.type === 'regulation'
+            ? '1px solid rgba(168, 85, 247, 0.8)'
+            : hoverTooltip.type === 'event'
+            ? '1px solid rgba(251, 146, 60, 0.8)'
+            : '1px solid rgba(0, 240, 255, 0.8)',
+          borderRadius: '8px',
+          padding: '10px 14px',
           color: '#ffffff',
           fontFamily: 'monospace',
           fontSize: '11px',
+          lineHeight: '1.5',
           pointerEvents: 'none',
           zIndex: 9999,
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6)',
-          whiteSpace: 'nowrap',
-          backdropFilter: 'blur(4px)'
+          boxShadow: hoverTooltip.type === 'regulation'
+            ? '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(168, 85, 247, 0.3)'
+            : hoverTooltip.type === 'event'
+            ? '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(251, 146, 60, 0.3)'
+            : '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3)',
+          backdropFilter: 'blur(8px)',
+          maxWidth: '280px',
+          width: '280px',
+          wordBreak: 'break-word',
+          whiteSpace: 'normal'
         }}>
-          {hoverTooltip.content}
+          {parsed.details && Object.keys(parsed.details).length > 0 ? (
+            <div>
+              {/* Header */}
+              <div style={{ 
+                borderBottom: hoverTooltip.type === 'regulation'
+                  ? '1px solid rgba(168, 85, 247, 0.3)'
+                  : hoverTooltip.type === 'event'
+                  ? '1px solid rgba(251, 146, 60, 0.3)'
+                  : '1px solid rgba(0, 240, 255, 0.3)',
+                paddingBottom: '6px',
+                marginBottom: '6.5px', 
+                fontWeight: 'bold', 
+                color: '#ffffff',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span>{parsed.emoji}</span>
+                <span>{parsed.title}</span>
+              </div>
+              {/* Details List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                {Object.entries(parsed.details).map(([label, val]) => {
+                  const upperVal = val ? String(val).toUpperCase() : '';
+                  return (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+                      <span style={{ color: '#94a3b8', fontWeight: '500' }}>{label}:</span>
+                      <span style={{ 
+                        color: upperVal === 'IN EFFECT' || upperVal === 'ACTIVE' || upperVal === 'TRUE' ? '#22c55e' : 
+                               upperVal === 'PROPOSED' || upperVal === 'PENDING' ? '#facc15' :
+                               upperVal === 'HIGH' || upperVal === 'CRITICAL' ? '#ef4444' : 
+                               /^S[1-5]$/.test(upperVal) ? (SEV_COLORS[parseInt(upperVal[1])] || '#ff2d55') :
+                               '#f8fafc',
+                        fontWeight: 'bold' 
+                      }}>{val}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {hoverTooltip.content.split('\n').map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -2478,9 +2749,27 @@ export default function CesiumGlobe({
           color: #f8fafc !important;
           border-radius: 4px !important;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+          white-space: normal !important;
+          word-break: break-word !important;
         }
         .leaflet-tooltip-dark:before {
           border-top-color: rgba(15, 23, 42, 0.95) !important;
+        }
+        /* Override Leaflet's default white-space:nowrap and constrain tooltip wrapper width */
+        .leaflet-tooltip.leaflet-tooltip-custom,
+        .leaflet-tooltip-custom {
+          white-space: normal !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          width: auto !important;
+          max-width: none !important;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        .leaflet-tooltip.leaflet-tooltip-custom::before {
+          display: none !important;
         }
       `}</style>
     </div>

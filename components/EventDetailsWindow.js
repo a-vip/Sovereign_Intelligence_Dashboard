@@ -404,6 +404,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
           left: 0, top: 0,
           transform: `translate(${pos.x}px, ${pos.y}px)`,
           width: '400px',
+          maxHeight: 'calc(100vh - 120px)',
           backgroundColor: '#0c0f17',
           border: '1px solid rgba(168, 85, 247, 0.35)',
           borderRadius: '8px',
@@ -454,7 +455,17 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         </div>
 
         {/* Main Content Area */}
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div 
+          className="details-window-scroll ai-regulation-scroll"
+          style={{ 
+            padding: '16px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '14px',
+            overflowY: 'auto',
+            flex: 1
+          }}
+        >
           
           {/* Title */}
           <div>
@@ -589,6 +600,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         left: 0, top: 0,
         transform: `translate(${pos.x}px, ${pos.y}px)`,
         width: '400px',
+        maxHeight: 'calc(100vh - 120px)',
         backgroundColor: '#0f141e',
         border: '1px solid #1e293b',
         borderRadius: '8px',
@@ -683,7 +695,8 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         >✕</button>
       </div>
 
-      <div style={{ padding: '20px' }}>
+      <div className="details-window-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px' }}>
         {/* Badges & Meta */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1173,7 +1186,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
       </div>
 
       {/* Accordions */}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
         
         {/* Summary Accordion */}
         <div style={{ borderTop: '1px solid #1e293b' }}>
@@ -1434,6 +1447,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
             </div>
           )}
         </div>
+      </div>
       </div>
       
       {/* Interactive Save and Revert Action HUD Panel */}

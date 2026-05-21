@@ -630,6 +630,37 @@ body {
 .overlay-panel::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 240, 255, 0.45);
 }
+
+/* Event Details Window scrollbar styles */
+.details-window-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.25) transparent;
+}
+.details-window-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.details-window-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.details-window-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.25);
+  border-radius: 2px;
+}
+.details-window-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.45);
+}
+
+/* AI Regulation Specific purple scrollbar styling */
+.details-window-scroll.ai-regulation-scroll {
+  scrollbar-color: rgba(168, 85, 247, 0.35) transparent;
+}
+.details-window-scroll.ai-regulation-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.35);
+}
+.details-window-scroll.ai-regulation-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.55);
+}
+
 .overlay-panel.minimized {
   min-width: 120px;
   padding: 8px;
@@ -724,13 +755,22 @@ body {
 }
 
 /* Premium Leaflet Tooltip Custom Overrides */
+/* Combined selector (.leaflet-tooltip.leaflet-tooltip-custom) wins specificity over
+   Leaflet CDN's .leaflet-tooltip { white-space: nowrap } regardless of load order */
+.leaflet-tooltip.leaflet-tooltip-custom,
 .leaflet-tooltip-custom {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
   margin: 0 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  width: auto !important;
+  max-width: none !important;
 }
+.leaflet-tooltip.leaflet-tooltip-custom::before,
 .leaflet-tooltip-custom::before {
   display: none !important; /* Hide default white pointing arrow */
 }
