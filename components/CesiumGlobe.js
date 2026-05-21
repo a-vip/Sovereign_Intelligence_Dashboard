@@ -1126,11 +1126,13 @@ export default function CesiumGlobe({
               });
             }
 
+            // Keep all non-satellite Cesium labels hidden — the React overlay tooltip
+            // handles all event information display; no need to show the raw Cesium label
             viewer.entities.values.forEach(entity => {
               if (entity.label) {
                 const entIsSat = getIsSatellite(entity);
                 if (!entIsSat) {
-                  entity.label.show = (entity === hoveredEntity);
+                  entity.label.show = false;
                 }
               }
             });
@@ -1380,9 +1382,11 @@ export default function CesiumGlobe({
           existingSat.position = newPos;
           if (existingSat.label) {
             existingSat.label.text = isSelected 
-              ? `${sat.name}\nAlt: ${sat.altitude}km • Inc: ${sat.inclination}° • V: ${sat.velocity}km/s`
+              ? `${sat.name}\nAlt: ${sat.altitude} km  |  V: ${sat.velocity} km/s`
               : sat.name;
-            existingSat.label.font = isSelected ? 'bold 8pt monospace' : '7pt monospace';
+            existingSat.label.font = isSelected ? 'bold 9pt monospace' : '8pt monospace';
+            existingSat.label.fillColor = Cesium.Color.fromCssColorString('#00f0ff');
+            existingSat.label.backgroundColor = Cesium.Color.fromCssColorString('#020d1a').withAlpha(0.92);
           }
           if (existingSat.billboard) {
             existingSat.billboard.image = createEmojiCanvas('🛰️', isSelected ? 36 : 24);
@@ -1403,18 +1407,18 @@ export default function CesiumGlobe({
             },
             label: {
               text: isSelected 
-                ? `${sat.name}\nAlt: ${sat.altitude}km • Inc: ${sat.inclination}° • V: ${sat.velocity}km/s`
+                ? `${sat.name}\nAlt: ${sat.altitude} km  |  V: ${sat.velocity} km/s`
                 : sat.name,
-              font: isSelected ? 'bold 8pt monospace' : '7pt monospace',
+              font: isSelected ? 'bold 9pt monospace' : '8pt monospace',
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-              fillColor: Cesium.Color.WHITE,
-              outlineColor: Cesium.Color.BLACK,
-              outlineWidth: 2,
+              fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
+              outlineColor: Cesium.Color.fromCssColorString('#001830'),
+              outlineWidth: 3,
               showBackground: true,
-              backgroundColor: Cesium.Color.fromCssColorString('#0b1120').withAlpha(0.85),
-              backgroundPadding: new Cesium.Cartesian2(6, 4),
+              backgroundColor: Cesium.Color.fromCssColorString('#020d1a').withAlpha(0.92),
+              backgroundPadding: new Cesium.Cartesian2(8, 5),
               verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              pixelOffset: new Cesium.Cartesian2(0, -20),
+              pixelOffset: new Cesium.Cartesian2(0, -22),
               heightReference: Cesium.HeightReference.NONE,
               show: true,
               disableDepthTestDistance: 100000.0
