@@ -47,12 +47,9 @@ export async function POST(req) {
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     const host = req.headers.get('host') || 'localhost:3000';
 
-    const isSimulated = !process.env.RESEND_API_KEY && !(
-      process.env.SMTP_HOST &&
-      process.env.SMTP_PORT &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASSWORD
-    );
+    const isGmailConfigured = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+    const isSmtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+    const isSimulated = !isGmailConfigured && !process.env.RESEND_API_KEY && !isSmtpConfigured;
 
     if (existingUser) {
       if (existingUser.is_verified) {
