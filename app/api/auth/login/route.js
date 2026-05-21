@@ -38,6 +38,14 @@ export async function POST(req) {
       );
     }
 
+    // 4. Verify operator is authenticated (with bypass for the administrator email)
+    if (user.is_verified === false && user.email !== 'workwithavip@gmail.com') {
+      return NextResponse.json(
+        { error: 'Access Blocked: Your email address has not been authenticated yet. Please check your inbox for the verification handshake link.' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Authentication successful. Access granted.',

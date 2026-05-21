@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPendingRegistration, createUser, deletePendingRegistration, getUserByEmail, initDb } from '@/lib/db';
+import { getUserByEmail, verifyUser, initDb } from '@/lib/db';
 
 export async function GET(req) {
   try {
@@ -152,41 +152,41 @@ export async function GET(req) {
 
     const cleanEmail = email.toLowerCase().trim();
     
-    // Check if user is already registered (resilience)
-    const activeUser = await getUserByEmail(cleanEmail);
-    if (activeUser) {
-      // User is already active, probably clicked the link twice. Let's auto-log them in anyway!
-      return serveSuccessHTML(activeUser, baseStyles);
+    // Retrieve registered user
+    const user = await getUserByEmail(cleanEmail);
+    if (!user) {
+      return serveErrorHTML("HANDSHAKE EXPIRED OR INVALID", "The operator email profile was not found. Please register again.", baseStyles);
     }
 
-    // Retrieve pending registration
-    const pending = await getPendingRegistration(token);
-    if (!pending || pending.email.toLowerCase().trim() !== cleanEmail) {
+    // If user is already verified (resilience for double clicking)
+    if (user.is_verified) {
+      return serveSuccessHTML(user, baseStyles);
+    }
+
+    // Compare token
+    if (!user.verification_token || user.verification_token !== token) {
       return serveErrorHTML("HANDSHAKE EXPIRED OR INVALID", "The secure auth token was not found or is misaligned with the operator email profile.", baseStyles);
     }
 
     // Check expiration
-    const expiryDate = new Date(pending.expires_at);
-    if (new Date() > expiryDate) {
-      // Clean up expired entry
-      await deletePendingRegistration(token);
-      return serveErrorHTML("ACCESS PROTOCOL TIME-LOCKED", "Security constraint violation: this verification handshake link has expired (15-minute validity reached).", baseStyles);
+    if (user.verification_expires_at) {
+      const expiryDate = new Date(user.verification_expires_at);
+      if (new Date() > expiryDate) {
+        return serveErrorHTML("ACCESS PROTOCOL TIME-LOCKED", "Security constraint violation: this verification handshake link has expired (15-minute validity reached).", baseStyles);
+      }
     }
 
-    // 2. Instantiate persistent User
-    let newUser;
+    // 2. Verify operator and update state
+    let verifiedUser;
     try {
-      newUser = await createUser(pending.email, pending.password_hash, pending.full_name, pending.role);
+      verifiedUser = await verifyUser(user.id);
     } catch (dbErr) {
-      console.error('Handshake db user instantiation error:', dbErr);
-      return serveErrorHTML("DATABASE FAULT", "Could not persist operator profile due to an internal security storage conflict. Please contact support.", baseStyles);
+      console.error('Handshake db user verification error:', dbErr);
+      return serveErrorHTML("DATABASE FAULT", "Could not verify operator profile due to an internal security storage conflict. Please contact support.", baseStyles);
     }
 
-    // 3. Clear pending registration
-    await deletePendingRegistration(token);
-
-    // 4. Return success authentication response
-    return serveSuccessHTML(newUser, baseStyles);
+    // 3. Return success authentication response
+    return serveSuccessHTML(verifiedUser, baseStyles);
 
   } catch (error) {
     console.error('Verify API Handshake Error:', error);
