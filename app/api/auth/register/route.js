@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserByEmail, createPendingRegistration, initDb } from '@/lib/db';
+import { getUserByEmail, createUser, updateUnverifiedUser, initDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/mail';
 import crypto from 'crypto';
@@ -42,37 +42,63 @@ export async function POST(req) {
 
     // 2. Check for existing user account
     const existingUser = await getUserByEmail(cleanEmail);
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'Access Denied: an account with this email address is already registered.' },
-        { status: 409 }
-      );
-    }
-
-    // 3. Hash password
     const passwordHash = hashPassword(password);
-    
-    // 4. Generate verification token
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-    
-    // 5. Save pending registration
-    await createPendingRegistration(token, cleanEmail, passwordHash, cleanName, cleanRole, expiresAt);
-    
-    // 6. Send verification email
     const host = req.headers.get('host') || 'localhost:3000';
+
+    const isSimulated = !process.env.RESEND_API_KEY && !(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASSWORD
+    );
+
+    if (existingUser) {
+      if (existingUser.is_verified) {
+        return NextResponse.json(
+          { error: 'Access Denied: an account with this email address is already registered.' },
+          { status: 409 }
+        );
+      } else {
+        // User exists but is not verified yet. We update their unverified profile with the new details and verification token.
+        await updateUnverifiedUser(existingUser.id, {
+          passwordHash,
+          fullName: cleanName,
+          role: cleanRole,
+          verificationToken: token,
+          verificationExpiresAt: expiresAt
+        });
+
+        // Send verification email to actual email
+        await sendVerificationEmail(cleanEmail, token, cleanName, host);
+
+        return NextResponse.json({
+          success: true,
+          pending: true,
+          isSimulated,
+          message: 'Verification dispatch successful. A new verification link has been sent to your email.'
+        }, { status: 200 });
+      }
+    }
+
+    // 3. Save unverified user directly in the database
+    await createUser(cleanEmail, passwordHash, cleanName, cleanRole, false, token, expiresAt);
+    
+    // 4. Send verification email to actual email
     await sendVerificationEmail(cleanEmail, token, cleanName, host);
 
     return NextResponse.json({
       success: true,
       pending: true,
-      message: 'Verification dispatch successful. Please inspect email console to authenticate.'
+      isSimulated,
+      message: 'Verification dispatch successful. Please inspect your email inbox to authenticate your account.'
     }, { status: 200 });
 
   } catch (error) {
     console.error('Registration API Error:', error);
     return NextResponse.json(
-      { error: 'Internal system fault. Could not register operator.' },
+      { error: error.message || 'Internal system fault. Could not register operator.' },
       { status: 500 }
     );
   }

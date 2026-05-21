@@ -14,6 +14,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
   const [success, setSuccess] = useState(false);
   const [isPendingVerification, setIsPendingVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [isSimulated, setIsSimulated] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,6 +43,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
       if (data.pending) {
         setRegisteredEmail(email);
         setIsPendingVerification(true);
+        setIsSimulated(!!data.isSimulated);
         setLoading(false);
         return;
       }
@@ -371,50 +373,81 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
               </div>
             </div>
 
-            {/* Local Sandbox Environment Simulator */}
-            <div style={{
-              marginTop: '20px',
-              padding: '14px',
-              background: 'rgba(6, 182, 212, 0.04)',
-              border: '1px dashed rgba(6, 182, 212, 0.25)',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '10px', color: '#06b6d4', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>
-                🔒 LOCAL DEV CONSOLE SIMULATOR
+            {/* Conditional Delivery / Simulation Block */}
+            {isSimulated ? (
+              <div style={{
+                marginTop: '20px',
+                padding: '14px',
+                background: 'rgba(6, 182, 212, 0.04)',
+                border: '1px dashed rgba(6, 182, 212, 0.25)',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '10px', color: '#06b6d4', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  🔒 LOCAL DEV CONSOLE SIMULATOR
+                </div>
+                <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
+                  Local SMTP unconfigured. The email was simulated and written to your workspace.
+                </p>
+                <a 
+                  href="/mock-email.html" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(6, 182, 212, 0.12)',
+                    border: '1px solid rgba(6, 182, 212, 0.4)',
+                    color: '#ffffff',
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#06b6d4';
+                    e.currentTarget.style.color = '#020617';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)';
+                    e.currentTarget.style.color = '#ffffff';
+                  }}
+                >
+                  OPEN MOCK EMAIL INBOX
+                </a>
               </div>
-              <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
-                Local SMTP unconfigured. The email was simulated and written to your workspace.
-              </p>
-              <a 
-                href="/mock-email.html" 
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-block',
-                  background: 'rgba(6, 182, 212, 0.12)',
-                  border: '1px solid rgba(6, 182, 212, 0.4)',
-                  color: '#ffffff',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  transition: 'all 0.2s',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#06b6d4';
-                  e.currentTarget.style.color = '#020617';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-              >
-                OPEN MOCK EMAIL INBOX
-              </a>
-            </div>
+            ) : (
+              <div style={{
+                marginTop: '20px',
+                padding: '16px',
+                background: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                textAlign: 'left'
+              }}>
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#10b981', 
+                  fontWeight: 700, 
+                  letterSpacing: '1px', 
+                  textTransform: 'uppercase', 
+                  marginBottom: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  🛡️ REAL-TIME SECURE DELIVERY
+                </div>
+                <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '0 0 8px 0', lineHeight: 1.5 }}>
+                  The time-locked verification handshake has been dispatched directly to your inbox.
+                </p>
+                <p style={{ fontSize: '11px', color: '#8892a4', margin: 0, fontStyle: 'italic', lineHeight: 1.4 }}>
+                  Tip: Check your spam or junk folder if the link does not arrive within 1-2 minutes.
+                </p>
+              </div>
+            )}
 
             <button
               onClick={() => {
