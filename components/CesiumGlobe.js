@@ -1176,21 +1176,16 @@ export default function CesiumGlobe({
         const pickedObject = viewer.scene.pick(movement.position);
         
         // 1. Handle Google 3D Building Selection first
-        const is3DActive = mapMode === '3d' || mapStyle === 'buildings';
-        let cameraHeight = 10000000.0;
-        try {
-          const carto = viewer.scene.globe.ellipsoid.cartesianToCartographic(viewer.camera.position);
-          if (carto) cameraHeight = carto.height;
-        } catch (e) {}
-
-        const isZoomedIn = cameraHeight < 5000.0;
+        const is3DActive = mapMode === '3d' || mapStyle === 'buildings' || (tilesetRef.current && tilesetRef.current.show);
+        
         const isBuildingFeature = pickedObject && (
+          !(pickedObject.id instanceof Cesium.Entity) ||
           pickedObject instanceof Cesium.Cesium3DTileFeature ||
           (pickedObject.primitive && pickedObject.primitive instanceof Cesium.Cesium3DTileset) ||
           (typeof pickedObject.getProperty === 'function')
         );
 
-        if (is3DActive && isZoomedIn && isBuildingFeature) {
+        if (is3DActive && isBuildingFeature) {
           // Revert old feature color to White
           if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
             try {
@@ -1213,7 +1208,14 @@ export default function CesiumGlobe({
           }
 
           // Compute picked 3D position on building rooftop or surface
-          const cartesian = viewer.scene.pickPosition(movement.position);
+          let cartesian = viewer.scene.pickPosition(movement.position);
+          if (!Cesium.defined(cartesian)) {
+            // Fallback to ray casting on terrain/ellipsoid if pickPosition is unsupported/unclamped
+            const ray = viewer.camera.getPickRay(movement.position);
+            if (ray) {
+              cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+            }
+          }
           if (Cesium.defined(cartesian)) {
             let latStr = "N/A";
             let lonStr = "N/A";
