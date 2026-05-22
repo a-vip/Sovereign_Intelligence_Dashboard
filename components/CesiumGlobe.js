@@ -120,6 +120,8 @@ export default function CesiumGlobe({
   const gpsJammingEntitiesRef = useRef([]);
   const dataCenterEntitiesRef = useRef([]);
   const aiRegulationsEntitiesRef = useRef([]);
+  const lastPickedFeatureRef = useRef(null);
+  const selectionEntityRef = useRef(null);
 
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
@@ -849,6 +851,10 @@ export default function CesiumGlobe({
       // Initialize clean premium satellite globe
       viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
 
+      // Force Retina-quality crisp resolution scaling for maps, labels, and text, capping at 2.0 to protect GPU
+      viewer.resolutionScale = Math.min(2.0, window.devicePixelRatio || 1.0);
+      viewer.useBrowserRecommendedResolution = false;
+
       // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
       if (viewer.scene.screenSpaceCameraController) {
         viewer.scene.screenSpaceCameraController.zoomEventTypes = [
@@ -1168,14 +1174,130 @@ export default function CesiumGlobe({
       // Left-click pick handler to select threat event details or satellites
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.position);
-        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-          const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
-          if (metadata && metadata.isSatellite) {
-            if (onSatelliteClickRef.current) {
-              onSatelliteClickRef.current(metadata);
+        
+        // 1. Handle Google 3D Building Selection first
+        const is3DActive = mapMode === '3d' || mapStyle === 'buildings';
+        let cameraHeight = 10000000.0;
+        try {
+          const carto = viewer.scene.globe.ellipsoid.cartesianToCartographic(viewer.camera.position);
+          if (carto) cameraHeight = carto.height;
+        } catch (e) {}
+
+        const isZoomedIn = cameraHeight < 5000.0;
+        const isBuildingFeature = pickedObject && (
+          pickedObject instanceof Cesium.Cesium3DTileFeature ||
+          (pickedObject.primitive && pickedObject.primitive instanceof Cesium.Cesium3DTileset) ||
+          (typeof pickedObject.getProperty === 'function')
+        );
+
+        if (is3DActive && isZoomedIn && isBuildingFeature) {
+          // Revert old feature color to White
+          if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
+            try {
+              lastPickedFeatureRef.current.color = Cesium.Color.WHITE;
+            } catch (e) {}
+          }
+
+          // Highlight new building feature with neon cyan tactical color
+          try {
+            pickedObject.color = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)');
+            lastPickedFeatureRef.current = pickedObject;
+          } catch (e) {
+            lastPickedFeatureRef.current = null;
+          }
+
+          // Clear old holographic selection box entity
+          if (selectionEntityRef.current) {
+            viewer.entities.remove(selectionEntityRef.current);
+            selectionEntityRef.current = null;
+          }
+
+          // Compute picked 3D position on building rooftop or surface
+          const cartesian = viewer.scene.pickPosition(movement.position);
+          if (Cesium.defined(cartesian)) {
+            let latStr = "N/A";
+            let lonStr = "N/A";
+            let altStr = "N/A";
+            try {
+              const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+              if (cartographic) {
+                latStr = Cesium.Math.toDegrees(cartographic.latitude).toFixed(6);
+                lonStr = Cesium.Math.toDegrees(cartographic.longitude).toFixed(6);
+                altStr = cartographic.height.toFixed(1);
+              }
+            } catch (err) {}
+
+            let buildingName = "UNIDENTIFIED SKYSCRAPER";
+            try {
+              if (typeof pickedObject.getProperty === 'function') {
+                const name = pickedObject.getProperty('name') || pickedObject.getProperty('Label') || pickedObject.getProperty('title');
+                if (name) {
+                  buildingName = name.toUpperCase();
+                }
+              }
+            } catch (e) {}
+
+            const labelText = `🛰️ [TARGET LOCKED]\n-------------------------\nOBJECT: ${buildingName}\nLAT:    ${latStr}°N\nLON:    ${lonStr}°E\nALT:    ${altStr}m\n-------------------------`;
+
+            let heading = 0;
+            const orientationProperty = new Cesium.CallbackProperty(() => {
+              heading += 0.02; // Animate target rotation
+              const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
+              return Cesium.Transforms.headingPitchRollQuaternion(cartesian, hpr);
+            }, false);
+
+            selectionEntityRef.current = viewer.entities.add({
+              position: cartesian,
+              orientation: orientationProperty,
+              box: {
+                dimensions: new Cesium.Cartesian3(50, 50, 80),
+                material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.15)'),
+                outline: true,
+                outlineColor: Cesium.Color.fromCssColorString('#00f0ff'),
+                outlineWidth: 2,
+                heightReference: Cesium.HeightReference.NONE
+              },
+              label: {
+                text: labelText,
+                font: "bold 9pt monospace",
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 3,
+                showBackground: true,
+                backgroundColor: Cesium.Color.fromCssColorString('#091124').withAlpha(0.85),
+                backgroundPadding: new Cesium.Cartesian2(12, 8),
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -60),
+                disableDepthTestDistance: 100000.0,
+                show: true
+              }
+            });
+          }
+        } else {
+          // If clicked elsewhere, restore the building highlight and remove the target box
+          if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
+            try {
+              lastPickedFeatureRef.current.color = Cesium.Color.WHITE;
+            } catch (e) {}
+          }
+          lastPickedFeatureRef.current = null;
+
+          if (selectionEntityRef.current) {
+            viewer.entities.remove(selectionEntityRef.current);
+            selectionEntityRef.current = null;
+          }
+
+          // Continue standard threat markers or satellites selection logic
+          if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
+            const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
+            if (metadata && metadata.isSatellite) {
+              if (onSatelliteClickRef.current) {
+                onSatelliteClickRef.current(metadata);
+              }
+            } else if (onPointClickRef.current && metadata) {
+              onPointClickRef.current(metadata);
             }
-          } else if (onPointClickRef.current && metadata) {
-            onPointClickRef.current(metadata);
           }
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -1192,6 +1314,8 @@ export default function CesiumGlobe({
         }
         setViewerReady(false);
         tilesetRef.current = null;
+        lastPickedFeatureRef.current = null;
+        selectionEntityRef.current = null;
       };
     } catch (e) {
       console.error("Cesium globe initialization failed. Switching to 2D Fallback:", e);
@@ -1295,9 +1419,9 @@ export default function CesiumGlobe({
           position: newPos,
           billboard: {
             image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, '#ffffff', 1.5),
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of buildings/terrain!
+            heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of 3D building rooftops!
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             disableDepthTestDistance: 100000.0, // Disable depth testing when zoomed in closer than 100km to bypass 3D buildings, but keep depth testing enabled at global scale so back-side points are hidden!
           },
           label: {
@@ -1312,7 +1436,7 @@ export default function CesiumGlobe({
             backgroundPadding: new Cesium.Cartesian2(10, 6), // Crisp padding
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped point
+            heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped building rooftop
             disableDepthTestDistance: 100000.0, // Match billboard occlusion culling
             show: false,
           },
@@ -2123,11 +2247,12 @@ export default function CesiumGlobe({
             const entity = viewer.entities.add({
               name: dc.name,
               position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat),
-              point: {
-                pixelSize: 3.5,
-                color: nodeColor,
-                outlineWidth: 0,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+              billboard: {
+                image: createCircleCanvas(nodeColor.toCssColorString(), 7, '#ffffff', 1.2),
+                heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
+                disableDepthTestDistance: 100000.0,
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
               },
               properties: {
                 isDataCenter: true,
@@ -2207,7 +2332,10 @@ export default function CesiumGlobe({
               position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat),
               billboard: {
                 image: createCircleCanvas(statusColor, 12, '#ffffff', 1.5),
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
+                disableDepthTestDistance: 100000.0,
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
               },
               properties: {
                 isAiRegulation: true,
@@ -2296,7 +2424,8 @@ export default function CesiumGlobe({
                 polyline: {
                   positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
                   width: 0.6, // Ultra-thin, delicate, elegant hairline lines
-                  material: color.withAlpha(0.3) // Faint and elegant translucent style
+                  material: color.withAlpha(0.3), // Faint and elegant translucent style
+                  clampToGround: true
                 },
                 properties: {
                   isCable: true,
@@ -2324,11 +2453,12 @@ export default function CesiumGlobe({
               const entity = viewer.entities.add({
                 name: properties.name,
                 position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1]),
-                point: {
-                  pixelSize: 2.0, // Very small and cute circles
-                  color: Cesium.Color.fromCssColorString('#a855f7').withAlpha(0.4), // Faint purple/violet circle
-                  outlineColor: Cesium.Color.WHITE.withAlpha(0.4), // Faint outline
-                  outlineWidth: 0.4
+                billboard: {
+                  image: createCircleCanvas('rgba(168, 85, 247, 0.4)', 4, 'rgba(255, 255, 255, 0.4)', 0.5),
+                  heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
+                  disableDepthTestDistance: 100000.0,
+                  horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM
                 },
                 properties: {
                   isLandingStation: true,
