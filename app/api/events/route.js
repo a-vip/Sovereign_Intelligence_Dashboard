@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, getEvents } from '@/lib/db';
+import { initDb, saveEvents, getEvents, getArchivedIds } from '@/lib/db';
+import { getRouteCache, setRouteCache, clearRouteCache } from '@/lib/cache';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -8,7 +9,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const CACHE_EXPIRY = 30000;
-let routeCache = {};
 let isDbInitialized = false;
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc?query=(artificial%20intelligence%20OR%20autonomous%20weapons%20OR%20drone%20OR%20%22military%20ai%22%20OR%20surveillance%20OR%20%22state%20violations%22)%20sourcelang:english&mode=artlist&maxrecords=250&format=json";
@@ -581,6 +581,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const ts = searchParams.get('timespan') || '24h';
+    const forceRefresh = searchParams.get('refresh') === 'true' || searchParams.get('force') === 'true';
     const now = Date.now();
 
     if (!isDbInitialized) {
@@ -588,26 +589,33 @@ export async function GET(request) {
       isDbInitialized = true;
     }
 
-    if (routeCache[ts] && now - routeCache[ts].time < CACHE_EXPIRY) {
-      return NextResponse.json(routeCache[ts].data, { 
+    const cached = getRouteCache(ts);
+    if (!forceRefresh && cached && now - cached.time < CACHE_EXPIRY) {
+      return NextResponse.json(cached.data, { 
         headers: { 'Cache-Control': 'no-store, max-age=0' } 
       });
     }
 
-    const { mks, evs } = await fetchGdelt(ts);
-    const dbEventsList = await getEvents(ts);
+    const { mks: rawMks, evs } = await fetchGdelt(ts);
+    const dbEventsList = (await getEvents(ts)).map(e => ({ ...e, fromDb: true }));
     const staticEvents = loadStaticEvents();
 
-    let finalEventsList = [...dbEventsList, ...staticEvents];
-    if (finalEventsList.length === 0 && evs.length === 0) {
+    const archivedIds = await getArchivedIds();
+    const mks = rawMks.filter(m => !archivedIds.has(m.id));
+    const filteredEvs = evs.filter(e => !archivedIds.has(e.id));
+    const filteredDbEventsList = dbEventsList.filter(e => !archivedIds.has(e.id));
+    const filteredStaticEvents = staticEvents.filter(e => !archivedIds.has(e.id));
+
+    let finalEventsList = [...filteredDbEventsList, ...filteredStaticEvents];
+    if (finalEventsList.length === 0 && filteredEvs.length === 0) {
       console.log('No online, database, or static events found. Trying local dossiers...');
-      finalEventsList = parseLocalRadarDossiers();
+      finalEventsList = parseLocalRadarDossiers().filter(e => !archivedIds.has(e.id));
     }
 
     // Merge and Deduplicate Events
     const eventMap = new Map();
+    filteredEvs.forEach(e => eventMap.set(e.id, e));
     finalEventsList.forEach(e => eventMap.set(e.id, e));
-    evs.forEach(e => eventMap.set(e.id, e));
 
     const sortedEvents = Array.from(eventMap.values()).sort((a, b) => {
       const isA = a.source?.includes('Vault') || a.source?.includes('OCHA') || a.source?.includes('HRW');
@@ -621,7 +629,7 @@ export async function GET(request) {
     sortedEvents.forEach(e => {
       const coords = getCountryCoords(e.location || 'Global', e.title, e.details?.summary || e.description || '');
       if (coords) {
-        if (!e.lat || !e.lon) {
+        if (e.lat === undefined || e.lat === null || e.lon === undefined || e.lon === null) {
           e.lat = coords.lat;
           e.lon = coords.lon;
         }
@@ -667,6 +675,26 @@ export async function GET(request) {
 
       if (duplicateIndex !== -1) {
         const accepted = allEvents[duplicateIndex];
+        
+        // Prioritize DB-edited event over raw online feed event
+        if (accepted.fromDb && !e.fromDb) {
+          return;
+        }
+        if (e.fromDb && !accepted.fromDb) {
+          if (e.details) {
+            e.details = { ...e.details };
+            if (typeof e.details.summary === 'string') {
+              let cleanSummary = e.details.summary.replace(/\s+/g, ' ').trim();
+              if (cleanSummary.length > 280) {
+                cleanSummary = cleanSummary.substring(0, 277) + '...';
+              }
+              e.details.summary = cleanSummary;
+            }
+          }
+          allEvents[duplicateIndex] = e;
+          return;
+        }
+
         const acceptedSpec = accepted.specificity || 0;
         const currentSpec = e.specificity || 0;
 
@@ -703,19 +731,54 @@ export async function GET(request) {
     });
 
     // Build and Deduplicate Markers
+    const dbEventIds = new Set(allEvents.map(e => e.id));
+    const filteredMks = mks.filter(m => {
+      // 1. Exact ID check
+      if (dbEventIds.has(m.id)) return false;
+
+      const mUrlNorm = (m.url || '').split('?')[0];
+      const mTitleNorm = (m.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+
+      for (let i = 0; i < allEvents.length; i++) {
+        const e = allEvents[i];
+
+        // 2. Exact URL match (if both exist)
+        if (mUrlNorm) {
+          const eUrlNorm = (e.url || '').split('?')[0];
+          if (eUrlNorm && mUrlNorm === eUrlNorm) {
+            return false;
+          }
+        }
+
+        // 3. Exact normalized title match
+        if (mTitleNorm) {
+          const eTitleNorm = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+          if (eTitleNorm && mTitleNorm === eTitleNorm) {
+            return false;
+          }
+        }
+
+        // 4. Fuzzy title similarity match
+        const similarity = calculateTitleFuzzySimilarity(m.name, e.title);
+        if (similarity >= 0.6) {
+          return false;
+        }
+      }
+      return true;
+    });
     const curated = CURATED_STATIC_MARKERS.map((m, i) => ({ ...m, id: `curated-${i}`, count: 1 }));
-    const dbMarkers = allEvents.filter(e => e.lat && e.lon).map(e => ({
+    const dbMarkers = allEvents.filter(e => e.lat !== undefined && e.lat !== null && e.lon !== undefined && e.lon !== null).map(e => ({
       id: `db-${e.id}`, lat: e.lat, lon: e.lon, name: e.title,
       category: e.category, severity: e.severity, url: e.url, location: e.location, count: 1
     }));
 
-    const rawMarkers = [...curated, ...dbMarkers, ...mks];
+    const rawMarkers = [...curated, ...dbMarkers, ...filteredMks];
     const seenMarkerCoords = new Set();
     const seenMarkerNames = new Set();
     const finalMarkers = [];
 
     rawMarkers.forEach(m => {
-      if (!m.lat || !m.lon) return;
+      if (m.lat === undefined || m.lat === null || m.lon === undefined || m.lon === null) return;
 
       const coordKey = `${Number(m.lat).toFixed(4)},${Number(m.lon).toFixed(4)}`;
       const nameNorm = (m.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
@@ -736,7 +799,7 @@ export async function GET(request) {
       status: 'success'
     };
 
-    routeCache[ts] = { time: now, data: responseData };
+    setRouteCache(ts, { time: now, data: responseData });
     return NextResponse.json(responseData, { 
       headers: { 'Cache-Control': 'no-store, max-age=0' } 
     });
@@ -770,7 +833,7 @@ export async function POST(request) {
     }));
 
     await saveEvents(formatted);
-    routeCache = {}; // Reset cache
+    clearRouteCache(); // Reset cache
     return NextResponse.json({ message: 'Success', count: formatted.length });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

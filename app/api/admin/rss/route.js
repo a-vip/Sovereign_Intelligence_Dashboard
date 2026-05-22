@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/adminAuth';
 import { getAllRssItems, updateRssItem, archiveRssItem } from '@/lib/db';
+import { clearRouteCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,7 @@ export async function PATCH(request) {
     }
 
     const updated = await updateRssItem(id, fields);
+    clearRouteCache();
     return NextResponse.json({ success: true, item: updated });
   } catch (error) {
     console.error('Admin RSS PATCH error:', error);
@@ -55,6 +57,7 @@ export async function DELETE(request) {
     }
 
     const result = await archiveRssItem(id, auth.user.email);
+    clearRouteCache();
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Admin RSS DELETE error:', error);

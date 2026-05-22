@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/adminAuth';
 import { getArchivedEvents, restoreArchivedEvent, deleteArchivedEvent } from '@/lib/db';
+import { clearRouteCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,7 @@ export async function POST(request) {
     }
 
     const result = await restoreArchivedEvent(id);
+    clearRouteCache();
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Admin archive POST (restore) error:', error);
@@ -54,6 +56,7 @@ export async function DELETE(request) {
     }
 
     const result = await deleteArchivedEvent(id);
+    clearRouteCache();
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Admin archive DELETE error:', error);

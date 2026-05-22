@@ -454,10 +454,10 @@ export default function LiveMap({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (refresh = false) => {
     if (!isVisible) return; // Don't fetch if tab is hidden
     try {
-      const res = await fetch('/api/events?timespan=today');
+      const res = await fetch(`/api/events?timespan=today${refresh ? '&refresh=true' : ''}`);
       const data = await res.json();
       if (data.events?.length) {
         setAllFetchedEvents(data.events);
@@ -510,7 +510,7 @@ export default function LiveMap({
     setIsTracked(false);
     setSelectedEvent(null);
     setAutoRotate(true);
-    await Promise.all([fetchEvents(), fetchRss(false)]);
+    await Promise.all([fetchEvents(true), fetchRss(true)]);
     setRefreshing(false);
   }, [fetchEvents, fetchRss]);
 
@@ -540,7 +540,7 @@ export default function LiveMap({
   useEffect(() => {
     const handleAdminRefresh = () => {
       console.log("[SIGINT] Event update detected, refreshing tactical globe data...");
-      fetchEvents();
+      fetchEvents(true);
       fetchRss(true);
     };
     window.addEventListener('event_updated', handleAdminRefresh);

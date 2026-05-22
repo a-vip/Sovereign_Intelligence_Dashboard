@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { X, Search, ChevronLeft, ChevronRight, Archive, RotateCcw, Trash2, Edit3, Save, MapPin } from 'lucide-react';
+import { X, Search, ChevronLeft, ChevronRight, Archive, RotateCcw, Trash2, Edit3, Save, MapPin, Loader2 } from 'lucide-react';
 
 const CATEGORIES = ['Conflict', 'Humanitarian', 'Disaster', 'Economic', 'Surveillance', 'Political'];
 const SEVERITIES = [1, 2, 3, 4, 5];
@@ -21,6 +21,12 @@ export default function AdminCMS({ currentUser, onClose }) {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
+
+  // Geocoding & Autocomplete states
+  const [addressQuery, setAddressQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [activeSearchField, setActiveSearchField] = useState(null); // 'edit' | 'correct'
   const limit = 50;
 
   const headers = { 'x-user-id': currentUser?.id || '', 'Content-Type': 'application/json' };
@@ -67,6 +73,36 @@ export default function AdminCMS({ currentUser, onClose }) {
     setPage(1);
   }, [activeTab, search]);
 
+  // Debounced Nominatim suggestion geocoder search
+  useEffect(() => {
+    if (!addressQuery || addressQuery.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addressQuery)}&format=json&addressdetails=1&limit=6`, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Sovereign-Intelligence-Dashboard/1.0'
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data);
+        }
+      } catch (err) {
+        console.error("Nominatim suggestion fetch failed:", err);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [addressQuery]);
+
 
   const handleEdit = (item) => {
     setEditingItem(item);
@@ -110,6 +146,9 @@ export default function AdminCMS({ currentUser, onClose }) {
       showToast('Item updated successfully');
       setEditingItem(null);
       fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
     } catch (err) {
       showToast('Failed to save: ' + err.message, 'error');
     } finally {
@@ -129,6 +168,9 @@ export default function AdminCMS({ currentUser, onClose }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       showToast('Item archived');
       fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
     } catch (err) {
       showToast('Archive failed: ' + err.message, 'error');
     }
@@ -144,6 +186,9 @@ export default function AdminCMS({ currentUser, onClose }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       showToast('Item restored to live feed');
       fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
     } catch (err) {
       showToast('Restore failed: ' + err.message, 'error');
     }
@@ -160,6 +205,9 @@ export default function AdminCMS({ currentUser, onClose }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       showToast('Item permanently deleted');
       fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
     } catch (err) {
       showToast('Delete failed: ' + err.message, 'error');
     }
@@ -222,22 +270,37 @@ export default function AdminCMS({ currentUser, onClose }) {
     
     setSaving(true);
     try {
-      const targetId = coordsForm.targetId;
+      let targetId = coordsForm.targetId;
+      let isNewNode = false;
       if (!targetId) {
-        throw new Error('Target Event ID is missing from coordinate correction payload.');
+        targetId = 'evt-' + Date.now();
+        isNewNode = true;
       }
 
-      const isRss = targetId.startsWith('rss-') || targetId.includes('http');
-      
-      const primaryEndpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
-      const primaryPayload = isRss 
-        ? { id: targetId, location: coordsForm.newLocation || undefined, latitude: parseFloat(coordsForm.newLat), longitude: parseFloat(coordsForm.newLon) }
-        : { id: targetId, location: coordsForm.newLocation || undefined, lat: parseFloat(coordsForm.newLat), lon: parseFloat(coordsForm.newLon) };
-        
-      const fallbackEndpoint = isRss ? '/api/admin/events' : '/api/admin/rss';
-      const fallbackPayload = isRss
-        ? { id: targetId, location: coordsForm.newLocation || undefined, lat: parseFloat(coordsForm.newLat), lon: parseFloat(coordsForm.newLon) }
-        : { id: targetId, location: coordsForm.newLocation || undefined, latitude: parseFloat(coordsForm.newLat), longitude: parseFloat(coordsForm.newLon) };
+      let primaryEndpoint, primaryPayload;
+      if (isNewNode) {
+        primaryEndpoint = '/api/admin/events';
+        const rawDetails = typeof correctingCoordsItem.details === 'string' 
+          ? correctingCoordsItem.details 
+          : (correctingCoordsItem.details?.details || correctingCoordsItem.details?.summary || '');
+        primaryPayload = {
+          id: targetId,
+          title: coordsForm.title || correctingCoordsItem.subject || 'Suggested Threat Marker',
+          category: correctingCoordsItem.category || 'Political',
+          severity: parseInt(correctingCoordsItem.severity) || 3,
+          location: coordsForm.newLocation || 'Global',
+          lat: parseFloat(coordsForm.newLat),
+          lon: parseFloat(coordsForm.newLon),
+          summary: rawDetails || 'Created via suggestion coordinates correction.',
+          url: correctingCoordsItem.url || ''
+        };
+      } else {
+        const isRss = targetId.startsWith('rss-') || targetId.includes('http');
+        primaryEndpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
+        primaryPayload = isRss 
+          ? { id: targetId, location: coordsForm.newLocation || undefined, latitude: parseFloat(coordsForm.newLat), longitude: parseFloat(coordsForm.newLon) }
+          : { id: targetId, location: coordsForm.newLocation || undefined, lat: parseFloat(coordsForm.newLat), lon: parseFloat(coordsForm.newLon) };
+      }
 
       // 1. Try to update coordinates on database
       let updateRes = await fetch(primaryEndpoint, {
@@ -246,17 +309,23 @@ export default function AdminCMS({ currentUser, onClose }) {
         body: JSON.stringify(primaryPayload)
       });
       
-      if (!updateRes.ok) {
+      if (!updateRes.ok && !isNewNode) {
         // Fallback endpoint
+        const isRss = targetId.startsWith('rss-') || targetId.includes('http');
+        const fallbackEndpoint = isRss ? '/api/admin/events' : '/api/admin/rss';
+        const fallbackPayload = isRss
+          ? { id: targetId, location: coordsForm.newLocation || undefined, lat: parseFloat(coordsForm.newLat), lon: parseFloat(coordsForm.newLon) }
+          : { id: targetId, location: coordsForm.newLocation || undefined, latitude: parseFloat(coordsForm.newLat), longitude: parseFloat(coordsForm.newLon) };
+
         updateRes = await fetch(fallbackEndpoint, {
           method: 'PATCH',
           headers,
           body: JSON.stringify(fallbackPayload)
         });
-        
-        if (!updateRes.ok) {
-          throw new Error('Target event/RSS node not found or failed to update in database.');
-        }
+      }
+      
+      if (!updateRes.ok) {
+        throw new Error(isNewNode ? 'Failed to generate a new event node from suggestion.' : 'Target event/RSS node not found or failed to update in database.');
       }
       
       // 2. Automatically delete/resolve feedback suggeestion
@@ -442,7 +511,7 @@ export default function AdminCMS({ currentUser, onClose }) {
                         )}
                       </td>
                       <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap'}}>
-                        {(item.type || '').toLowerCase() === 'map' && (
+                        {true && (
                           <button 
                             style={{ 
                               background: 'rgba(0, 240, 255, 0.1)', 
@@ -581,9 +650,87 @@ export default function AdminCMS({ currentUser, onClose }) {
               </div>
             </div>
 
-            <div style={s.fieldGroup}>
+            <div style={{...s.fieldGroup, position: 'relative'}}>
               <div style={s.fieldLabel}><MapPin size={10} style={{ display: 'inline', marginRight: '4px' }} />Location</div>
-              <input style={s.fieldInput} value={editForm.location || ''} onChange={e => setEditForm(f => ({...f, location: e.target.value}))} />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  style={s.fieldInput} 
+                  value={editForm.location || ''} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setEditForm(f => ({...f, location: val}));
+                    setAddressQuery(val);
+                    setActiveSearchField('edit');
+                  }} 
+                />
+                {isLoadingSuggestions && activeSearchField === 'edit' && (
+                  <Loader2 size={14} className="animate-spin" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#00f0ff' }} />
+                )}
+              </div>
+
+              {suggestions.length > 0 && activeSearchField === 'edit' && (
+                <div style={{
+                  position: 'absolute',
+                  top: '55px',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#0f141e',
+                  border: '1px solid rgba(0,240,255,0.25)',
+                  borderRadius: '6px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+                  zIndex: 10000,
+                  maxHeight: '180px',
+                  overflowY: 'auto'
+                }}>
+                  {suggestions.map((item, idx) => {
+                    const nameSegments = item.display_name.split(',');
+                    const cleanName = nameSegments.length > 3 
+                      ? `${nameSegments[0].trim()}, ${nameSegments[1].trim()}, ${nameSegments[nameSegments.length - 1].trim()}` 
+                      : item.display_name;
+
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => {
+                          setEditForm(f => {
+                            const next = { ...f, location: cleanName };
+                            if (activeTab === 'rss') {
+                              next.latitude = parseFloat(item.lat);
+                              next.longitude = parseFloat(item.lon);
+                            } else {
+                              next.lat = parseFloat(item.lat);
+                              next.lon = parseFloat(item.lon);
+                            }
+                            return next;
+                          });
+                          setAddressQuery('');
+                          setSuggestions([]);
+                          setActiveSearchField(null);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '11px',
+                          color: '#cbd5e1',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          transition: 'background-color 0.2s',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{cleanName}</div>
+                        <div style={{ fontSize: '10px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.display_name}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#00f0ff', fontFamily: 'monospace', marginTop: '2px' }}>
+                          COORD: {parseFloat(item.lat).toFixed(4)}N, {parseFloat(item.lon).toFixed(4)}E
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div style={s.coordRow}>
@@ -637,14 +784,83 @@ export default function AdminCMS({ currentUser, onClose }) {
             </div>
 
             {/* Form Fields */}
-            <div style={s.fieldGroup}>
+            <div style={{...s.fieldGroup, position: 'relative'}}>
               <div style={s.fieldLabel}>Corrected Location Name</div>
-              <input 
-                style={s.fieldInput} 
-                placeholder="e.g. London, United Kingdom" 
-                value={coordsForm.newLocation} 
-                onChange={e => setCoordsForm(f => ({...f, newLocation: e.target.value}))} 
-              />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  style={s.fieldInput} 
+                  placeholder="e.g. London, United Kingdom" 
+                  value={coordsForm.newLocation} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCoordsForm(f => ({...f, newLocation: val}));
+                    setAddressQuery(val);
+                    setActiveSearchField('correct');
+                  }} 
+                />
+                {isLoadingSuggestions && activeSearchField === 'correct' && (
+                  <Loader2 size={14} className="animate-spin" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#00f0ff' }} />
+                )}
+              </div>
+
+              {suggestions.length > 0 && activeSearchField === 'correct' && (
+                <div style={{
+                  position: 'absolute',
+                  top: '55px',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#0f141e',
+                  border: '1px solid rgba(0,240,255,0.25)',
+                  borderRadius: '6px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+                  zIndex: 10000,
+                  maxHeight: '180px',
+                  overflowY: 'auto'
+                }}>
+                  {suggestions.map((item, idx) => {
+                    const nameSegments = item.display_name.split(',');
+                    const cleanName = nameSegments.length > 3 
+                      ? `${nameSegments[0].trim()}, ${nameSegments[1].trim()}, ${nameSegments[nameSegments.length - 1].trim()}` 
+                      : item.display_name;
+
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => {
+                          setCoordsForm(f => ({
+                            ...f,
+                            newLocation: cleanName,
+                            newLat: parseFloat(item.lat),
+                            newLon: parseFloat(item.lon)
+                          }));
+                          setAddressQuery('');
+                          setSuggestions([]);
+                          setActiveSearchField(null);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '11px',
+                          color: '#cbd5e1',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          transition: 'background-color 0.2s',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{cleanName}</div>
+                        <div style={{ fontSize: '10px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.display_name}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#00f0ff', fontFamily: 'monospace', marginTop: '2px' }}>
+                          COORD: {parseFloat(item.lat).toFixed(4)}N, {parseFloat(item.lon).toFixed(4)}E
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div style={s.coordRow}>

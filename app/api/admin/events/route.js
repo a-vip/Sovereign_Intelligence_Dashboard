@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/adminAuth';
 import { getAllEvents, updateEvent, archiveEvent } from '@/lib/db';
+import { clearRouteCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,7 @@ export async function PATCH(request) {
     }
 
     const updated = await updateEvent(id, fields);
+    clearRouteCache();
     return NextResponse.json({ success: true, event: updated });
   } catch (error) {
     console.error('Admin events PATCH error:', error);
@@ -55,6 +57,7 @@ export async function DELETE(request) {
     }
 
     const result = await archiveEvent(id, auth.user.email);
+    clearRouteCache();
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Admin events DELETE error:', error);

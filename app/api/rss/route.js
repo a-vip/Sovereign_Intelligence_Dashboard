@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveRssItems, getRssItems } from '@/lib/db';
+import { initDb, saveRssItems, getRssItems, getArchivedIds } from '@/lib/db';
 import { scrapeAllRss, RSS_FALLBACK } from '@/lib/rssParser';
 
 export const dynamic = 'force-dynamic';
@@ -35,11 +35,14 @@ export async function GET(request) {
       status = 'curated';
     }
     
+    const archivedIds = await getArchivedIds();
+    const filteredItems = dbItems.filter(item => !archivedIds.has(item.id));
+
     return NextResponse.json({
       success: true,
       status,
-      count: dbItems.length,
-      items: dbItems
+      count: filteredItems.length,
+      items: filteredItems
     });
   } catch (error) {
     console.error('RSS API route error:', error);

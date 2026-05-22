@@ -2453,6 +2453,36 @@ export default function CesiumGlobe({
 
   const parsed = getStructuredTooltip();
 
+  // Dynamic bounded layout calculations for the hover tooltip to prevent off-screen spillover (especially on mobile)
+  let tooltipLeft = hoverTooltip.x + 12;
+  let tooltipTop = hoverTooltip.y - 12;
+  let tooltipWidth = 280;
+
+  if (typeof window !== 'undefined') {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    tooltipWidth = isMobile ? Math.min(280, viewportWidth - 32) : 280;
+
+    // Shift tooltip to the left of the cursor if it spills past the right edge
+    if (tooltipLeft + tooltipWidth > viewportWidth - 16) {
+      tooltipLeft = hoverTooltip.x - tooltipWidth - 12;
+    }
+    // Keep it at least 8px away from the left edge of the screen
+    if (tooltipLeft < 8) {
+      tooltipLeft = 8;
+    }
+
+    // Shift tooltip upwards if it spills past the bottom edge
+    const estHeight = 220; // safe estimation of maximum height for a threat event info card
+    if (tooltipTop + estHeight > viewportHeight - 16) {
+      tooltipTop = hoverTooltip.y - estHeight - 12;
+    }
+    // Keep it at least 8px away from the top edge of the screen
+    if (tooltipTop < 8) {
+      tooltipTop = 8;
+    }
+  }
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#020617' }}>
       
@@ -2665,8 +2695,8 @@ export default function CesiumGlobe({
       {hoverTooltip.show && (
         <div style={{
           position: 'absolute',
-          left: `${hoverTooltip.x + 12}px`,
-          top: `${hoverTooltip.y - 12}px`,
+          left: `${tooltipLeft}px`,
+          top: `${tooltipTop}px`,
           background: 'rgba(11, 19, 43, 0.98)',
           border: hoverTooltip.type === 'regulation'
             ? '1px solid rgba(168, 85, 247, 0.8)'
@@ -2687,8 +2717,8 @@ export default function CesiumGlobe({
             ? '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(251, 146, 60, 0.3)'
             : '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3)',
           backdropFilter: 'blur(8px)',
-          maxWidth: '280px',
-          width: '280px',
+          maxWidth: `${tooltipWidth}px`,
+          width: `${tooltipWidth}px`,
           wordBreak: 'break-word',
           whiteSpace: 'normal'
         }}>
