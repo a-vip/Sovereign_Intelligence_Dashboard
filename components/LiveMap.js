@@ -263,6 +263,7 @@ export default function LiveMap({
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [showRefreshTip, setShowRefreshTip] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
   const [visibleRssCount, setVisibleRssCount] = useState(30);
   const [visibleEventCount, setVisibleEventCount] = useState(30);
@@ -323,6 +324,13 @@ export default function LiveMap({
   const [gpsJammingEnabled, setGpsJammingEnabled] = useState(false);
   const [dataCentersEnabled, setDataCentersEnabled] = useState(false);
   const [aiRegulationsEnabled, setAiRegulationsEnabled] = useState(false);
+
+  // Onboarding tip: show after 1.5s, auto-dismiss after 7s
+  useEffect(() => {
+    const showTimer = setTimeout(() => setShowRefreshTip(true), 1500);
+    const hideTimer = setTimeout(() => setShowRefreshTip(false), 8500);
+    return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+  }, []);
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -846,30 +854,92 @@ export default function LiveMap({
             <span>LIVE</span>
           </div>
 
-          {/* Compact Refresh Avatar */}
-          <button 
-            onClick={handleRefresh}
-            style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'rgba(255, 255, 255, 0.6)',
-              borderRadius: '50%',
-              width: '26px',
-              height: '26px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              outline: 'none',
-              transition: 'all 0.2s'
-            }}
-            className={refreshing ? 'spinning' : ''}
-            title="Refresh Live Signals"
-            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
-          >
-            <RefreshCw size={12} />
-          </button>
+          {/* Compact Refresh Button with onboarding tip */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={handleRefresh}
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: 'rgba(255, 255, 255, 0.6)',
+                borderRadius: '50%',
+                width: '26px',
+                height: '26px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                outline: 'none',
+                transition: 'all 0.2s'
+              }}
+              className={refreshing ? 'spinning' : ''}
+              title="Refresh Signals & Map"
+              onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
+            >
+              <RefreshCw size={12} />
+            </button>
+
+            {/* Onboarding tooltip — shown once on page load */}
+            {showRefreshTip && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 12px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '210px',
+                background: 'rgba(11, 19, 43, 0.98)',
+                border: '1px solid rgba(0, 240, 255, 0.45)',
+                borderRadius: '9px',
+                padding: '10px 12px 10px 12px',
+                color: '#e2e8f0',
+                fontFamily: 'monospace',
+                fontSize: '10.5px',
+                lineHeight: '1.55',
+                zIndex: 10001,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.85), 0 0 14px rgba(0,240,255,0.15)',
+                backdropFilter: 'blur(10px)',
+                animation: 'fadeInDown 0.35s ease'
+              }}>
+                {/* Upward-pointing arrow */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-7px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 0,
+                  height: 0,
+                  borderLeft: '7px solid transparent',
+                  borderRight: '7px solid transparent',
+                  borderBottom: '7px solid rgba(0, 240, 255, 0.45)'
+                }} />
+                {/* Dismiss button */}
+                <button
+                  onClick={() => setShowRefreshTip(false)}
+                  style={{
+                    position: 'absolute',
+                    top: '5px',
+                    right: '7px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    padding: 0,
+                    lineHeight: 1,
+                    transition: 'color 0.15s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
+                <div style={{ color: '#00f0ff', fontWeight: 'bold', marginBottom: '5px', fontSize: '11px' }}>💡 Quick Tip</div>
+                <div>Click here to <strong style={{ color: '#f8fafc' }}>refresh the intel feed</strong> and <strong style={{ color: '#f8fafc' }}>reset the globe</strong> to its default position.</div>
+              </div>
+            )}
+          </div>
 
           {/* Profile User avatar (Access Control trigger) */}
           {currentUser ? (
