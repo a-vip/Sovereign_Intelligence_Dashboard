@@ -1386,6 +1386,40 @@ export default function CesiumGlobe({
         return !!props.isSatellite;
       };
 
+      // Safe utility to read properties from Cesium properties or regular JS objects
+      const getPropValue = (propBag, key, defaultValue) => {
+        if (!propBag) return defaultValue;
+        const prop = propBag[key];
+        if (prop === undefined || prop === null) return defaultValue;
+        if (typeof prop.getValue === 'function') {
+          try {
+            return prop.getValue(Cesium.JulianDate.now());
+          } catch (e) {
+            return prop;
+          }
+        }
+        return prop;
+      };
+
+      const resolveProperties = (entity) => {
+        if (!entity) return null;
+        const props = entity.properties;
+        if (!props) return { id: entity.id };
+        
+        const result = {};
+        const keys = props.propertyNames || Object.keys(props);
+        keys.forEach(key => {
+          result[key] = getPropValue(props, key, null);
+        });
+        
+        // Ensure the ID matches the original event ID (not the "threat-" prefixed map marker ID)
+        if (!result.id && entity.id) {
+          result.id = entity.id.replace('threat-', '').replace('sat-', '').replace('landmark-reticle-', '');
+        }
+        
+        return result;
+      };
+
       // Screen space event handler for selection and navigation
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
@@ -1447,21 +1481,6 @@ export default function CesiumGlobe({
 
         if (hoveredEntity) {
           const props = hoveredEntity.properties;
-          
-          // Safe utility to read properties from Cesium properties or regular JS objects
-          const getPropValue = (propBag, key, defaultValue) => {
-            if (!propBag) return defaultValue;
-            const prop = propBag[key];
-            if (prop === undefined || prop === null) return defaultValue;
-            if (typeof prop.getValue === 'function') {
-              try {
-                return prop.getValue(Cesium.JulianDate.now());
-              } catch (e) {
-                return prop;
-              }
-            }
-            return prop;
-          };
 
           const isCable = getPropValue(props, 'isCable', false);
           const isLandingStation = getPropValue(props, 'isLandingStation', false);
@@ -1761,14 +1780,10 @@ export default function CesiumGlobe({
             clearSkyscraperSelection();
 
             if (isSat) {
-              const metadata = props && typeof props.getValue === 'function'
-                ? props.getValue(Cesium.JulianDate.now())
-                : props;
-              if (onSatelliteClickRef.current) onSatelliteClickRef.current(metadata);
+              const metadata = resolveProperties(entity);
+              if (onSatelliteClickRef.current && metadata) onSatelliteClickRef.current(metadata);
             } else if (props) {
-              const metadata = typeof props.getValue === 'function'
-                ? props.getValue(Cesium.JulianDate.now())
-                : props;
+              const metadata = resolveProperties(entity);
               if (onPointClickRef.current && metadata) onPointClickRef.current(metadata);
             }
             handled = true;
