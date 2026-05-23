@@ -1717,10 +1717,14 @@ export default function CesiumGlobe({
             clearSkyscraperSelection();
 
             if (isSat) {
-              const metadata = props.getValue(Cesium.JulianDate.now());
+              const metadata = props && typeof props.getValue === 'function'
+                ? props.getValue(Cesium.JulianDate.now())
+                : props;
               if (onSatelliteClickRef.current) onSatelliteClickRef.current(metadata);
             } else if (props) {
-              const metadata = props.getValue(Cesium.JulianDate.now());
+              const metadata = typeof props.getValue === 'function'
+                ? props.getValue(Cesium.JulianDate.now())
+                : props;
               if (onPointClickRef.current && metadata) onPointClickRef.current(metadata);
             }
             handled = true;
