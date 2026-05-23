@@ -336,6 +336,49 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
     }
   };
 
+  const handleArchiveEvent = async () => {
+    const isRss = event.details?.isRssItem;
+    const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
+    
+    let userId = activeUser?.id || currentUser?.id;
+    if (!userId) {
+      try {
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('operator_session') : null;
+        const parsed = stored ? JSON.parse(stored) : null;
+        userId = parsed?.id;
+      } catch (e) {}
+    }
+    if (!userId && (currentUser?.email === 'workwithavip@gmail.com' || activeUser?.email === 'workwithavip@gmail.com')) {
+      userId = '9f7de0af-d4fe-4801-b595-b81b8d9bf48e';
+    }
+
+    if (!confirm('Are you sure you want to permanently remove this point from the map?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          'x-user-id': userId || '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: event.id })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Server rejected removal protocol.');
+      }
+
+      window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: event.id, archived: true } }));
+      onClose();
+    } catch (error) {
+      console.error("Removal failed:", error);
+      alert(`Removal failed: ${error.message}`);
+    }
+  };
+
   const hasChanges = 
     editDraft.category !== event.category ||
     editDraft.severity !== event.severity ||
@@ -418,6 +461,38 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
       >
         {/* Top Border */}
         <div style={{ height: '3px', width: '100%', backgroundColor: '#a855f7', boxShadow: '0 0 10px #a855f7' }} />
+
+        {isAdmin && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(12, 15, 23, 0.95) 100%)',
+            borderBottom: '1px solid rgba(168, 85, 247, 0.25)',
+            padding: '6px 16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontSize: '0.65rem', fontWeight: 'bold', color: '#a855f7', letterSpacing: '1px', fontFamily: 'monospace'
+          }}>
+            <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
+            <button 
+              onClick={handleArchiveEvent} 
+              style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '4px',
+                padding: '4px 10px',
+                fontSize: '0.65rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontFamily: 'monospace',
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+            >
+              🗑️ REMOVE FROM MAP
+            </button>
+          </div>
+        )}
 
         {/* Drag Handle & Header */}
         <div
@@ -630,33 +705,62 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
           fontFamily: 'monospace'
         }}>
           <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
-          <button
-            onClick={handleToggleEditMode}
-            style={{
-              background: editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.2)',
-              color: editMode ? '#ef4444' : '#00f0ff',
-              border: `1px solid ${editMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 240, 255, 0.4)'}`,
-              borderRadius: '4px',
-              padding: '4px 10px',
-              fontSize: '0.65rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: 'monospace',
-              boxShadow: editMode ? '0 0 8px rgba(239, 68, 68, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(0, 240, 255, 0.35)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.2)';
-            }}
-          >
-            {editMode ? '✕ EXIT EDIT MODE' : '✏️ ENTER EDIT MODE'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleToggleEditMode}
+              style={{
+                background: editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.2)',
+                color: editMode ? '#ef4444' : '#00f0ff',
+                border: `1px solid ${editMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 240, 255, 0.4)'}`,
+                borderRadius: '4px',
+                padding: '4px 10px',
+                fontSize: '0.65rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s',
+                fontFamily: 'monospace',
+                boxShadow: editMode ? '0 0 8px rgba(239, 68, 68, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(0, 240, 255, 0.35)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.2)';
+              }}
+            >
+              {editMode ? '✕ EXIT EDIT MODE' : '✏️ ENTER EDIT MODE'}
+            </button>
+            <button
+              onClick={handleArchiveEvent}
+              style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '4px',
+                padding: '4px 10px',
+                fontSize: '0.65rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s',
+                fontFamily: 'monospace',
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+              }}
+            >
+              🗑️ REMOVE FROM MAP
+            </button>
+          </div>
         </div>
       )}
 

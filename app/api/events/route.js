@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, getEvents, getArchivedIds } from '@/lib/db';
+import { initDb, saveEvents, getEvents, getArchivedInfo, isEventArchived } from '@/lib/db';
 import { getRouteCache, setRouteCache, clearRouteCache } from '@/lib/cache';
+import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -8,11 +9,11 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const CACHE_EXPIRY = 30000;
+const CACHE_EXPIRY = 300000; // 5 minutes cache to maximize performance and save bandwidth
 let isDbInitialized = false;
 
-const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc?query=(artificial%20intelligence%20OR%20autonomous%20weapons%20OR%20drone%20OR%20%22military%20ai%22%20OR%20surveillance%20OR%20%22state%20violations%22)%20sourcelang:english&mode=artlist&maxrecords=250&format=json";
-const GDELT_GEO_API = "https://api.gdeltproject.org/api/v2/geo/geo?query=(artificial%20intelligence%20OR%20autonomous%20weapons%20OR%20drone%20OR%20%22military%20ai%22%20OR%20surveillance%20OR%20%22state%20violations%22)&format=GeoJSON&maxpoints=500";
+const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc?query=(%22artificial%20intelligence%22%20OR%20%22autonomous%20weapons%22%20OR%20%22military%20ai%22%20OR%20%22facial%20recognition%22%20OR%20biometric%20OR%20%22killer%20robot%22%20OR%20%22killer%20robots%22)%20sourcelang:english&mode=artlist&maxrecords=150&format=json";
+const GDELT_GEO_API = "https://api.gdeltproject.org/api/v2/geo/geo?query=(%22artificial%20intelligence%22%20OR%20%22autonomous%20weapons%22%20OR%20%22military%20ai%22%20OR%20%22facial%20recognition%22%20OR%20biometric%20OR%20%22killer%20robot%22%20OR%20%22killer%20robots%22)&format=GeoJSON&maxpoints=150";
 
 const CAT_KEYWORDS = {
   Conflict: /strike|attack|bomb|missile|drone|kill|military|weapon|war|combat|troops|airstrike|explosion|clash|warfare|assault|targeting/i,
@@ -341,6 +342,10 @@ function getCountryCoords(country, title = '', summary = '') {
     else if (c === 'ru') { baseCoords = { lat: 61.5240, lon: 105.3188 }; resolvedLocation = 'Russia'; }
     else if (c === 'ao') { baseCoords = { lat: -11.2027, lon: 17.8739 }; resolvedLocation = 'Angola'; }
     else if (c === 'us') { baseCoords = { lat: 37.0902, lon: -95.7129 }; resolvedLocation = 'United States'; }
+    else if (c === 'sy') { baseCoords = { lat: 34.8021, lon: 38.9968 }; resolvedLocation = 'Syria'; }
+    else if (c === 'lb') { baseCoords = { lat: 33.8547, lon: 35.8623 }; resolvedLocation = 'Lebanon'; }
+    else if (c === 'il') { baseCoords = { lat: 31.0461, lon: 34.8516 }; resolvedLocation = 'Israel'; }
+    else if (c === 'ps') { baseCoords = { lat: 31.9522, lon: 35.2332 }; resolvedLocation = 'Palestine'; }
   }
 
   if (baseCoords && specificity === 0) specificity = 1;
@@ -577,6 +582,20 @@ async function fetchGdelt(timespan) {
   return { mks, evs };
 }
 
+function getRegionGroup(location, title = '') {
+  const loc = ((location || '') + ' ' + (title || '')).toLowerCase();
+  if (loc.includes('ukraine') || loc.includes('kyiv') || loc.includes('kharkiv') || loc.includes('odesa') || loc.includes('lviv') || loc.includes('crimea')) {
+    return 'Ukraine';
+  }
+  if (loc.includes('united states') || loc.includes('usa') || loc.includes('texas') || loc.includes('california') || loc.includes('arizona') || loc.includes('georgia') || loc.includes('new york') || loc.includes('washington') || loc.includes('florida') || loc.includes('illinois') || loc.includes('pennsylvania') || loc.includes('silicon valley') || loc.includes('san francisco')) {
+    return 'USA';
+  }
+  if (loc.includes('israel') || loc.includes('gaza') || loc.includes('palestine') || loc.includes('lebanon') || loc.includes('beirut') || loc.includes('syria') || loc.includes('damascus') || loc.includes('jerusalem') || loc.includes('west bank') || loc.includes('tel aviv')) {
+    return 'West Asia';
+  }
+  return 'Other';
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -600,16 +619,31 @@ export async function GET(request) {
     const dbEventsList = (await getEvents(ts)).map(e => ({ ...e, fromDb: true }));
     const staticEvents = loadStaticEvents();
 
-    const archivedIds = await getArchivedIds();
-    const mks = rawMks.filter(m => !archivedIds.has(m.id));
-    const filteredEvs = evs.filter(e => !archivedIds.has(e.id));
-    const filteredDbEventsList = dbEventsList.filter(e => !archivedIds.has(e.id));
-    const filteredStaticEvents = staticEvents.filter(e => !archivedIds.has(e.id));
+    const archivedInfo = await getArchivedInfo();
+
+    const mks = rawMks.filter(m => {
+      if (isEventArchived(m, archivedInfo)) return false;
+      if (!isEventAiRelated(m)) return false;
+      return true;
+    });
+
+    const filteredEvs = evs.filter(e => {
+      if (isEventArchived(e, archivedInfo)) return false;
+      if (!isEventAiRelated(e)) return false;
+      return true;
+    });
+
+    const filteredDbEventsList = dbEventsList.filter(e => {
+      if (isEventArchived(e, archivedInfo)) return false;
+      if (!isEventAiRelated(e)) return false;
+      return true;
+    });
+    const filteredStaticEvents = staticEvents.filter(e => !isEventArchived(e, archivedInfo));
 
     let finalEventsList = [...filteredDbEventsList, ...filteredStaticEvents];
     if (finalEventsList.length === 0 && filteredEvs.length === 0) {
       console.log('No online, database, or static events found. Trying local dossiers...');
-      finalEventsList = parseLocalRadarDossiers().filter(e => !archivedIds.has(e.id));
+      finalEventsList = parseLocalRadarDossiers().filter(e => !isEventArchived(e, archivedInfo));
     }
 
     // Merge and Deduplicate Events
@@ -640,10 +674,29 @@ export async function GET(request) {
       }
     });
 
-    // Deep event deduplication by URL and title fuzzy similarity
+    // Deep event deduplication by URL and title fuzzy similarity with regional balancing
     const allEvents = [];
+    const groupCounts = { 'Ukraine': 0, 'USA': 0, 'West Asia': 0, 'Other': 0 };
+    const GROUP_CAPS = { 'Ukraine': 10, 'USA': 10, 'West Asia': 10, 'Other': 150 };
 
     sortedEvents.forEach(e => {
+      const region = getRegionGroup(e.location || 'Global', e.title);
+      
+      // Exclude Ukraine drone/FPV strike signals completely to resolve visual clutter
+      if (region === 'Ukraine' && (
+        /drone|fpv|uav|quadcopter|unmanned/i.test(e.title || '') ||
+        /drone|fpv|uav|quadcopter|unmanned/i.test(e.details?.summary || e.description || '')
+      )) {
+        return; // Skip!
+      }
+
+      // Vault database edited events, severity >= 4, and human rights NGOs are exempted from the cap
+      const isCritical = e.severity >= 4 || e.edited === true || (e.source && (e.source.includes('Vault') || e.source.includes('OCHA') || e.source.includes('HRW')));
+      
+      if (groupCounts[region] >= GROUP_CAPS[region] && !isCritical) {
+        return; // Cap non-critical events in overrepresented regions!
+      }
+
       const urlNorm = (e.url || '').split('?')[0];
       const titleNorm = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
 
@@ -728,11 +781,20 @@ export async function GET(request) {
       }
 
       allEvents.push(e);
+      if (!isCritical) {
+        groupCounts[region]++;
+      }
     });
 
     // Build and Deduplicate Markers
     const dbEventIds = new Set(allEvents.map(e => e.id));
     const filteredMks = mks.filter(m => {
+      // Exclude Ukraine drone markers from raw GDELT markers to prevent visual clutter
+      const mRegion = getRegionGroup(m.location || m.name || '');
+      if (mRegion === 'Ukraine' && /drone|fpv|uav|quadcopter|unmanned/i.test(m.name || '')) {
+        return false;
+      }
+
       // 1. Exact ID check
       if (dbEventIds.has(m.id)) return false;
 
@@ -772,13 +834,24 @@ export async function GET(request) {
       category: e.category, severity: e.severity, url: e.url, location: e.location, count: 1
     }));
 
+    // Include the filtered GDELT raw markers for global representational coverage
     const rawMarkers = [...curated, ...dbMarkers, ...filteredMks];
     const seenMarkerCoords = new Set();
     const seenMarkerNames = new Set();
     const finalMarkers = [];
 
+    const mkGroupCounts = { 'Ukraine': 0, 'USA': 0, 'West Asia': 0, 'Other': 0 };
+    const MK_GROUP_CAPS = { 'Ukraine': 3, 'USA': 3, 'West Asia': 3, 'Other': 80 };
+
     rawMarkers.forEach(m => {
       if (m.lat === undefined || m.lat === null || m.lon === undefined || m.lon === null) return;
+
+      const region = getRegionGroup(m.location || m.name || '');
+      const isDbOrCurated = m.id.startsWith('curated') || m.id.startsWith('db');
+
+      if (!isDbOrCurated && mkGroupCounts[region] >= MK_GROUP_CAPS[region]) {
+        return; // Cap raw GDELT markers strictly in overrepresented areas
+      }
 
       const coordKey = `${Number(m.lat).toFixed(4)},${Number(m.lon).toFixed(4)}`;
       const nameNorm = (m.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
@@ -790,11 +863,14 @@ export async function GET(request) {
       if (coordKey) seenMarkerCoords.add(coordKey);
       if (nameNorm) seenMarkerNames.add(nameNorm);
       finalMarkers.push(m);
+      if (!isDbOrCurated) {
+        mkGroupCounts[region]++;
+      }
     });
 
     const responseData = {
-      markers: finalMarkers.slice(0, 1000),
-      events: allEvents.slice(0, 1000),
+      markers: finalMarkers.slice(0, 150),
+      events: allEvents.slice(0, 150),
       lastUpdated: new Date().toISOString(),
       status: 'success'
     };
@@ -880,3 +956,19 @@ function calculateTitleFuzzySimilarity(title1, title2) {
   const union = words1.size + words2.size - intersection;
   return intersection / union;
 }
+
+function isEventAiRelated(e) {
+  if (!e) return false;
+  const title = (e.title || e.name || '').toLowerCase();
+  const desc = (e.description || e.details?.summary || e.details?.description || '').toLowerCase();
+  const gear = (e.details?.gear || '').toLowerCase();
+  const units = (e.details?.units || '').toLowerCase();
+  const faction = (e.details?.faction || e.faction || '').toLowerCase();
+  const conflict = (e.details?.conflict || e.conflict || '').toLowerCase();
+  
+  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|drone|drones|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated)\b/i;
+  
+  return aiRegex.test(title) || aiRegex.test(desc) || aiRegex.test(gear) || aiRegex.test(units) || aiRegex.test(faction) || aiRegex.test(conflict);
+}
+
+

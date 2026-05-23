@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAiRegulations, saveAiRegulations, initDb } from '@/lib/db';
+import { getAiRegulations, saveAiRegulations, initDb, getArchivedInfo, isEventArchived } from '@/lib/db';
 import { sql } from '@vercel/postgres';
 import fs from 'fs';
 import path from 'path';
@@ -35,13 +35,16 @@ export async function GET() {
         }
       }
     }
+
+    const archivedInfo = await getArchivedInfo();
+    const filteredRegulations = regulations.filter(reg => !isEventArchived(reg, archivedInfo));
     
     return NextResponse.json({
       metadata: {
-        total: regulations.length,
+        total: filteredRegulations.length,
         timestamp: new Date().toISOString()
       },
-      aiRegulations: regulations
+      aiRegulations: filteredRegulations
     }, {
       headers: {
         'Cache-Control': 'public, max-age=1800, s-maxage=1800, stale-while-revalidate=300'

@@ -4,8 +4,130 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
+const FAMOUS_LANDMARKS = [
+  {
+    id: 'empire-state',
+    name: 'EMPIRE STATE BUILDING',
+    city: 'New York City, USA',
+    lat: 40.748440,
+    lon: -73.985656,
+    height: 443,
+    boxDimensions: { x: 110, y: 90, z: 450 },
+    description: 'World-famous 102-story Art Deco skyscraper in Midtown Manhattan, completed in 1931.'
+  },
+  {
+    id: 'one-world-trade',
+    name: 'ONE WORLD TRADE CENTER',
+    city: 'New York City, USA',
+    lat: 40.712743,
+    lon: -74.013379,
+    height: 541,
+    boxDimensions: { x: 120, y: 120, z: 550 },
+    description: 'The tallest building in the Western Hemisphere, standing at a symbolic 1,776 feet.'
+  },
+  {
+    id: 'chrysler-building',
+    name: 'CHRYSLER BUILDING',
+    city: 'New York City, USA',
+    lat: 40.751621,
+    lon: -73.975291,
+    height: 319,
+    boxDimensions: { x: 90, y: 90, z: 330 },
+    description: 'A classic masterpiece of Art Deco architecture, once the tallest building in the world.'
+  },
+  {
+    id: 'shard-london',
+    name: 'THE SHARD',
+    city: 'London, UK',
+    lat: 51.504500,
+    lon: -0.086500,
+    height: 310,
+    boxDimensions: { x: 80, y: 80, z: 315 },
+    description: 'The tallest building in the United Kingdom, designed by Renzo Piano.'
+  },
+  {
+    id: 'eiffel-tower',
+    name: 'EIFFEL TOWER',
+    city: 'Paris, France',
+    lat: 48.858400,
+    lon: 2.294500,
+    height: 330,
+    boxDimensions: { x: 125, y: 125, z: 340 },
+    description: 'The global cultural icon of France and one of the most recognizable structures in the world.'
+  },
+  {
+    id: 'tokyo-skytree',
+    name: 'TOKYO SKYTREE',
+    city: 'Tokyo, Japan',
+    lat: 35.710063,
+    lon: 139.810700,
+    height: 634,
+    boxDimensions: { x: 130, y: 130, z: 640 },
+    description: 'The tallest tower in the world and the second tallest structure globally.'
+  },
+  {
+    id: 'burj-khalifa',
+    name: 'BURJ KHALIFA',
+    city: 'Dubai, UAE',
+    lat: 25.197200,
+    lon: 55.274400,
+    height: 828,
+    boxDimensions: { x: 150, y: 150, z: 835 },
+    description: 'The absolute tallest building and structure in human history, standing at 828 meters.'
+  }
+];
+
+const canvasCache = {};
+
+const createReticleCanvas = (color = '#00f0ff', size = 32) => {
+  if (typeof document === 'undefined') return null;
+  const cacheKey = `reticle-${color}-${size}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  const center = size / 2;
+  
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+  
+  ctx.beginPath();
+  ctx.arc(center, center, 10, 0, 2 * Math.PI);
+  ctx.stroke();
+  
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(center, center, 3, 0, 2 * Math.PI);
+  ctx.fill();
+  
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 1.0;
+  
+  ctx.beginPath();
+  ctx.moveTo(center, center - 14);
+  ctx.lineTo(center, center - 8);
+  ctx.moveTo(center, center + 8);
+  ctx.lineTo(center, center + 14);
+  ctx.moveTo(center - 14, center);
+  ctx.lineTo(center - 8, center);
+  ctx.moveTo(center + 8, center);
+  ctx.lineTo(center + 14, center);
+  ctx.stroke();
+  
+  canvasCache[cacheKey] = canvas;
+  return canvas;
+};
+
 const createEmojiCanvas = (emoji, size = 32) => {
   if (typeof document === 'undefined') return null;
+  const cacheKey = `emoji-${emoji}-${size}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -16,11 +138,16 @@ const createEmojiCanvas = (emoji, size = 32) => {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(emoji, size / 2, size / 2);
+
+  canvasCache[cacheKey] = canvas;
   return canvas;
 };
 
 const createCircleCanvas = (color, size = 16, outlineColor = '#ffffff', outlineWidth = 1.5) => {
   if (typeof document === 'undefined') return null;
+  const cacheKey = `circle-${color}-${size}-${outlineColor}-${outlineWidth}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
   const canvas = document.createElement('canvas');
   // Add padding for outline border and shadow
   const totalSize = size + outlineWidth * 2 + 4;
@@ -49,11 +176,15 @@ const createCircleCanvas = (color, size = 16, outlineColor = '#ffffff', outlineW
   ctx.strokeStyle = outlineColor;
   ctx.stroke();
   
+  canvasCache[cacheKey] = canvas;
   return canvas;
 };
 
 const createDropletCanvas = (color, size = 32) => {
   if (typeof document === 'undefined') return null;
+  const cacheKey = `droplet-${color}-${size}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -65,11 +196,16 @@ const createDropletCanvas = (color, size = 32) => {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('💧', size / 2, size / 2);
+
+  canvasCache[cacheKey] = canvas;
   return canvas;
 };
 
 const createPowerCanvas = (color, size = 32) => {
   if (typeof document === 'undefined') return null;
+  const cacheKey = `power-${color}-${size}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -81,6 +217,8 @@ const createPowerCanvas = (color, size = 32) => {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('⚡', size / 2, size / 2);
+
+  canvasCache[cacheKey] = canvas;
   return canvas;
 };
 
@@ -122,6 +260,8 @@ export default function CesiumGlobe({
   const aiRegulationsEntitiesRef = useRef([]);
   const lastPickedFeatureRef = useRef(null);
   const selectionEntityRef = useRef(null);
+  const lastRepelledMarkersJsonRef = useRef('');
+  const lastSelectedSatJsonRef = useRef('');
 
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
@@ -133,6 +273,18 @@ export default function CesiumGlobe({
   }, [setHoverTooltip]);
 
   const [leafletAiRegulations, setLeafletAiRegulations] = useState([]);
+  const [regulationsUpdateTrigger, setRegulationsUpdateTrigger] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleUpdate = () => {
+      setRegulationsUpdateTrigger(prev => prev + 1);
+    };
+    window.addEventListener('event_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('event_updated', handleUpdate);
+    };
+  }, []);
 
   // Fetch AI regulations for Leaflet fallback when 3D is error/disabled
   useEffect(() => {
@@ -153,7 +305,7 @@ export default function CesiumGlobe({
       .catch(err => {
         console.warn("Failed to load Leaflet AI regulations:", err);
       });
-  }, [aiRegulationsEnabled, mapError, scriptsLoaded]);
+  }, [aiRegulationsEnabled, mapError, scriptsLoaded, regulationsUpdateTrigger]);
 
   // Track physical keyboard state to differentiate keyboard-scroll shortcuts from trackpad pinch-to-zoom!
   const keysPressedRef = useRef({ ctrl: false, shift: false, alt: false });
@@ -266,6 +418,21 @@ export default function CesiumGlobe({
   const [showLegend, setShowLegend] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
+  const [selectedSkyscraper, setSelectedSkyscraper] = useState(null);
+  const selectedSkyscraperRef = useRef(null);
+  useEffect(() => {
+    selectedSkyscraperRef.current = selectedSkyscraper;
+  }, [selectedSkyscraper]);
+
+  const [nearbyLandmark, setNearbyLandmark] = useState(null);
+
+  const [isOrbiting, setIsOrbiting] = useState(false);
+  const isOrbitingRef = useRef(false);
+  const orbitAngleRef = useRef(0);
+  useEffect(() => {
+    isOrbitingRef.current = isOrbiting;
+  }, [isOrbiting]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleResize = () => {
@@ -295,9 +462,9 @@ export default function CesiumGlobe({
     selectedSatelliteRef.current = selectedSatellite;
   }, [selectedSatellite]);
 
-  // 4. Buttery smooth auto rotation of the globe until user interacts with the camera!
+  // 4. Buttery smooth auto rotation of the globe / cinematic skyscraper orbit
   useEffect(() => {
-    if (!scriptsLoaded || !viewerRef.current || !autoRotate || mapError || !viewerReady) return;
+    if (!scriptsLoaded || !viewerRef.current || mapError || !viewerReady) return;
 
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
@@ -305,29 +472,279 @@ export default function CesiumGlobe({
 
     let lastTime = performance.now();
     let listener;
+    let wasOrbiting = false;
 
-    const rotateCamera = (scene, time) => {
+    const postRenderHandler = (scene, time) => {
       const currentTime = performance.now();
       const delta = (currentTime - lastTime) / 1000.0;
       lastTime = currentTime;
 
-      // Slow, relaxing drift around the Earth (e.g. 0.035 radians per second)
-      const rotationSpeed = 0.035; 
-      viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, rotationSpeed * delta);
+      if (isOrbitingRef.current && selectedSkyscraperRef.current) {
+        wasOrbiting = true;
+        const landmark = selectedSkyscraperRef.current;
+        const centerPosition = Cesium.Cartesian3.fromDegrees(landmark.lon, landmark.lat, landmark.height / 2);
+        
+        orbitAngleRef.current += 0.25 * delta;
+        const range = Math.max(landmark.height * 1.6, 350);
+        const heading = orbitAngleRef.current;
+        const pitch = Cesium.Math.toRadians(-28.0);
+        
+        const hpr = new Cesium.HeadingPitchRange(heading, pitch, range);
+        viewer.camera.lookAt(centerPosition, hpr);
+      } else {
+        if (wasOrbiting) {
+          try {
+            viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+          } catch (e) {}
+          wasOrbiting = false;
+        }
+        if (autoRotate) {
+          const rotationSpeed = 0.035; 
+          viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, rotationSpeed * delta);
+        }
+      }
     };
 
-    listener = viewer.scene.postRender.addEventListener(rotateCamera);
+    listener = viewer.scene.postRender.addEventListener(postRenderHandler);
 
     return () => {
       if (listener && viewer && viewer.scene && !viewer.isDestroyed()) {
-        viewer.scene.postRender.removeEventListener(rotateCamera);
+        try {
+          viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+          viewer.scene.postRender.removeEventListener(postRenderHandler);
+        } catch (e) {}
       }
     };
   }, [autoRotate, mapError, viewerReady, scriptsLoaded]);
 
+  // 4b. Dynamic loading of Predefined Landmark Reticles in 3D Mode
+  const landmarkEntitiesRef = useRef([]);
+  useEffect(() => {
+    if (!scriptsLoaded || mapError || !viewerRef.current || !viewerReady) return;
+
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const clearLandmarks = () => {
+      landmarkEntitiesRef.current.forEach(entity => {
+        if (viewer && !viewer.isDestroyed()) {
+          viewer.entities.remove(entity);
+        }
+      });
+      landmarkEntitiesRef.current = [];
+    };
+
+    const shouldShowLandmarks = mapMode === '3d' || mapStyle === 'buildings';
+
+    if (shouldShowLandmarks) {
+      clearLandmarks();
+      const newEntities = [];
+
+      FAMOUS_LANDMARKS.forEach(landmark => {
+        const reticleCanvas = createReticleCanvas('#00f0ff', 36);
+        if (!reticleCanvas) return;
+
+        // Position at sea-level but clamp dynamically to Google 3D Tiles rooftops
+        const position = Cesium.Cartesian3.fromDegrees(landmark.lon, landmark.lat, 0);
+
+        const entity = viewer.entities.add({
+          id: `landmark-reticle-${landmark.id}`,
+          name: landmark.name,
+          position: position,
+          billboard: {
+            image: reticleCanvas,
+            heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
+            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            disableDepthTestDistance: 100000.0,
+            scaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.0, 8.0e6, 0.2)
+          },
+          label: {
+            text: landmark.name,
+            font: 'bold 9pt monospace',
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 3,
+            showBackground: true,
+            backgroundColor: Cesium.Color.fromCssColorString('#020d1a').withAlpha(0.9),
+            backgroundPadding: new Cesium.Cartesian2(10, 6),
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -22),
+            heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: 100000.0,
+            show: false
+          },
+          properties: {
+            isLandmark: true,
+            landmarkData: landmark
+          }
+        });
+        newEntities.push(entity);
+      });
+      landmarkEntitiesRef.current = newEntities;
+    } else {
+      clearLandmarks();
+    }
+
+    return () => {
+      clearLandmarks();
+    };
+  }, [mapMode, mapStyle, scriptsLoaded, mapError, viewerReady]);
+
+  // 4c. Proximity scanner: detects when camera is looking close to a famous landmark in screen-space
+  useEffect(() => {
+    if (!scriptsLoaded || mapError || !viewerRef.current || !viewerReady) {
+      setNearbyLandmark(null);
+      return;
+    }
+
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    let active = true;
+
+    const checkProximity = () => {
+      if (!active || !viewer || viewer.isDestroyed()) return;
+
+      try {
+        const camera = viewer.camera;
+        const cameraPos = camera.position;
+        
+        const canvasCenter = new Cesium.Cartesian2(
+          viewer.canvas.clientWidth / 2,
+          viewer.canvas.clientHeight / 2
+        );
+
+        let closest = null;
+        let minScreenDist = Infinity;
+
+        FAMOUS_LANDMARKS.forEach(landmark => {
+          const lmPosition = Cesium.Cartesian3.fromDegrees(landmark.lon, landmark.lat, landmark.height / 2);
+          const windowCoords = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, lmPosition);
+          if (Cesium.defined(windowCoords)) {
+            const dx = canvasCenter.x - windowCoords.x;
+            const dy = canvasCenter.y - windowCoords.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < minScreenDist) {
+              minScreenDist = dist;
+              closest = landmark;
+            }
+          }
+        });
+
+        const cameraHeight = Cesium.Cartographic.fromCartesian(cameraPos).height;
+
+        // If the closest landmark is within 150px in screen space of the viewport center and camera is sufficiently zoomed in
+        if (closest && minScreenDist < 150.0 && cameraHeight < 6000.0) {
+          if (!selectedSkyscraperRef.current || selectedSkyscraperRef.current.id !== closest.id) {
+            setNearbyLandmark(closest);
+          } else {
+            setNearbyLandmark(null);
+          }
+        } else {
+          setNearbyLandmark(null);
+        }
+      } catch (err) {
+        setNearbyLandmark(null);
+      }
+    };
+
+    const removeListener = viewer.camera.changed.addEventListener(checkProximity);
+    const interval = setInterval(checkProximity, 1000);
+
+    return () => {
+      active = false;
+      if (removeListener) removeListener();
+      clearInterval(interval);
+    };
+  }, [viewerReady, scriptsLoaded, mapError]);
+
   const handleUserInteraction = () => {
+    if (isOrbitingRef.current) {
+      setIsOrbiting(false);
+    }
     if (autoRotate && onInteraction) {
       onInteraction();
+    }
+  };
+
+  const selectSkyscraper = (landmark) => {
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    setSelectedSkyscraper(landmark);
+    setIsOrbiting(false);
+
+    if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
+      try {
+        lastPickedFeatureRef.current.color = Cesium.Color.WHITE;
+      } catch (e) {}
+    }
+    lastPickedFeatureRef.current = null;
+
+    if (selectionEntityRef.current) {
+      viewer.entities.remove(selectionEntityRef.current);
+      selectionEntityRef.current = null;
+    }
+
+    const centerHeight = landmark.height / 2;
+    const centerPosition = Cesium.Cartesian3.fromDegrees(landmark.lon, landmark.lat, centerHeight);
+
+    let heading = 0;
+    const orientationProperty = new Cesium.CallbackProperty(() => {
+      heading += 0.015;
+      const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
+      return Cesium.Transforms.headingPitchRollQuaternion(centerPosition, hpr);
+    }, false);
+
+    selectionEntityRef.current = viewer.entities.add({
+      id: `selected-skyscraper-box`,
+      position: centerPosition,
+      orientation: orientationProperty,
+      box: {
+        dimensions: new Cesium.Cartesian3(
+          landmark.boxDimensions.x,
+          landmark.boxDimensions.y,
+          landmark.boxDimensions.z
+        ),
+        material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.12)'),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#00f0ff'),
+        outlineWidth: 2,
+        heightReference: Cesium.HeightReference.NONE
+      }
+    });
+
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        landmark.lon - 0.0025, 
+        landmark.lat - 0.0025, 
+        landmark.height + 200
+      ),
+      orientation: {
+        heading: Cesium.Math.toRadians(45.0),
+        pitch: Cesium.Math.toRadians(-35.0),
+        roll: 0.0
+      },
+      duration: 2.0
+    });
+  };
+
+  const clearSkyscraperSelection = () => {
+    setSelectedSkyscraper(null);
+    setIsOrbiting(false);
+    if (viewerRef.current) {
+      const viewer = viewerRef.current;
+      if (selectionEntityRef.current) {
+        viewer.entities.remove(selectionEntityRef.current);
+        selectionEntityRef.current = null;
+      }
     }
   };
 
@@ -736,6 +1153,12 @@ export default function CesiumGlobe({
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
     if (resetKey > 0) {
+      clearSkyscraperSelection();
+      
+      // Reset memoization cache references
+      lastRepelledMarkersJsonRef.current = '';
+      lastSelectedSatJsonRef.current = '';
+
       // 1. Reset 3D Cesium Globe View
       if (viewerRef.current) {
         const viewer = viewerRef.current;
@@ -851,8 +1274,8 @@ export default function CesiumGlobe({
       // Initialize clean premium satellite globe
       viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
 
-      // Force Retina-quality crisp resolution scaling for maps, labels, and text, capping at 2.0 to protect GPU
-      viewer.resolutionScale = Math.min(2.0, window.devicePixelRatio || 1.0);
+      // Force Retina-quality crisp resolution scaling for maps, labels, and text, capping at 1.25 to protect GPU
+      viewer.resolutionScale = Math.min(1.25, window.devicePixelRatio || 1.0);
       viewer.useBrowserRecommendedResolution = false;
 
       // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
@@ -892,6 +1315,7 @@ export default function CesiumGlobe({
 
       // Keep the globe visible to guarantee rendering stability
       viewer.scene.globe.show = true;
+      viewer.scene.globe.depthTestAgainstTerrain = true;
 
       // Set camera to premium global view
       viewer.camera.setView({
@@ -925,6 +1349,53 @@ export default function CesiumGlobe({
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.endPosition);
         
+        // 1. Proximity-based famous landmark hover check (works for 3D building mesh or billboard!)
+        const is3DActive = mapMode === '3d' || mapStyle === 'buildings' || (tilesetRef.current && tilesetRef.current.show);
+        let nearLandmarkEntity = null;
+        
+        if (is3DActive) {
+          let closestLM = null;
+          let minLMDist = Infinity;
+          
+          FAMOUS_LANDMARKS.forEach(lm => {
+            const lmPosition = Cesium.Cartesian3.fromDegrees(lm.lon, lm.lat, lm.height || 0);
+            const windowCoords = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, lmPosition);
+            if (Cesium.defined(windowCoords)) {
+              const dx = movement.endPosition.x - windowCoords.x;
+              const dy = movement.endPosition.y - windowCoords.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < minLMDist) {
+                minLMDist = dist;
+                closestLM = lm;
+              }
+            }
+          });
+          
+          if (minLMDist < 60.0 && closestLM) {
+            const entId = `landmark-reticle-${closestLM.id}`;
+            nearLandmarkEntity = viewer.entities.getById(entId);
+          }
+        }
+        
+        if (nearLandmarkEntity) {
+          document.body.style.cursor = 'pointer';
+          if (nearLandmarkEntity.label) {
+            nearLandmarkEntity.label.show = true;
+          }
+          viewer.entities.values.forEach(entity => {
+            if (entity.label && entity !== nearLandmarkEntity) {
+              const entIsSat = getIsSatellite(entity);
+              if (!entIsSat) {
+                entity.label.show = false;
+              }
+            }
+          });
+          if (typeof setHoverTooltipRef.current === 'function') {
+            setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
+          }
+          return;
+        }
+
         let hoveredEntity = null;
         if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
           hoveredEntity = pickedObject.id;
@@ -1090,6 +1561,25 @@ export default function CesiumGlobe({
             setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
           }
 
+          const isLandmark = props && getPropValue(props, 'isLandmark', false);
+
+          if (isLandmark) {
+            document.body.style.cursor = 'pointer';
+            if (hoveredEntity.label) {
+              hoveredEntity.label.show = true;
+            }
+            
+            viewer.entities.values.forEach(entity => {
+              if (entity.label && entity !== hoveredEntity) {
+                const entIsSat = getIsSatellite(entity);
+                if (!entIsSat) {
+                  entity.label.show = false;
+                }
+              }
+            });
+            return;
+          }
+
           const isSat = getIsSatellite(hoveredEntity);
           
           if (isSat) {
@@ -1171,141 +1661,170 @@ export default function CesiumGlobe({
         }
       }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-      // Left-click pick handler to select threat event details or satellites
+      // Left-click pick handler to select threat event details, satellites, or 3D buildings
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.position);
         
-        // 1. Handle Google 3D Building Selection first
         const is3DActive = mapMode === '3d' || mapStyle === 'buildings' || (tilesetRef.current && tilesetRef.current.show);
         
-        const isBuildingFeature = pickedObject && (
-          !(pickedObject.id instanceof Cesium.Entity) ||
-          pickedObject instanceof Cesium.Cesium3DTileFeature ||
-          (pickedObject.primitive && pickedObject.primitive instanceof Cesium.Cesium3DTileset) ||
-          (typeof pickedObject.getProperty === 'function')
-        );
+        let handled = false;
 
-        if (is3DActive && isBuildingFeature) {
-          // Revert old feature color to White
-          if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
-            try {
-              lastPickedFeatureRef.current.color = Cesium.Color.WHITE;
-            } catch (e) {}
+        // 1. Check screen-space proximity snapping for landmarks first!
+        if (is3DActive) {
+          let closestLM = null;
+          let minLMDist = Infinity;
+          
+          FAMOUS_LANDMARKS.forEach(lm => {
+            const lmPosition = Cesium.Cartesian3.fromDegrees(lm.lon, lm.lat, lm.height || 0);
+            const windowCoords = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, lmPosition);
+            if (Cesium.defined(windowCoords)) {
+              const dx = movement.position.x - windowCoords.x;
+              const dy = movement.position.y - windowCoords.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < minLMDist) {
+                minLMDist = dist;
+                closestLM = lm;
+              }
+            }
+          });
+          
+          if (minLMDist < 80.0 && closestLM) {
+            selectSkyscraper(closestLM);
+            handled = true;
           }
+        }
 
-          // Highlight new building feature with neon cyan tactical color
-          try {
-            pickedObject.color = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)');
-            lastPickedFeatureRef.current = pickedObject;
-          } catch (e) {
+        // 2. Check if we clicked an existing Cesium Entity (threat marker, satellite, or landmark reticle)
+        if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
+          const entity = pickedObject.id;
+          const props = entity.properties;
+          
+          const isCable = props && getPropValue(props, 'isCable', false);
+          const isLandingStation = props && getPropValue(props, 'isLandingStation', false);
+          const isOilGas = props && getPropValue(props, 'isOilGas', false);
+          const isGpsJamming = props && getPropValue(props, 'isGpsJamming', false);
+          const isDataCenter = props && getPropValue(props, 'isDataCenter', false);
+          const isAiRegulation = props && getPropValue(props, 'isAiRegulation', false);
+          const isSat = getIsSatellite(entity);
+          const isThreat = entity.id && entity.id.startsWith('threat-');
+          const isLandmark = props && getPropValue(props, 'isLandmark', false);
+
+          if (isThreat || isSat || isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation) {
+            if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
+              try { lastPickedFeatureRef.current.color = Cesium.Color.WHITE; } catch (e) {}
+            }
             lastPickedFeatureRef.current = null;
-          }
+            clearSkyscraperSelection();
 
-          // Clear old holographic selection box entity
-          if (selectionEntityRef.current) {
-            viewer.entities.remove(selectionEntityRef.current);
-            selectionEntityRef.current = null;
+            if (isSat) {
+              const metadata = props.getValue(Cesium.JulianDate.now());
+              if (onSatelliteClickRef.current) onSatelliteClickRef.current(metadata);
+            } else if (props) {
+              const metadata = props.getValue(Cesium.JulianDate.now());
+              if (onPointClickRef.current && metadata) onPointClickRef.current(metadata);
+            }
+            handled = true;
+          } else if (isLandmark) {
+            const landmark = getPropValue(props, 'landmarkData', null);
+            if (landmark) {
+              selectSkyscraper(landmark);
+            }
+            handled = true;
           }
+        }
 
-          // Compute picked 3D position on building rooftop or surface
+        // 2. If it's a general click on 3D building mesh, terrain, or backdrop, process it
+        if (!handled && is3DActive) {
           let cartesian = viewer.scene.pickPosition(movement.position);
           if (!Cesium.defined(cartesian)) {
-            // Fallback to ray casting on terrain/ellipsoid if pickPosition is unsupported/unclamped
             const ray = viewer.camera.getPickRay(movement.position);
             if (ray) {
               cartesian = viewer.scene.globe.pick(ray, viewer.scene);
             }
           }
+
           if (Cesium.defined(cartesian)) {
-            let latStr = "N/A";
-            let lonStr = "N/A";
-            let altStr = "N/A";
-            try {
-              const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-              if (cartographic) {
-                latStr = Cesium.Math.toDegrees(cartographic.latitude).toFixed(6);
-                lonStr = Cesium.Math.toDegrees(cartographic.longitude).toFixed(6);
-                altStr = cartographic.height.toFixed(1);
-              }
-            } catch (err) {}
+            const pickedCartographic = Cesium.Cartographic.fromCartesian(cartesian);
+            const pickedLon = Cesium.Math.toDegrees(pickedCartographic.longitude);
+            const pickedLat = Cesium.Math.toDegrees(pickedCartographic.latitude);
+            const pickedHeight = pickedCartographic.height;
 
-            let buildingName = "UNIDENTIFIED SKYSCRAPER";
-            try {
-              if (typeof pickedObject.getProperty === 'function') {
-                const name = pickedObject.getProperty('name') || pickedObject.getProperty('Label') || pickedObject.getProperty('title');
-                if (name) {
-                  buildingName = name.toUpperCase();
-                }
-              }
-            } catch (e) {}
+            let closestLandmark = null;
+            let minDistance = Infinity;
 
-            const labelText = `🛰️ [TARGET LOCKED]\n-------------------------\nOBJECT: ${buildingName}\nLAT:    ${latStr}°N\nLON:    ${lonStr}°E\nALT:    ${altStr}m\n-------------------------`;
-
-            let heading = 0;
-            const orientationProperty = new Cesium.CallbackProperty(() => {
-              heading += 0.02; // Animate target rotation
-              const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
-              return Cesium.Transforms.headingPitchRollQuaternion(cartesian, hpr);
-            }, false);
-
-            selectionEntityRef.current = viewer.entities.add({
-              position: cartesian,
-              orientation: orientationProperty,
-              box: {
-                dimensions: new Cesium.Cartesian3(50, 50, 80),
-                material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.15)'),
-                outline: true,
-                outlineColor: Cesium.Color.fromCssColorString('#00f0ff'),
-                outlineWidth: 2,
-                heightReference: Cesium.HeightReference.NONE
-              },
-              label: {
-                text: labelText,
-                font: "bold 9pt monospace",
-                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
-                outlineColor: Cesium.Color.BLACK,
-                outlineWidth: 3,
-                showBackground: true,
-                backgroundColor: Cesium.Color.fromCssColorString('#091124').withAlpha(0.85),
-                backgroundPadding: new Cesium.Cartesian2(12, 8),
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                pixelOffset: new Cesium.Cartesian2(0, -60),
-                disableDepthTestDistance: 100000.0,
-                show: true
+            FAMOUS_LANDMARKS.forEach(landmark => {
+              // Flat-earth horizontal degrees-to-meters approximation to bypass altitude variations
+              const latDiff = (pickedLat - landmark.lat) * 111000;
+              const lonDiff = (pickedLon - landmark.lon) * 111000 * Math.cos(Cesium.Math.toRadians(landmark.lat));
+              const horizontalDist = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+              
+              if (horizontalDist < minDistance) {
+                minDistance = horizontalDist;
+                closestLandmark = landmark;
               }
             });
+
+            if (minDistance < 300.0 && closestLandmark) {
+              selectSkyscraper(closestLandmark);
+            } else {
+              const isBuildingFeature = pickedObject && (
+                !(pickedObject.id instanceof Cesium.Entity) ||
+                pickedObject instanceof Cesium.Cesium3DTileFeature ||
+                (pickedObject.primitive && pickedObject.primitive instanceof Cesium.Cesium3DTileset) ||
+                (typeof pickedObject.getProperty === 'function')
+              );
+
+              if (isBuildingFeature) {
+                if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
+                  try { lastPickedFeatureRef.current.color = Cesium.Color.WHITE; } catch (e) {}
+                }
+                try {
+                  pickedObject.color = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)');
+                  lastPickedFeatureRef.current = pickedObject;
+                } catch (e) {
+                  lastPickedFeatureRef.current = null;
+                }
+              }
+
+              let buildingName = "UNIDENTIFIED SKYSCRAPER";
+              if (pickedObject && typeof pickedObject.getProperty === 'function') {
+                try {
+                  const name = pickedObject.getProperty('name') || pickedObject.getProperty('Label') || pickedObject.getProperty('title');
+                  if (name) buildingName = name.toUpperCase();
+                } catch (e) {}
+              }
+
+              const genericLandmark = {
+                id: `generic-${pickedLat.toFixed(4)}-${pickedLon.toFixed(4)}`,
+                name: buildingName,
+                city: 'TACTICAL SECTOR',
+                lat: pickedLat,
+                lon: pickedLon,
+                height: pickedHeight > 10 ? pickedHeight : 60,
+                boxDimensions: { x: 50, y: 50, z: pickedHeight > 10 ? pickedHeight * 1.1 : 70 },
+                description: 'Unidentified skyscraper detected on 3D photorealistic scanning telemetry.'
+              };
+              selectSkyscraper(genericLandmark);
+            }
+            handled = true;
           }
-        } else {
-          // If clicked elsewhere, restore the building highlight and remove the target box
+        }
+
+        if (!handled) {
           if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
-            try {
-              lastPickedFeatureRef.current.color = Cesium.Color.WHITE;
-            } catch (e) {}
+            try { lastPickedFeatureRef.current.color = Cesium.Color.WHITE; } catch (e) {}
           }
           lastPickedFeatureRef.current = null;
-
-          if (selectionEntityRef.current) {
-            viewer.entities.remove(selectionEntityRef.current);
-            selectionEntityRef.current = null;
-          }
-
-          // Continue standard threat markers or satellites selection logic
-          if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-            const metadata = pickedObject.id.properties.getValue(Cesium.JulianDate.now());
-            if (metadata && metadata.isSatellite) {
-              if (onSatelliteClickRef.current) {
-                onSatelliteClickRef.current(metadata);
-              }
-            } else if (onPointClickRef.current && metadata) {
-              onPointClickRef.current(metadata);
-            }
-          }
+          clearSkyscraperSelection();
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       viewerRef.current = viewer;
       setViewerReady(true);
+      
+      // Reset JSON memoization references on new viewer creations
+      lastRepelledMarkersJsonRef.current = '';
+      lastSelectedSatJsonRef.current = '';
 
       // Clean up on unmount
       return () => {
@@ -1347,6 +1866,10 @@ export default function CesiumGlobe({
         const googleTilesUrl = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`;
         Cesium.Cesium3DTileset.fromUrl(googleTilesUrl, {
           showCreditsOnScreen: true,
+          maximumMemoryUsage: 128,
+          skipLevelOfDetail: true,
+          cullRequestsWithCheckIfSelected: true,
+          cullWithSSEBox: true
         }).then(tileset => {
           if (!viewerRef.current || viewer.isDestroyed()) return;
 
@@ -1373,6 +1896,13 @@ export default function CesiumGlobe({
   // 5. Update threat markers on Cesium Globe
   useEffect(() => {
     if (!scriptsLoaded || mapError || !viewerRef.current) return;
+
+    // Skip heavy entity updates if the incoming threat marker dataset hasn't changed
+    const repelledJson = JSON.stringify(repelledMarkers);
+    if (lastRepelledMarkersJsonRef.current === repelledJson) {
+      return;
+    }
+    lastRepelledMarkersJsonRef.current = repelledJson;
 
     const Cesium = window.Cesium;
     const viewer = viewerRef.current;
@@ -1555,142 +2085,156 @@ export default function CesiumGlobe({
       });
     }
 
-    // Always clear old selected satellite trajectory trails first to re-plot them correctly
-    ['sat-orbit-predicted', 'sat-orbit-history', 'sat-nadir-beam', 'sat-nadir-footprint'].forEach(id => {
-      const ent = viewer.entities.getById(id);
-      if (ent) viewer.entities.remove(ent);
-    });
+    // 6b. Dynamic update/recreation of selected satellite paths & nadir sensors
+    const selectedSatToken = selectedSatellite ? `${selectedSatellite.code}` : '';
 
-    // Render clicked Satellite flight path orbit ring, scanning laser beam & ground footprint footprint!
     if (showSatellites && selectedSatellite) {
-      const points = [];
-      const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
-      
-      // Exact RAAN alignment math to lock the satellite perfectly centered on its orbit path!
-      const satLatRad = (selectedSatellite.latitude * Math.PI) / 180;
-      const sinThetaSat = Math.sin(satLatRad) / Math.sin(inclinationRad || 0.001);
-      const clampedSinTheta = Math.max(-1.0, Math.min(1.0, sinThetaSat));
-      const thetaSat = Math.asin(clampedSinTheta);
-      
-      const yPrimeSat = Math.cos(inclinationRad) * Math.sin(thetaSat);
-      const xPrimeSat = Math.cos(thetaSat);
-      const lonOrbitSat = Math.atan2(yPrimeSat, xPrimeSat);
-      
-      const RAAN_effective = selectedSatellite.longitude - (lonOrbitSat * 180) / Math.PI;
-
-      for (let i = 0; i <= 360; i += 2) {
-        const theta = (i * Math.PI) / 180;
-        
-        const sinLat = Math.sin(inclinationRad) * Math.sin(theta);
-        const latRad = Math.asin(sinLat);
-        const latitude = (latRad * 180) / Math.PI;
-        
-        const yPrime = Math.cos(inclinationRad) * Math.sin(theta);
-        const xPrime = Math.cos(theta);
-        let lonOrbit = Math.atan2(yPrime, xPrime);
-        
-        let longitude = (lonOrbit * 180) / Math.PI + RAAN_effective;
-        longitude = ((longitude + 180) % 360) - 180;
-        if (longitude < -180) longitude += 360;
-
-        points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, selectedSatellite.altitude * 1000));
-      }
-
-      // Find the index of the orbit point closest to the satellite's current coordinates to establish motion direction
-      let closestIdx = 0;
-      let minDistance = Infinity;
       const satPos = Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, selectedSatellite.altitude * 1000);
-      
-      points.forEach((pt, idx) => {
-        const dist = Cesium.Cartesian3.distance(pt, satPos);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestIdx = idx;
+      const groundPos = Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, 0);
+
+      // Only delete and recreate orbit lines when the selected satellite actually changes
+      if (lastSelectedSatJsonRef.current !== selectedSatToken) {
+        ['sat-orbit-predicted', 'sat-orbit-history'].forEach(id => {
+          const ent = viewer.entities.getById(id);
+          if (ent) viewer.entities.remove(ent);
+        });
+
+        const points = [];
+        const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
+        
+        // Exact RAAN alignment math to lock the satellite perfectly centered on its orbit path!
+        const satLatRad = (selectedSatellite.latitude * Math.PI) / 180;
+        const sinThetaSat = Math.sin(satLatRad) / Math.sin(inclinationRad || 0.001);
+        const clampedSinTheta = Math.max(-1.0, Math.min(1.0, sinThetaSat));
+        const thetaSat = Math.asin(clampedSinTheta);
+        
+        const yPrimeSat = Math.cos(inclinationRad) * Math.sin(thetaSat);
+        const xPrimeSat = Math.cos(thetaSat);
+        const lonOrbitSat = Math.atan2(yPrimeSat, xPrimeSat);
+        
+        const RAAN_effective = selectedSatellite.longitude - (lonOrbitSat * 180) / Math.PI;
+
+        for (let i = 0; i <= 360; i += 2) {
+          const theta = (i * Math.PI) / 180;
+          
+          const sinLat = Math.sin(inclinationRad) * Math.sin(theta);
+          const latRad = Math.asin(sinLat);
+          const latitude = (latRad * 180) / Math.PI;
+          
+          const yPrime = Math.cos(inclinationRad) * Math.sin(theta);
+          const xPrime = Math.cos(theta);
+          let lonOrbit = Math.atan2(yPrime, xPrime);
+          
+          let longitude = (lonOrbit * 180) / Math.PI + RAAN_effective;
+          longitude = ((longitude + 180) % 360) - 180;
+          if (longitude < -180) longitude += 360;
+
+          points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, selectedSatellite.altitude * 1000));
         }
-      });
 
-      // Split into History Trail (180 degrees behind) and Projected Path (180 degrees ahead)
-      const historyPoints = [];
-      const futurePoints = [];
+        // Find index of the closest orbit point
+        let closestIdx = 0;
+        let minDistance = Infinity;
+        
+        points.forEach((pt, idx) => {
+          const dist = Cesium.Cartesian3.distance(pt, satPos);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestIdx = idx;
+          }
+        });
 
-      for (let offset = -180; offset <= 0; offset += 2) {
-        let idx = closestIdx + Math.round(offset / 2);
-        if (idx < 0) idx += points.length;
-        if (idx >= points.length) idx -= points.length;
-        if (points[idx]) historyPoints.push(points[idx]);
+        const historyPoints = [];
+        const futurePoints = [];
+
+        for (let offset = -180; offset <= 0; offset += 2) {
+          let idx = closestIdx + Math.round(offset / 2);
+          if (idx < 0) idx += points.length;
+          if (idx >= points.length) idx -= points.length;
+          if (points[idx]) historyPoints.push(points[idx]);
+        }
+
+        for (let offset = 0; offset <= 180; offset += 2) {
+          let idx = closestIdx + Math.round(offset / 2);
+          if (idx < 0) idx += points.length;
+          if (idx >= points.length) idx -= points.length;
+          if (points[idx]) futurePoints.push(points[idx]);
+        }
+
+        // 1. Projected Orbit Path (Neon Cyan Glowing Arrow - Future direction)
+        viewer.entities.add({
+          id: 'sat-orbit-predicted',
+          polyline: {
+            positions: futurePoints,
+            width: 5.0,
+            material: new Cesium.PolylineArrowMaterialProperty(
+              Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.85)
+            ),
+            arcType: Cesium.ArcType.NONE
+          }
+        });
+
+        // 2. History Orbit Trail (Neon Purple Glow - Past path)
+        viewer.entities.add({
+          id: 'sat-orbit-history',
+          polyline: {
+            positions: historyPoints,
+            width: 1.5,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.15,
+              color: Cesium.Color.fromCssColorString('#a855f7').withAlpha(0.4)
+            }),
+            arcType: Cesium.ArcType.NONE
+          }
+        });
+
+        lastSelectedSatJsonRef.current = selectedSatToken;
       }
 
-      for (let offset = 0; offset <= 180; offset += 2) {
-        let idx = closestIdx + Math.round(offset / 2);
-        if (idx < 0) idx += points.length;
-        if (idx >= points.length) idx -= points.length;
-        if (points[idx]) futurePoints.push(points[idx]);
+      // Update 3. Vertical Tactical Nadir Scan Beam *in-place*
+      const beamEntity = viewer.entities.getById('sat-nadir-beam');
+      if (beamEntity) {
+        beamEntity.polyline.positions = [satPos, groundPos];
+      } else {
+        viewer.entities.add({
+          id: 'sat-nadir-beam',
+          polyline: {
+            positions: [satPos, groundPos],
+            width: 2.0,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.35,
+              color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.6)
+            })
+          }
+        });
       }
 
-      // 1. Projected Orbit Path (Neon Cyan Glowing Arrow - Future direction)
-      viewer.entities.add({
-        id: 'sat-orbit-predicted',
-        polyline: {
-          positions: futurePoints,
-          width: 5.0, // Thicker to highlight the direction arrow clearly
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.85)
-          ),
-          arcType: Cesium.ArcType.NONE
-        }
-      });
-
-      // 2. History Orbit Trail (Neon Purple Glow - Past path)
-      viewer.entities.add({
-        id: 'sat-orbit-history',
-        polyline: {
-          positions: historyPoints,
-          width: 1.5,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.15,
-            color: Cesium.Color.fromCssColorString('#a855f7').withAlpha(0.4)
-          }),
-          arcType: Cesium.ArcType.NONE
-        }
-      });
-
-      // 3. Vertical Tactical Nadir Scan Beam (Laser connecting satellite to ground point)
-      viewer.entities.add({
-        id: 'sat-nadir-beam',
-        polyline: {
-          positions: [
-            Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, selectedSatellite.altitude * 1000),
-            Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, 0)
-          ],
-          width: 2.0,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.35,
-            color: Cesium.Color.fromCssColorString('#00ffff').withAlpha(0.6)
-          })
-        }
-      });
-
-      // 4. Ground-Conforming Expanding Footprint Radar Footprint (pulsing loop)
-      let scanningRadius = 300000.0;
-      viewer.entities.add({
-        id: 'sat-nadir-footprint',
-        position: Cesium.Cartesian3.fromDegrees(selectedSatellite.longitude, selectedSatellite.latitude, 0),
-        ellipse: {
-          semiMajorAxis: new Cesium.CallbackProperty(() => {
-            scanningRadius += 4000.0;
-            if (scanningRadius > 600000.0) scanningRadius = 300000.0;
-            return scanningRadius;
-          }, false),
-          semiMinorAxis: new Cesium.CallbackProperty(() => {
-            return scanningRadius;
-          }, false),
-          material: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.08),
-          outline: true,
-          outlineColor: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.55),
-          outlineWidth: 1.5,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-        }
-      });
+      // Update 4. Ground-Conforming Expanding Footprint Radar Footprint *in-place*
+      const footprintEntity = viewer.entities.getById('sat-nadir-footprint');
+      if (footprintEntity) {
+        footprintEntity.position = groundPos;
+      } else {
+        let scanningRadius = 300000.0;
+        viewer.entities.add({
+          id: 'sat-nadir-footprint',
+          position: groundPos,
+          ellipse: {
+            semiMajorAxis: new Cesium.CallbackProperty(() => {
+              scanningRadius += 4000.0;
+              if (scanningRadius > 600000.0) scanningRadius = 300000.0;
+              return scanningRadius;
+            }, false),
+            semiMinorAxis: new Cesium.CallbackProperty(() => {
+              return scanningRadius;
+            }, false),
+            material: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.08),
+            outline: true,
+            outlineColor: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.55),
+            outlineWidth: 1.5,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+          }
+        });
+      }
 
       // 5. Dynamic Camera Locked Tracking (Assign ONLY ONCE on lock, allowing free user camera navigation around sat!)
       if (isTracked) {
@@ -1716,6 +2260,13 @@ export default function CesiumGlobe({
         }
       }
     } else {
+      // Clear paths if no active satellite selected or showSatellites is toggled off
+      ['sat-orbit-predicted', 'sat-orbit-history', 'sat-nadir-beam', 'sat-nadir-footprint'].forEach(id => {
+        const ent = viewer.entities.getById(id);
+        if (ent) viewer.entities.remove(ent);
+      });
+      lastSelectedSatJsonRef.current = '';
+
       // Release camera tracking if no satellite is selected
       if (viewerRef.current && viewerRef.current.trackedEntity) {
         viewerRef.current.trackedEntity = undefined;
@@ -2365,7 +2916,7 @@ export default function CesiumGlobe({
     return () => {
       clearAiRegulations();
     };
-  }, [aiRegulationsEnabled, scriptsLoaded, mapError, viewerReady]);
+  }, [aiRegulationsEnabled, scriptsLoaded, mapError, viewerReady, regulationsUpdateTrigger]);
 
   // F. Undersea Internet Fiber Optic Cables (TeleGeography Submarine Cable API)
   useEffect(() => {
@@ -2902,6 +3453,243 @@ export default function CesiumGlobe({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Nearby Landmark Target Detector Pop-up */}
+      {nearbyLandmark && !selectedSkyscraper && (
+        <div style={{
+          position: 'absolute',
+          bottom: '160px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          background: 'rgba(5, 11, 28, 0.9)',
+          border: '1px solid #00f0ff',
+          borderRadius: '8px',
+          padding: '12px 18px',
+          fontFamily: 'Courier New, monospace',
+          color: '#ffffff',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 240, 255, 0.3)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          pointerEvents: 'auto',
+          animation: 'pulseGlow 2s infinite ease-in-out, slideUpNearby 0.3s ease-out',
+          textAlign: 'center',
+          width: isMobile ? 'calc(100% - 32px)' : '320px'
+        }}>
+          <style>{`
+            @keyframes slideUpNearby {
+              from { transform: translate(-50%, 20px); opacity: 0; }
+              to { transform: translate(-50%, 0); opacity: 1; }
+            }
+            @keyframes pulseGlow {
+              0%, 100% { border-color: #00f0ff; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 240, 255, 0.3); }
+              50% { border-color: rgba(0, 240, 255, 0.4); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 5px rgba(0, 240, 255, 0.1); }
+            }
+          `}</style>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px' }}>🎯</span>
+            <span style={{ fontSize: '10px', color: '#00f0ff', fontWeight: 'bold', letterSpacing: '0.1em' }}>
+              TACTICAL TARGET IDENTIFIED
+            </span>
+          </div>
+          
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#ffffff' }}>
+            {nearbyLandmark.name}
+          </div>
+          
+          <button
+            onClick={() => {
+              selectSkyscraper(nearbyLandmark);
+              setNearbyLandmark(null);
+            }}
+            style={{
+              marginTop: '4px',
+              padding: '6px 12px',
+              background: 'rgba(0, 240, 255, 0.2)',
+              border: '1px solid #00f0ff',
+              borderRadius: '4px',
+              color: '#00f0ff',
+              fontFamily: 'Courier New, monospace',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+              width: '100%'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#00f0ff';
+              e.currentTarget.style.color = '#050b1c';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(0, 240, 255, 0.2)';
+              e.currentTarget.style.color = '#00f0ff';
+            }}
+          >
+            LOCK TARGET & ENGAGE ORBIT
+          </button>
+        </div>
+      )}
+
+      {/* 3D Skyscraper Selection React HUD Dossier */}
+      {selectedSkyscraper && (
+        <div style={{
+          position: 'absolute',
+          bottom: '24px',
+          left: isMobile ? '12px' : '24px',
+          width: isMobile ? 'calc(100% - 24px)' : '380px',
+          zIndex: 1000,
+          background: 'rgba(5, 11, 28, 0.85)',
+          border: '1px solid #00f0ff',
+          borderRadius: '10px',
+          padding: '16px',
+          fontFamily: 'Courier New, monospace',
+          color: '#ffffff',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 240, 255, 0.25)',
+          backdropFilter: 'blur(16px)',
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          pointerEvents: 'auto',
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <style>{`
+            @keyframes slideUp {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}</style>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            borderBottom: '1px solid rgba(0, 240, 255, 0.3)',
+            paddingBottom: '8px',
+            marginBottom: '12px'
+          }}>
+            <div>
+              <div style={{ fontSize: '9px', color: '#00f0ff', fontWeight: 'bold', letterSpacing: '0.1em' }}>
+                🛰️ TARGET ACQUIRED
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px', color: '#ffffff', wordBreak: 'break-word' }}>
+                {selectedSkyscraper.name}
+              </div>
+            </div>
+            <button 
+              onClick={clearSkyscraperSelection}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(0, 240, 255, 0.6)',
+                fontSize: '18px',
+                cursor: 'pointer',
+                padding: '0 4px',
+                lineHeight: 1,
+                outline: 'none',
+                transition: 'color 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(0, 240, 255, 0.6)'}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '8px 16px',
+            fontSize: '10.5px',
+            color: '#cbd5e1',
+            marginBottom: '14px',
+            lineHeight: 1.4
+          }}>
+            <div>
+              <span style={{ color: '#00f0ff', opacity: 0.8 }}>LAT: </span>
+              <span style={{ fontWeight: 'bold' }}>{selectedSkyscraper.lat.toFixed(6)}°N</span>
+            </div>
+            <div>
+              <span style={{ color: '#00f0ff', opacity: 0.8 }}>LON: </span>
+              <span style={{ fontWeight: 'bold' }}>{selectedSkyscraper.lon.toFixed(6)}°E</span>
+            </div>
+            <div>
+              <span style={{ color: '#00f0ff', opacity: 0.8 }}>ALT: </span>
+              <span style={{ fontWeight: 'bold' }}>{selectedSkyscraper.height.toFixed(0)}m</span>
+            </div>
+            <div>
+              <span style={{ color: '#00f0ff', opacity: 0.8 }}>CITY: </span>
+              <span style={{ fontWeight: 'bold', wordBreak: 'break-all' }}>{selectedSkyscraper.city.toUpperCase()}</span>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'rgba(2, 6, 23, 0.5)',
+            border: '1px solid rgba(0, 240, 255, 0.15)',
+            borderRadius: '6px',
+            padding: '8px 10px',
+            fontSize: '9.5px',
+            color: '#94a3b8',
+            lineHeight: '1.4',
+            marginBottom: '16px',
+            maxHeight: '75px',
+            overflowY: 'auto'
+          }}>
+            {selectedSkyscraper.description}
+          </div>
+
+          <div style={{
+            display: 'flex',
+            gap: '10px'
+          }}>
+            <button
+              onClick={() => {
+                if (isOrbiting) {
+                  setIsOrbiting(false);
+                } else {
+                  if (viewerRef.current) {
+                    orbitAngleRef.current = viewerRef.current.camera.heading;
+                  }
+                  setIsOrbiting(true);
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                background: isOrbiting ? 'rgba(255, 45, 85, 0.15)' : 'rgba(0, 240, 255, 0.15)',
+                border: isOrbiting ? '1px solid #ff2d55' : '1px solid #00f0ff',
+                borderRadius: '6px',
+                color: isOrbiting ? '#ff2d55' : '#00f0ff',
+                fontFamily: 'Courier New, monospace',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+                outline: 'none',
+                boxShadow: isOrbiting 
+                  ? '0 0 10px rgba(255, 45, 85, 0.25)' 
+                  : '0 0 10px rgba(0, 240, 255, 0.25)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isOrbiting ? '#ff2d55' : '#00f0ff';
+                e.currentTarget.style.color = '#020617';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isOrbiting ? 'rgba(255, 45, 85, 0.15)' : 'rgba(0, 240, 255, 0.15)';
+                e.currentTarget.style.color = isOrbiting ? '#ff2d55' : '#00f0ff';
+              }}
+            >
+              <span>{isOrbiting ? '⏹️ STOP ORBIT' : '🔄 ORBIT CAMERA'}</span>
+            </button>
+          </div>
         </div>
       )}
 

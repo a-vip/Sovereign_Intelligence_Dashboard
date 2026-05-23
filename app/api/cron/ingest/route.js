@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { initDb, saveEvents, saveRssItems, saveAiRegulations } from '@/lib/db';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss } from '@/lib/rssParser';
 import { verifyLink, findAlternativeLink } from '@/lib/verification';
@@ -12,6 +14,22 @@ export const dynamic = 'force-dynamic';
 function generateId(url, title) {
   return crypto.createHash('md5').update(url || title).digest('hex');
 }
+
+function isEventAiRelated(e) {
+  if (!e) return false;
+  const title = (e.title || e.name || '').toLowerCase();
+  const desc = (e.description || e.details?.summary || e.details?.description || '').toLowerCase();
+  const gear = (e.details?.gear || '').toLowerCase();
+  const units = (e.details?.units || '').toLowerCase();
+  const faction = (e.details?.faction || e.faction || '').toLowerCase();
+  const conflict = (e.details?.conflict || e.conflict || '').toLowerCase();
+  
+  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|drone|drones|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated)\b/i;
+  
+  return aiRegex.test(title) || aiRegex.test(desc) || aiRegex.test(gear) || aiRegex.test(units) || aiRegex.test(faction) || aiRegex.test(conflict);
+}
+
+
 
 function categorize(text) {
   const keywords = {
@@ -51,9 +69,8 @@ export async function GET(request) {
   try {
     await initDb();
     
-    // 1. Fetch OSINT from GDELT
-    const mainQuery = '(artificial intelligence OR autonomous weapons OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR drone OR AI military OR surveillance OR "facial recognition" OR cyber OR OSINT OR "state violations" OR "corporate complicity" OR "human rights AI" OR Palantir OR ICE OR DHS OR NEST OR "surveillance tech" OR earthquake OR tsunami OR flood OR hurricane OR "natural disaster" OR "refugee crisis" OR "humanitarian aid" OR "global trade" OR tariff OR sanction)';
-    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=250&format=json&sourcelang=english&timespan=12h`;
+    const mainQuery = '("artificial intelligence" OR "autonomous weapons" OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR "AI military" OR "facial recognition" OR "surveillance tech" OR Palantir OR "human rights AI" OR "cyber surveillance" OR biometric)';
+    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=150&format=json&sourcelang=english&timespan=12h`;
     
     let osintEvents = [];
     try {
@@ -167,14 +184,6 @@ export async function GET(request) {
       console.warn('AI Regulations live sync failed during cron run:', e.message);
     }
 
-    // 5. Live Sync and parse GeoConfirmed API data
-    let geoConfirmedCount = 0;
-    try {
-      geoConfirmedCount = await syncGeoConfirmed();
-    } catch (e) {
-      console.warn('GeoConfirmed live sync failed during cron run:', e.message);
-    }
-    
     return NextResponse.json({ 
       success: true, 
       count: verifiedEvents.length,
@@ -182,7 +191,7 @@ export async function GET(request) {
       research: researchEvents.length,
       rssIngested: newRssCount,
       aiRegulationsSynced: regSyncedCount,
-      geoConfirmedSynced: geoConfirmedCount
+      geoConfirmedSynced: 0
     });
   } catch (error) {
     console.error('Scheduled ingestion error:', error);
@@ -305,276 +314,4 @@ async function syncAiRegulations() {
   }
 }
 
-async function syncGeoConfirmed() {
-  const userAgent = 'SovereignDashboard/1.0 (+workwithavip@gmail.com)';
-  const headers = { 
-    'User-Agent': userAgent,
-    'Accept': 'application/json'
-  };
 
-  try {
-    console.log('[GeoConfirmed Sync]: Fetching tracked conflicts...');
-    const resConflicts = await fetch('https://geoconfirmed.org/api/Conflict', { headers, signal: AbortSignal.timeout(10000) });
-    if (!resConflicts.ok) throw new Error(`Failed to fetch conflicts list: status ${resConflicts.status}`);
-    const conflicts = await resConflicts.json();
-    const activeConflicts = conflicts.filter(c => !c.isPrivate);
-    console.log(`[GeoConfirmed Sync]: Found ${activeConflicts.length} active conflicts.`);
-
-    const recentEvents = [];
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 14); // 14-day sliding window
-
-    console.log(`[GeoConfirmed Sync]: Gathering placemarks with 14-day cutoff: ${cutoffDate.toISOString()}...`);
-    
-    // Concurrently fetch placemarks list for all active conflicts
-    await Promise.all(activeConflicts.map(async (conflict) => {
-      try {
-        const url = `https://geoconfirmed.org/api/Placemark/${conflict.url}`;
-        const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-        if (!res.ok) {
-          console.warn(`[GeoConfirmed Sync]: Failed to fetch placemarks for ${conflict.url}: ${res.status}`);
-          return;
-        }
-        const factions = await res.json();
-        for (const faction of factions) {
-          if (!faction.icons) continue;
-          for (const icon of faction.icons) {
-            if (!icon.placemarks) continue;
-            for (const pm of icon.placemarks) {
-              const pmDate = new Date(pm.date);
-              if (pmDate >= cutoffDate) {
-                recentEvents.push({
-                  id: pm.id,
-                  date: pm.date,
-                  lat: pm.la,
-                  lon: pm.lo,
-                  conflict: conflict.name,
-                  conflictSlug: conflict.url,
-                  faction: faction.name,
-                  iconPath: icon.icon
-                });
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn(`[GeoConfirmed Sync]: Error fetching placemarks for ${conflict.url}:`, err.message);
-      }
-    }));
-
-    console.log(`[GeoConfirmed Sync]: Harvested ${recentEvents.length} active events.`);
-
-    if (recentEvents.length === 0) {
-      return 0;
-    }
-
-    // Load existing events from last 30 days to check what's already enriched
-    const existingMap = new Map();
-    if (process.env.POSTGRES_URL) {
-      try {
-        const res = await sql`SELECT id, title, url, details FROM sigint_events WHERE timestamp >= NOW() - INTERVAL '30 days'`;
-        for (const row of res.rows) {
-          existingMap.set(row.id, row);
-        }
-      } catch (err) {
-        console.warn('[GeoConfirmed Sync]: Existing database lookup error:', err.message);
-      }
-    } else {
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const localFile = path.resolve('events-local.json');
-        if (fs.existsSync(localFile)) {
-          const localEvents = JSON.parse(fs.readFileSync(localFile, 'utf8'));
-          for (const ev of localEvents) {
-            existingMap.set(ev.id, ev);
-          }
-        }
-      } catch (err) {
-        console.warn('[GeoConfirmed Sync]: Existing local lookup error:', err.message);
-      }
-    }
-
-    const isEnriched = (ev) => {
-      return ev && ev.details && (ev.details.plusCode || ev.details.orbatUnits || ev.details.gear || ev.details.units);
-    };
-
-    const alreadyEnriched = [];
-    const needsEnrichment = [];
-
-    recentEvents.forEach(ev => {
-      const existing = existingMap.get(ev.id);
-      if (existing && isEnriched(existing)) {
-        alreadyEnriched.push({
-          ...ev,
-          existing
-        });
-      } else {
-        needsEnrichment.push(ev);
-      }
-    });
-
-    console.log(`[GeoConfirmed Sync]: ${alreadyEnriched.length} events already enriched, ${needsEnrichment.length} events need enrichment check.`);
-
-    // Sort needsEnrichment by date descending and pick top 80 newest
-    needsEnrichment.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const toEnrich = needsEnrichment.slice(0, 80);
-    const toPlaceholder = needsEnrichment.slice(80);
-
-    const enrichedEvents = [];
-    const CONCURRENCY_LIMIT = 8;
-
-    if (toEnrich.length > 0) {
-      console.log(`[GeoConfirmed Sync]: Fetching details for top ${toEnrich.length} new events...`);
-      for (let i = 0; i < toEnrich.length; i += CONCURRENCY_LIMIT) {
-        const chunk = toEnrich.slice(i, i + CONCURRENCY_LIMIT);
-        await Promise.all(chunk.map(async (ev) => {
-          try {
-            const url = `https://geoconfirmed.org/api/Placemark/detail/${ev.id}`;
-            const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
-            if (res.ok) {
-              const detail = await res.json();
-              enrichedEvents.push({
-                ...ev,
-                detail
-              });
-            } else {
-              console.warn(`[GeoConfirmed Sync]: Detail fetch failed for ${ev.id}: ${res.status}`);
-              enrichedEvents.push(ev); // Fallback to placeholder
-            }
-          } catch (err) {
-            console.warn(`[GeoConfirmed Sync]: Detail fetch error for ${ev.id}:`, err.message);
-            enrichedEvents.push(ev); // Fallback to placeholder
-          }
-        }));
-      }
-    }
-
-    // Now map all events to final format
-    const eventsToSave = [];
-
-    // 1. Process newly enriched/fallback events
-    enrichedEvents.forEach(ev => {
-      if (ev.detail) {
-        const dt = ev.detail;
-        let title = dt.description ? dt.description.trim() : `Verified signal for ${ev.faction}`;
-        if (title.length > 180) {
-          title = title.substring(0, 180) + '...';
-        }
-        
-        let sourceUrl = 'https://geoconfirmed.org';
-        if (dt.originalSource) {
-          const urls = dt.originalSource.split(/\s+/).filter(u => u.startsWith('http'));
-          if (urls.length > 0) sourceUrl = urls[0];
-        }
-        
-        const severity = scoreSeverity(title);
-        const details = {
-          source: 'GeoConfirmed',
-          faction: ev.faction,
-          conflict: ev.conflict,
-          iconPath: ev.iconPath,
-          geolocation: dt.geolocation,
-          origin: dt.origin,
-          gear: dt.gear,
-          units: dt.units,
-          plusCode: dt.plusCode,
-          orbatUnits: dt.orbatUnits,
-          originalSource: dt.originalSource,
-          probability: getEscalationProb(title, severity)
-        };
-
-        eventsToSave.push({
-          id: ev.id,
-          title: title,
-          category: 'Conflict',
-          severity: severity,
-          location: dt.plusCode || ev.faction || ev.conflict || 'Conflict Zone',
-          lat: dt.latitude || ev.lat,
-          lon: dt.longitude || ev.lon,
-          timestamp: dt.date || ev.date || new Date().toISOString(),
-          url: sourceUrl,
-          details: details
-        });
-      } else {
-        // Fallback to placeholder
-        const title = `[GeoConfirmed] ${ev.faction} - Incident in ${ev.conflict}`;
-        const severity = 3;
-        const details = {
-          source: 'GeoConfirmed',
-          faction: ev.faction,
-          conflict: ev.conflict,
-          iconPath: ev.iconPath,
-          probability: getEscalationProb(title, severity)
-        };
-
-        eventsToSave.push({
-          id: ev.id,
-          title: title,
-          category: 'Conflict',
-          severity: severity,
-          location: `${ev.faction} Zone`,
-          lat: ev.lat,
-          lon: ev.lon,
-          timestamp: ev.date || new Date().toISOString(),
-          url: 'https://geoconfirmed.org',
-          details: details
-        });
-      }
-    });
-
-    // 2. Process placeholder events beyond top 80 limit
-    toPlaceholder.forEach(ev => {
-      const title = `[GeoConfirmed] ${ev.faction} - Incident in ${ev.conflict}`;
-      const severity = 3;
-      const details = {
-        source: 'GeoConfirmed',
-        faction: ev.faction,
-        conflict: ev.conflict,
-        iconPath: ev.iconPath,
-        probability: getEscalationProb(title, severity)
-      };
-
-      eventsToSave.push({
-        id: ev.id,
-        title: title,
-        category: 'Conflict',
-        severity: severity,
-        location: `${ev.faction} Zone`,
-        lat: ev.lat,
-        lon: ev.lon,
-        timestamp: ev.date || new Date().toISOString(),
-        url: 'https://geoconfirmed.org',
-        details: details
-      });
-    });
-
-    // 3. Keep already enriched events intact by mapping them back from existing database rows
-    alreadyEnriched.forEach(ev => {
-      const ex = ev.existing;
-      eventsToSave.push({
-        id: ex.id,
-        title: ex.title,
-        category: ex.category || 'Conflict',
-        severity: ex.severity || 3,
-        location: ex.location || `${ev.faction} Zone`,
-        lat: ex.lat || ev.lat,
-        lon: ex.lon || ev.lon,
-        timestamp: ex.timestamp || ev.date || new Date().toISOString(),
-        url: ex.url || 'https://geoconfirmed.org',
-        details: ex.details
-      });
-    });
-
-    if (eventsToSave.length > 0) {
-      console.log(`[GeoConfirmed Sync]: Saving ${eventsToSave.length} total events to database...`);
-      await saveEvents(eventsToSave);
-      console.log(`[GeoConfirmed Sync]: Sync completed successfully!`);
-    }
-
-    return eventsToSave.length;
-  } catch (err) {
-    console.error('[GeoConfirmed Sync Error]:', err.message);
-    return 0;
-  }
-}
