@@ -222,6 +222,25 @@ const createPowerCanvas = (color, size = 32) => {
   return canvas;
 };
 
+const getLeafletTileUrl = (style) => {
+  if (style === 'tactical' || style === 'dark') {
+    return {
+      url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      credit: 'CartoDB Dark Matter'
+    };
+  } else if (style === 'lights') {
+    return {
+      url: 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}',
+      credit: 'Esri Earth at Night'
+    };
+  } else {
+    return {
+      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      credit: 'Google Maps'
+    };
+  }
+};
+
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
@@ -445,6 +464,7 @@ export default function CesiumGlobe({
 
   const leafletContainerRef = useRef(null);
   const leafletMapRef = useRef(null);
+  const leafletTileLayerRef = useRef(null);
 
   // Stabilize callback references using a ref to prevent Cesium viewer unmount/recreation loops
   const onPointClickRef = useRef(onPointClick);
@@ -908,9 +928,9 @@ export default function CesiumGlobe({
     }));
   }, [displayedMarkers, eventsEnabled]);
 
-  // 1. Initialize Leaflet ONLY as a graceful robust fallback if WebGL/Cesium fails
+  // 1. Initialize Leaflet when 2D is explicitly active or as robust fallback
   useEffect(() => {
-    if (!scriptsLoaded || !mapError || !leafletContainerRef.current) return;
+    if (!scriptsLoaded || !is2DActive || !leafletContainerRef.current) return;
     if (leafletMapRef.current) return;
 
     const L = window.L;
@@ -925,22 +945,24 @@ export default function CesiumGlobe({
 
       leafletMapRef.current = map;
 
-      // Premium dark satellite layer
-      L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      // Premium theme-aligned imagery layer
+      const tileUrl = getLeafletTileUrl(mapStyle);
+      const tileLayer = L.tileLayer(tileUrl.url, {
         maxZoom: 19,
-        attribution: 'Google'
+        attribution: tileUrl.credit
       }).addTo(map);
+      leafletTileLayerRef.current = tileLayer;
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
-      console.log("Leaflet 2D satellite fallback map initialized.");
+      console.log("Leaflet 2D tactical map initialized.");
     } catch (e) {
       console.error("Leaflet initialization failed:", e);
     }
-  }, [mapError, scriptsLoaded]);
+  }, [is2DActive, scriptsLoaded]);
 
-  // 2. Update threat markers on Leaflet fallback map
+  // 2. Update threat markers on Leaflet map
   useEffect(() => {
-    if (!scriptsLoaded || !mapError || !leafletMapRef.current) return;
+    if (!scriptsLoaded || !is2DActive || !leafletMapRef.current) return;
 
     const L = window.L;
     const map = leafletMapRef.current;
@@ -1148,7 +1170,7 @@ export default function CesiumGlobe({
         opacity: 0.75
       }).addTo(map);
     }
-  }, [mapError, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
+  }, [is2DActive, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
@@ -1180,12 +1202,12 @@ export default function CesiumGlobe({
         }
       }
 
-      // 2. Reset 2D Leaflet Fallback map position
-      if (mapError && leafletMapRef.current) {
+      // 2. Reset 2D Leaflet map position
+      if (is2DActive && leafletMapRef.current) {
         leafletMapRef.current.setView([20.0, 12.0], 2);
       }
     }
-  }, [resetKey, mapError]);
+  }, [resetKey, is2DActive]);
 
   // Handle focusing camera on specific coordinates (e.g. when an admin changes location)
   useEffect(() => {
@@ -1210,12 +1232,32 @@ export default function CesiumGlobe({
         }
       }
 
-      // 2. Focus 2D Leaflet Fallback map
-      if (mapError && leafletMapRef.current) {
+      // 2. Focus 2D Leaflet map
+      if (is2DActive && leafletMapRef.current) {
         leafletMapRef.current.setView([lat, lon], 8, { animate: true });
       }
     }
-  }, [focusCoordinate, mapError]);
+  }, [focusCoordinate, is2DActive]);
+
+  // 2b. Sync Leaflet theme to mapStyle selection
+  useEffect(() => {
+    if (leafletMapRef.current && leafletTileLayerRef.current) {
+      const tileUrl = getLeafletTileUrl(mapStyle);
+      leafletTileLayerRef.current.setUrl(tileUrl.url);
+    }
+  }, [mapStyle]);
+
+  // 2c. Force Leaflet to recalculate container dimensions when transition settles (prevents clipping)
+  useEffect(() => {
+    if (is2DActive && leafletMapRef.current) {
+      const timer = setTimeout(() => {
+        if (leafletMapRef.current) {
+          leafletMapRef.current.invalidateSize();
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [is2DActive]);
 
   // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
   useEffect(() => {
@@ -3069,7 +3111,7 @@ export default function CesiumGlobe({
     }
   }, [powerMineralsEnabled, scriptsLoaded, mapError, viewerReady]);
 
-  const is2DActive = mapError;
+  const is2DActive = mapMode === '2d' || mapError;
 
   // Safe utility to parse any tooltip string content (e.g. collapsed cached single-line formats)
   // into a beautifully structured, premium tactical key-value dossier layout.
