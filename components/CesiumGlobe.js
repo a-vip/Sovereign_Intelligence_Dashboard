@@ -285,7 +285,7 @@ export default function CesiumGlobe({
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
 
-  const is2DActive = mapMode === '2d' || mapError;
+  const is2DActive = mapError;
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
