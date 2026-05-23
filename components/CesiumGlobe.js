@@ -265,7 +265,9 @@ export default function CesiumGlobe({
   globe3dEnabled = true,
   gpsJammingEnabled = false,
   dataCentersEnabled = false,
-  aiRegulationsEnabled = false
+  aiRegulationsEnabled = false,
+  selectedCountry = null,
+  onCountrySelect = null
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -281,6 +283,12 @@ export default function CesiumGlobe({
   const selectionEntityRef = useRef(null);
   const lastRepelledMarkersJsonRef = useRef('');
   const lastSelectedSatJsonRef = useRef('');
+
+  // Interactive Country Border Highlights Refs
+  const countriesDataSourceRef = useRef(null);
+  const selectedCountryEntityRef = useRef(null);
+  const leafletCountriesLayerRef = useRef(null);
+  const leafletSelectedLayerRef = useRef(null);
 
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
@@ -958,10 +966,196 @@ export default function CesiumGlobe({
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       console.log("Leaflet 2D tactical map initialized.");
+
+      // Load Leaflet Countries GeoJSON dynamically for 2D Fallback
+      fetch('/data/countries.geo.json')
+        .then(res => res.json())
+        .then(geojsonData => {
+          if (!leafletMapRef.current) return;
+          const countriesLayer = L.geoJSON(geojsonData, {
+            style: {
+              color: 'rgba(0, 240, 255, 0.12)',
+              weight: 1,
+              fillColor: 'rgba(0, 240, 255, 0.005)',
+              fillOpacity: 0.005
+            },
+            onEachFeature: (feature, layer) => {
+              layer.on({
+                mouseover: (e) => {
+                  if (leafletSelectedLayerRef.current !== layer) {
+                    layer.setStyle({
+                      color: 'rgba(0, 240, 255, 0.45)',
+                      fillColor: 'rgba(0, 240, 255, 0.05)',
+                      fillOpacity: 0.05
+                    });
+                  }
+                },
+                mouseout: (e) => {
+                  if (leafletSelectedLayerRef.current !== layer) {
+                    layer.setStyle({
+                      color: 'rgba(0, 240, 255, 0.12)',
+                      fillColor: 'rgba(0, 240, 255, 0.005)',
+                      fillOpacity: 0.005
+                    });
+                  }
+                },
+                click: (e) => {
+                  L.DomEvent.stopPropagation(e);
+                  
+                  // Revert previously selected layer style
+                  if (leafletSelectedLayerRef.current) {
+                    try {
+                      leafletSelectedLayerRef.current.setStyle({
+                        color: 'rgba(0, 240, 255, 0.12)',
+                        fillColor: 'rgba(0, 240, 255, 0.005)',
+                        fillOpacity: 0.005
+                      });
+                    } catch (err) {}
+                  }
+                  
+                  // Style newly selected layer
+                  layer.setStyle({
+                    color: 'rgba(0, 240, 255, 0.85)',
+                    fillColor: 'rgba(0, 240, 255, 0.22)',
+                    fillOpacity: 0.22
+                  });
+                  leafletSelectedLayerRef.current = layer;
+                  
+                  // Pan leaflet camera to clicked country bounds
+                  map.fitBounds(layer.getBounds(), { maxZoom: 5 });
+                  
+                  const countryName = feature.properties.name || "Unknown Sector";
+                  if (onCountrySelect) {
+                    onCountrySelect(countryName);
+                  }
+                }
+              });
+            }
+          }).addTo(map);
+          leafletCountriesLayerRef.current = countriesLayer;
+          console.log("Leaflet countries GeoJSON loaded and layered successfully.");
+        })
+        .catch(err => {
+          console.warn("Failed to load Leaflet countries GeoJSON:", err);
+        });
     } catch (e) {
       console.error("Leaflet initialization failed:", e);
     }
   }, [is2DActive, scriptsLoaded]);
+
+  // Load Countries GeoJSON overlay in Cesium 3D Globe
+  useEffect(() => {
+    if (!scriptsLoaded || mapError || !viewerRef.current || !viewerReady) return;
+
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    console.log("Loading countries GeoJSON dataset for 3D Globe highlights...");
+    
+    Cesium.GeoJsonDataSource.load('/data/countries.geo.json', {
+      stroke: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.08)'),
+      fill: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.01)'),
+      strokeWidth: 1.0,
+    }).then(dataSource => {
+      if (!viewerRef.current) return;
+      
+      countriesDataSourceRef.current = dataSource;
+      viewer.dataSources.add(dataSource);
+      
+      // Style polygon presentation for beautiful sci-fi aesthetics
+      dataSource.entities.values.forEach(entity => {
+        if (entity.polygon) {
+          entity.polygon.material = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.01)');
+          entity.polygon.outlineColor = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.08)');
+          entity.polygon.outlineWidth = 1.0;
+        }
+      });
+      console.log("Countries GeoJSON loaded successfully in 3D Globe.");
+    }).catch(err => {
+      console.warn("Failed to load countries GeoJSON in 3D Globe:", err);
+    });
+
+    return () => {
+      if (viewerRef.current && countriesDataSourceRef.current) {
+        try {
+          viewer.dataSources.remove(countriesDataSourceRef.current);
+        } catch (e) {}
+        countriesDataSourceRef.current = null;
+      }
+    };
+  }, [scriptsLoaded, mapError, viewerReady]);
+
+  // Synchronize country selection highlights reactively
+  useEffect(() => {
+    // 1. Sync 3D Cesium highlights
+    if (countriesDataSourceRef.current) {
+      const Cesium = window.Cesium;
+      if (Cesium) {
+        // Revert previous selected country entity style
+        if (selectedCountryEntityRef.current) {
+          try {
+            const entity = selectedCountryEntityRef.current;
+            if (entity.polygon) {
+              entity.polygon.material = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.01)');
+              entity.polygon.outlineColor = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.08)');
+            }
+          } catch (e) {}
+          selectedCountryEntityRef.current = null;
+        }
+
+        if (selectedCountry) {
+          const normalizedSearch = selectedCountry.toLowerCase().trim();
+          const matchedEntity = countriesDataSourceRef.current.entities.values.find(entity => {
+            const name = (entity.name || entity.properties?.name?.getValue() || '').toLowerCase().trim();
+            return name === normalizedSearch;
+          });
+
+          if (matchedEntity && matchedEntity.polygon) {
+            matchedEntity.polygon.material = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.22)');
+            matchedEntity.polygon.outlineColor = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)');
+            selectedCountryEntityRef.current = matchedEntity;
+          }
+        }
+      }
+    }
+
+    // 2. Sync 2D Leaflet highlights
+    if (leafletCountriesLayerRef.current && window.L) {
+      // Revert previous leaflet selection style
+      if (leafletSelectedLayerRef.current) {
+        try {
+          leafletSelectedLayerRef.current.setStyle({
+            color: 'rgba(0, 240, 255, 0.12)',
+            fillColor: 'rgba(0, 240, 255, 0.005)',
+            fillOpacity: 0.005
+          });
+        } catch (e) {}
+        leafletSelectedLayerRef.current = null;
+      }
+
+      if (selectedCountry) {
+        const normalizedSearch = selectedCountry.toLowerCase().trim();
+        let matchedLayer = null;
+        
+        leafletCountriesLayerRef.current.eachLayer(layer => {
+          const name = (layer.feature?.properties?.name || '').toLowerCase().trim();
+          if (name === normalizedSearch) {
+            matchedLayer = layer;
+          }
+        });
+
+        if (matchedLayer) {
+          matchedLayer.setStyle({
+            color: 'rgba(0, 240, 255, 0.85)',
+            fillColor: 'rgba(0, 240, 255, 0.22)',
+            fillOpacity: 0.22
+          });
+          leafletSelectedLayerRef.current = matchedLayer;
+        }
+      }
+    }
+  }, [selectedCountry, scriptsLoaded]);
 
   // 2. Update threat markers on Leaflet map
   useEffect(() => {
@@ -1814,6 +2008,16 @@ export default function CesiumGlobe({
               selectSkyscraper(landmark);
             }
             handled = true;
+          } else {
+            // Check if it is an interactive country border polygon
+            const isCountry = countriesDataSourceRef.current && countriesDataSourceRef.current.entities.contains(entity);
+            if (isCountry) {
+              const countryName = entity.name || entity.properties.name?.getValue() || "Unknown Sector";
+              if (onCountrySelect) {
+                onCountrySelect(countryName);
+              }
+              handled = true;
+            }
           }
         }
 

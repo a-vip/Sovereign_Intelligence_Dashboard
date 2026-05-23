@@ -53,7 +53,7 @@ function formatTime(ts) {
   });
 }
 
-export default function EventDetailsWindow({ event, onClose, onReportIssue, currentUser, onEventUpdate }) {
+export default function EventDetailsWindow({ event, onClose, onReportIssue, currentUser, onEventUpdate, onFocusLocation }) {
   // Self-healing: read session from localStorage as a reliable fallback in case the prop is stale
   const [activeUser, setActiveUser] = useState(() => {
     // Merge prop with localStorage — localStorage is always the ground truth
@@ -1086,7 +1086,11 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
           </div>
         ) : (
           <div 
-            onClick={() => isAdmin && handleToggleEditMode()}
+            onClick={(e) => {
+              if (event.lat !== undefined && event.lon !== undefined && onFocusLocation) {
+                onFocusLocation(event.lat, event.lon);
+              }
+            }}
             style={{ 
               display: 'flex', 
               flexDirection: 'column', 
@@ -1095,23 +1099,56 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
               padding: '12px', 
               background: '#1e293b40', 
               borderRadius: '6px', 
-              border: isAdmin ? '1px dashed rgba(0, 240, 255, 0.3)' : '1px solid #1e293b',
-              cursor: isAdmin ? 'pointer' : 'default',
+              border: '1px solid rgba(0, 240, 255, 0.2)',
+              cursor: 'pointer',
               position: 'relative',
-              transition: 'border-color 0.2s'
+              transition: 'all 0.2s ease',
+              boxShadow: '0 0 10px rgba(0, 240, 255, 0.05)'
             }}
             onMouseEnter={(e) => {
-              if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.6)';
+              e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.6)';
+              e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 240, 255, 0.15)';
+              e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
             }}
             onMouseLeave={(e) => {
-              if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.3)';
+              e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.2)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.05)';
+              e.currentTarget.style.background = '#1e293b40';
             }}
-            title={isAdmin ? "Click to enter Edit Mode" : undefined}
+            title="Click to focus map camera on these coordinates"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '0.85rem', fontWeight: 600 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
               {editDraft.location || 'GLOBAL / REMOTE'}
-              {isAdmin && <Edit3 size={10} style={{ marginLeft: 'auto', color: '#00f0ff' }} />}
+              {isAdmin && (
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleEditMode();
+                  }}
+                  style={{
+                    marginLeft: 'auto',
+                    cursor: 'pointer',
+                    background: 'rgba(0, 240, 255, 0.1)',
+                    border: '1px solid rgba(0, 240, 255, 0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '9px',
+                    color: '#00f0ff',
+                    fontWeight: 'bold',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.25)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.1)'}
+                  title="Edit Location Settings"
+                >
+                  <Edit3 size={10} />
+                  <span>EDIT</span>
+                </div>
+              )}
             </div>
             {editDraft.lat !== undefined && editDraft.lon !== undefined && (
               <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "var(--font-jetbrains-fallback)", display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>

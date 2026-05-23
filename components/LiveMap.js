@@ -257,6 +257,7 @@ export default function LiveMap({
   const [feedTab, setFeedTab] = useState('feed');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [focusCoordinate, setFocusCoordinate] = useState(null);
+  const [selectedCountry, setSelectedCountry] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
@@ -1767,10 +1768,67 @@ export default function LiveMap({
       </div>
 
       {/* 3D Google Tiles Globe Area */}
-      <div ref={mapAreaRef} className="sigint-map-area">
+      <div ref={mapAreaRef} className="sigint-map-area" style={{ position: 'relative' }}>
+        {selectedCountry && (
+          <div style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: 'rgba(2, 6, 23, 0.85)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid #00f0ff',
+            borderRadius: '4px',
+            padding: '8px 16px',
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#00f0ff',
+            boxShadow: '0 0 15px rgba(0, 240, 255, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            pointerEvents: 'auto'
+          }}>
+            <span style={{ 
+              width: '8px', 
+              height: '8px', 
+              borderRadius: '50%', 
+              backgroundColor: '#00f0ff',
+              boxShadow: '0 0 8px #00f0ff',
+              display: 'inline-block',
+              animation: 'pulse 1.5s infinite'
+            }} />
+            <span>ACTIVE SECTOR MONITOR: <strong>{selectedCountry.toUpperCase()}</strong></span>
+            <button 
+              onClick={() => setSelectedCountry(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ff2d55',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                marginLeft: '10px',
+                outline: 'none',
+                padding: '2px 6px',
+                border: '1px solid rgba(255, 45, 85, 0.3)',
+                borderRadius: '3px',
+                background: 'rgba(255, 45, 85, 0.1)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 45, 85, 0.25)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 45, 85, 0.1)'}
+            >
+              [DISMISS]
+            </button>
+          </div>
+        )}
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
           focusCoordinate={focusCoordinate}
+          selectedCountry={selectedCountry}
+          onCountrySelect={setSelectedCountry}
           mapMode={mapMode}
           mapStyle={mapStyle}
           onMapModeChange={setMapMode}
@@ -2663,6 +2721,7 @@ export default function LiveMap({
           SEV_COLORS={SEV_COLORS}
           CAT_COLORS={CAT_COLORS}
           formatTime={formatTime}
+          onFocusLocation={(lat, lon) => setFocusCoordinate({ lat, lon })}
         />
       )}
 
