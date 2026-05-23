@@ -285,6 +285,8 @@ export default function CesiumGlobe({
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
 
+  const is2DActive = mapMode === '2d' || mapError;
+
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
   useEffect(() => {
@@ -3110,8 +3112,6 @@ export default function CesiumGlobe({
       }
     }
   }, [powerMineralsEnabled, scriptsLoaded, mapError, viewerReady]);
-
-  const is2DActive = mapMode === '2d' || mapError;
 
   // Safe utility to parse any tooltip string content (e.g. collapsed cached single-line formats)
   // into a beautifully structured, premium tactical key-value dossier layout.
