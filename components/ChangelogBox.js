@@ -235,8 +235,8 @@ export default function ChangelogBox({ onClose }) {
         const startX = Math.max(10, (window.innerWidth - 320) / 2);
         setPos({ x: startX, y: 60 });
       } else {
-        const startX = window.innerWidth - 460;
-        const startY = Math.max(20, (window.innerHeight - 520) / 2);
+        const startX = window.innerWidth - 470;
+        const startY = Math.max(20, (window.innerHeight - 530) / 2);
         setPos({ x: Math.max(20, startX), y: startY });
       }
     }
@@ -305,9 +305,9 @@ export default function ChangelogBox({ onClose }) {
         position: 'absolute',
         left: `${pos.x}px`,
         top: `${pos.y}px`,
-        width: '420px',
+        width: '430px',
         maxWidth: 'calc(100vw - 20px)',
-        height: '520px',
+        height: '530px',
         maxHeight: 'calc(100vh - 100px)',
         background: 'rgba(8, 12, 24, 0.96)',
         border: '1px solid rgba(6, 182, 212, 0.3)',
@@ -323,7 +323,7 @@ export default function ChangelogBox({ onClose }) {
         transition: dragging ? 'none' : 'transform 0.1s ease',
       }}
     >
-      {/* Drag Handle & Header (userSelect: none applied ONLY here to keep scroll wheel functional) */}
+      {/* Drag Handle & Header (userSelect: none locked here to maintain scrolling capacity) */}
       <div
         onMouseDown={handleDragStart}
         onTouchStart={handleTouchStart}
@@ -377,7 +377,7 @@ export default function ChangelogBox({ onClose }) {
         </button>
       </div>
 
-      {/* Accordion Versions Body Container with visible scrollbar */}
+      {/* Accordion Versions Body Container with scroll wheel enabled and scrollbars */}
       <div 
         style={{ 
           padding: '12px', 
@@ -399,10 +399,11 @@ export default function ChangelogBox({ onClose }) {
                 borderRadius: '6px',
                 background: isExpanded ? 'rgba(6, 182, 212, 0.02)' : 'rgba(255, 255, 255, 0.01)',
                 overflow: 'hidden',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                flexShrink: 0 // CRITICAL: Stop browser from squishing items into flat horizontal slivers
               }}
             >
-              {/* Version Banner Trigger (Shows version, date, and full title as requested) */}
+              {/* Version Banner Trigger (Wraps text naturally without ellipsis to avoid culling dates/titles) */}
               <div
                 onClick={() => toggleVersion(item.version)}
                 style={{
@@ -444,16 +445,13 @@ export default function ChangelogBox({ onClose }) {
                   <span style={{ color: 'rgba(255,255,255,0.15)', flexShrink: 0 }}>|</span>
                   <span 
                     style={{ 
-                      fontSize: '10px', 
+                      fontSize: '11px', // Sized up default labels as requested
                       fontWeight: isExpanded ? '800' : '600', 
-                      color: isExpanded ? '#ffffff' : '#94a3b8', 
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                      textAlign: 'left'
+                      color: isExpanded ? '#ffffff' : '#cbd5e1', 
+                      textAlign: 'left',
+                      lineHeight: '1.4',
+                      flex: 1
                     }}
-                    title={item.title}
                   >
                     {item.title}
                   </span>
@@ -491,7 +489,7 @@ export default function ChangelogBox({ onClose }) {
                       <li 
                         key={bidx} 
                         style={{ 
-                          fontSize: '9.5px', 
+                          fontSize: '10px', 
                           color: '#cbd5e1', 
                           lineHeight: '1.45',
                           listStyleType: 'square'
