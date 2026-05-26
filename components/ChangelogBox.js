@@ -6,83 +6,98 @@ const CHANGELOG_DATA = [
   {
     version: 'v1.6.0',
     date: '2026-05-26',
-    title: 'Operator Expansions & Chronological Feed Alignments',
+    title: 'Operator Profile CTA & Chronological OSINT Alignments',
     isMajor: true,
     bullets: [
-      'Guest Feedback Integration: Suggestions & bug reporting panel is now fully accessible to anonymous guests with optional name/email attributes and an elegant account sign-up invite.',
-      'Default Globe Auto-Rotation: Globe auto-rotation is now engaged by default on initial page load and refresh, providing an immediate dynamic tactical view.',
-      'Secure Channel Live Status: Replaced transient connection messages with premium, cybernetic connection indicators (SECURE CHANNEL ACTIVE, CONNECTING...).',
-      'Chronological Source Timestamps: Extracted and parsed original feed publication times from live OSINT sources to align timelines accurately to event creation rather than database ingestion times.'
+      'v1.6.0 - Guest Feedback Integration: Released a guest-accessible suggestions & bug reporting module inside the profile panel, prompting anonymous operators with secure sign-up CTAs to promote registration.',
+      'v1.6.0 - Chronological Source Timestamps: Upgraded RSS & GDELT OSINT intelligence crawlers to parse original publication parsed timestamps rather than database ingestion timestamps, ensuring feeds reflect true chronological updates.',
+      'v1.6.0 - Auto-Rotate Engagement: Enabled Cesium 3D camera auto-rotation as the default boot behavior to yield immediate dynamic geospatial awareness.',
+      'v1.6.0 - Secure Channel Status indicators: Replaced transient connection/reconnection alerts with premium, cybernetic status reports (e.g. SECURE CHANNEL ACTIVE and CONNECTING...) next to live map signals.'
     ]
   },
   {
-    version: 'v1.5.0',
+    version: 'v1.5.x',
     date: '2026-05-19',
-    title: 'Camera Culling & Memory Ray-Casting Optimization',
+    title: 'Geospatial Camera Culling & Memory Optimization',
     isMajor: true,
     bullets: [
-      'Flat-mode Rendering & Camera Culling Fix: Resolved Cesium camera depth clipping bugs for geopolitical boundary overlays and event markers across different zoom profiles (disableDepthTestDistance = 1.0).',
-      'Database Persistence Upgrade: Re-architected CMS pipeline for structured JSON event updates and deep-indexed GIS geometries.',
-      'Border Ray-Casting & Performance Optimization: Implemented point-in-polygon boundary checks, saving up to 600MB+ WebGL memory overhead.'
+      'v1.5.2 - Flat-Mode Camera Depth bypass: Set flat-map overlay disableDepthTestDistance to 1.0m to guarantee billboard markers bypass depth buffer culling at all tactical zooms.',
+      'v1.5.1 - CMS Persistence & Horizon Clipping: Fixed bugs causing billboard entities to clip/vanish behind the physical horizon when camera pitch transitions, and reinforced CMS event persistence layers.',
+      'v1.5.0 - Border Ray-Casting: Re-architected boundary and country highlighting overlays utilizing a memory-resident point-in-polygon ray-casting engine, saving up to 600MB+ WebGL memory overhead.'
     ]
   },
   {
-    version: 'v1.4.0',
+    version: 'v1.4.x',
     date: '2026-05-12',
-    title: 'AI Regulations Live-Sync & Golden Jitter Overlays',
+    title: 'AI Regulations Live-Sync & Tactical Label Refinements',
     isMajor: false,
     bullets: [
-      'AI Regulation Live-Sync: Synced active Google My Maps layers mapping 450+ international guidelines and AI legal policies with real-time updates.',
-      'Stacked Tooltips: Added intelligent multi-overlapping tooltip resolution for dense marker groups.',
-      'Golden-Angle Geojittering: Built layout adjustments for overlapping coordinates using mathematical golden-angle offsets.'
+      'v1.4.5 - Interactive Panning: Programmed interactive geocoded coordinate camera panning and high-contrast polygon boundary fills on selection.',
+      'v1.4.4 - Render Loop Optimizations: Fixed leaflet resize triggers and implemented Cesium requestRenderMode & ScreenSpaceError throttling to scale framerates.',
+      'v1.4.3 - Evaluated Property Bag Parsing: Implemented plain object property resolvers to parse multi-layered JSON metadata fields on LEFT_CLICK entity select.',
+      'v1.4.2 - Rotating Globe Default: Re-instated the 3D rotating Cesium globe as the primary landing interface, relegating the 2D Leaflet canvas to fallback.',
+      'v1.4.1 - Spatial & Regional Balancing: Excluded specific high-density drone strikes from live mapping datasets to maintain performance, and decommissioned the GeoConfirmed API engine.',
+      'v1.4.0 - Google My Maps AI Sync: Synced active Google My Maps layers mapping 450+ international AI guidelines and legal frameworks with automatic database synchronization.'
     ]
   },
   {
-    version: 'v1.3.0',
+    version: 'v1.3.x',
     date: '2026-05-05',
-    title: 'Mailer Transitions & Session Guards',
+    title: 'Secure Mailer Integrations & Session Handshakes',
     isMajor: false,
     bullets: [
-      'SMTP Mailer Transition: Replaced external feedback pipelines with high-resiliency local SMTP relays, securing automated alerts.',
-      'Operator Authentication Enhancements: Reinforced session validation guards across administrative telemetry.'
+      'v1.3.2 - NodeMailer v6 Downgrade: Downgraded nodemailer dependencies from v8 to v6 to resolve compiling discrepancies and host building failures on Vercel.',
+      'v1.3.1 - Gmail SMTP Integration: Integrated direct secure Gmail SMTP gateways as the primary transactional mailer, replacing unverified mail fallbacks.',
+      'v1.3.0 - Mount Cycle Event Locks: Relocated temporal dead zone window event listeners under component lifecycle callbacks, resolving mounting loop crashes.'
     ]
   },
   {
-    version: 'v1.2.0',
+    version: 'v1.2.x',
     date: '2026-04-28',
-    title: 'ATLAS Grid, GPS Hex Interference & RainViewer Radar',
+    title: 'ATLAS Grid, Hexagonal GPS Jamming & Cloud Radars',
     isMajor: true,
     bullets: [
-      'ATLAS Infrastructure Integration: Mapped regional database center rings and network nodes onto Cesium\'s physical layer.',
-      'Active GPS Jamming Hexagons: Integrated live signal interference maps displaying active degraded hex bands.',
-      'RainViewer Weather Radar: Wired real-time satellite precipitation/cloud-cover overlay maps.'
+      'v1.2.3 - Golden-Angle deterministic Geojittering: Applied mathematical golden-angle spiral offsets to overlapping geolocated map signals to prevent overlapping icon clipping.',
+      'v1.2.2 - ATLAS Infrastructure Overlay: Synced global undersea fiber-optic network cables and regional server database centers directly onto physical map vectors.',
+      'v1.2.1 - H3-like GPS Jamming hexes: Constructed active signal degradation honeycomb maps utilizing localized epicenters with interactive telemetry tooltips.',
+      'v1.2.0 - RainViewer public radar integration: Wired real-time satellite precipitation overlays using a styled cyan/blue weather tile system.'
     ]
   },
   {
-    version: 'v1.1.0',
+    version: 'v1.1.x',
     date: '2026-04-21',
-    title: 'Admin CMS Panels & 3D Urban Metros',
+    title: 'Control Panels, Archiving & 3D metropolitan views',
     isMajor: false,
     bullets: [
-      'Admin CMS Control Console: Built secure, fully featured CRUD panel for live signal mapping, geocoding overrides, and archive administration.',
-      '3D Urban Buildings Layer: Added high-fidelity extruded urban 3D building outlines toggle for high-density metropolitan targets.'
+      'v1.1.2 - Feedback CMS module: Integrated custom screenshot lightbox displays and resolve action triggers to clear reported coordinates directly inside the CMS panel.',
+      'v1.1.1 - Lightweight CMS Backend CRUD: Released a secure, administrative console to add, edit, and archive custom event markers with complete database integrations.',
+      'v1.1.0 - Extruded 3D Buildings: Rendered extruded 3D metropolitan outline toggle buttons for dense urban districts (e.g. Geneva, London, New York).'
     ]
   },
   {
-    version: 'v1.0.0',
+    version: 'v1.0.x',
     date: '2026-04-07',
-    title: 'Core Cybernetic Geospatial Platform Launch',
+    title: 'Core Architecture & High-Density Braille Lotus Release',
     isMajor: true,
     bullets: [
-      'Core Cybernetic Architecture Release: Launched high-density Braille loading screens, cybernetic eye canvas animations, and global Cesium 3D geospatial dashboard.'
+      'v1.0.2 - 8-Frame bird\'s eye view bloom: Upgraded AsciiLoader blooming sequence to utilize a sequential bird\'s-eye view bloom for smooth upward animations.',
+      'v1.0.1 - Braille Lotus Ascii Art: Created the growable high-density Braille lotus loading sequence holding frame to maximize loading visuals.',
+      'v1.0.0 - Semantic Geocoder & Core Release: Built the primary geospatial system mapping real-time international OSINT reports, featuring a fallback geocoding engine and HTML entity decoders.'
     ]
   }
 ];
 
 export default function ChangelogBox({ onClose }) {
-  // State storing which version codes are expanded (accordion/collapse)
-  // By default, the latest version (v1.6.0) is expanded
-  const [expandedVersions, setExpandedVersions] = useState({ 'v1.6.0': true });
+  // All versions start fully expanded by default as requested
+  const [expandedVersions, setExpandedVersions] = useState({
+    'v1.6.0': true,
+    'v1.5.x': true,
+    'v1.4.x': true,
+    'v1.3.x': true,
+    'v1.2.x': true,
+    'v1.1.x': true,
+    'v1.0.x': true
+  });
 
   // Position state for dragging
   const [pos, setPos] = useState({ x: 100, y: 120 });
@@ -94,13 +109,13 @@ export default function ChangelogBox({ onClose }) {
     if (typeof window !== 'undefined') {
       const mobile = window.innerWidth < 900;
       if (mobile) {
-        const startX = Math.max(10, (window.innerWidth - 300) / 2);
-        setPos({ x: startX, y: 80 });
+        const startX = Math.max(10, (window.innerWidth - 320) / 2);
+        setPos({ x: startX, y: 60 });
       } else {
-        // Place it elegantly towards the bottom right or center-right
-        const startX = window.innerWidth - 420;
-        const startY = window.innerHeight - 560;
-        setPos({ x: Math.max(20, startX), y: Math.max(20, startY) });
+        // Positioned elegantly on the right side of the globe
+        const startX = window.innerWidth - 440;
+        const startY = Math.max(20, (window.innerHeight - 560) / 2);
+        setPos({ x: Math.max(20, startX), y: startY });
       }
     }
   }, []);
@@ -134,7 +149,6 @@ export default function ChangelogBox({ onClose }) {
       const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
       const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
       
-      // Keep boundaries relatively sensible
       const newX = dragRef.current.startPosX + (clientX - dragRef.current.startX);
       const newY = dragRef.current.startPosY + (clientY - dragRef.current.startY);
       setPos({ x: newX, y: newY });
@@ -169,25 +183,26 @@ export default function ChangelogBox({ onClose }) {
         position: 'absolute',
         left: `${pos.x}px`,
         top: `${pos.y}px`,
-        width: '360px',
+        width: '400px',
         maxWidth: 'calc(100vw - 20px)',
-        maxHeight: '480px',
-        background: 'rgba(8, 12, 24, 0.95)',
+        height: '520px',
+        maxHeight: 'calc(100vh - 100px)',
+        background: 'rgba(8, 12, 24, 0.96)',
         border: '1px solid rgba(6, 182, 212, 0.3)',
         borderRadius: '12px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.75), 0 0 25px rgba(6, 182, 212, 0.1)',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(6, 182, 212, 0.12)',
         zIndex: 1005,
         fontFamily: 'var(--font-jetbrains-fallback), monospace',
         color: '#e2e8f0',
         userSelect: 'none',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(16px)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         transition: dragging ? 'none' : 'transform 0.1s ease',
       }}
     >
-      {/* Drag Handle & Header */}
+      {/* Drag Handle & Header (Updated branding labels) */}
       <div
         onMouseDown={handleDragStart}
         onTouchStart={handleTouchStart}
@@ -198,16 +213,16 @@ export default function ChangelogBox({ onClose }) {
           padding: '12px 16px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           cursor: dragging ? 'grabbing' : 'grab',
-          background: 'rgba(6, 182, 212, 0.04)',
+          background: 'rgba(6, 182, 212, 0.05)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Terminal size={14} style={{ color: '#06b6d4' }} />
           <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.12em', color: '#ffffff' }}>
-            SYSTEM CHANGELOG
+            DASHBOARD CHANGELOG
           </span>
           <span style={{ fontSize: '9px', color: 'rgba(6, 182, 212, 0.7)', fontWeight: 'bold' }}>
-            [OP_LOGS]
+            [UPDATE_LOGS]
           </span>
         </div>
         <button
@@ -237,7 +252,7 @@ export default function ChangelogBox({ onClose }) {
         </button>
       </div>
 
-      {/* Accordion Versions Body Container */}
+      {/* Accordion Versions Body Container with visible scrollbar */}
       <div 
         style={{ 
           padding: '12px', 
@@ -245,7 +260,7 @@ export default function ChangelogBox({ onClose }) {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px'
+          gap: '10px'
         }}
         className="changelog-scrollbar"
       >
@@ -255,7 +270,7 @@ export default function ChangelogBox({ onClose }) {
             <div
               key={item.version}
               style={{
-                border: isExpanded ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid rgba(255, 255, 255, 0.04)',
+                border: isExpanded ? '1px solid rgba(6, 182, 212, 0.25)' : '1px solid rgba(255, 255, 255, 0.04)',
                 borderRadius: '6px',
                 background: isExpanded ? 'rgba(6, 182, 212, 0.02)' : 'rgba(255, 255, 255, 0.01)',
                 overflow: 'hidden',
@@ -271,7 +286,7 @@ export default function ChangelogBox({ onClose }) {
                   justifyContent: 'space-between',
                   padding: '8px 12px',
                   cursor: 'pointer',
-                  background: isExpanded ? 'rgba(6, 182, 212, 0.05)' : 'transparent',
+                  background: isExpanded ? 'rgba(6, 182, 212, 0.04)' : 'transparent',
                   transition: 'background 0.2s'
                 }}
                 onMouseEnter={e => {
@@ -316,7 +331,7 @@ export default function ChangelogBox({ onClose }) {
                   style={{
                     padding: '10px 12px 12px 12px',
                     borderTop: '1px solid rgba(255,255,255,0.04)',
-                    background: 'rgba(0, 0, 0, 0.15)',
+                    background: 'rgba(0, 0, 0, 0.2)',
                     animation: 'fadeIn 0.15s ease-out'
                   }}
                 >
@@ -338,7 +353,7 @@ export default function ChangelogBox({ onClose }) {
                         style={{ 
                           fontSize: '9.5px', 
                           color: '#94a3b8', 
-                          lineHeight: '1.4',
+                          lineHeight: '1.45',
                           listStyleType: 'square'
                         }}
                       >
@@ -358,33 +373,35 @@ export default function ChangelogBox({ onClose }) {
         style={{
           padding: '8px 12px',
           borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-          background: 'rgba(2, 6, 23, 0.4)',
+          background: 'rgba(2, 6, 23, 0.5)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           fontSize: '8px',
-          color: 'rgba(255, 255, 255, 0.3)',
+          color: 'rgba(255, 255, 255, 0.35)',
           letterSpacing: '0.05em'
         }}
       >
-        <span>SECURE TELEMETRY LINK</span>
-        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN OPERATOR NETWORK v1.6</span>
+        <span>SECURE HANDSHAKE VERIFIED</span>
+        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.6.0</span>
       </div>
 
-      {/* Styled scrollbar injected directly */}
+      {/* Styled visible scrollbar injected directly */}
       <style jsx global>{`
         .changelog-scrollbar::-webkit-scrollbar {
-          width: 4px;
+          width: 6px;
         }
         .changelog-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.01);
+          background: rgba(2, 6, 23, 0.3);
+          border-radius: 3px;
         }
         .changelog-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(6, 182, 212, 0.2);
-          border-radius: 2px;
+          background: rgba(6, 182, 212, 0.35);
+          border: 1px solid rgba(8, 12, 24, 0.96);
+          border-radius: 3px;
         }
         .changelog-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(6, 182, 212, 0.4);
+          background: rgba(6, 182, 212, 0.55);
         }
       `}</style>
     </div>
