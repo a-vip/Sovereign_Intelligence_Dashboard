@@ -282,9 +282,9 @@ export default function LiveMap({
   const [selectedRssSources, setSelectedRssSources] = useState(['arxiv', 'aje', 'hrw', 'nature', 'un', 'wired', 'eff']);
   const [mapMode, setMapMode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('operator_pref_mapMode') || '2d';
+      return localStorage.getItem('operator_pref_mapMode') || '3d';
     }
-    return '2d';
+    return '3d';
   });
   const [mapStyle, setMapStyle] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -293,13 +293,7 @@ export default function LiveMap({
     }
     return 'tactical';
   });
-  const [autoRotate, setAutoRotate] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('operator_pref_autoRotate');
-      return stored !== null ? stored === 'true' : true;
-    }
-    return true;
-  });
+  const [autoRotate, setAutoRotate] = useState(true);
   const [tickerSpeed, setTickerSpeed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('operator_pref_tickerSpeed') || 'slow';
@@ -1832,6 +1826,7 @@ export default function LiveMap({
           mapMode={mapMode}
           mapStyle={mapStyle}
           onMapModeChange={setMapMode}
+          onMapStyleChange={setMapStyle}
           autoRotate={autoRotate}
           onInteraction={() => setAutoRotate(false)}
           onPointClick={(point) => {

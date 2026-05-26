@@ -640,7 +640,7 @@ export async function GET(request) {
     });
     const filteredStaticEvents = staticEvents.filter(e => !isEventArchived(e, archivedInfo));
 
-    let finalEventsList = [...filteredDbEventsList, ...filteredStaticEvents];
+    let finalEventsList = [...filteredStaticEvents, ...filteredDbEventsList];
     if (finalEventsList.length === 0 && filteredEvs.length === 0) {
       console.log('No online, database, or static events found. Trying local dossiers...');
       finalEventsList = parseLocalRadarDossiers().filter(e => !isEventArchived(e, archivedInfo));
@@ -729,7 +729,29 @@ export async function GET(request) {
       if (duplicateIndex !== -1) {
         const accepted = allEvents[duplicateIndex];
         
-        // Prioritize DB-edited event over raw online feed event
+        // 1. Absolute Priority: Manually edited event takes absolute precedence
+        const acceptedEdited = accepted.edited === true || accepted.edited === 'true';
+        const currentEdited = e.edited === true || e.edited === 'true';
+
+        if (acceptedEdited && !currentEdited) {
+          return;
+        }
+        if (currentEdited && !acceptedEdited) {
+          if (e.details) {
+            e.details = { ...e.details };
+            if (typeof e.details.summary === 'string') {
+              let cleanSummary = e.details.summary.replace(/\s+/g, ' ').trim();
+              if (cleanSummary.length > 280) {
+                cleanSummary = cleanSummary.substring(0, 277) + '...';
+              }
+              e.details.summary = cleanSummary;
+            }
+          }
+          allEvents[duplicateIndex] = e;
+          return;
+        }
+
+        // 2. Secondary Priority: DB source over raw online feed source
         if (accepted.fromDb && !e.fromDb) {
           return;
         }

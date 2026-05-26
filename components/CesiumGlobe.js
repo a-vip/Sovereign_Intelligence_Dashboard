@@ -282,6 +282,7 @@ export default function CesiumGlobe({
   mapStyle = 'satellite', 
   focusCoordinate = null, 
   onMapModeChange = null,
+  onMapStyleChange = null,
   autoRotate = true,
   onInteraction = null,
   showSatellites = false,
@@ -611,7 +612,7 @@ export default function CesiumGlobe({
       landmarkEntitiesRef.current = [];
     };
 
-    const shouldShowLandmarks = mapMode === '3d' || mapStyle === 'buildings';
+    const shouldShowLandmarks = mapMode === '3d' && mapStyle === 'buildings';
 
     if (shouldShowLandmarks) {
       clearLandmarks();
@@ -1546,8 +1547,10 @@ export default function CesiumGlobe({
 
       // Keep the globe visible to guarantee rendering stability
       viewer.scene.globe.show = true;
-      viewer.scene.globe.depthTestAgainstTerrain = true;
-      viewer.scene.globe.maximumScreenSpaceError = 3.5; // Premium quality/performance balance, reducing GPU memory by ~150-200MB!
+      // Start as false to prevent any curvature/terrain clipping visual bugs on initial tactical dark load!
+      viewer.scene.globe.depthTestAgainstTerrain = false;
+      viewer.scene.globe.tileCacheSize = 35; // Dramatically reduces memory usage by limiting cached terrain/imagery tiles!
+      viewer.scene.globe.maximumScreenSpaceError = 4.5; // Optimized to reduce memory overhead and GPU footprint, saving up to ~250MB!
 
       // Set camera to premium global view
       viewer.camera.setView({
@@ -1616,7 +1619,7 @@ export default function CesiumGlobe({
         const pickedObject = viewer.scene.pick(movement.endPosition);
         
         // 1. Proximity-based famous landmark hover check (works for 3D building mesh or billboard!)
-        const is3DActive = mapMode === '3d' || mapStyle === 'buildings' || (tilesetRef.current && tilesetRef.current.show);
+        const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
         let nearLandmarkEntity = null;
         
         if (is3DActive) {
@@ -1916,7 +1919,7 @@ export default function CesiumGlobe({
       handler.setInputAction((movement) => {
         const pickedObject = viewer.scene.pick(movement.position);
         
-        const is3DActive = mapMode === '3d' || mapStyle === 'buildings' || (tilesetRef.current && tilesetRef.current.show);
+        const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
         
         let handled = false;
 
@@ -2120,7 +2123,7 @@ export default function CesiumGlobe({
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
-    const shouldShow3d = mapMode === '3d' || mapStyle === 'buildings';
+    const shouldShow3d = mapMode === '3d' && mapStyle === 'buildings';
 
     if (shouldShow3d) {
       // Toggle 3D buildings overlay on
@@ -2165,16 +2168,25 @@ export default function CesiumGlobe({
   useEffect(() => {
     if (!scriptsLoaded || mapError || !viewerRef.current) return;
 
-    // Skip heavy entity updates if the incoming threat marker dataset hasn't changed
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeightRef = is3DActive 
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+
+    // Skip heavy entity updates if the incoming threat marker dataset and mode hasn't changed
     const repelledJson = JSON.stringify(repelledMarkers);
-    if (lastRepelledMarkersJsonRef.current === repelledJson) {
+    const cacheKey = `${is3DActive}_${repelledJson}`;
+    if (lastRepelledMarkersJsonRef.current === cacheKey) {
       return;
     }
-    lastRepelledMarkersJsonRef.current = repelledJson;
+    lastRepelledMarkersJsonRef.current = cacheKey;
 
-    const Cesium = window.Cesium;
     const viewer = viewerRef.current;
-    if (!Cesium) return;
 
     // Create a Set of incoming threat IDs for quick lookup
     const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
@@ -2198,31 +2210,34 @@ export default function CesiumGlobe({
 
       const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
       const threatId = `threat-${m.id || m.title}`;
-      const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0);
+      const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
 
       const existing = viewer.entities.getById(threatId);
       if (existing) {
         // Surgically update properties on the existing persistent entity
-        const currentPos = existing.position.getValue(Cesium.JulianDate.now());
-        if (!Cesium.Cartesian3.equals(currentPos, newPos)) {
-          existing.position = newPos;
+        existing.position = newPos;
+        if (existing.billboard) {
+          existing.billboard.heightReference = targetHeightRef;
+          existing.billboard.disableDepthTestDistance = targetDisableDepthTest;
         }
         if (existing.label) {
           existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
+          existing.label.heightReference = targetHeightRef;
+          existing.label.disableDepthTestDistance = targetDisableDepthTest;
         }
         existing.properties = m;
       } else {
-        // Threat circle billboard marker (perfectly clamped to terrain and 3D building rooftops!)
+        // Threat circle billboard marker (perfectly clamped to terrain/3D rooftops in 3D, elevated in 2D!)
         viewer.entities.add({
           id: threatId,
           name: m.title || m.name,
           position: newPos,
           billboard: {
             image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, '#ffffff', 1.5),
-            heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND, // Clamp exactly on top of 3D building rooftops!
+            heightReference: targetHeightRef,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            disableDepthTestDistance: 100000.0, // Disable depth testing when zoomed in closer than 100km to bypass 3D buildings, but keep depth testing enabled at global scale so back-side points are hidden!
+            disableDepthTestDistance: targetDisableDepthTest,
           },
           label: {
             text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
@@ -2232,26 +2247,32 @@ export default function CesiumGlobe({
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 3,
             showBackground: true,
-            backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85), // PREMIUM GLASSMORPHIC DARK SLATE BOX BACKGROUND!
-            backgroundPadding: new Cesium.Cartesian2(10, 6), // Crisp padding
+            backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
+            backgroundPadding: new Cesium.Cartesian2(10, 6),
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -20), // Lift slightly higher above point
-            heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND, // Align label elevation with clamped building rooftop
-            disableDepthTestDistance: 100000.0, // Match billboard occlusion culling
+            pixelOffset: new Cesium.Cartesian2(0, -20),
+            heightReference: targetHeightRef,
+            disableDepthTestDistance: targetDisableDepthTest,
             show: false,
           },
           properties: m,
         });
       }
 
-      // Expandable rippling radar waves (strictly pulse at severity 5, conforming beautifully to terrain!)
+      // Expandable rippling radar waves (strictly pulse at severity 5, conforming beautifully to terrain/ellipsoid!)
       if (m.severity >= 5) {
         const pulseId = `threat-pulse-${m.id || m.title}`;
-        if (!viewer.entities.getById(pulseId)) {
+        const existingPulse = viewer.entities.getById(pulseId);
+        if (existingPulse) {
+          existingPulse.position = newPos;
+          if (existingPulse.ellipse) {
+            existingPulse.ellipse.heightReference = targetHeightRef;
+          }
+        } else {
           let currentRadius = 15000.0;
           viewer.entities.add({
             id: pulseId,
-            position: Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, 0),
+            position: newPos,
             ellipse: {
               semiMajorAxis: new Cesium.CallbackProperty(() => {
                 currentRadius += 3000.0;
@@ -2264,13 +2285,13 @@ export default function CesiumGlobe({
               material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.18),
               outline: true,
               outlineColor: Cesium.Color.fromCssColorString(sevColorStr),
-              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // Conform to the actual terrain/buildings!
+              heightReference: targetHeightRef,
             }
           });
         }
       }
     });
-  }, [repelledMarkers, mapError, scriptsLoaded]);
+  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle]);
 
   // 6. Update dynamic orbiting satellites and flight paths
   useEffect(() => {
@@ -2694,6 +2715,18 @@ export default function CesiumGlobe({
     }
   }, [mapStyle, scriptsLoaded, mapError, viewerReady]);
 
+  // Dynamic Depth Test toggle to resolve billboard clipping vs premium 3D occlusion
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    
+    // Enable depth testing ONLY for premium 3D buildings/mesh to support building occlusion.
+    // Keep it disabled for Tactical/Satellite modes to prevent curvature/ellipsoid clipping visual bugs!
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    viewer.scene.globe.depthTestAgainstTerrain = is3DActive;
+    console.log(`Cesium depthTestAgainstTerrain dynamically set to: ${is3DActive}`);
+  }, [mapMode, mapStyle, scriptsLoaded, mapError, viewerReady]);
+
   // C. Day / Night Dynamic Sunlight Shading and Terminator shadows
   useEffect(() => {
     if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
@@ -2806,6 +2839,13 @@ export default function CesiumGlobe({
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeightRef = is3DActive 
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+
     // Helper to generate a crisp, solid vector teardrop marker filled dynamically by pipeline category (no bulky white outline)
     const createTeardropCanvas = (colorHex) => {
       const canvas = document.createElement('canvas');
@@ -2888,13 +2928,15 @@ export default function CesiumGlobe({
             try {
               const entity = viewer.entities.add({
                 name: point.name,
-                position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1]),
+                position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1], targetHeight),
                 billboard: {
                   image: createTeardropCanvas(point.color),
                   width: 4, // Even smaller and cleaner
                   height: 6,
                   color: new Cesium.Color(1.0, 1.0, 1.0, 0.45), // Gorgeous translucent appearance (45% opacity)
-                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                  heightReference: targetHeightRef,
+                  disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
                 },
                 properties: {
                   isOilGas: true,
@@ -2916,7 +2958,7 @@ export default function CesiumGlobe({
     return () => {
       clearOilGas();
     };
-  }, [oilGasEnabled, scriptsLoaded, mapError, viewerReady]);
+  }, [oilGasEnabled, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);
 
   // E2. GPS Jamming & ADS-B Interference Corridors (H3 Hexagonal Grid Ingestion)
   useEffect(() => {
@@ -3030,6 +3072,13 @@ export default function CesiumGlobe({
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeightRef = is3DActive 
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+
     const clearDataCenters = () => {
       if (dataCenterEntitiesRef.current && dataCenterEntitiesRef.current.length > 0) {
         dataCenterEntitiesRef.current.forEach(entity => {
@@ -3067,11 +3116,11 @@ export default function CesiumGlobe({
           try {
             const entity = viewer.entities.add({
               name: dc.name,
-              position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat),
+              position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat, targetHeight),
               billboard: {
                 image: createCircleCanvas(nodeColor.toCssColorString(), 7, '#ffffff', 1.2),
-                heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
-                disableDepthTestDistance: 100000.0,
+                heightReference: targetHeightRef,
+                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
                 horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM
               },
@@ -3099,7 +3148,7 @@ export default function CesiumGlobe({
     return () => {
       clearDataCenters();
     };
-  }, [dataCentersEnabled, scriptsLoaded, mapError, viewerReady]);
+  }, [dataCentersEnabled, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);
 
   // E3.5 Global AI Regulations Map Layer Ingestion & Point Plotting
   useEffect(() => {
@@ -3107,6 +3156,13 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
+
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeightRef = is3DActive 
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
 
     const clearAiRegulations = () => {
       if (aiRegulationsEntitiesRef.current && aiRegulationsEntitiesRef.current.length > 0) {
@@ -3150,11 +3206,11 @@ export default function CesiumGlobe({
             const entity = viewer.entities.add({
               id: 'reg-' + item.id,
               name: item.title,
-              position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat),
+              position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, targetHeight),
               billboard: {
                 image: createCircleCanvas(statusColor, 12, '#ffffff', 1.5),
-                heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
-                disableDepthTestDistance: 100000.0,
+                heightReference: targetHeightRef,
+                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
                 horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM
               },
@@ -3184,7 +3240,7 @@ export default function CesiumGlobe({
     return () => {
       clearAiRegulations();
     };
-  }, [aiRegulationsEnabled, scriptsLoaded, mapError, viewerReady, regulationsUpdateTrigger]);
+  }, [aiRegulationsEnabled, scriptsLoaded, mapError, viewerReady, regulationsUpdateTrigger, mapMode, mapStyle]);
 
   // F. Undersea Internet Fiber Optic Cables (TeleGeography Submarine Cable API)
   useEffect(() => {
@@ -3192,6 +3248,13 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
+
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeightRef = is3DActive 
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
 
     const clearCables = () => {
       if (cableEntitiesRef.current && cableEntitiesRef.current.length > 0) {
@@ -3273,11 +3336,11 @@ export default function CesiumGlobe({
             try {
               const entity = viewer.entities.add({
                 name: properties.name,
-                position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1]),
+                position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1], targetHeight),
                 billboard: {
                   image: createCircleCanvas('rgba(168, 85, 247, 0.4)', 4, 'rgba(255, 255, 255, 0.4)', 0.5),
-                  heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND,
-                  disableDepthTestDistance: 100000.0,
+                  heightReference: targetHeightRef,
+                  disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
                   horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
                   verticalOrigin: Cesium.VerticalOrigin.BOTTOM
                 },
@@ -3300,7 +3363,7 @@ export default function CesiumGlobe({
     return () => {
       clearCables();
     };
-  }, [internetCablesEnabled, scriptsLoaded, mapError, viewerReady]);
+  }, [internetCablesEnabled, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);
 
   // G. Power Grid & Minerals (OpenInfraMap Tiling Services)
   useEffect(() => {
@@ -3500,35 +3563,35 @@ export default function CesiumGlobe({
           }}>
             <button 
               onClick={() => {
-                if (onMapModeChange) {
-                  onMapModeChange(mapMode === '3d' ? '2d' : '3d');
+                if (onMapStyleChange) {
+                  onMapStyleChange(mapStyle === 'buildings' ? 'tactical' : 'buildings');
                 }
               }}
               style={{
                 width: '36px', height: '36px',
-                background: mapMode === '3d' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(8, 12, 24, 0.85)',
-                border: mapMode === '3d' ? '1px solid #00f0ff' : '1px solid rgba(56, 189, 248, 0.3)',
+                background: mapStyle === 'buildings' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(8, 12, 24, 0.85)',
+                border: mapStyle === 'buildings' ? '1px solid #00f0ff' : '1px solid rgba(56, 189, 248, 0.3)',
                 borderRadius: '6px',
-                color: mapMode === '3d' ? '#00f0ff' : '#38bdf8',
+                color: mapStyle === 'buildings' ? '#00f0ff' : '#38bdf8',
                 fontSize: '11px',
                 fontWeight: '800',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: mapMode === '3d' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)',
+                boxShadow: mapStyle === 'buildings' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)',
                 backdropFilter: 'blur(8px)',
                 transition: 'all 0.2s ease',
                 outline: 'none'
               }}
-              title={mapMode === '3d' ? "Switch to 2D Map" : "Enable 3D Photorealistic Buildings Mode"}
+              title={mapStyle === 'buildings' ? "Disable Premium 3D Buildings & Mesh" : "Enable Premium 3D Buildings & Mesh"}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = '#00f0ff';
                 e.currentTarget.style.color = '#ffffff';
                 e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = mapMode === '3d' ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)';
-                e.currentTarget.style.color = mapMode === '3d' ? '#00f0ff' : '#38bdf8';
-                e.currentTarget.style.boxShadow = mapMode === '3d' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)';
+                e.currentTarget.style.borderColor = mapStyle === 'buildings' ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)';
+                e.currentTarget.style.color = mapStyle === 'buildings' ? '#00f0ff' : '#38bdf8';
+                e.currentTarget.style.boxShadow = mapStyle === 'buildings' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)';
               }}
             >
               3D
@@ -3626,7 +3689,7 @@ export default function CesiumGlobe({
       )}
 
       {/* 3D Loading Overlay */}
-      {mapMode === '3d' && !tilesetLoaded && !mapError && (
+      {mapMode === '3d' && mapStyle === 'buildings' && !tilesetLoaded && !mapError && (
         <div style={{
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
