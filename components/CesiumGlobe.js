@@ -2176,7 +2176,7 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
 
     // Skip heavy entity updates if the incoming threat marker dataset and mode hasn't changed
     const repelledJson = JSON.stringify(repelledMarkers);
@@ -2844,7 +2844,7 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
 
     // Helper to generate a crisp, solid vector teardrop marker filled dynamically by pipeline category (no bulky white outline)
     const createTeardropCanvas = (colorHex) => {
@@ -3077,7 +3077,7 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
 
     const clearDataCenters = () => {
       if (dataCenterEntitiesRef.current && dataCenterEntitiesRef.current.length > 0) {
@@ -3162,7 +3162,7 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
 
     const clearAiRegulations = () => {
       if (aiRegulationsEntitiesRef.current && aiRegulationsEntitiesRef.current.length > 0) {
@@ -3254,7 +3254,7 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 100000000.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
 
     const clearCables = () => {
       if (cableEntitiesRef.current && cableEntitiesRef.current.length > 0) {
