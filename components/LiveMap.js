@@ -5,6 +5,7 @@ import { Shield, RefreshCw, User, LogOut, Heart } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
+import ChangelogBox from './ChangelogBox';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
@@ -266,6 +267,7 @@ export default function LiveMap({
   const [resetKey, setResetKey] = useState(0);
   const [showRefreshTip, setShowRefreshTip] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [visibleRssCount, setVisibleRssCount] = useState(30);
   const [visibleEventCount, setVisibleEventCount] = useState(30);
 
@@ -379,6 +381,15 @@ export default function LiveMap({
 
     window.addEventListener('operator_pref_changed', handlePrefChange);
     return () => window.removeEventListener('operator_pref_changed', handlePrefChange);
+  }, []);
+
+  // Force auto-rotate ON when page loads by default
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('operator_pref_autoRotate', 'true');
+      setAutoRotate(true);
+      window.dispatchEvent(new Event('operator_pref_changed'));
+    }
   }, []);
 
   // Handle window resizing and mobile status
@@ -937,51 +948,14 @@ export default function LiveMap({
           </div>
 
           {/* Profile User avatar (Access Control trigger) */}
-          {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* Admin CMS Button (visible only to admin users) */}
-              {currentUser.role === 'admin' && (
-                <button
-                  onClick={onOpenCms}
-                  style={{
-                    background: 'rgba(168, 85, 247, 0.08)',
-                    border: '1px solid rgba(168, 85, 247, 0.3)',
-                    color: '#a855f7',
-                    borderRadius: '4px',
-                    padding: isMobile ? '3px 6px' : '4px 8px',
-                    fontSize: isMobile ? '9px' : '10px',
-                    fontWeight: 'bold',
-                    fontFamily: 'var(--font-jetbrains-fallback)',
-                    cursor: 'pointer',
-                    letterSpacing: '0.5px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: isMobile ? '4px' : '6px',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 0 10px rgba(168, 85, 247, 0.05)',
-                    outline: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)';
-                    e.currentTarget.style.boxShadow = '0 0 12px rgba(168, 85, 247, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
-                    e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.05)';
-                  }}
-                  title="Open Content Management System"
-                >
-                  <span>⚙️</span>
-                  <span>CMS</span>
-                </button>
-              )}
-              {/* Submit Feedback / Report Bug Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {currentUser && currentUser.role === 'admin' && (
               <button
-                onClick={() => onAvatarClick('suggestions')}
+                onClick={onOpenCms}
                 style={{
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  color: '#f59e0b',
+                  background: 'rgba(168, 85, 247, 0.08)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  color: '#a855f7',
                   borderRadius: '4px',
                   padding: isMobile ? '3px 6px' : '4px 8px',
                   fontSize: isMobile ? '9px' : '10px',
@@ -993,102 +967,141 @@ export default function LiveMap({
                   alignItems: 'center',
                   gap: isMobile ? '4px' : '6px',
                   transition: 'all 0.2s',
-                  boxShadow: '0 0 10px rgba(245, 158, 11, 0.05)',
+                  boxShadow: '0 0 10px rgba(168, 85, 247, 0.05)',
                   outline: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
-                  e.currentTarget.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.2)';
+                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)';
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(168, 85, 247, 0.2)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
-                  e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.05)';
+                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
+                  e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.05)';
                 }}
-                title="Submit Suggestions & Report System Issues"
+                title="Open Content Management System"
               >
-                <span>💡</span>
-                <span>FEEDBACK</span>
+                <span>⚙️</span>
+                <span>CMS</span>
               </button>
+            )}
 
-              <div 
-                onClick={() => onAvatarClick('profile')}
+            {/* Submit Feedback / Report Bug Button - ALWAYS VISIBLE */}
+            <button
+              onClick={() => onAvatarClick('suggestions')}
+              style={{
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#f59e0b',
+                borderRadius: '4px',
+                padding: isMobile ? '3px 6px' : '4px 8px',
+                fontSize: isMobile ? '9px' : '10px',
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '4px' : '6px',
+                transition: 'all 0.2s',
+                boxShadow: '0 0 10px rgba(245, 158, 11, 0.05)',
+                outline: 'none'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.05)';
+              }}
+              title="Submit Suggestions & Report System Issues"
+            >
+              <span>💡</span>
+              <span>FEEDBACK</span>
+            </button>
+
+            {currentUser ? (
+              <>
+                <div 
+                  onClick={() => onAvatarClick('profile')}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid #10b981',
+                    borderRadius: '50%',
+                    width: '26px',
+                    height: '26px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    color: '#10b981',
+                    fontFamily: 'monospace',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  title={`Configure Settings for Operator: ${currentUser.fullName}`}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
+                    e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {currentUser.fullName.charAt(0).toUpperCase()}
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'rgba(239, 68, 68, 0.6)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px 4px',
+                    transition: 'all 0.2s'
+                  }}
+                  title="Logout Operator Session"
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}
+                >
+                  <LogOut size={12} />
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => setShowAuthModal(true)}
                 style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid #10b981',
+                  background: 'rgba(6, 182, 212, 0.08)',
+                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  color: '#06b6d4',
                   borderRadius: '50%',
                   width: '26px',
                   height: '26px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  color: '#10b981',
-                  fontFamily: 'monospace',
                   cursor: 'pointer',
+                  outline: 'none',
                   transition: 'all 0.2s'
                 }}
-                title={`Configure Settings for Operator: ${currentUser.fullName}`}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
-                  e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.3)';
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.15)';
+                  e.currentTarget.style.borderColor = '#06b6d4';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)';
                 }}
+                title="Operator Authenticate"
               >
-                {currentUser.fullName.charAt(0).toUpperCase()}
-              </div>
-              <button 
-                onClick={handleLogout}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'rgba(239, 68, 68, 0.6)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '2px 4px',
-                  transition: 'all 0.2s'
-                }}
-                title="Logout Operator Session"
-                onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}
-              >
-                <LogOut size={12} />
+                <User size={12} />
               </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => setShowAuthModal(true)}
-              style={{
-                background: 'rgba(6, 182, 212, 0.08)',
-                border: '1px solid rgba(6, 182, 212, 0.25)',
-                color: '#06b6d4',
-                borderRadius: '50%',
-                width: '26px',
-                height: '26px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                outline: 'none',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(6, 182, 212, 0.15)';
-                e.currentTarget.style.borderColor = '#06b6d4';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
-                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)';
-              }}
-              title="Operator Authenticate"
-            >
-              <User size={12} />
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
@@ -2627,6 +2640,37 @@ export default function LiveMap({
               >
                 <span style={{ fontSize: '12px' }}>☕</span> Buy Coffee
               </a>
+              <a 
+                href="https://sovdash.com/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  textDecoration: 'none',
+                  letterSpacing: '0.5px',
+                  transition: 'all 0.2s',
+                  background: 'rgba(6, 182, 212, 0.1)',
+                  color: '#06b6d4',
+                  border: '1px solid rgba(6, 182, 212, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#06b6d4';
+                  e.currentTarget.style.color = '#000000';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)';
+                  e.currentTarget.style.color = '#06b6d4';
+                }}
+              >
+                <span style={{ fontSize: '12px' }}>🌐</span> SOVDASH SALES
+              </a>
             </div>
           )}
         </div>
@@ -2669,11 +2713,35 @@ export default function LiveMap({
       <div className="map-status-bar" style={{ zIndex: 10 }}>
         <div className="status-item">
           <span className={`status-dot ${status === 'live' ? 'live' : ''}`} />
-          {status === 'live' ? 'SYSTEMS ACTIVE' : 'RECONNECTING...'}
+          {status === 'live' ? 'SECURE CHANNEL ACTIVE' : status === 'loading' ? 'CONNECTING...' : 'RECONNECTING...'}
         </div>
         <div className="status-item">
           ⚡ {displayedMarkers.length} MAP SIGNALS
         </div>
+        <div style={{ color: 'rgba(255,255,255,0.15)', display: isMobile ? 'none' : 'block' }}>|</div>
+        <button
+          onClick={() => setShowChangelog(true)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#06b6d4',
+            fontSize: '10px',
+            fontWeight: '700',
+            fontFamily: 'monospace',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'color 0.2s',
+            letterSpacing: '0.05em',
+            outline: 'none'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+          onMouseLeave={(e) => e.currentTarget.style.color = '#06b6d4'}
+        >
+          📋 CHANGELOG
+        </button>
         <div className="status-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <a 
             href="https://aviperera.com" 
@@ -2703,6 +2771,11 @@ export default function LiveMap({
       {/* Live Market Quotes Box */}
       {showMarkets && (
         <MarketQuotesBox onClose={() => setShowMarkets(false)} />
+      )}
+
+      {/* Interactive System Changelog Box */}
+      {showChangelog && (
+        <ChangelogBox onClose={() => setShowChangelog(false)} />
       )}
 
       {/* Event Detail Modal (Draggable Window) */}

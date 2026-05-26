@@ -160,6 +160,7 @@ export default function DashboardPage() {
           handleLogout={handleLogout}
           initialTab={accountModalTab}
           prefilledSuggestion={prefilledSuggestion}
+          onOpenAuth={() => { setShowAccountModal(false); setShowAuthModal(true); }}
         />
       )}
 

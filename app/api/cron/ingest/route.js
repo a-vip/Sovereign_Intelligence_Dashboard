@@ -80,12 +80,17 @@ export async function GET(request) {
         const decodedTitle = decodeHtmlEntities(a.title || 'Untitled');
         const geo = geocodeText(decodedTitle, a.sourcecountry || '', a.domain || null);
         
+        let ts = a.seendate || new Date().toISOString();
+        if (typeof ts === 'string' && /^\d{14}$/.test(ts)) {
+          ts = ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z');
+        }
+        
         return {
           id: generateId(a.url, decodedTitle),
           title: decodedTitle,
           url: a.url,
           source: a.domain || 'Unknown',
-          timestamp: a.seendate || new Date().toISOString(),
+          timestamp: ts,
           category: categorize(decodedTitle),
           severity: scoreSeverity(decodedTitle),
           location: geo.name,

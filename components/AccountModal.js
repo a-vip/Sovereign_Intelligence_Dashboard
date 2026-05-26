@@ -1,9 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff, MessageSquare, Globe } from 'lucide-react';
 
-export default function AccountModal({ onClose, currentUser, onAuthSuccess, handleLogout, initialTab = 'profile', prefilledSuggestion = null }) {
-  const [activeTab, setActiveTab] = useState(initialTab); // 'profile', 'security', 'system', 'suggestions'
+export default function AccountModal({ onClose, currentUser, onAuthSuccess, handleLogout, initialTab = 'profile', prefilledSuggestion = null, onOpenAuth = null }) {
+  const [activeTab, setActiveTab] = useState(() => {
+    if (!currentUser && (initialTab === 'profile' || initialTab === 'security')) {
+      return 'system';
+    }
+    return initialTab;
+  }); // 'profile', 'security', 'system', 'suggestions'
+
+  // Guest inputs for anonymous suggestion submissions
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
   
   // Step-by-step wizard states
   const [wizardType, setWizardType] = useState(''); // '', 'name', 'email', 'password'
@@ -73,8 +82,8 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
           subject: suggestionSubject,
           details: suggestionDetails,
           targetId: suggestionTargetId,
-          operatorEmail: currentUser?.email || 'unknown@sovereign.net',
-          operatorName: currentUser?.fullName || 'Anonymous Operator',
+          operatorEmail: currentUser?.email || guestEmail.trim() || 'unknown@sovereign.net',
+          operatorName: currentUser?.fullName || guestName.trim() || 'Anonymous Operator',
           screenshot: suggestionScreenshot
         })
       });
@@ -337,52 +346,56 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
             padding: '16px 8px'
           }} className="settings-sidebar">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <button
-                onClick={() => { setActiveTab('profile'); setWizardType(''); }}
-                style={{
-                  width: '100%',
-                  background: activeTab === 'profile' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
-                  border: activeTab === 'profile' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
-                  color: activeTab === 'profile' ? '#06b6d4' : '#8892a4',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <User size={13} />
-                PROFILE
-              </button>
-              <button
-                onClick={() => { setActiveTab('security'); setWizardType(''); }}
-                style={{
-                  width: '100%',
-                  background: activeTab === 'security' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
-                  border: activeTab === 'security' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
-                  color: activeTab === 'security' ? '#06b6d4' : '#8892a4',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <Key size={13} />
-                SECURITY
-              </button>
+              {currentUser && (
+                <>
+                  <button
+                    onClick={() => { setActiveTab('profile'); setWizardType(''); }}
+                    style={{
+                      width: '100%',
+                      background: activeTab === 'profile' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                      border: activeTab === 'profile' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                      color: activeTab === 'profile' ? '#06b6d4' : '#8892a4',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      letterSpacing: '0.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <User size={13} />
+                    PROFILE
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('security'); setWizardType(''); }}
+                    style={{
+                      width: '100%',
+                      background: activeTab === 'security' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                      border: activeTab === 'security' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                      color: activeTab === 'security' ? '#06b6d4' : '#8892a4',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      letterSpacing: '0.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Key size={13} />
+                    SECURITY
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => { setActiveTab('system'); setWizardType(''); }}
                 style={{
@@ -429,35 +442,76 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 <MessageSquare size={13} />
                 FEEDBACK
               </button>
+              
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
+              
+              <a
+                href="https://sovdash.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  width: '100%',
+                  background: 'rgba(6, 182, 212, 0.05)',
+                  border: '1px solid rgba(6, 182, 212, 0.2)',
+                  color: '#06b6d4',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.4)';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.05)';
+                  e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.2)';
+                  e.currentTarget.style.color = '#06b6d4';
+                }}
+              >
+                <Globe size={13} />
+                SOVDASH SALES
+              </a>
             </div>
 
             {/* Logout trigger */}
-            <button
-              onClick={() => { handleLogout(); onClose(); }}
-              className="logout-btn"
-              style={{
-                width: '100%',
-                background: 'rgba(239, 68, 68, 0.05)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                color: '#ef4444',
-                borderRadius: '6px',
-                padding: '8px 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
-            >
-              <LogOut size={13} />
-              <span className="logout-text">LOGOUT</span>
-            </button>
+            {currentUser && (
+              <button
+                onClick={() => { handleLogout(); onClose(); }}
+                className="logout-btn"
+                style={{
+                  width: '100%',
+                  background: 'rgba(239, 68, 68, 0.05)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: '#ef4444',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+              >
+                <LogOut size={13} />
+                <span className="logout-text">LOGOUT</span>
+              </button>
+            )}
           </div>
 
           {/* Main Option Panel */}
@@ -829,6 +883,55 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       </p>
                     </div>
 
+                    {!currentUser && (
+                      <div style={{
+                        background: 'rgba(6, 182, 212, 0.05)',
+                        border: '1px solid rgba(6, 182, 212, 0.2)',
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        boxShadow: '0 0 15px rgba(6, 182, 212, 0.05)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <ShieldAlert size={14} style={{ color: '#06b6d4' }} />
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                            Anonymous Session Active
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '10px', color: '#8892a4', margin: 0, lineHeight: '1.4' }}>
+                          You are currently submitting feedback anonymously. To track operator credentials, receive developer responses, and unlock all advanced features, consider registering a secure account.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onOpenAuth) onOpenAuth();
+                            else onClose();
+                          }}
+                          style={{
+                            alignSelf: 'flex-start',
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            border: '1px solid #06b6d4',
+                            color: '#06b6d4',
+                            borderRadius: '4px',
+                            padding: '4px 10px',
+                            fontSize: '9px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            transition: 'all 0.2s',
+                            outline: 'none'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(6, 182, 212, 0.2)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)'}
+                        >
+                          [⚡ Secure Sign Up]
+                        </button>
+                      </div>
+                    )}
+
                     {successSuggestions ? (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
                         <Check size={32} style={{ color: '#10b981', marginBottom: '12px' }} />
@@ -867,6 +970,8 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                               setSuggestionDetails('');
                               setSuggestionTargetId('');
                               setSuggestionScreenshot(null);
+                              setGuestName('');
+                              setGuestEmail('');
                             }}
                             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '6px', padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
@@ -882,6 +987,31 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                           <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '10px 12px', color: '#ef4444', fontSize: '11px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                             <ShieldAlert size={14} />
                             <span>{errorSuggestions}</span>
+                          </div>
+                        )}
+
+                        {!currentUser && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Your Name (Optional)</label>
+                              <input
+                                type="text"
+                                placeholder="Anonymous Operator"
+                                value={guestName}
+                                onChange={(e) => setGuestName(e.target.value)}
+                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Your Email (Optional)</label>
+                              <input
+                                type="email"
+                                placeholder="unknown@sovereign.net"
+                                value={guestEmail}
+                                onChange={(e) => setGuestEmail(e.target.value)}
+                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                              />
+                            </div>
                           </div>
                         )}
 
