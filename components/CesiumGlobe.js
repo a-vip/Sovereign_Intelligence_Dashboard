@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
-const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+const GOOGLE_API_KEY = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '').replace(/['"]/g, '');
 
 const FAMOUS_LANDMARKS = [
   {
@@ -500,6 +500,37 @@ export default function CesiumGlobe({
   useEffect(() => {
     selectedSkyscraperRef.current = selectedSkyscraper;
   }, [selectedSkyscraper]);
+
+  const [targetPos, setTargetPos] = useState({ x: 0, y: 0 });
+  const [isDraggingTarget, setIsDraggingTarget] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    setTargetPos({ x: 0, y: 0 });
+  }, [selectedSkyscraper]);
+
+  useEffect(() => {
+    if (!isDraggingTarget) return;
+
+    const handleMouseMove = (e) => {
+      setTargetPos({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingTarget(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingTarget]);
 
   const [nearbyLandmark, setNearbyLandmark] = useState(null);
 
@@ -2093,8 +2124,11 @@ export default function CesiumGlobe({
 
       const updateAltitude = () => {
         try {
-          if (viewer && viewer.camera && viewer.camera.positionCartographic) {
-            setCameraAltitude(viewer.camera.positionCartographic.height);
+          if (viewer && viewer.camera && viewer.camera.position) {
+            const cartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+            if (cartographic) {
+              setCameraAltitude(cartographic.height);
+            }
           }
         } catch (e) {
           console.warn("Failed to get camera altitude:", e);
@@ -3972,10 +4006,23 @@ export default function CesiumGlobe({
           color: '#ffffff',
           boxShadow: '0 12px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 240, 255, 0.25)',
           backdropFilter: 'blur(16px)',
-          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: isDraggingTarget ? 'none' : 'transform 0.15s ease-out',
           pointerEvents: 'auto',
+          transform: `translate(${targetPos.x}px, ${targetPos.y}px)`,
+          cursor: isMobile ? 'default' : (isDraggingTarget ? 'grabbing' : 'grab'),
           animation: 'slideUp 0.3s ease-out'
-        }}>
+        }}
+        onMouseDown={(e) => {
+          if (isMobile) return;
+          const isButton = e.target.tagName.toLowerCase() === 'button' || e.target.closest('button');
+          if (isButton) return;
+          setIsDraggingTarget(true);
+          dragStartRef.current = {
+            x: e.clientX - targetPos.x,
+            y: e.clientY - targetPos.y
+          };
+        }}
+        >
           <style>{`
             @keyframes slideUp {
               from { transform: translateY(20px); opacity: 0; }
