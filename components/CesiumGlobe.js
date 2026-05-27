@@ -519,16 +519,29 @@ export default function CesiumGlobe({
       });
     };
 
+    const handleTouchMove = (e) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      setTargetPos({
+        x: touch.clientX - dragStartRef.current.x,
+        y: touch.clientY - dragStartRef.current.y
+      });
+    };
+
     const handleMouseUp = () => {
       setIsDraggingTarget(false);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
     };
   }, [isDraggingTarget]);
 
@@ -830,6 +843,57 @@ export default function CesiumGlobe({
       }
     });
 
+    // Decoupled beautiful tactical scanning dome / sensor envelope
+    const domeRadius = Math.max(landmark.boxDimensions.x, landmark.boxDimensions.y) * 1.5;
+    viewer.entities.add({
+      id: `selected-skyscraper-dome`,
+      position: centerPosition,
+      ellipsoid: {
+        radii: new Cesium.Cartesian3(domeRadius, domeRadius, landmark.height * 0.8),
+        material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.08)'),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.35)'),
+        outlineWidth: 1.5
+      }
+    });
+
+    // Add tactical floating sensor point cloud nodes
+    const numNodes = 4;
+    for (let i = 0; i < numNodes; i++) {
+      const angle = (i * 2 * Math.PI) / numNodes;
+      const radius = domeRadius * 1.35;
+      const xOffset = radius * Math.cos(angle);
+      const yOffset = radius * Math.sin(angle);
+      
+      const nodeLon = landmark.lon + xOffset / 111000;
+      const nodeLat = landmark.lat + yOffset / (111000 * Math.cos(Cesium.Math.toRadians(landmark.lat)));
+      const nodeHeight = landmark.height * (0.35 + i * 0.15);
+
+      const nodePos = Cesium.Cartesian3.fromDegrees(nodeLon, nodeLat, nodeHeight);
+
+      viewer.entities.add({
+        id: `selected-skyscraper-node-${i}`,
+        position: nodePos,
+        ellipsoid: {
+          radii: new Cesium.Cartesian3(6, 6, 6),
+          material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)'),
+          outline: true,
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 1
+        },
+        label: {
+          text: `NODE-0${i+1} [SCANNING...]`,
+          font: 'bold 7pt monospace',
+          fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          pixelOffset: new Cesium.Cartesian2(0, -12),
+          showBackground: true,
+          backgroundColor: Cesium.Color.fromCssColorString('#020d1a').withAlpha(0.85)
+        }
+      });
+    }
+
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(
         landmark.lon - 0.0025, 
@@ -854,6 +918,14 @@ export default function CesiumGlobe({
         viewer.entities.remove(selectionEntityRef.current);
         selectionEntityRef.current = null;
       }
+      try {
+        const dome = viewer.entities.getById('selected-skyscraper-dome');
+        if (dome) viewer.entities.remove(dome);
+        for (let i = 0; i < 4; i++) {
+          const node = viewer.entities.getById(`selected-skyscraper-node-${i}`);
+          if (node) viewer.entities.remove(node);
+        }
+      } catch (e) {}
     }
   };
 
@@ -2187,7 +2259,7 @@ export default function CesiumGlobe({
     }
   }, [mapError, scriptsLoaded]);
 
-  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode, Viewport Style, and Camera Altitude
+  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode, Viewport Style, Camera Altitude, and Target Acquisition
   useEffect(() => {
     if (!scriptsLoaded || mapError || !viewerRef.current) return;
     
@@ -2197,7 +2269,7 @@ export default function CesiumGlobe({
 
     const isBuildingsStyle = mapMode === '3d' && mapStyle === 'buildings';
     const isCloseUp = cameraAltitude < 18000;
-    const shouldShow3d = isBuildingsStyle && isCloseUp;
+    const shouldShow3d = (isBuildingsStyle || selectedSkyscraper !== null) && isCloseUp;
 
     if (shouldShow3d) {
       // Toggle 3D buildings overlay on
@@ -2234,11 +2306,8 @@ export default function CesiumGlobe({
           });
         };
 
-        if (!GOOGLE_API_KEY) {
-          console.log("No Google Maps API Key found. Loading Cesium OSM Buildings fallback directly...");
-          loadOsmFallback();
-        } else {
-          console.log("Dynamically loading Google Photorealistic 3D Tileset overlay...");
+        const loadGoogleTilesetViaUrl = () => {
+          console.log("Attempting Google 3D Tileset load via URL...");
           const googleTilesUrl = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`;
           Cesium.Cesium3DTileset.fromUrl(googleTilesUrl, {
             showCreditsOnScreen: true,
@@ -2255,11 +2324,38 @@ export default function CesiumGlobe({
             
             setTilesetLoaded(true);
             setTilesetLoadingStatus('loaded');
-            console.log("Google 3D Tileset loaded successfully.");
+            console.log("Google 3D Tileset loaded successfully via URL.");
           }).catch(err => {
-            console.error("Google 3D Tileset load failed. Switching to OSM fallback:", err);
+            console.error("Google 3D Tileset load via URL failed. Switching to OSM fallback:", err);
             loadOsmFallback();
           });
+        };
+
+        if (!GOOGLE_API_KEY) {
+          console.log("No Google Maps API Key found. Loading Cesium OSM Buildings fallback directly...");
+          loadOsmFallback();
+        } else {
+          console.log("Dynamically loading Google Photorealistic 3D Tileset overlay via Cesium helper...");
+          Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
+          
+          if (typeof Cesium.createGooglePhotorealistic3DTileset === 'function') {
+            Cesium.createGooglePhotorealistic3DTileset().then(tileset => {
+              if (!viewerRef.current || viewer.isDestroyed?.()) return;
+
+              viewer.scene.primitives.add(tileset);
+              tilesetRef.current = tileset;
+              tileset.show = true;
+              
+              setTilesetLoaded(true);
+              setTilesetLoadingStatus('loaded');
+              console.log("Google 3D Tileset loaded successfully via createGooglePhotorealistic3DTileset.");
+            }).catch(err => {
+              console.error("Google 3D Tileset helper load failed. Retrying via URL...", err);
+              loadGoogleTilesetViaUrl();
+            });
+          } else {
+            loadGoogleTilesetViaUrl();
+          }
         }
       }
     } else {
@@ -2268,7 +2364,7 @@ export default function CesiumGlobe({
         tilesetRef.current.show = false;
       }
     }
-  }, [mapMode, mapStyle, cameraAltitude, tilesetLoadingStatus, mapError, scriptsLoaded]);
+  }, [mapMode, mapStyle, cameraAltitude, selectedSkyscraper, tilesetLoadingStatus, mapError, scriptsLoaded]);
 
   // 5. Update threat markers on Cesium Globe
   useEffect(() => {
@@ -4044,10 +4140,21 @@ export default function CesiumGlobe({
               if (isMobile) return;
               const isButton = e.target.tagName.toLowerCase() === 'button' || e.target.closest('button');
               if (isButton) return;
+              e.preventDefault(); // Stop native text selection / browser dragging
               setIsDraggingTarget(true);
               dragStartRef.current = {
                 x: e.clientX - targetPos.x,
                 y: e.clientY - targetPos.y
+              };
+            }}
+            onTouchStart={(e) => {
+              const isButton = e.target.tagName.toLowerCase() === 'button' || e.target.closest('button');
+              if (isButton) return;
+              const touch = e.touches[0];
+              setIsDraggingTarget(true);
+              dragStartRef.current = {
+                x: touch.clientX - targetPos.x,
+                y: touch.clientY - targetPos.y
               };
             }}
           >
