@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Shield, RefreshCw, User, LogOut, Heart } from 'lucide-react';
+import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
@@ -268,6 +268,16 @@ export default function LiveMap({
   const [showRefreshTip, setShowRefreshTip] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const handleShareDashboard = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      // Default to sharing the deployed dashboard landing/main URL
+      navigator.clipboard.writeText('https://sovereign-intelligence-dashboard.vercel.app/');
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    }
+  };
   const [visibleRssCount, setVisibleRssCount] = useState(30);
   const [visibleEventCount, setVisibleEventCount] = useState(30);
 
@@ -2532,17 +2542,17 @@ export default function LiveMap({
                 bottom: '42px',
                 right: '50%',
                 transform: 'translateX(50%)',
-                width: '190px',
-                background: 'rgba(8, 12, 24, 0.96)',
-                border: '1px solid rgba(236, 72, 153, 0.3)',
-                borderRadius: '8px',
-                padding: '10px',
-                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(236, 72, 153, 0.15)',
+                width: '260px',
+                background: 'rgba(8, 12, 24, 0.98)',
+                border: '1px solid rgba(236, 72, 153, 0.35)',
+                borderRadius: '10px',
+                padding: '12px',
+                boxShadow: '0 15px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(236, 72, 153, 0.18)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: '10px',
                 zIndex: 1003,
-                backdropFilter: 'blur(12px)',
+                backdropFilter: 'blur(16px)',
                 animation: 'fadeIn 0.15s ease-out'
               }}
             >
@@ -2551,19 +2561,19 @@ export default function LiveMap({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottom: '1px solid rgba(236, 72, 153, 0.2)',
-                paddingBottom: '6px',
+                borderBottom: '1px solid rgba(236, 72, 153, 0.25)',
+                paddingBottom: '8px',
                 marginBottom: '2px',
                 width: '100%'
               }}>
-                <span style={{ fontSize: '9px', fontWeight: '800', color: '#ec4899', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
-                  SUPPORT CREATOR
+                <span style={{ fontSize: '9.5px', fontWeight: '800', color: '#ec4899', fontFamily: 'monospace', letterSpacing: '0.8px' }}>
+                  SOVDASH COMMONS Hub
                 </span>
                 <span 
                   onClick={(e) => { e.stopPropagation(); setShowSupportDropdown(false); }}
                   style={{
                     cursor: 'pointer',
-                    color: 'rgba(236, 72, 153, 0.6)',
+                    color: 'rgba(236, 72, 153, 0.65)',
                     fontWeight: 'bold',
                     fontSize: '14px',
                     lineHeight: '1',
@@ -2571,106 +2581,306 @@ export default function LiveMap({
                     transition: 'color 0.2s ease'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(236, 72, 153, 0.6)'}
-                  title="Close Support Menu"
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(236, 72, 153, 0.65)'}
+                  title="Close Support Hub"
                 >
                   ×
                 </span>
               </div>
 
-              <a 
-                href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  textDecoration: 'none',
-                  letterSpacing: '0.5px',
-                  transition: 'all 0.2s',
-                  background: 'rgba(255, 66, 77, 0.1)',
-                  color: '#ff424d',
-                  border: '1px solid rgba(255, 66, 77, 0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#ff424d';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 66, 77, 0.1)';
-                  e.currentTarget.style.color = '#ff424d';
-                }}
-              >
-                <span style={{ fontSize: '12px' }}>⚡</span> Patreon
-              </a>
-              <a 
-                href="https://buymeacoffee.com/avip" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  textDecoration: 'none',
-                  letterSpacing: '0.5px',
-                  transition: 'all 0.2s',
-                  background: 'rgba(255, 221, 0, 0.1)',
-                  color: '#ffdd00',
-                  border: '1px solid rgba(255, 221, 0, 0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#ffdd00';
-                  e.currentTarget.style.color = '#000000';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 221, 0, 0.1)';
-                  e.currentTarget.style.color = '#ffdd00';
-                }}
-              >
-                <span style={{ fontSize: '12px' }}>☕</span> Buy Coffee
-              </a>
-              <a 
-                href="https://sovdash.com/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  textDecoration: 'none',
-                  letterSpacing: '0.5px',
-                  transition: 'all 0.2s',
-                  background: 'rgba(6, 182, 212, 0.1)',
-                  color: '#06b6d4',
-                  border: '1px solid rgba(6, 182, 212, 0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#06b6d4';
-                  e.currentTarget.style.color = '#000000';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)';
-                  e.currentTarget.style.color = '#06b6d4';
-                }}
-              >
-                <span style={{ fontSize: '12px' }}>🌐</span> SOVDASH SALES
-              </a>
+              {/* SECTION 1: Community Channels */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
+                  🌐 COMMUNITY CHANNELS
+                </span>
+                <a 
+                  href="https://sovdash.com/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                    letterSpacing: '0.8px',
+                    transition: 'all 0.2s',
+                    background: 'rgba(6, 182, 212, 0.08)',
+                    color: '#06b6d4',
+                    border: '1px solid rgba(6, 182, 212, 0.25)',
+                    boxShadow: '0 0 10px rgba(6, 182, 212, 0.05)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#06b6d4';
+                    e.currentTarget.style.color = '#000000';
+                    e.currentTarget.style.boxShadow = '0 0 15px rgba(6, 182, 212, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
+                    e.currentTarget.style.color = '#06b6d4';
+                    e.currentTarget.style.boxShadow = '0 0 10px rgba(6, 182, 212, 0.05)';
+                  }}
+                >
+                  <Globe size={13} />
+                  VISIT SOVDASH.COM
+                </a>
+
+                {/* Horizontal Social Media Icons Grid */}
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', marginTop: '2px' }}>
+                  {/* Twitter/X */}
+                  <a 
+                    href="https://x.com/SovDash"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '7px',
+                      borderRadius: '6px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      color: '#cbd5e1',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(29, 161, 242, 0.1)';
+                      e.currentTarget.style.borderColor = '#1da1f2';
+                      e.currentTarget.style.color = '#1da1f2';
+                      e.currentTarget.style.boxShadow = '0 0 10px rgba(29, 161, 242, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = '#cbd5e1';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    title="Follow SovDash on X (Twitter)"
+                  >
+                    <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                  </a>
+                  {/* LinkedIn */}
+                  <a 
+                    href="https://www.linkedin.com/company/sovdash"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '7px',
+                      borderRadius: '6px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      color: '#cbd5e1',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(10, 102, 194, 0.1)';
+                      e.currentTarget.style.borderColor = '#0a66c2';
+                      e.currentTarget.style.color = '#0a66c2';
+                      e.currentTarget.style.boxShadow = '0 0 10px rgba(10, 102, 194, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = '#cbd5e1';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    title="Connect on LinkedIn"
+                  >
+                    <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/>
+                    </svg>
+                  </a>
+                  {/* Facebook */}
+                  <a 
+                    href="https://www.facebook.com/sovdash"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '7px',
+                      borderRadius: '6px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      color: '#cbd5e1',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(8, 102, 255, 0.1)';
+                      e.currentTarget.style.borderColor = '#0866ff';
+                      e.currentTarget.style.color = '#0866ff';
+                      e.currentTarget.style.boxShadow = '0 0 10px rgba(8, 102, 255, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = '#cbd5e1';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    title="Like us on Facebook"
+                  >
+                    <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '2px 0' }} />
+
+              {/* SECTION 2: Share Platform */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
+                  ⚡ INVITATION LINK
+                </span>
+                <button 
+                  onClick={handleShareDashboard}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                    background: shareCopied ? 'rgba(34, 197, 94, 0.12)' : 'rgba(168, 85, 247, 0.08)',
+                    color: shareCopied ? '#22c55e' : '#a855f7',
+                    border: shareCopied ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(168, 85, 247, 0.25)',
+                    boxShadow: shareCopied ? '0 0 12px rgba(34, 197, 94, 0.1)' : '0 0 10px rgba(168, 85, 247, 0.05)',
+                    outline: 'none',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!shareCopied) {
+                      e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)';
+                      e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                      e.currentTarget.style.color = '#c084fc';
+                      e.currentTarget.style.boxShadow = '0 0 15px rgba(168, 85, 247, 0.2)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!shareCopied) {
+                      e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
+                      e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.25)';
+                      e.currentTarget.style.color = '#a855f7';
+                      e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.05)';
+                    }
+                  }}
+                >
+                  {shareCopied ? (
+                    <>
+                      <Check size={13} />
+                      LINK COPIED!
+                    </>
+                  ) : (
+                    <>
+                      <Share2 size={13} />
+                      SHARE DASHBOARD
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '2px 0' }} />
+
+              {/* SECTION 3: Creator Support Patronage */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
+                  ❤️ PATRONAGE & FUNDING
+                </span>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                  {/* Patreon */}
+                  <a 
+                    href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      padding: '8px 4px',
+                      borderRadius: '6px',
+                      fontSize: '9.5px',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      textDecoration: 'none',
+                      letterSpacing: '0.2px',
+                      transition: 'all 0.2s',
+                      background: 'rgba(255, 66, 77, 0.08)',
+                      color: '#ff424d',
+                      border: '1px solid rgba(255, 66, 77, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#ff424d';
+                      e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.boxShadow = '0 0 12px rgba(255, 66, 77, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 66, 77, 0.08)';
+                      e.currentTarget.style.color = '#ff424d';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <span style={{ fontSize: '10px' }}>⚡</span> Patreon
+                  </a>
+                  {/* Buy Coffee */}
+                  <a 
+                    href="https://buymeacoffee.com/avip" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      padding: '8px 4px',
+                      borderRadius: '6px',
+                      fontSize: '9.5px',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      textDecoration: 'none',
+                      letterSpacing: '0.2px',
+                      transition: 'all 0.2s',
+                      background: 'rgba(255, 221, 0, 0.08)',
+                      color: '#ffdd00',
+                      border: '1px solid rgba(255, 221, 0, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#ffdd00';
+                      e.currentTarget.style.color = '#000000';
+                      e.currentTarget.style.boxShadow = '0 0 12px rgba(255, 221, 0, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 221, 0, 0.08)';
+                      e.currentTarget.style.color = '#ffdd00';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <span style={{ fontSize: '10px' }}>☕</span> Coffee
+                  </a>
+                </div>
+              </div>
             </div>
           )}
         </div>
