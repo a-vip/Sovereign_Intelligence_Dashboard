@@ -489,6 +489,7 @@ export default function CesiumGlobe({
   }, []);
 
   const [viewerReady, setViewerReady] = useState(false);
+  const [cameraAltitude, setCameraAltitude] = useState(10000000);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
   const [showLegend, setShowLegend] = useState(true);
@@ -2090,6 +2091,20 @@ export default function CesiumGlobe({
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+      const updateAltitude = () => {
+        try {
+          if (viewer && viewer.camera && viewer.camera.positionCartographic) {
+            setCameraAltitude(viewer.camera.positionCartographic.height);
+          }
+        } catch (e) {
+          console.warn("Failed to get camera altitude:", e);
+        }
+      };
+      updateAltitude();
+      
+      viewer.camera.changed.addEventListener(updateAltitude);
+      viewer.camera.moveEnd.addEventListener(updateAltitude);
+
       viewerRef.current = viewer;
       setViewerReady(true);
       
@@ -2100,6 +2115,14 @@ export default function CesiumGlobe({
       // Clean up on unmount
       return () => {
         handler.destroy();
+        try {
+          if (viewer && viewer.camera) {
+            viewer.camera.changed.removeEventListener(updateAltitude);
+            viewer.camera.moveEnd.removeEventListener(updateAltitude);
+          }
+        } catch (e) {
+          console.warn("Failed to clean up camera listeners:", e);
+        }
         if (viewerRef.current) {
           viewerRef.current.destroy();
           viewerRef.current = null;
@@ -2115,7 +2138,7 @@ export default function CesiumGlobe({
     }
   }, [mapError, scriptsLoaded]);
 
-  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode or Viewport Style
+  // 4. Handle Google 3D Tileset loading and visibility based on Map Mode, Viewport Style, and Camera Altitude
   useEffect(() => {
     if (!scriptsLoaded || mapError || !viewerRef.current) return;
     
@@ -2123,38 +2146,72 @@ export default function CesiumGlobe({
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
-    const shouldShow3d = mapMode === '3d' && mapStyle === 'buildings';
+    const isBuildingsStyle = mapMode === '3d' && mapStyle === 'buildings';
+    const isCloseUp = cameraAltitude < 18000;
+    const shouldShow3d = isBuildingsStyle && isCloseUp;
 
     if (shouldShow3d) {
       // Toggle 3D buildings overlay on
       if (tilesetRef.current) {
         tilesetRef.current.show = true;
-      } else if (tilesetLoadingStatus === 'idle') {
+      } else if (tilesetLoadingStatus === 'idle' || tilesetLoadingStatus === 'error') {
         setTilesetLoadingStatus('loading');
         setTilesetLoaded(false);
-        console.log("Dynamically loading Google Photorealistic 3D Tileset overlay...");
 
-        const googleTilesUrl = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`;
-        Cesium.Cesium3DTileset.fromUrl(googleTilesUrl, {
-          showCreditsOnScreen: true,
-          maximumMemoryUsage: 128,
-          skipLevelOfDetail: true,
-          cullRequestsWithCheckIfSelected: true,
-          cullWithSSEBox: true
-        }).then(tileset => {
-          if (!viewerRef.current || viewer.isDestroyed()) return;
+        const loadOsmFallback = () => {
+          console.log("Attempting fallback to Cesium OSM Buildings...");
+          Cesium.createOsmBuildingsAsync().then(osmTileset => {
+            if (!viewerRef.current || viewer.isDestroyed?.()) return;
 
-          viewer.scene.primitives.add(tileset);
-          tilesetRef.current = tileset;
-          tileset.show = true;
-          
-          setTilesetLoaded(true);
-          setTilesetLoadingStatus('loaded');
-          console.log("Google 3D Tileset loaded successfully.");
-        }).catch(err => {
-          console.error("Google 3D Tileset load failed:", err);
-          setTilesetLoadingStatus('error');
-        });
+            // Apply cyber-aesthetic styling
+            osmTileset.style = new Cesium.Cesium3DTileStyle({
+              color: {
+                conditions: [
+                  ['true', "color('rgba(0, 240, 255, 0.35)')"]
+                ]
+              }
+            });
+
+            viewer.scene.primitives.add(osmTileset);
+            tilesetRef.current = osmTileset;
+            osmTileset.show = true;
+            
+            setTilesetLoaded(true);
+            setTilesetLoadingStatus('loaded');
+            console.log("Cesium OSM Buildings loaded successfully.");
+          }).catch(osmErr => {
+            console.error("Cesium OSM Buildings fallback failed:", osmErr);
+            setTilesetLoadingStatus('error');
+          });
+        };
+
+        if (!GOOGLE_API_KEY) {
+          console.log("No Google Maps API Key found. Loading Cesium OSM Buildings fallback directly...");
+          loadOsmFallback();
+        } else {
+          console.log("Dynamically loading Google Photorealistic 3D Tileset overlay...");
+          const googleTilesUrl = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`;
+          Cesium.Cesium3DTileset.fromUrl(googleTilesUrl, {
+            showCreditsOnScreen: true,
+            maximumMemoryUsage: 128,
+            skipLevelOfDetail: true,
+            cullRequestsWithCheckIfSelected: true,
+            cullWithSSEBox: true
+          }).then(tileset => {
+            if (!viewerRef.current || viewer.isDestroyed?.()) return;
+
+            viewer.scene.primitives.add(tileset);
+            tilesetRef.current = tileset;
+            tileset.show = true;
+            
+            setTilesetLoaded(true);
+            setTilesetLoadingStatus('loaded');
+            console.log("Google 3D Tileset loaded successfully.");
+          }).catch(err => {
+            console.error("Google 3D Tileset load failed. Switching to OSM fallback:", err);
+            loadOsmFallback();
+          });
+        }
       }
     } else {
       // Toggle 3D buildings overlay off
@@ -2162,7 +2219,7 @@ export default function CesiumGlobe({
         tilesetRef.current.show = false;
       }
     }
-  }, [mapMode, mapStyle, tilesetLoadingStatus, mapError, scriptsLoaded]);
+  }, [mapMode, mapStyle, cameraAltitude, tilesetLoadingStatus, mapError, scriptsLoaded]);
 
   // 5. Update threat markers on Cesium Globe
   useEffect(() => {
@@ -3686,6 +3743,39 @@ export default function CesiumGlobe({
             </div>
           )}
         </>
+      )}
+
+      {/* 3D Zoom Reminder overlay */}
+      {!mapError && mapMode === '3d' && mapStyle === 'buildings' && cameraAltitude >= 18000 && (
+        <div style={{
+          position: 'absolute',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10,
+          background: 'rgba(8, 12, 24, 0.9)',
+          border: '1px solid #00f0ff',
+          boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)',
+          borderRadius: '6px',
+          padding: '10px 18px',
+          fontFamily: 'Courier New, monospace',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          color: '#00f0ff',
+          letterSpacing: '0.1em',
+          pointerEvents: 'none',
+          textAlign: 'center',
+          backdropFilter: 'blur(8px)',
+          animation: 'hudPulse 2s infinite ease-in-out'
+        }}>
+          <style>{`
+            @keyframes hudPulse {
+              0%, 100% { opacity: 1; border-color: #00f0ff; box-shadow: 0 0 15px rgba(0, 240, 255, 0.4); }
+              50% { opacity: 0.65; border-color: rgba(0, 240, 255, 0.4); box-shadow: 0 0 6px rgba(0, 240, 255, 0.1); }
+            }
+          `}</style>
+          [3D URBAN MESH STANDBY // ZOOM CLOSE TO ENGAGE DETAILED RADAR SCANNING]
+        </div>
       )}
 
       {/* 3D Loading Overlay */}
