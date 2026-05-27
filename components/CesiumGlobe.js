@@ -2122,19 +2122,34 @@ export default function CesiumGlobe({
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+      let lastIsCloseUp = false;
       const updateAltitude = () => {
         try {
           if (viewer && viewer.camera && viewer.camera.position) {
             const cartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position);
             if (cartographic) {
-              setCameraAltitude(cartographic.height);
+              const height = cartographic.height;
+              const isCloseUp = height < 18000;
+              if (isCloseUp !== lastIsCloseUp) {
+                lastIsCloseUp = isCloseUp;
+                setCameraAltitude(height);
+              }
             }
           }
         } catch (e) {
           console.warn("Failed to get camera altitude:", e);
         }
       };
-      updateAltitude();
+      // Initial trigger
+      try {
+        if (viewer && viewer.camera && viewer.camera.position) {
+          const cartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+          if (cartographic) {
+            lastIsCloseUp = cartographic.height < 18000;
+            setCameraAltitude(cartographic.height);
+          }
+        }
+      } catch (e) {}
       
       viewer.camera.changed.addEventListener(updateAltitude);
       viewer.camera.moveEnd.addEventListener(updateAltitude);
@@ -3998,37 +4013,44 @@ export default function CesiumGlobe({
           left: isMobile ? '12px' : '24px',
           width: isMobile ? 'calc(100% - 24px)' : '380px',
           zIndex: 1000,
-          background: 'rgba(5, 11, 28, 0.85)',
-          border: '1px solid #00f0ff',
-          borderRadius: '10px',
-          padding: '16px',
-          fontFamily: 'Courier New, monospace',
-          color: '#ffffff',
-          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 240, 255, 0.25)',
-          backdropFilter: 'blur(16px)',
-          transition: isDraggingTarget ? 'none' : 'transform 0.15s ease-out',
-          pointerEvents: 'auto',
-          transform: `translate(${targetPos.x}px, ${targetPos.y}px)`,
-          cursor: isMobile ? 'default' : (isDraggingTarget ? 'grabbing' : 'grab'),
+          pointerEvents: 'none',
           animation: 'slideUp 0.3s ease-out'
-        }}
-        onMouseDown={(e) => {
-          if (isMobile) return;
-          const isButton = e.target.tagName.toLowerCase() === 'button' || e.target.closest('button');
-          if (isButton) return;
-          setIsDraggingTarget(true);
-          dragStartRef.current = {
-            x: e.clientX - targetPos.x,
-            y: e.clientY - targetPos.y
-          };
-        }}
-        >
+        }}>
           <style>{`
             @keyframes slideUp {
               from { transform: translateY(20px); opacity: 0; }
               to { transform: translateY(0); opacity: 1; }
             }
           `}</style>
+
+          {/* Inner Draggable Container */}
+          <div 
+            style={{
+              width: '100%',
+              background: 'rgba(5, 11, 28, 0.85)',
+              border: '1px solid #00f0ff',
+              borderRadius: '10px',
+              padding: '16px',
+              fontFamily: 'Courier New, monospace',
+              color: '#ffffff',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 240, 255, 0.25)',
+              backdropFilter: 'blur(16px)',
+              transition: isDraggingTarget ? 'none' : 'transform 0.15s ease-out',
+              pointerEvents: 'auto',
+              transform: `translate(${targetPos.x}px, ${targetPos.y}px)`,
+              cursor: isMobile ? 'default' : (isDraggingTarget ? 'grabbing' : 'grab')
+            }}
+            onMouseDown={(e) => {
+              if (isMobile) return;
+              const isButton = e.target.tagName.toLowerCase() === 'button' || e.target.closest('button');
+              if (isButton) return;
+              setIsDraggingTarget(true);
+              dragStartRef.current = {
+                x: e.clientX - targetPos.x,
+                y: e.clientY - targetPos.y
+              };
+            }}
+          >
 
           <div style={{
             display: 'flex',
@@ -4157,6 +4179,7 @@ export default function CesiumGlobe({
             </button>
           </div>
         </div>
+      </div>
       )}
 
       <style>{`
