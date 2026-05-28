@@ -1396,12 +1396,12 @@
     "title": "Green flood alert in China",
     "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103883",
     "source": "GDACS Disasters",
-    "timestamp": "2026-05-23T11:59:12.798976",
+    "timestamp": "2026-05-17T09:35:32Z",
     "lat": null,
     "lon": null,
     "location": "Global",
     "details": {
-      "summary": "On 15/05/2026, a flood started in China, lasting until 19/05/2026 (last update). The flood caused 8 deaths and 18542 displaced ."
+      "summary": "On 15/05/2026, a flood started in China, lasting until 26/05/2026 (last update). The flood caused 18 deaths and 22912 displaced ."
     },
     "category": "Disaster",
     "severity": 1,
@@ -1481,7 +1481,7 @@
     "lon": null,
     "location": "Global",
     "details": {
-      "summary": "On 13/05/2026, a flood started in Thailand, lasting until 23/05/2026 (last update). The flood caused 0 deaths and 0 displaced ."
+      "summary": "On 13/05/2026, a flood started in Thailand, lasting until 26/05/2026 (last update). The flood caused 0 deaths and 3 displaced ."
     },
     "category": "Disaster",
     "severity": 1,
@@ -1540,12 +1540,12 @@
     "title": "Green flood alert in Türkiye",
     "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103845",
     "source": "GDACS Disasters",
-    "timestamp": "2026-05-24T14:23:53.911628",
+    "timestamp": "2026-04-22T09:24:38Z",
     "lat": null,
     "lon": null,
     "location": "Global",
     "details": {
-      "summary": "On 20/04/2026, a flood started in Türkiye, lasting until 21/05/2026 (last update). The flood caused 1 deaths and 90 displaced ."
+      "summary": "On 20/04/2026, a flood started in Türkiye, lasting until 26/05/2026 (last update). The flood caused 3 deaths and 98 displaced ."
     },
     "category": "Disaster",
     "severity": 1,
@@ -1556,12 +1556,12 @@
     "title": "Green flood alert in Indonesia",
     "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103786",
     "source": "GDACS Disasters",
-    "timestamp": "2026-05-24T14:23:53.911628",
+    "timestamp": "2026-03-04T07:03:12Z",
     "lat": null,
     "lon": null,
     "location": "Global",
     "details": {
-      "summary": "On 02/03/2026, a flood started in Indonesia, lasting until 21/05/2026 (last update). The flood caused 19 deaths and 1624 displaced ."
+      "summary": "On 02/03/2026, a flood started in Indonesia, lasting until 24/05/2026 (last update). The flood caused 19 deaths and 1625 displaced ."
     },
     "category": "Disaster",
     "severity": 1,
@@ -2484,12 +2484,12 @@
     "title": "Green flood alert in United States",
     "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103888",
     "source": "GDACS Disasters",
-    "timestamp": "2026-05-24T14:23:53.911628",
+    "timestamp": "2026-05-21T06:15:32Z",
     "lat": null,
     "lon": null,
     "location": "Global",
     "details": {
-      "summary": "On 19/05/2026, a flood started in United States, lasting until 22/05/2026 (last update). The flood caused 0 deaths and 0 displaced ."
+      "summary": "On 19/05/2026, a flood started in United States, lasting until 26/05/2026 (last update). The flood caused 1 deaths and 0 displaced ."
     },
     "category": "Disaster",
     "severity": 1,
@@ -3081,7 +3081,7 @@
     "lon": null,
     "location": "Global",
     "details": {
-      "summary": "On 21/05/2026, a flood started in Peru, lasting until 23/05/2026 (last update). The flood caused 0 deaths and 0 displaced ."
+      "summary": "On 21/05/2026, a flood started in Peru, lasting until 26/05/2026 (last update). The flood caused 0 deaths and 0 displaced ."
     },
     "category": "Disaster",
     "severity": 1,
@@ -3228,6 +3228,294 @@
       "summary": "Some internet connectivity is returning in Iran after nearly 90 days offline, web monitoring groups say. But it isn’t clear if the reconnection is permanent."
     },
     "category": "Surveillance",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_hrw_org_news_2026_05_27_us_court_rules_to_protect_im",
+    "title": "US Court Rules to Protect Immigrant Domestic Violence Survivors",
+    "url": "https://www.hrw.org/news/2026/05/27/us-court-rules-to-protect-immigrant-domestic-violence-survivors",
+    "source": "Human Rights Watch (All News)",
+    "timestamp": "2026-05-27T18:41:52Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Click to expand Image\n          \n\n\n\n  \n        \n  \n\n        \n                      \n      \n        \n              A woman is detained by US federal agents after exiting a court hearing in immigration court at the Jacob K. Javits Federal Building in New York City, on September 3, 2025.\n                    © 2025 Michael M. Santiago/Getty Images\n          \n    \n\n\n  \nOn May 20, a court in California temporarily suspended a Trump administration policy that stripped key protections from immigrant survivors of domestic violence. The 2025 directive at issue had made many immigrant survivors of domestic violence and human trafficking much more vulnerable to arrest, detention or deportation by the Immigration and Customs Enforcement agency (ICE).Congress has recognized, including through the landmark Violence Against Women Act (VAWA) and the Victims of Trafficking and Violence Protection Act (TVPRA) that survivors without immigration authorization face heightened risks of abuse because perpetrators often weaponize immigration status and threats of deportation to control victims.  Making sure that women, and all victims of domestic violence and trafficking, can report crimes and testify in court is crucial not only for their safety but the safety of the entire community, as Human Rights Watch has reported. In the same vein, Congress passed provisions, including the “U” and “T” visa, that provided survivors of domestic violence and trafficking with a path to legal residence and even citizenship if they cooperated with law enforcement efforts to hold abusers accountable.The 2025 guidelines told ICE officers that they no longer had to check if an immigrant was in process for a U or T visa before removing them. In the words of the court’s order last week, the Trump administration “dramatically changed ICE’s enforcement posture … to a policy of enforcement despite their pending applications.”Under this new approach, women, including those named in the lawsuit, have faced ICE arrests, detentions and deportations despite their participation in the U and T visa programs. One woman who had escaped domestic violence and reported her husband’s abuse was arrested with her son when they attended a regular check-in appointment with ICE. Her pending U-visa application was disregarded and they were both deported.Protecting women and girls from domestic violence is an important part of how governments protect the right to freedom against discrimination, to physical and mental integrity, and other human rights. Using immigration enforcement in ways that discourage survivors from seeking help ultimately places women and girls, who make up most domestic survivors, at greater risk of harm and weakens accountability for abuse.The ruling in California offers some respite while the case works its way through the courts. Instead of fighting in court to uphold this disastrous policy, the Trump administration should do the right thing and roll it back."
+    },
+    "category": "Surveillance",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_hrw_org_news_2026_05_27_burkina_fasos_largest_studen",
+    "title": "Burkina Faso’s Largest Student Union Suspended for Criticizing Junta",
+    "url": "https://www.hrw.org/news/2026/05/27/burkina-fasos-largest-student-union-suspended-for-criticizing-junta",
+    "source": "Human Rights Watch (All News)",
+    "timestamp": "2026-05-27T13:35:33Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Click to expand Image\n          \n\n\n\n  \n        \n  \n\n        \n                      \n      \n        \n              Burkina Faso soldiers patrol aboard a pickup truck on the road from Dori to the Goudebo refugee camp, on February 3, 2020.\n                    © 2020 OLYMPIA DE MAISMONT/AFP via Getty Images\n          \n    \n\n\n  \nThe Burkina Faso junta’s suspension of the country’s largest student union is the latest in a series of government crackdowns on freedoms of association and expression.On May 26, the minister of territorial administration signed a decree suspending the activities of the General Union for Burkina Students (L'union générale des étudiants burkinabè, UGEB) for a renewable period of three months on allegations of “glorification of terrorism.”Founded in 1960, UGEB is one of Burkina Faso’s oldest and most influential student organizations. It has long advocated for improved living and study conditions for students, while also playing a prominent role in democratic mobilization, civic activism, and resistance to authoritarian rule, Over the decades, UGEB has become an important voice in broader struggles for accountability and social justice.The government decree provided no explanation for the suspension, though it appears linked to a statement issued by the student union criticizing the junta for failing to restore security nearly four years after taking power, despite receiving “excessively publicized consignments of military equipment.”The day the decree was issued, a prosecutor in the capital, Ouagadougou, announced the opening of an investigation “against the author or authors as well as any potential accomplices,” of the UGEB statement, which he said, “constitutes violations of criminal law, notably the glorification of terrorism.”A Burkinabè human rights activist living in exile said the investigation highlighted the threat to the rule of law in Burkina Faso, with judicial authorities “increasingly subordinated to the junta’s political and security agenda.”Repression by Burkina Faso’s military authorities has resulted in a rapidly shrinking civic space. Since seizing power in a 2022 coup, the junta has suspended independent media outlets, dismantled civil society organizations, restricted political pluralism, and pursued critics through intimidation and judicial harassment. Journalists, opposition figures, civil society activists, and judges have faced, threats, arbitrary detention, unlawful conscription, enforced disappearances, and torture.Silencing students will not address Burkina Faso’s worsening security and governance crisis, including expanded attacks by an Islamist insurgency. The Burkinabè authorities should immediately lift the suspension of UGEB and end their oppression of independent voices and fundamental freedoms."
+    },
+    "category": "Humanitarian",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_hrw_org_news_2026_05_27_lebanon_joins_mine_ban_treat",
+    "title": "Lebanon Joins Mine Ban Treaty",
+    "url": "https://www.hrw.org/news/2026/05/27/lebanon-joins-mine-ban-treaty",
+    "source": "Human Rights Watch (All News)",
+    "timestamp": "2026-05-27T04:30:00Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Click to expand Image\n          \n\n\n\n  \n        \n  \n\n        \n                      \n      \n        \n              A team from the Mines Advisory Group (MAG) clearing unexploded cluster munitions on farmland in southern Lebanon, November 10, 2020.\n                    © 2020 John Wreford/SOPA Images/Sipa via AP Photo \n          \n    \n\n\n  \n(Beirut, May 27, 2026) – Lebanon’s recent accession to the Mine Ban Treaty amid an ongoing armed conflict underscores the treaty’s vital importance for saving lives and rebuilding communities, Human Rights Watch said today. The government’s decision should motivate other countries, particularly in the Middle East and North Africa, to support the global norm against antipersonnel mines.“Lebanon’s adoption of the Mine Ban Treaty during unrelenting fighting and destruction at home and in the region is an important step toward safeguarding civilian lives, assisting mine victims, and restoring land to its communities,” said Verity Coyle, deputy crisis, conflict and arms director at Human Rights Watch. “States that haven’t signed on should urgently follow suit.”Antipersonnel mines kill and wound people indiscriminately. They are typically placed by hand but can also be scattered by aircraft, rockets, artillery, and drones or dispersed from specialized vehicles. Uncleared landmines remain a danger until located and destroyed. Mined land can drive displacement of civilians, hinder the delivery of humanitarian aid, and prevent agricultural activities.The Mine Ban Treaty, which entered into force in 1999, comprehensively prohibits the use of antipersonnel mines and requires countries to destroy their stockpiles, clear mined areas, and help victims.Lebanon is heavily contaminated with antipersonnel landmines. Despite ongoing clearance efforts that remove thousands of mines every year, by the end of 2024 at least 15.79 square kilometers of land remained contaminated with landmines and an additional 4.67 square kilometers were contaminated with cluster munitions, which effectively act as landmines. In 2023, the United Nations Interim Force in Lebanon (UNIFIL) estimated that this contamination affects at least 200,000 people in Lebanon.Between 2015 and 2024, mines or explosive remnants of war killed at least 167 people in Lebanon.The Lebanese government has shown interest in the Mine Ban Treaty since the early 2000s but pointed to the security situation in the country as an impediment. In December 2009, Lebanon confirmed that it “has never produced or exported antipersonnel mines.”In January 2026, Lebanon’s Council of Ministers issued a decree approving the country’s accession to the treaty. Lebanon deposited its instrument of accession to the treaty with the United Nations in New York City on May 1, becoming the 162nd country to join. The treaty will enter into force for Lebanon on November 1, 2026.Lebanon’s accession comes at a critical time for the treaty as five European states—Latvia, Lithuania, Estonia, Finland, and Poland—withdrew from the treaty in 2025, and Ukraine has attempted to suspend its obligations, all citing security concerns as the primary reason for their decision.Lebanon is now required to submit an initial transparency report to the UN and begin to implement the provisions of the Mine Ban Treaty in territory under its jurisdiction or control under all circumstances.Other states should follow Lebanon’s example and join the treaty immediately. Countries in the Middle East and North Africa region that remain outside the Mine Ban Treaty include Bahrain, Egypt, Iran, Israel, Libya, Morocco, Saudi Arabia, Syria, and the United Arab Emirates.“Lebanon’s joining the Mine Ban Treaty strengthens global opposition to these horrific weapons and should encourage other states to do so,” Coyle said. “The fact that Lebanon made this legal commitment in the midst of a crisis should remind other countries why international treaties protecting civilians are so critical.”Human Rights Watch is a founding member of the International Campaign to Ban Landmines (ICBL), chaired the US Campaign to Ban Landmines, and served as ban policy editor for Landmine and Cluster Munition Monitor. The ICBL received the 1997 Nobel Peace Prize, together with its coordinator, Jody Williams, for its efforts to bring about the Mine Ban Treaty and for its contributions to new international diplomacy based on humanitarian imperatives. "
+    },
+    "category": "Humanitarian",
+    "severity": 3,
+    "quality": 3
+  },
+  {
+    "id": "https___www_hrw_org_news_2026_05_27_cubans_many_in_the_us_for_de",
+    "title": "Cubans, Many in the US for Decades, Deported to Mexico",
+    "url": "https://www.hrw.org/news/2026/05/27/cubans-many-in-the-us-for-decades-deported-to-mexico",
+    "source": "Human Rights Watch (All News)",
+    "timestamp": "2026-05-27T04:01:00Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Click to expand Image\n          \n\n\n\n  \n        \n  \n\n        \n                      \n      \n        \n              A group of deported Cubans gather outside the Juan Graham Hospital in the city of Villahermosa, Mexico, March 2026.\n                    © 2026 Josué Leal \n          \n    \n\n\n  \nThe Trump administration has deported over 4,300 Cubans to Mexico, many of whom are older people with serious health conditions who had been living in the United States for years or even decades. Many are left stranded without access to housing and health care. Those who cannot access protection as refugees are trapped in a permanent state of legal limbo.The United States should guarantee people in removal proceedings individualized review, access to screenings to assess protection claims, and humane detention conditions if detention is deemed necessary.Mexico should afford deported people emergency access to shelter, health care, and a pathway to a durable legal status.(Washington, DC) – The Trump administration has deported thousands of Cubans, many of them older adults, to Mexico, denying them due process and leaving many stranded without access to basic services, Human Rights Watch said in a report released today.The 66-page report, “‘Casting Us Aside to Die:’ Cuban and Other Third-Country Nationals Deported from the US to Mexico,” documents US government abuses against Cubans and other third-country nationals deported to Mexico between January 2025 and March 2026. With no other recourse to obtain permanent residency in Mexico, many Cuban deportees, whose home government refuses to take them back, are trapped in a legal limbo. Since arriving in Mexico, they have received little if any government support, and many are without access to shelter, food, or health care.  \n\n\n\n      \n  \n\n\n\n            \n        \n                        \n      \n          \n      \n        \n    \n      May 27, 2026\n            \n        “Casting Us Aside to Die”\n\n      \n      Cuban and Other Third-Country Nationals Deported from the US to Mexico\nDownload the full report in English\n“The Trump administration is using Mexico as a dumping ground for people it cannot deport to their countries of origin, including many Cubans who have been in the United States for decades,” said Alcira Silva Hava, Leonard H. Sandler fellow in the refugee and migrant rights division at Human Rights Watch. “The Mexican government is not offering them any way to obtain durable legal status outside of the asylum system, leaving many in limbo with no shelter, no medication, and at the mercy of criminal organizations.”Human Rights Watch interviewed 53 third-country nationals deported from the United States to Tapachula, Chiapas and Villahermosa, Tabasco, including 41 Cuban men. The majority of the men had lived in the United States, predominantly in Florida, for years or decades after fleeing Cuba because of political repression or lack of economic opportunities. Many had built businesses, owned homes, and left family members behind in the United States. Most are 60 or older and have chronic health conditions requiring ongoing medical treatment.None of the people interviewed were given the opportunity to challenge their deportation to Mexico, violating their due process rights under both US and international law. US authorities deported them without documentation, money, or personal belongings. Although Mexican authorities have agreed to receive Cuban nationals, they have left them in unsafe conditions, without access to shelter or health care. With no clear path to legal status, many have little prospect of improving their circumstances. Some have been forced to live on the streets, including in parks or outside hospitals.“They’re casting us aside to die,” said Harold A. (pseudonym), a 58-year-old Cuban national. “There’s no help. We can’t work because we don’t have papers. They don’t give us anything, nothing…. How are we supposed to eat, to pay rent?”The deported individuals were sent to southern Mexico, where cities like Tapachula and Villahermosa have high levels of violence and paltry capacity to provide protection, housing, jobs, and access to public services. Most of those interviewed struggled to find nonexploitative work or health care. Older people faced the most severe consequences. Some were cut off from the medications they had taken for years.Human Rights Watch found that between January 20, 2025, and March 9, 2026, US authorities deported more than 18,000 third-country nationals, of whom nearly 13,000—roughly 70 percent—were sent to Mexico under an undisclosed agreement between the two governments. Cubans accounted for the largest group, with 4,353 deported to Mexico over the same period.\n\n\n\n      \n\n\n  \n  \n\n\n\n\n  \n          \n                  \n\n\n                  \n          Click to expand Image\n          \n\n\n\n  \n        \n  \n\n        \n                      \n      \n        \n                    Graphic © 2026 Human Rights Watch \n          \n    \n\n\n  \nOf these, 55 percent had a prior US criminal conviction, 16 percent had a pending charge but no conviction, and 26 percent had no criminal record at all. Only 16 percent had a violent or potentially violent offense as their most serious conviction. The mass targeting of long-term Cuban permanent residents and their deportation to Mexico was not a US practice prior to President Donald Trump’s second term.Cuban and other third-country-national deportees were subjected to numerous abuses at the hands of the US government. In US immigration detention, many experienced overcrowding, extreme temperatures, inadequate food, poor access to medical care, and lack of access to information about their cases, as well as physical and verbal violence by guards. Until April 2026, Mexican law severely limited their movement to other Mexican states by requiring a valid identification for travel within the country, effectively preventing them from seeking better conditions or opportunities in other parts of the country.Asylum is essentially the only legal pathway deportees have to permanent legal status in Mexico, but many who have been outside Cuba for decades may simply not have, or are unlikely to be able to demonstrate, a well-founded fear of persecution in the country.Even for those who wish to make asylum claims, the process is arduous. The Mexican Refugee Assistance Agency’s under-resourced bureaucracy is slow and saddled with procedural requirements that make it very difficult for people to access asylum or similar protection.The US government should comply with the procedural requirements of the Immigration and Nationality Act that give each person a meaningful opportunity to contest their country of removal. Transfers should occur only under transparent agreements, and all receiving states should guarantee full and fair asylum procedures and durable protection for those who qualify. To the extent US law allows it, the authorities should also weigh age, physical and mental health, disability, and family ties in the United States before enforcing removal orders to third countries.The Mexican government should accept transfers only under transparent agreements that entail compliance with due process and international law, and should guarantee full and fair protection screenings, including access to asylum. Mexico has a particular responsibility to those who it accepted knowing that their countries of origin have refused to take them back."
+    },
+    "category": "Humanitarian",
+    "severity": 3,
+    "quality": 3
+  },
+  {
+    "id": "https___www_hrw_org_news_2026_05_27_france_acknowledges_need_for",
+    "title": "France Acknowledges Need for Slavery Reparations",
+    "url": "https://www.hrw.org/news/2026/05/27/france-acknowledges-need-for-slavery-reparations",
+    "source": "Human Rights Watch (All News)",
+    "timestamp": "2026-05-27T04:00:00Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Click to expand Image\n          \n\n\n\n  \n        \n  \n\n        \n                      \n      \n        \n              \"Slave Chain with Four Yokes\" from the Dexue voodoo convent in Adounko, Benin, dating from the 19th century at the Memorial ACTe, the Caribbean Centre of Expression and Memory of Slavery and the Slave Trade, in Point-a-Pitre, May 8, 2015.\n                    © 2015 Nicolas Derne/AFP via Getty Images\n          \n    \n\n\n  \nFrench President Emmanuel Macron addressed the need for reparations in connection with France’s role in the transatlantic slave trade on May 21.Macron said that reparations for enslavement crimes should no longer be ignored. He also warned against “false promises,” emphasizing that the legacy of enslavement could never be fully repaired because it was “impossible.” Macron backed the symbolic repeal of the never-abolished “Code Noir,” which were royal decrees from the 17th and 18th century that governed enslavement in French colonies.France was a top influential transatlantic slave-trading European nation.Macron’s remarks, made during a 25th anniversary commemoration of France’s law recognizing enslavement and the transatlantic slave trade as crimes against humanity, constituted a notable rhetorical shift by the French government. But Macron stopped short of specifying the kind of reparations that he envisions and whether financial redress will be part of it.Macron focused on initiatives related to memorialization, education, and research, while also supporting an international scientific research project launched by Ghana on the legacies of enslavement. These measures, while important, are not a substitute for a comprehensive reparatory framework with full reparations, including measures that address contemporary systemic inequalities and racism rooted in enslavement legacies.Civil society groups, descendants of enslaved people, as well as African and Caribbean states—including France’s overseas departments—have repeatedly called on France and other former European colonial powers for reparatory measures that address the daily lives of communities, which continue to feel the impacts of colonial and enslavement legacies. International pressure for reparations is also growing. In March, the United Nations General Assembly adopted a resolution introduced by Ghana, which affirmed the transatlantic slave trade as a “crime against humanity” and recognized reparations as a pathway to justice. France, together with other European Union member states, abstained from voting, a move that drew criticism, particularly from representatives of France’s overseas territories.With reparations now placed on the political agenda, the French government should develop a national framework grounded in international human rights law and standards designed to provide full reparations for past and present harm linked to France’s colonial and enslavement legacies."
+    },
+    "category": "Humanitarian",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_EQ_eventid_1542829Gr",
+    "title": "Green earthquake (Magnitude 6M, Depth:10km) in Western Indian-Antarctic Ridge 27/05/2026 15:01 UTC, [unknown].",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=EQ&eventid=1542829",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T15:20:31Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "On 5/27/2026 3:01:11 PM, an earthquake occurred in Western Indian-Antarctic Ridge potentially affecting [unknown]. The earthquake had Magnitude 6M, Depth:10km."
+    },
+    "category": "Disaster",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_EQ_eventid_1542825Gr",
+    "title": "Green earthquake (Magnitude 6M, Depth:10km) in Western Indian-Antarctic Ridge 27/05/2026 14:51 UTC, [unknown].",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=EQ&eventid=1542825",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T15:04:14Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "On 5/27/2026 2:51:04 PM, an earthquake occurred in Western Indian-Antarctic Ridge potentially affecting [unknown]. The earthquake had Magnitude 6M, Depth:10km."
+    },
+    "category": "Disaster",
+    "severity": 4,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_TC_eventid_1001272Gr",
+    "title": "Green notification for tropical cyclone JANGMI-26. Population affected by Category 1 (120 km/h) wind speeds or higher is 0.323 million .",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=TC&eventid=1001272",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T08:07:00Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "From 27/05/2026 to 27/05/2026, a Tropical Depression (maximum wind speed of 167 km/h) JANGMI-26 was active in NWPacific. The cyclone affects these countries: Japan (vulnerability Low). Estimated population affected by category 1 (120 km/h) wind speeds or higher is 0.323 million ."
+    },
+    "category": "Disaster",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_FL_eventid_1103909Gr",
+    "title": "Green flood alert in Georgia",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103909",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T15:09:14Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "On 24/05/2026, a flood started in Georgia, lasting until 26/05/2026 (last update). The flood caused 0 deaths and 3 displaced ."
+    },
+    "category": "Disaster",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_FL_eventid_1103895Gr",
+    "title": "Green flood alert in Kyrgyzstan",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103895",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T08:55:38Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "On 22/05/2026, a flood started in Kyrgyzstan, lasting until 24/05/2026 (last update). The flood caused 0 deaths and 0 displaced ."
+    },
+    "category": "Disaster",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_FL_eventid_1103908Gr",
+    "title": "Green flood alert in Romania",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103908",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T15:08:43Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "On 22/05/2026, a flood started in Romania, lasting until 24/05/2026 (last update). The flood caused 0 deaths and 0 displaced ."
+    },
+    "category": "Disaster",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_gdacs_org_report_aspx_eventtype_FL_eventid_1103896Gr",
+    "title": "Green flood alert in Vietnam",
+    "url": "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103896",
+    "source": "GDACS Disasters",
+    "timestamp": "2026-05-27T13:34:55Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "On 15/05/2026, a flood started in Vietnam, lasting until 25/05/2026 (last update). The flood caused 0 deaths and 116 displaced ."
+    },
+    "category": "Disaster",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_ft_com_content_1b2b88ea_f929_4174_9d6e_30f19e695b07_",
+    "title": "‘China-maxxing’ helps spur an inbound tourism boom",
+    "url": "https://www.ft.com/content/1b2b88ea-f929-4174-9d6e-30f19e695b07",
+    "source": "FT Global Economy",
+    "timestamp": "2026-05-27T23:01:01Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Beijing has found an economic win by drawing more international visitors to the country"
+    },
+    "category": "Economic",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_ft_com_content_9c36d4fd_e475_494c_8fd3_be473501377cW",
+    "title": "Want to predict central banker behaviour? Look to their birth date",
+    "url": "https://www.ft.com/content/9c36d4fd-e475-494c-8fd3-be473501377c",
+    "source": "FT Global Economy",
+    "timestamp": "2026-05-27T16:25:47Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Formative experiences shape our views on future inflation as much as the data"
+    },
+    "category": "Economic",
+    "severity": 3,
+    "quality": 3
+  },
+  {
+    "id": "https___www_ft_com_content_88ec90e1_2927_4cb0_afbf_2df1ca6d53faT",
+    "title": "Trump risks triggering financial crisis, warns ECB",
+    "url": "https://www.ft.com/content/88ec90e1-2927-4cb0-afbf-2df1ca6d53fa",
+    "source": "FT Global Economy",
+    "timestamp": "2026-05-27T11:00:23Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Vice-president Luis de Guindos says Washington’s volatile trade policies and reduced co-operation also threaten stability"
+    },
+    "category": "Surveillance",
+    "severity": 3,
+    "quality": 3
+  },
+  {
+    "id": "https___www_ft_com_content_b6626e4a_a237_4477_b89b_ec85e02c3958W",
+    "title": "Waitrose steps up competition for affluent shoppers with price cuts",
+    "url": "https://www.ft.com/content/b6626e4a-a237-4477-b89b-ec85e02c3958",
+    "source": "FT Global Economy",
+    "timestamp": "2026-05-27T10:22:28Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Slowing grocery sales ignite battle for cost-conscious middle class"
+    },
+    "category": "Surveillance",
+    "severity": 3,
+    "quality": 3
+  },
+  {
+    "id": "https___www_ft_com_content_c532aac6_e13a_4e0f_bfe0_8418db1ed7fbA",
+    "title": "AI’s mixed economic signals",
+    "url": "https://www.ft.com/content/c532aac6-e13a-4e0f-bfe0-8418db1ed7fb",
+    "source": "FT Global Economy",
+    "timestamp": "2026-05-27T05:30:03Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Plus, the euro convergence trade"
+    },
+    "category": "Economic",
+    "severity": 1,
+    "quality": 3
+  },
+  {
+    "id": "https___www_ft_com_content_ed7da24c_2ea8_4dec_9c98_541fcc2bba0eU",
+    "title": "UK consumers under pressure as rising energy costs squeeze household budgets",
+    "url": "https://www.ft.com/content/ed7da24c-2ea8-4dec-9c98-541fcc2bba0e",
+    "source": "FT Global Economy",
+    "timestamp": "2026-05-27T04:00:14Z",
+    "lat": null,
+    "lon": null,
+    "location": "Global",
+    "details": {
+      "summary": "Inflation is now expected to hit 3.6% in the final quarter of the year"
+    },
+    "category": "Economic",
     "severity": 1,
     "quality": 3
   }

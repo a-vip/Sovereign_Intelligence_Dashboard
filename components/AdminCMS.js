@@ -147,7 +147,24 @@ export default function AdminCMS({ currentUser, onClose }) {
       setEditingItem(null);
       fetchData();
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('event_updated'));
+        const isRss = activeTab === 'rss';
+        const savedEvent = {
+          id: editingItem.id,
+          title: editForm.title,
+          category: editForm.category,
+          severity: parseInt(editForm.severity),
+          location: editForm.location,
+          lat: parseFloat(isRss ? editForm.latitude : editForm.lat),
+          lon: parseFloat(isRss ? editForm.longitude : editForm.lon),
+          url: editForm.url,
+          details: {
+            ...editingItem.details,
+            isRssItem: isRss,
+            summary: editForm.summary
+          },
+          summary: editForm.summary
+        };
+        window.dispatchEvent(new CustomEvent('event_updated', { detail: savedEvent }));
       }
     } catch (err) {
       showToast('Failed to save: ' + err.message, 'error');
@@ -345,7 +362,18 @@ export default function AdminCMS({ currentUser, onClose }) {
       
       // Dispatch refresh event to update the live globe instantly
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('event_updated'));
+        const isRss = targetId.startsWith('rss-') || targetId.includes('http');
+        const savedEvent = {
+          id: targetId,
+          location: coordsForm.newLocation || undefined,
+          lat: parseFloat(coordsForm.newLat),
+          lon: parseFloat(coordsForm.newLon),
+          title: coordsForm.title || correctingCoordsItem.subject || 'Suggested Threat Marker',
+          details: {
+            isRssItem: isRss
+          }
+        };
+        window.dispatchEvent(new CustomEvent('event_updated', { detail: savedEvent }));
       }
     } catch (err) {
       showToast(err.message, 'error');

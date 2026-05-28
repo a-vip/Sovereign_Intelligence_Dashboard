@@ -1496,7 +1496,7 @@ export default function CesiumGlobe({
         if (Cesium) {
           viewer.trackedEntity = undefined;
           viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(lon, lat, 150000.0), // 150km focus height
+            destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1200000.0), // 1200km focus height (country/wider view)
             orientation: {
               heading: viewer.camera.heading, // Maintain current heading/rotation
               pitch: Cesium.Math.toRadians(-45.0), // Tilt 45 degrees for premium depth look
@@ -1509,7 +1509,7 @@ export default function CesiumGlobe({
 
       // 2. Focus 2D Leaflet map
       if (is2DActive && leafletMapRef.current) {
-        leafletMapRef.current.setView([lat, lon], 8, { animate: true });
+        leafletMapRef.current.setView([lat, lon], 5, { animate: true }); // Zoom level 5 for country view
       }
     }
   }, [focusCoordinate, is2DActive]);

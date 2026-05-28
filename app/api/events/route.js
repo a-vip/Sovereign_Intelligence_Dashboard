@@ -65,7 +65,11 @@ function getDeterministicJitter(seedText, maxDegrees = 0.6) {
 
 function getCountryCoords(country, title = '', summary = '') {
   const c = (country || '').toLowerCase().trim();
-  const t = ((title || '') + ' ' + (summary || '')).toLowerCase();
+  
+  // Clean parenthetical dateline signatures (e.g. "(Beirut) – " or "(New York) — ")
+  const cleanTitle = (title || '').replace(/^\s*\([A-Za-z\s,.-]{3,25}\)\s*[–—-]\s*/, '');
+  const cleanSummary = (summary || '').replace(/^\s*\([A-Za-z\s,.-]{3,25}\)\s*[–—-]\s*/, '');
+  const t = (cleanTitle + ' ' + cleanSummary).toLowerCase();
   
   // Safe token-boundary checker to prevent substring false positives (e.g. 'flood' matching US state abbreviation 'fl')
   const hasWord = (text, word) => {
@@ -77,7 +81,10 @@ function getCountryCoords(country, title = '', summary = '') {
   let specificity = 0;
 
   // 1. High-Fidelity City & Region Geolocation Scanner (Explicit Title Matches)
-  if (t.includes('mcallen')) { baseCoords = { lat: 26.2034, lon: -98.2300 }; resolvedLocation = 'McAllen, Texas, USA'; }
+  if (t.includes('sudan')) { baseCoords = { lat: 12.8628, lon: 30.2176 }; resolvedLocation = 'Sudan'; }
+  else if (t.includes('chad')) { baseCoords = { lat: 15.4542, lon: 18.7322 }; resolvedLocation = 'Chad'; }
+  else if (t.includes('yemen')) { baseCoords = { lat: 15.5527, lon: 48.5164 }; resolvedLocation = 'Yemen'; }
+  else if (t.includes('mcallen')) { baseCoords = { lat: 26.2034, lon: -98.2300 }; resolvedLocation = 'McAllen, Texas, USA'; }
   else if (t.includes('irwin county')) { baseCoords = { lat: 31.5975, lon: -83.2505 }; resolvedLocation = 'Irwin County, Georgia, USA'; }
   else if (t.includes('adelanto')) { baseCoords = { lat: 34.5828, lon: -117.4092 }; resolvedLocation = 'Adelanto, California, USA'; }
   else if (t.includes('eloy')) { baseCoords = { lat: 32.7559, lon: -111.5543 }; resolvedLocation = 'Eloy, Arizona, USA'; }
@@ -651,6 +658,58 @@ export async function GET(request) {
     filteredEvs.forEach(e => eventMap.set(e.id, e));
     finalEventsList.forEach(e => eventMap.set(e.id, e));
 
+    // Dynamic Server-Side Self-Healing: Harvest all manually edited events and propagate overrides on-the-fly
+    const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+    const getNormUrl = (u) => {
+      if (!u) return '';
+      return u.toLowerCase().split('?')[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    };
+
+    const editedReferences = new Map();
+    eventMap.forEach(e => {
+      if (e.edited === true || e.edited === 'true') {
+        const titleKey = getNormTitle(e.title);
+        const urlKey = getNormUrl(e.url);
+        
+        // Prioritize keeping custom coordinates (not equal to fallback country coords like Sudan 12.8628)
+        const hasCustomCoords = e.lat !== null && e.lat !== undefined && Number(e.lat).toFixed(4) !== '12.8628';
+        
+        if (titleKey) {
+          const existing = editedReferences.get(titleKey);
+          if (!existing || hasCustomCoords) {
+            editedReferences.set(titleKey, e);
+          }
+        }
+        if (urlKey) {
+          const existing = editedReferences.get(urlKey);
+          if (!existing || hasCustomCoords) {
+            editedReferences.set(urlKey, e);
+          }
+        }
+      }
+    });
+
+    eventMap.forEach(e => {
+      const titleKey = getNormTitle(e.title);
+      const urlKey = getNormUrl(e.url);
+      
+      const reference = (titleKey && editedReferences.get(titleKey)) || (urlKey && editedReferences.get(urlKey));
+      
+      if (reference) {
+        // Dynamically enforce the manual coordinates, location, and metadata onto the duplicate
+        e.location = reference.location;
+        e.lat = reference.lat;
+        e.lon = reference.lon;
+        e.category = reference.category;
+        e.severity = reference.severity;
+        e.edited = true;
+        e.details = { ...(e.details || {}), ...(reference.details || {}) };
+        if (reference.title) {
+          e.title = reference.title;
+        }
+      }
+    });
+
     const sortedEvents = Array.from(eventMap.values()).sort((a, b) => {
       const isA = a.source?.includes('Vault') || a.source?.includes('OCHA') || a.source?.includes('HRW');
       const isB = b.source?.includes('Vault') || b.source?.includes('OCHA') || b.source?.includes('HRW');
@@ -661,6 +720,9 @@ export async function GET(request) {
 
     // Assign high-fidelity coordinates
     sortedEvents.forEach(e => {
+      if (e.edited === true || e.edited === 'true') {
+        return; // Preserve admin edits exactly in every location!
+      }
       const coords = getCountryCoords(e.location || 'Global', e.title, e.details?.summary || e.description || '');
       if (coords) {
         if (e.lat === undefined || e.lat === null || e.lon === undefined || e.lon === null) {
@@ -981,6 +1043,7 @@ function calculateTitleFuzzySimilarity(title1, title2) {
 
 function isEventAiRelated(e) {
   if (!e) return false;
+  if (e.edited === true || e.edited === 'true') return true; // Always preserve admin edited events
   const title = (e.title || e.name || '').toLowerCase();
   const desc = (e.description || e.details?.summary || e.details?.description || '').toLowerCase();
   const gear = (e.details?.gear || '').toLowerCase();

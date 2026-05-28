@@ -473,7 +473,7 @@ export default function LiveMap({
   const fetchEvents = useCallback(async (refresh = false) => {
     if (!isVisible) return; // Don't fetch if tab is hidden
     try {
-      const res = await fetch(`/api/events?timespan=today${refresh ? '&refresh=true' : ''}`);
+      const res = await fetch(`/api/events?timespan=today${refresh ? '&refresh=true' : ''}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.events?.length) {
         setAllFetchedEvents(data.events);
@@ -483,14 +483,22 @@ export default function LiveMap({
             // On initial load, display all events instantly (no trickle queue)
             return [...data.events].reverse().map((e, idx) => ({ ...e, _displayKey: `${e.id}-init-${idx}` }));
           } else {
+            // Map over prevDisplay and replace/update any existing events with their latest data from fetch
+            const updatedDisplay = prevDisplay.map(p => {
+              const latest = data.events.find(e => e.id === p.id);
+              if (latest) {
+                return { ...latest, _displayKey: p._displayKey };
+              }
+              return p;
+            });
             // Prepend only the brand new streamed events
             const newEvents = data.events.filter(e => !prevDisplay.some(p => p.id === e.id));
             if (newEvents.length > 0) {
               setIsPulsing(true);
               setTimeout(() => setIsPulsing(false), 2000);
-              return [...newEvents.reverse().map((e, idx) => ({ ...e, _displayKey: `${e.id}-stream-${idx}` })), ...prevDisplay];
+              return [...newEvents.reverse().map((e, idx) => ({ ...e, _displayKey: `${e.id}-stream-${idx}` })), ...updatedDisplay];
             }
-            return prevDisplay;
+            return updatedDisplay;
           }
         });
         setMarkers(data.markers || []);
@@ -503,7 +511,7 @@ export default function LiveMap({
     if (!isVisible) return;
     setRssLoading(true);
     try {
-      const res = await fetch(`/api/rss${refresh ? '?refresh=true' : ''}`);
+      const res = await fetch(`/api/rss${refresh ? '?refresh=true' : ''}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.items) {
         setRssItems(data.items);
@@ -541,7 +549,83 @@ export default function LiveMap({
       timestamp: Date.now()
     });
 
-    // 3. Dispatch global custom event to trigger DB refreshes across elements
+    const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+    const getNormUrl = (u) => {
+      if (!u) return '';
+      return u.toLowerCase().split('?')[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    };
+
+    const normTitle = getNormTitle(updatedEvent.title);
+    const normUrl = getNormUrl(updatedEvent.url);
+
+    // 3. Update displayedEvents and allFetchedEvents instantly in client-side state
+    setDisplayedEvents(prev => prev.map(ev => {
+      const matchId = ev.id === updatedEvent.id;
+      const matchTitle = getNormTitle(ev.title) === normTitle;
+      const matchUrl = normUrl && getNormUrl(ev.url) === normUrl;
+      if (matchId || matchTitle || matchUrl) {
+        return { ...ev, ...updatedEvent, edited: true };
+      }
+      return ev;
+    }));
+
+    setAllFetchedEvents(prev => prev.map(ev => {
+      const matchId = ev.id === updatedEvent.id;
+      const matchTitle = getNormTitle(ev.title) === normTitle;
+      const matchUrl = normUrl && getNormUrl(ev.url) === normUrl;
+      if (matchId || matchTitle || matchUrl) {
+        return { ...ev, ...updatedEvent, edited: true };
+      }
+      return ev;
+    }));
+
+    // 4. Update markers instantly
+    setMarkers(prev => prev.map(m => {
+      const mId = String(m.id || '').replace(/^db-/, '').replace(/^rss-/, '');
+      const uId = String(updatedEvent.id).replace(/^db-/, '').replace(/^rss-/, '');
+      const matchId = mId === uId;
+      const matchTitle = getNormTitle(m.name || m.title) === normTitle;
+      const matchUrl = normUrl && getNormUrl(m.url) === normUrl;
+      if (matchId || matchTitle || matchUrl) {
+        return {
+          ...m,
+          lat: parseFloat(updatedEvent.lat),
+          lon: parseFloat(updatedEvent.lon),
+          name: updatedEvent.title,
+          location: updatedEvent.location,
+          category: updatedEvent.category,
+          severity: updatedEvent.severity,
+          url: updatedEvent.url,
+          edited: true
+        };
+      }
+      return m;
+    }));
+
+    // 5. Update rssItems instantly
+    setRssItems(prev => prev.map(item => {
+      const itemId = String(item.id || '').replace(/^db-/, '').replace(/^rss-/, '');
+      const uId = String(updatedEvent.id).replace(/^db-/, '').replace(/^rss-/, '');
+      const matchId = itemId === uId;
+      const matchTitle = getNormTitle(item.title) === normTitle;
+      const matchUrl = normUrl && getNormUrl(item.url) === normUrl;
+      if (matchId || matchTitle || matchUrl) {
+        return {
+          ...item,
+          title: updatedEvent.title,
+          location: updatedEvent.location,
+          latitude: parseFloat(updatedEvent.lat),
+          longitude: parseFloat(updatedEvent.lon),
+          category: updatedEvent.category,
+          severity: updatedEvent.severity,
+          summary: updatedEvent.details?.summary || updatedEvent.summary || item.summary,
+          edited: true
+        };
+      }
+      return item;
+    }));
+
+    // 6. Dispatch global custom event to trigger DB refreshes across elements
     window.dispatchEvent(new CustomEvent('sigint-db-update'));
   }, []);
 
@@ -554,14 +638,18 @@ export default function LiveMap({
 
   // Listen for Admin CMS updates to immediately refresh map markers & data feeds
   useEffect(() => {
-    const handleAdminRefresh = () => {
+    const handleAdminRefresh = (e) => {
       console.log("[SIGINT] Event update detected, refreshing tactical globe data...");
+      if (e?.detail) {
+        // Perform synchronous state update instantly!
+        handleEventUpdate(e.detail);
+      }
       fetchEvents(true);
       fetchRss(true);
     };
     window.addEventListener('event_updated', handleAdminRefresh);
     return () => window.removeEventListener('event_updated', handleAdminRefresh);
-  }, [fetchEvents, fetchRss]);
+  }, [fetchEvents, fetchRss, handleEventUpdate]);
 
   const toggleCategory = (key) => setCategories(c => ({ ...c, [key]: !c[key] }));
 
@@ -589,17 +677,75 @@ export default function LiveMap({
         timestamp: item.published_at,
         url: item.url,
         source: item.source,
+        edited: item.edited,
         details: {
           summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
-          isRssItem: true
+          isRssItem: true,
+          edited: item.edited
         }
       }));
 
     // 3. Combine base SIGINT with tactical RSS feeds
     const allCombined = [...baseMarkers, ...rssMarkers];
 
+    // 4. Client-side Deduplication by normalized title and URL
+    const seenTitles = new Map(); // normalized title -> marker
+    const seenUrls = new Map();   // normalized URL -> marker
+    const deduplicated = [];
+
+    const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+    const getNormUrl = (u) => {
+      if (!u) return '';
+      return u.toLowerCase().split('?')[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    };
+
+    allCombined.forEach(m => {
+      const normTitle = getNormTitle(m.name || m.title);
+      const normUrl = getNormUrl(m.url);
+      
+      const isEdited = m.edited === true || m.edited === 'true' || m.details?.edited === true || m.details?.edited === 'true';
+
+      let duplicateMarker = null;
+
+      if (normTitle && seenTitles.has(normTitle)) {
+        duplicateMarker = seenTitles.get(normTitle);
+      } else if (normUrl && seenUrls.has(normUrl)) {
+        duplicateMarker = seenUrls.get(normUrl);
+      }
+
+      if (duplicateMarker) {
+        // Choose the best duplicate
+        const existingEdited = duplicateMarker.edited === true || duplicateMarker.edited === 'true' || duplicateMarker.details?.edited === true || duplicateMarker.details?.edited === 'true';
+        
+        if (isEdited && !existingEdited) {
+          const idx = deduplicated.indexOf(duplicateMarker);
+          if (idx !== -1) {
+            deduplicated[idx] = m;
+          }
+          if (normTitle) seenTitles.set(normTitle, m);
+          if (normUrl) seenUrls.set(normUrl, m);
+        }
+        else if (isEdited === existingEdited) {
+          const newIsRss = m.id.startsWith('rss') || m.details?.isRssItem;
+          const oldIsRss = duplicateMarker.id.startsWith('rss') || duplicateMarker.details?.isRssItem;
+          if (oldIsRss && !newIsRss) {
+            const idx = deduplicated.indexOf(duplicateMarker);
+            if (idx !== -1) {
+              deduplicated[idx] = m;
+            }
+            if (normTitle) seenTitles.set(normTitle, m);
+            if (normUrl) seenUrls.set(normUrl, m);
+          }
+        }
+      } else {
+        deduplicated.push(m);
+        if (normTitle) seenTitles.set(normTitle, m);
+        if (normUrl) seenUrls.set(normUrl, m);
+      }
+    });
+
     // Filter combined list by checkbox categories & minSeverity
-    let filtered = allCombined.filter(m => categories[m.category] && m.severity >= minSeverity);
+    let filtered = deduplicated.filter(m => categories[m.category] && m.severity >= minSeverity);
 
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
@@ -677,14 +823,54 @@ export default function LiveMap({
       });
     }
 
+    // Deduplicate feed events by normalized title and URL, prioritizing manually edited ones
+    const seenTitles = new Map();
+    const seenUrls = new Map();
+    const deduplicated = [];
+
+    const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+    const getNormUrl = (u) => {
+      if (!u) return '';
+      return u.toLowerCase().split('?')[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    };
+
+    filtered.forEach(e => {
+      const normTitle = getNormTitle(e.title);
+      const normUrl = getNormUrl(e.url);
+      const isEdited = e.edited === true || e.edited === 'true';
+
+      let duplicate = null;
+      if (normTitle && seenTitles.has(normTitle)) {
+        duplicate = seenTitles.get(normTitle);
+      } else if (normUrl && seenUrls.has(normUrl)) {
+        duplicate = seenUrls.get(normUrl);
+      }
+
+      if (duplicate) {
+        const existingEdited = duplicate.edited === true || duplicate.edited === 'true';
+        if (isEdited && !existingEdited) {
+          const idx = deduplicated.indexOf(duplicate);
+          if (idx !== -1) {
+            deduplicated[idx] = e;
+          }
+          if (normTitle) seenTitles.set(normTitle, e);
+          if (normUrl) seenUrls.set(normUrl, e);
+        }
+      } else {
+        deduplicated.push(e);
+        if (normTitle) seenTitles.set(normTitle, e);
+        if (normUrl) seenUrls.set(normUrl, e);
+      }
+    });
+
     if (timeRange === 'critical') {
-      return filtered.sort((a, b) => {
+      return deduplicated.sort((a, b) => {
         if (b.severity !== a.severity) return b.severity - a.severity;
         return parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp);
       });
     }
 
-    return filtered.sort((a, b) => parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp));
+    return deduplicated.sort((a, b) => parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp));
   }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
 
   const filteredRssItems = useMemo(() => {

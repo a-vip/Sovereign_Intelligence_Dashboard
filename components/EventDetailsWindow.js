@@ -966,123 +966,182 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
 
         {/* Location Display & Address Searchbox with Autocomplete */}
         {editMode ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', position: 'relative' }}>
-            <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              📍 Location Search / Geocode Autocomplete
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#151b26', border: '1px solid #1e293b', borderRadius: '6px', padding: '6px 10px' }}>
-              <Search size={14} style={{ color: '#64748b' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', position: 'relative' }}>
+            {/* Direct Location Name Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                📍 Location Name
+              </label>
               <input 
                 type="text"
-                placeholder={editDraft.location || "Search address to geocode..."}
-                value={addressQuery}
-                onChange={(e) => setAddressQuery(e.target.value)}
+                value={editDraft.location || ''}
+                onChange={(e) => setEditDraft(prev => ({ ...prev, location: e.target.value }))}
+                placeholder="e.g. Geneva, Switzerland or custom text"
                 style={{
-                  background: 'transparent',
+                  background: '#151b26',
                   color: '#f8fafc',
-                  border: 'none',
+                  border: '1px solid #1e293b',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
                   fontSize: '0.8rem',
                   outline: 'none',
                   width: '100%',
+                  boxSizing: 'border-box'
                 }}
               />
-              {isLoadingSuggestions && <Loader2 size={12} className="animate-spin" style={{ color: '#00f0ff' }} />}
-              {addressQuery && (
-                <button 
-                  onClick={() => {
-                    setAddressQuery('');
-                    setSuggestions([]);
+            </div>
+
+            {/* Direct Latitude & Longitude Inputs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Latitude
+                </label>
+                <input 
+                  type="number"
+                  step="any"
+                  value={editDraft.lat !== undefined && editDraft.lat !== null ? editDraft.lat : ''}
+                  onChange={(e) => setEditDraft(prev => ({ ...prev, lat: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
+                  placeholder="e.g. 46.2044"
+                  style={{
+                    background: '#151b26',
+                    color: '#f8fafc',
+                    border: '1px solid #1e293b',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Longitude
+                </label>
+                <input 
+                  type="number"
+                  step="any"
+                  value={editDraft.lon !== undefined && editDraft.lon !== null ? editDraft.lon : ''}
+                  onChange={(e) => setEditDraft(prev => ({ ...prev, lon: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
+                  placeholder="e.g. 6.1432"
+                  style={{
+                    background: '#151b26',
+                    color: '#f8fafc',
+                    border: '1px solid #1e293b',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Geocode Search Helper */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', position: 'relative' }}>
+              <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                🔍 Geocode Search Helper (OSM Lookup)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#151b26', border: '1px solid #1e293b', borderRadius: '6px', padding: '6px 10px' }}>
+                <Search size={14} style={{ color: '#64748b' }} />
+                <input 
+                  type="text"
+                  placeholder="Type city/address to lookup coordinates..."
+                  value={addressQuery}
+                  onChange={(e) => setAddressQuery(e.target.value)}
                   style={{
                     background: 'transparent',
+                    color: '#f8fafc',
                     border: 'none',
-                    color: '#ef4444',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center'
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                    width: '100%',
                   }}
-                >
-                  <X size={14} />
-                </button>
+                />
+                {isLoadingSuggestions && <Loader2 size={12} className="animate-spin" style={{ color: '#00f0ff' }} />}
+                {addressQuery && (
+                  <button 
+                    onClick={() => {
+                      setAddressQuery('');
+                      setSuggestions([]);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Suggestions list dropdown overlay */}
+              {suggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '55px',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#0f141e',
+                  border: '1px solid #1e293b',
+                  borderRadius: '6px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+                  zIndex: 10000,
+                  maxHeight: '180px',
+                  overflowY: 'auto'
+                }}>
+                  {suggestions.map((item, idx) => {
+                    const nameSegments = item.display_name.split(',');
+                    const cleanName = nameSegments.length > 3 
+                      ? `${nameSegments[0].trim()}, ${nameSegments[1].trim()}, ${nameSegments[nameSegments.length - 1].trim()}` 
+                      : item.display_name;
+
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => {
+                          setEditDraft(prev => ({
+                            ...prev,
+                            location: cleanName,
+                            lat: parseFloat(item.lat),
+                            lon: parseFloat(item.lon)
+                          }));
+                          setAddressQuery('');
+                          setSuggestions([]);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '0.75rem',
+                          color: '#cbd5e1',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #1e293b',
+                          transition: 'background-color 0.2s',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{cleanName}</div>
+                        <div style={{ fontSize: '0.65rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.display_name}
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: '#00f0ff', fontFamily: 'monospace', marginTop: '2px' }}>
+                          COORD: {parseFloat(item.lat).toFixed(4)}N, {parseFloat(item.lon).toFixed(4)}E
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
-
-            {/* Current location coordinate display */}
-            <div style={{ 
-              fontSize: '0.75rem', 
-              color: '#38bdf8', 
-              padding: '6px 10px', 
-              background: 'rgba(56, 189, 248, 0.05)', 
-              borderRadius: '6px', 
-              border: '1px solid rgba(56, 189, 248, 0.15)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px'
-            }}>
-              <div style={{ fontWeight: 600 }}>Active Location: {editDraft.location || 'GLOBAL / REMOTE'}</div>
-              <div style={{ fontSize: '0.65rem', color: '#64748b', fontFamily: 'monospace' }}>
-                COORD: {editDraft.lat !== undefined ? editDraft.lat.toFixed(4) : '0.0000'}N, {editDraft.lon !== undefined ? editDraft.lon.toFixed(4) : '0.0000'}E
-              </div>
-            </div>
-
-            {/* Suggestions list dropdown overlay */}
-            {suggestions.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '65px',
-                left: 0,
-                right: 0,
-                backgroundColor: '#0f141e',
-                border: '1px solid #1e293b',
-                borderRadius: '6px',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
-                zIndex: 10000,
-                maxHeight: '180px',
-                overflowY: 'auto'
-              }}>
-                {suggestions.map((item, idx) => {
-                  const nameSegments = item.display_name.split(',');
-                  const cleanName = nameSegments.length > 3 
-                    ? `${nameSegments[0].trim()}, ${nameSegments[1].trim()}, ${nameSegments[nameSegments.length - 1].trim()}` 
-                    : item.display_name;
-
-                  return (
-                    <div 
-                      key={idx}
-                      onClick={() => {
-                        setEditDraft(prev => ({
-                          ...prev,
-                          location: cleanName,
-                          lat: parseFloat(item.lat),
-                          lon: parseFloat(item.lon)
-                        }));
-                        setAddressQuery('');
-                        setSuggestions([]);
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        fontSize: '0.75rem',
-                        color: '#cbd5e1',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #1e293b',
-                        transition: 'background-color 0.2s',
-                        textAlign: 'left'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>{cleanName}</div>
-                      <div style={{ fontSize: '0.65rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.display_name}
-                      </div>
-                      <div style={{ fontSize: '0.6rem', color: '#00f0ff', fontFamily: 'monospace', marginTop: '2px' }}>
-                        COORD: {parseFloat(item.lat).toFixed(4)}N, {parseFloat(item.lon).toFixed(4)}E
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         ) : (
           <div 
