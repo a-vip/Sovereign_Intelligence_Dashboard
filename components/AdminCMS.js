@@ -29,6 +29,11 @@ export default function AdminCMS({ currentUser, onClose }) {
   const [activeSearchField, setActiveSearchField] = useState(null); // 'edit' | 'correct'
   const limit = 50;
 
+  // Diagnostics and Bulk selection states
+  const [selectedAnomalyIds, setSelectedAnomalyIds] = useState(new Set());
+  const [anomalyFilter, setAnomalyFilter] = useState('all');
+  const [isBulkOperating, setIsBulkOperating] = useState(false);
+
   const headers = { 'x-user-id': currentUser?.id || '', 'Content-Type': 'application/json' };
 
   const showToast = (msg, type = 'success') => {
@@ -43,6 +48,7 @@ export default function AdminCMS({ currentUser, onClose }) {
       if (activeTab === 'events') url = `/api/admin/events?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
       else if (activeTab === 'rss') url = `/api/admin/rss?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
       else if (activeTab === 'feedback') url = `/api/admin/feedback?page=${page}&limit=${limit}`;
+      else if (activeTab === 'diagnostics') url = `/api/admin/diagnostics`;
       else url = `/api/admin/archive?page=${page}&limit=${limit}`;
 
       const res = await fetch(url, { headers });
@@ -51,12 +57,17 @@ export default function AdminCMS({ currentUser, onClose }) {
 
       if (activeTab === 'rss') {
         setData(json.items || []);
+        setTotal(json.total || 0);
       } else if (activeTab === 'feedback') {
         setData(json.suggestions || []);
+        setTotal(json.total || 0);
+      } else if (activeTab === 'diagnostics') {
+        setData(json.anomalies || []);
+        setTotal(json.anomalies?.length || 0);
       } else {
         setData(json.events || []);
+        setTotal(json.total || 0);
       }
-      setTotal(json.total || 0);
     } catch (err) {
       console.error('CMS fetch error:', err);
       showToast('Failed to load data', 'error');
@@ -72,6 +83,10 @@ export default function AdminCMS({ currentUser, onClose }) {
   useEffect(() => {
     setPage(1);
   }, [activeTab, search]);
+
+  useEffect(() => {
+    setSelectedAnomalyIds(new Set());
+  }, [activeTab]);
 
   // Debounced Nominatim suggestion geocoder search
   useEffect(() => {
@@ -106,7 +121,8 @@ export default function AdminCMS({ currentUser, onClose }) {
 
   const handleEdit = (item) => {
     setEditingItem(item);
-    if (activeTab === 'events') {
+    const isRss = activeTab === 'rss' || item.source_table === 'rss_items';
+    if (!isRss) {
       setEditForm({
         title: item.title || '',
         category: item.category || 'Political',
@@ -117,16 +133,16 @@ export default function AdminCMS({ currentUser, onClose }) {
         url: item.url || '',
         summary: item.details?.summary || ''
       });
-    } else if (activeTab === 'rss') {
+    } else {
       setEditForm({
         title: item.title || '',
         category: item.category || 'Political',
         severity: item.severity || 1,
         location: item.location || '',
-        latitude: item.latitude ?? '',
-        longitude: item.longitude ?? '',
-        source: item.source || '',
-        summary: item.summary || '',
+        latitude: item.lat ?? '',
+        longitude: item.lon ?? '',
+        source: item.source || item.details?.source || '',
+        summary: item.details?.summary || item.summary || '',
         url: item.url || ''
       });
     }
@@ -136,7 +152,8 @@ export default function AdminCMS({ currentUser, onClose }) {
     if (!editingItem) return;
     setSaving(true);
     try {
-      const endpoint = activeTab === 'events' ? '/api/admin/events' : '/api/admin/rss';
+      const isRss = activeTab === 'rss' || editingItem.source_table === 'rss_items';
+      const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
       const res = await fetch(endpoint, {
         method: 'PATCH',
         headers,
@@ -147,7 +164,6 @@ export default function AdminCMS({ currentUser, onClose }) {
       setEditingItem(null);
       fetchData();
       if (typeof window !== 'undefined') {
-        const isRss = activeTab === 'rss';
         const savedEvent = {
           id: editingItem.id,
           title: editForm.title,
@@ -176,7 +192,8 @@ export default function AdminCMS({ currentUser, onClose }) {
   const handleArchive = async (item) => {
     if (!confirm(`Archive "${item.title?.substring(0, 60)}..."?`)) return;
     try {
-      const endpoint = activeTab === 'events' ? '/api/admin/events' : '/api/admin/rss';
+      const isRss = activeTab === 'rss' || item.source_table === 'rss_items';
+      const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
       const res = await fetch(endpoint, {
         method: 'DELETE',
         headers,
@@ -243,6 +260,130 @@ export default function AdminCMS({ currentUser, onClose }) {
       fetchData();
     } catch (err) {
       showToast('Delete failed: ' + err.message, 'error');
+    }
+  };
+
+  const handlePurge = async (item) => {
+    if (!confirm(`PERMANENTLY PURGE "${item.title?.substring(0, 60)}..."? This will completely delete the record from the active database tables.`)) return;
+    try {
+      const isRss = item.source_table === 'rss_items';
+      const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
+      const res = await fetch(endpoint, {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: item.id, permanent: true })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      showToast('Item permanently purged');
+      fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
+    } catch (err) {
+      showToast('Purge failed: ' + err.message, 'error');
+    }
+  };
+
+  const getHashHue = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash % 360);
+  };
+
+  const getRowStyle = (item) => {
+    if (activeTab !== 'diagnostics') return {};
+    
+    const isDuplicate = item.anomalyType.toLowerCase().includes('duplicate');
+    if (!isDuplicate) return { borderLeft: '4px solid rgba(255, 255, 255, 0.05)' };
+    
+    const normKey = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const hue = getHashHue(normKey);
+    return {
+      borderLeft: `4px solid hsl(${hue}, 85%, 55%)`,
+      background: `hsla(${hue}, 85%, 50%, 0.03)`
+    };
+  };
+
+  const toggleSelectAnomaly = (id) => {
+    setSelectedAnomalyIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllFilteredAnomalies = (filteredAnomaliesOnPage) => {
+    setSelectedAnomalyIds(prev => {
+      const next = new Set(prev);
+      const allSelectedOnPage = filteredAnomaliesOnPage.every(item => next.has(item.id));
+      
+      filteredAnomaliesOnPage.forEach(item => {
+        if (allSelectedOnPage) {
+          next.delete(item.id);
+        } else {
+          next.add(item.id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleBulkAction = async (actionType) => {
+    const totalSelected = selectedAnomalyIds.size;
+    if (totalSelected === 0) return;
+    
+    const confirmMsg = actionType === 'archive'
+      ? `Are you sure you want to ARCHIVE all ${totalSelected} selected anomalies?`
+      : `CRITICAL ACTION: Are you sure you want to PERMANENTLY PURGE all ${totalSelected} selected anomalies? This cannot be undone.`;
+      
+    if (!confirm(confirmMsg)) return;
+    
+    setIsBulkOperating(true);
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      const selectedItems = data.filter(item => selectedAnomalyIds.has(item.id));
+      
+      for (const item of selectedItems) {
+        try {
+          const isRss = item.source_table === 'rss_items';
+          const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
+          const res = await fetch(endpoint, {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({
+              id: item.id,
+              permanent: actionType === 'purge'
+            })
+          });
+          if (res.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          console.error(`Bulk action failed for item ${item.id}:`, err);
+          failCount++;
+        }
+      }
+      
+      showToast(`Bulk operation complete: ${successCount} processed successfully. ${failCount > 0 ? `${failCount} failed.` : ''}`);
+      setSelectedAnomalyIds(new Set());
+      fetchData();
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('event_updated'));
+      }
+    } catch (err) {
+      showToast('Bulk operation encountered an error: ' + err.message, 'error');
+    } finally {
+      setIsBulkOperating(false);
     }
   };
 
@@ -383,11 +524,43 @@ export default function AdminCMS({ currentUser, onClose }) {
   };
 
 
-  const totalPages = Math.ceil(total / limit) || 1;
+  const getFilteredAnomalies = () => {
+    if (activeTab !== 'diagnostics') return data;
+    return data.filter(item => {
+      const matchesSearch = !search || 
+        (item.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.location || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.id || '').toLowerCase().includes(search.toLowerCase());
+      
+      if (!matchesSearch) return false;
+
+      if (anomalyFilter === 'all') return true;
+      if (anomalyFilter === 'coords') {
+        return (item.anomalyType || '').toLowerCase().includes('coord') || (item.anomalyType || '').toLowerCase().includes('out of bounds');
+      }
+      if (anomalyFilter === 'duplicates') {
+        return (item.anomalyType || '').toLowerCase().includes('duplicate');
+      }
+      if (anomalyFilter === 'missing') {
+        return (item.anomalyType || '').toLowerCase().includes('missing') || (item.anomalyType || '').toLowerCase().includes('placeholder') || (item.anomalyType || '').toLowerCase().includes('too short');
+      }
+      if (anomalyFilter === 'broken') {
+        return (item.anomalyType || '').toLowerCase().includes('broken') || (item.anomalyType || '').toLowerCase().includes('dead');
+      }
+      return true;
+    });
+  };
+
+  const currentFilteredData = activeTab === 'diagnostics' ? getFilteredAnomalies() : data;
+  const totalItems = activeTab === 'diagnostics' ? currentFilteredData.length : total;
+  const totalPages = Math.ceil(totalItems / limit) || 1;
+  const displayedItems = activeTab === 'diagnostics'
+    ? currentFilteredData.slice((page - 1) * limit, page * limit)
+    : data;
 
   const s = {
     overlay: { position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
-    panel: { width: '100%', maxWidth: '1200px', maxHeight: '90vh', background: '#0a0f1a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 0 60px rgba(0,240,255,0.08)' },
+    panel: { width: '100%', maxWidth: '1200px', maxHeight: '90vh', background: '#0a0f1a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 0 60px rgba(0,240,255,0.08)', position: 'relative' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 },
     title: { fontSize: '16px', fontWeight: 800, letterSpacing: '1px', color: '#00f0ff', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' },
     closeBtn: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#8892a4', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -433,25 +606,50 @@ export default function AdminCMS({ currentUser, onClose }) {
           <button style={s.tab(activeTab === 'rss')} onClick={() => setActiveTab('rss')}>RSS Feed</button>
           <button style={s.tab(activeTab === 'archive')} onClick={() => setActiveTab('archive')}>Archive</button>
           <button style={s.tab(activeTab === 'feedback')} onClick={() => setActiveTab('feedback')}>Feedback</button>
+          <button style={s.tab(activeTab === 'diagnostics')} onClick={() => setActiveTab('diagnostics')}>🚨 Anomalies</button>
           <div style={{ marginLeft: 'auto', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-            {total} items
+            {totalItems} items
           </div>
         </div>
 
-        {/* Search (not for archive/feedback) */}
+        {/* Search */}
         {activeTab !== 'archive' && activeTab !== 'feedback' && (
-
           <div style={s.searchBar}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
               <input
                 style={s.searchInput}
-                placeholder="Search by title..."
+                placeholder={activeTab === 'diagnostics' ? "Search anomalies by title, location, or ID..." : "Search by title..."}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            {activeTab === 'diagnostics' && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select 
+                  style={{
+                    background: '#0c1220',
+                    border: '1px solid rgba(0, 240, 255, 0.25)',
+                    borderRadius: '8px',
+                    color: '#00f0ff',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                  value={anomalyFilter}
+                  onChange={e => { setAnomalyFilter(e.target.value); setPage(1); }}
+                >
+                  <option value="all">🚨 All Anomalies</option>
+                  <option value="coords">📍 Coordinate Violations</option>
+                  <option value="duplicates">👯 Fuzzy Duplicates</option>
+                  <option value="missing">📝 Missing / Placeholder Info</option>
+                  <option value="broken">🔗 Dead Source Links</option>
+                </select>
+              </div>
+            )}
           </div>
         )}
 
@@ -461,7 +659,7 @@ export default function AdminCMS({ currentUser, onClose }) {
             <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
               Loading data...
             </div>
-          ) : data.length === 0 ? (
+          ) : displayedItems.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
               No items found
             </div>
@@ -478,6 +676,22 @@ export default function AdminCMS({ currentUser, onClose }) {
                     <th style={s.th}>Screenshot</th>
                     <th style={{...s.th, textAlign: 'right'}}>Actions</th>
                   </tr>
+                ) : activeTab === 'diagnostics' ? (
+                  <tr>
+                    <th style={{...s.th, width: '40px', textAlign: 'center'}}>
+                      <input 
+                        type="checkbox"
+                        checked={displayedItems.length > 0 && displayedItems.every(item => selectedAnomalyIds.has(item.id))}
+                        onChange={() => selectAllFilteredAnomalies(displayedItems)}
+                        style={{ cursor: 'pointer', accentColor: '#00f0ff' }}
+                      />
+                    </th>
+                    <th style={s.th}>Origin</th>
+                    <th style={{...s.th, maxWidth: '350px'}}>Telemetry details & Issues</th>
+                    <th style={s.th}>Cat/Sev</th>
+                    <th style={s.th}>Location / Coordinates</th>
+                    <th style={{...s.th, textAlign: 'right'}}>Actions</th>
+                  </tr>
                 ) : (
                   <tr>
                     <th style={s.th}>ID</th>
@@ -491,7 +705,7 @@ export default function AdminCMS({ currentUser, onClose }) {
                 )}
               </thead>
               <tbody>
-                {data.map(item => (
+                {displayedItems.map(item => (
                   activeTab === 'feedback' ? (
                     <tr key={item.id} style={{ transition: 'background 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
@@ -576,6 +790,117 @@ export default function AdminCMS({ currentUser, onClose }) {
                         <button style={s.actionBtn('#ff2d55')} onClick={() => handleFeedbackDelete(item)} title="Delete / Resolve"><Trash2 size={14} /></button>
                       </td>
                     </tr>
+                  ) : activeTab === 'diagnostics' ? (
+                    <tr key={item.id} style={{ 
+                      transition: 'background 0.15s',
+                      ...getRowStyle(item)
+                    }}
+                        onMouseEnter={e => {
+                          const normKey = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                          const isDuplicate = item.anomalyType.toLowerCase().includes('duplicate');
+                          if (isDuplicate) {
+                            const hue = getHashHue(normKey);
+                            e.currentTarget.style.background = `hsla(${hue}, 85%, 50%, 0.08)`;
+                          } else {
+                            e.currentTarget.style.background = 'rgba(0,240,255,0.03)';
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          const normKey = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                          const isDuplicate = item.anomalyType.toLowerCase().includes('duplicate');
+                          if (isDuplicate) {
+                            const hue = getHashHue(normKey);
+                            e.currentTarget.style.background = `hsla(${hue}, 85%, 50%, 0.03)`;
+                          } else {
+                            e.currentTarget.style.background = 'transparent';
+                          }
+                        }}>
+                      <td style={{...s.td, textAlign: 'center', verticalAlign: 'middle', width: '40px'}}>
+                        <input 
+                          type="checkbox"
+                          checked={selectedAnomalyIds.has(item.id)}
+                          onChange={() => toggleSelectAnomaly(item.id)}
+                          style={{ cursor: 'pointer', accentColor: '#00f0ff' }}
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            textAlign: 'center',
+                            background: item.source_table === 'rss_items' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 240, 255, 0.15)',
+                            color: item.source_table === 'rss_items' ? '#38bdf8' : '#00f0ff',
+                            letterSpacing: '0.5px'
+                          }}>
+                            {item.source_table === 'rss_items' ? 'RSS WIRE' : 'LIVE SIGNAL'}
+                          </span>
+                          <span style={{ fontFamily: 'monospace', fontSize: '9px', color: '#64748b' }}>
+                            {item.id?.substring(0, 8)}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{...s.td, maxWidth: '400px', whiteSpace: 'normal'}}>
+                        <div style={{ fontWeight: 700, color: '#e8edf5', fontSize: '13px', marginBottom: '6px' }}>
+                          {item.title}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+                          {(item.anomalyType || '').split(/;\s*/).map((issue, idx) => {
+                            if (!issue) return null;
+                            const isCritical = issue.toLowerCase().includes('nan') || issue.toLowerCase().includes('default') || issue.toLowerCase().includes('out of bounds') || issue.toLowerCase().includes('broken');
+                            return (
+                              <span key={idx} style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontSize: '9px',
+                                fontWeight: 700,
+                                background: isCritical ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                color: isCritical ? '#ef4444' : '#facc15',
+                                border: `1px solid ${isCritical ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
+                              }}>
+                                ⚠️ {issue}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {item.url && (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: '#38bdf8', textDecoration: 'none', display: 'inline-block', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                             onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                             onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+                            🔗 {item.url}
+                          </a>
+                        )}
+                      </td>
+                      <td style={s.td}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600 }}>{item.category || '—'}</span>
+                          <span style={s.sevBadge(item.severity || 1)}>{SEV_LABELS[item.severity] || 'LOW'}</span>
+                        </div>
+                      </td>
+                      <td style={s.td}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontWeight: 600, color: '#e8edf5' }}>{item.location || '—'}</span>
+                          <span style={{
+                            fontFamily: 'monospace',
+                            fontSize: '10px',
+                            color: (parseFloat(item.lat) === 0.0 && parseFloat(item.lon) === 0.0) || isNaN(parseFloat(item.lat)) ? '#ef4444' : '#64748b'
+                          }}>
+                            {isNaN(parseFloat(item.lat)) ? 'NaN, NaN' : `${parseFloat(item.lat).toFixed(4)}, ${parseFloat(item.lon).toFixed(4)}`}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle'}}>
+                        <button style={s.actionBtn('#00f0ff')} onClick={() => handleEdit(item)} title="Edit & Geocode"><Edit3 size={14} /></button>
+                        <button style={s.actionBtn('#facc15')} onClick={() => handleArchive(item)} title="Archive Record"><Archive size={14} /></button>
+                        <button style={s.actionBtn('#ff2d55')} onClick={() => handlePurge(item)} title="Purge Record Permanently"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
                   ) : (
                     <tr key={item.id} style={{ transition: 'background 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
@@ -618,9 +943,86 @@ export default function AdminCMS({ currentUser, onClose }) {
                 ))}
               </tbody>
             </table>
-
           )}
         </div>
+
+        {/* Bulk Action Overlay Panel */}
+        {activeTab === 'diagnostics' && selectedAnomalyIds.size > 0 && (
+          <div style={{
+            position: 'absolute',
+            bottom: '60px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(12, 18, 32, 0.95)',
+            border: '2px dashed #00f0ff',
+            borderRadius: '12px',
+            padding: '12px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            boxShadow: '0 0 30px rgba(0,240,255,0.25)',
+            zIndex: 100,
+            backdropFilter: 'blur(8px)'
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: '#e8edf5', letterSpacing: '0.5px' }}>
+              ⚡ {selectedAnomalyIds.size} {selectedAnomalyIds.size === 1 ? 'ANOMALY' : 'ANOMALIES'} SELECTED
+            </span>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                disabled={isBulkOperating}
+                onClick={() => handleBulkAction('archive')}
+                style={{
+                  background: 'rgba(250, 204, 21, 0.15)',
+                  border: '1px solid rgba(250, 204, 21, 0.4)',
+                  borderRadius: '6px',
+                  color: '#facc15',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(250, 204, 21, 0.25)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(250, 204, 21, 0.15)'}
+              >
+                📦 BULK ARCHIVE
+              </button>
+              <button 
+                disabled={isBulkOperating}
+                onClick={() => handleBulkAction('purge')}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '6px',
+                  color: '#ef4444',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+              >
+                🗑️ BULK PURGE
+              </button>
+              <button 
+                onClick={() => setSelectedAnomalyIds(new Set())}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Footer / Pagination */}
         <div style={s.footer}>
