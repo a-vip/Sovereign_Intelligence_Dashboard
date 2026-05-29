@@ -273,7 +273,7 @@ export default function LiveMap({
   const handleShareDashboard = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       // Default to sharing the deployed dashboard landing/main URL
-      navigator.clipboard.writeText('https://sovereign-intelligence-dashboard.vercel.app/');
+      navigator.clipboard.writeText('https://app.sovdash.com/');
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
     }
