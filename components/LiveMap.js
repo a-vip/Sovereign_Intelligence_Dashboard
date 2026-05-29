@@ -748,15 +748,7 @@ export default function LiveMap({
     let filtered = deduplicated.filter(m => categories[m.category] && m.severity >= minSeverity);
 
     if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(m => {
-        const nameMatch = (m.name || m.title || '').toLowerCase().includes(q);
-        const locMatch = (m.location || '').toLowerCase().includes(q);
-        const catMatch = (m.category || '').toLowerCase().includes(q);
-        const descMatch = (m.description || m.details?.summary || '').toLowerCase().includes(q);
-        const sourceMatch = (m.source || m.details?.source || '').toLowerCase().includes(q);
-        return nameMatch || locMatch || catMatch || descMatch || sourceMatch;
-      });
+      filtered = filtered.filter(m => matchAdvancedQuery(m, searchQuery));
     }
 
     // Apply deterministic spiraling coordinate jitter to resolve any overlapping/stacked coordinates
@@ -812,15 +804,7 @@ export default function LiveMap({
     }
 
     if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(e => {
-        const titleMatch = (e.title || '').toLowerCase().includes(q);
-        const locMatch = (e.location || '').toLowerCase().includes(q);
-        const catMatch = (e.category || '').toLowerCase().includes(q);
-        const srcMatch = (e.source || '').toLowerCase().includes(q);
-        const summaryMatch = (e.details?.summary || e.description || '').toLowerCase().includes(q);
-        return titleMatch || locMatch || catMatch || srcMatch || summaryMatch;
-      });
+      filtered = filtered.filter(e => matchAdvancedQuery(e, searchQuery));
     }
 
     // Deduplicate feed events by normalized title and URL, prioritizing manually edited ones
@@ -877,12 +861,7 @@ export default function LiveMap({
     let items = rssItems.filter(item => selectedRssSources.includes(item.sid));
     
     if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase().trim();
-      items = items.filter(item => {
-        const titleMatch = (item.title || '').toLowerCase().includes(q);
-        const sourceMatch = (item.source || '').toLowerCase().includes(q);
-        return titleMatch || sourceMatch;
-      });
+      items = items.filter(item => matchAdvancedQuery(item, searchQuery));
     }
     
     return items;
@@ -3204,4 +3183,68 @@ export default function LiveMap({
     </div>
   </div>
   );
+}
+
+function matchAdvancedQuery(item, queryStr) {
+  const q = (queryStr || '').toLowerCase().trim();
+  if (!q) return true;
+  
+  const SEV_LABELS = { 1: 'low', 2: 'moderate', 3: 'alert', 4: 'high', 5: 'critical' };
+  
+  // Parse key-value tokens (e.g. "cat:conflict", "severity:critical", "loc:london")
+  const tokens = q.match(/([a-z]+):([^\s]+)/g);
+  if (tokens) {
+    let isMatch = true;
+    
+    tokens.forEach(token => {
+      const parts = token.split(':');
+      if (parts.length < 2) return;
+      const key = parts[0];
+      const val = parts[1];
+      
+      const itemLocation = (item.location || '').toLowerCase();
+      const itemCategory = (item.category || '').toLowerCase();
+      const itemSource = (item.source || item.details?.source || '').toLowerCase();
+      
+      if (key === 'cat' || key === 'category') {
+        if (!itemCategory.includes(val)) isMatch = false;
+      } else if (key === 'loc' || key === 'location') {
+        if (!itemLocation.includes(val)) isMatch = false;
+      } else if (key === 'sev' || key === 'severity') {
+        const sevName = SEV_LABELS[item.severity] || '';
+        if (!sevName.includes(val) && String(item.severity) !== val) isMatch = false;
+      } else if (key === 'src' || key === 'source') {
+        if (!itemSource.includes(val)) isMatch = false;
+      } else if (key === 'date') {
+        const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleDateString().toLowerCase() : '';
+        if (!dateStr.includes(val)) isMatch = false;
+      }
+    });
+    
+    const remainingQuery = q.replace(/([a-z]+):([^\s]+)/g, '').trim();
+    if (remainingQuery) {
+      const standardMatch = 
+        (item.title || item.name || '').toLowerCase().includes(remainingQuery) ||
+        (item.location || '').toLowerCase().includes(remainingQuery) ||
+        (item.category || '').toLowerCase().includes(remainingQuery) ||
+        (item.summary || item.description || item.details?.summary || '').toLowerCase().includes(remainingQuery) ||
+        (item.source || item.details?.source || '').toLowerCase().includes(remainingQuery);
+      return isMatch && standardMatch;
+    }
+    return isMatch;
+  }
+  
+  const titleMatch = (item.title || item.name || '').toLowerCase().includes(q);
+  const locMatch = (item.location || '').toLowerCase().includes(q);
+  const catMatch = (item.category || '').toLowerCase().includes(q);
+  const summaryMatch = (item.summary || item.description || item.details?.summary || '').toLowerCase().includes(q);
+  const sourceMatch = (item.source || item.details?.source || '').toLowerCase().includes(q);
+  
+  const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleDateString().toLowerCase() : '';
+  const dateMatch = dateStr.includes(q);
+  
+  const sevName = SEV_LABELS[item.severity] || '';
+  const sevMatch = sevName.includes(q) || `severity ${item.severity}`.includes(q) || `sev ${item.severity}`.includes(q);
+  
+  return titleMatch || locMatch || catMatch || summaryMatch || sourceMatch || dateMatch || sevMatch;
 }

@@ -18,15 +18,18 @@ function generateId(url, title) {
 function isEventAiRelated(e) {
   if (!e) return false;
   const title = (e.title || e.name || '').toLowerCase();
-  const desc = (e.description || e.details?.summary || e.details?.description || '').toLowerCase();
-  const gear = (e.details?.gear || '').toLowerCase();
-  const units = (e.details?.units || '').toLowerCase();
-  const faction = (e.details?.faction || e.faction || '').toLowerCase();
-  const conflict = (e.details?.conflict || e.conflict || '').toLowerCase();
+  const desc = (e.description || e.summary || e.details?.summary || e.details?.description || '').toLowerCase();
   
-  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|drone|drones|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated)\b/i;
+  // 1. Blocklist for sports, entertainment, and generic irrelevant news
+  const isBlocklisted = /(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match)/i.test(title) ||
+    (desc && /(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match)/i.test(desc));
+    
+  if (isBlocklisted) return false;
+
+  // 2. AI & high-tech governance/military/surveillance keywords
+  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|drone|drones|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated|governance|nimbus|palantir|surveillance tech|biometric scan|biometric checks|biometrics scan|biometrics check|biometric scanner|gps jamming|gps jam|jamming|ads-b|cyberwar|cyberattack|hacker|hackers)\b/i;
   
-  return aiRegex.test(title) || aiRegex.test(desc) || aiRegex.test(gear) || aiRegex.test(units) || aiRegex.test(faction) || aiRegex.test(conflict);
+  return aiRegex.test(title) || aiRegex.test(desc);
 }
 
 
@@ -76,7 +79,16 @@ export async function GET(request) {
     try {
       const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(6000) });
       const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
-      osintEvents = (gdeltData.articles || []).map(a => {
+      
+      // Filter out any articles that are blocklisted or not AI/governance related
+      const filteredArticles = (gdeltData.articles || []).filter(a => 
+        isEventAiRelated({
+          title: a.title,
+          description: (a.title || '') + ' ' + (a.domain || '')
+        })
+      );
+
+      osintEvents = filteredArticles.map(a => {
         const decodedTitle = decodeHtmlEntities(a.title || 'Untitled');
         const geo = geocodeText(decodedTitle, a.sourcecountry || '', a.domain || null);
         
