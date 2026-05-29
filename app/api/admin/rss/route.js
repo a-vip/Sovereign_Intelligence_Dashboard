@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/adminAuth';
-import { getAllRssItems, updateRssItem, archiveRssItem } from '@/lib/db';
+import { getAllRssItems, updateRssItem, archiveRssItem, deleteRssItemPermanently } from '@/lib/db';
 import { clearRouteCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
@@ -50,13 +50,18 @@ export async function DELETE(request) {
 
   try {
     const body = await request.json();
-    const { id } = body;
+    const { id, permanent } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'RSS item ID is required' }, { status: 400 });
     }
 
-    const result = await archiveRssItem(id, auth.user.email);
+    let result;
+    if (permanent) {
+      result = await deleteRssItemPermanently(id);
+    } else {
+      result = await archiveRssItem(id, auth.user.email);
+    }
     clearRouteCache();
     return NextResponse.json({ success: true, result });
   } catch (error) {

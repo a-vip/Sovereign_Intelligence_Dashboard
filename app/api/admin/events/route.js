@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/adminAuth';
-import { getAllEvents, updateEvent, archiveEvent } from '@/lib/db';
+import { getAllEvents, updateEvent, archiveEvent, deleteEventPermanently } from '@/lib/db';
 import { clearRouteCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
@@ -50,13 +50,18 @@ export async function DELETE(request) {
 
   try {
     const body = await request.json();
-    const { id } = body;
+    const { id, permanent } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
 
-    const result = await archiveEvent(id, auth.user.email);
+    let result;
+    if (permanent) {
+      result = await deleteEventPermanently(id);
+    } else {
+      result = await archiveEvent(id, auth.user.email);
+    }
     clearRouteCache();
     return NextResponse.json({ success: true, result });
   } catch (error) {

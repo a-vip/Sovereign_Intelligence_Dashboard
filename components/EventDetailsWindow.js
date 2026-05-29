@@ -336,7 +336,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
     }
   };
 
-  const handleArchiveEvent = async () => {
+  const handleArchiveEvent = async (permanent = false) => {
     const isRss = event.details?.isRssItem;
     const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
     
@@ -352,7 +352,11 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
       userId = '9f7de0af-d4fe-4801-b595-b81b8d9bf48e';
     }
 
-    if (!confirm('Are you sure you want to permanently remove this point from the map?')) {
+    const confirmMsg = permanent 
+      ? 'ARE YOU SURE? This will PERMANENTLY PURGE this signal from the database completely. It will not be stored in the archive!'
+      : 'Are you sure you want to archive this signal? It will be removed from the map and active feed, but stored in the archive database for further processing.';
+
+    if (!confirm(confirmMsg)) {
       return;
     }
 
@@ -363,7 +367,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
           'x-user-id': userId || '',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ id: event.id })
+        body: JSON.stringify({ id: event.id, permanent })
       });
 
       if (!res.ok) {
@@ -467,30 +471,56 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
             background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(12, 15, 23, 0.95) 100%)',
             borderBottom: '1px solid rgba(168, 85, 247, 0.25)',
             padding: '6px 16px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            display: 'flex', flexDirection: 'column', gap: '6px',
             fontSize: '0.65rem', fontWeight: 'bold', color: '#a855f7', letterSpacing: '1px', fontFamily: 'monospace'
           }}>
-            <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
-            <button 
-              onClick={handleArchiveEvent} 
-              style={{
-                background: 'rgba(239, 68, 68, 0.2)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                borderRadius: '4px',
-                padding: '4px 10px',
-                fontSize: '0.65rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                fontFamily: 'monospace',
-                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
-            >
-              🗑️ REMOVE FROM MAP
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <button 
+                onClick={() => handleArchiveEvent(false)} 
+                style={{
+                  flex: 1,
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  color: '#a855f7',
+                  border: '1px solid rgba(168, 85, 247, 0.4)',
+                  borderRadius: '4px',
+                  padding: '4px 6px',
+                  fontSize: '0.6rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                  transition: 'all 0.2s',
+                  textAlign: 'center'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.3)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)'}
+              >
+                📦 ARCHIVE SIGNAL
+              </button>
+              <button 
+                onClick={() => handleArchiveEvent(true)} 
+                style={{
+                  flex: 1,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: '#ef4444',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '4px',
+                  padding: '4px 6px',
+                  fontSize: '0.6rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                  transition: 'all 0.2s',
+                  textAlign: 'center'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+              >
+                🗑️ REMOVE PERMANENTLY
+              </button>
+            </div>
           </div>
         )}
 
@@ -692,73 +722,111 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
       {/* Admin Override Banner */}
       {isAdmin && (
         <div style={{
-          background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.12) 0%, rgba(15, 20, 30, 0.4) 100%)',
+          background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.12) 0%, rgba(15, 20, 30, 0.95) 100%)',
           borderBottom: '1px solid rgba(0, 240, 255, 0.2)',
-          padding: '6px 16px',
+          padding: '8px 16px',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
+          gap: '8px',
           fontSize: '0.65rem',
           fontWeight: 'bold',
           color: '#00f0ff',
           letterSpacing: '1px',
           fontFamily: 'monospace'
         }}>
-          <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
             <button
               onClick={handleToggleEditMode}
               style={{
-                background: editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.2)',
+                flex: 1,
+                background: editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.15)',
                 color: editMode ? '#ef4444' : '#00f0ff',
                 border: `1px solid ${editMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 240, 255, 0.4)'}`,
                 borderRadius: '4px',
-                padding: '4px 10px',
-                fontSize: '0.65rem',
+                padding: '5px 6px',
+                fontSize: '0.6rem',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                justifyContent: 'center',
+                gap: '4px',
                 transition: 'all 0.2s',
                 fontFamily: 'monospace',
-                boxShadow: editMode ? '0 0 8px rgba(239, 68, 68, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)'
+                boxShadow: editMode ? '0 0 8px rgba(239, 68, 68, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)',
+                textAlign: 'center'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(0, 240, 255, 0.35)';
+                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(0, 240, 255, 0.3)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.2)';
+                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.15)';
               }}
             >
-              {editMode ? '✕ EXIT EDIT MODE' : '✏️ ENTER EDIT MODE'}
+              {editMode ? '✕ CLOSE EDIT' : '✏️ EDIT INTEL'}
             </button>
             <button
-              onClick={handleArchiveEvent}
+              onClick={() => handleArchiveEvent(false)}
               style={{
-                background: 'rgba(239, 68, 68, 0.2)',
+                flex: 1,
+                background: 'rgba(56, 189, 248, 0.15)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '4px',
+                padding: '5px 6px',
+                fontSize: '0.6rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                transition: 'all 0.2s',
+                fontFamily: 'monospace',
+                boxShadow: '0 0 8px rgba(56, 189, 248, 0.2)',
+                textAlign: 'center'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
+              }}
+            >
+              📦 ARCHIVE
+            </button>
+            <button
+              onClick={() => handleArchiveEvent(true)}
+              style={{
+                flex: 1.2,
+                background: 'rgba(239, 68, 68, 0.15)',
                 color: '#ef4444',
                 border: '1px solid rgba(239, 68, 68, 0.4)',
                 borderRadius: '4px',
-                padding: '4px 10px',
-                fontSize: '0.65rem',
+                padding: '5px 6px',
+                fontSize: '0.6rem',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                justifyContent: 'center',
+                gap: '4px',
                 transition: 'all 0.2s',
                 fontFamily: 'monospace',
-                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)',
+                textAlign: 'center'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)';
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
               }}
             >
-              🗑️ REMOVE FROM MAP
+              🗑️ PURGE PERM
             </button>
           </div>
         </div>

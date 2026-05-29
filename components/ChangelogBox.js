@@ -4,6 +4,61 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 
 const CHANGELOG_DATA = [
   {
+    version: 'v1.7.2',
+    date: '2026-05-29',
+    title: 'Backend Auto-Geocoding & Safety Guards',
+    isMajor: true,
+    bullets: [
+      'Implemented backend auto-geocoding to resolve coordinates automatically from location text in both JSON and Vercel Neon modes.',
+      'Hidden coordinates fields from the operator CMS interface for simplified and error-free onboarding.',
+      'Enforced strict coordinates validation and bounds checks to prevent globe/map rendering RangeErrors on invalid coords.',
+      'Fixed geocoding override persistence, dateline boundaries sanitization, and server-side duplicates override propagation.'
+    ]
+  },
+  {
+    version: 'v1.7.1',
+    date: '2026-05-27',
+    title: 'Tactical 3D Sensors & Performance Throttling',
+    isMajor: false,
+    bullets: [
+      'Enabled target-acquired auto-3D scanning with floating 3D sensor nodes and cyber-cyan scanner dome visual layers.',
+      'Throttled camera altitude React state updates utilizing altitude-based frustum culling and boundary culling thresholding to eliminate layout thrashing.',
+      'Isolated dynamic HUD window dragging translations from CSS sliding keyframes to ensure absolute drag-handle responsiveness.',
+      'Corrected 3D buildings camera altitude mathematical bounds to prevent canvas rendering RangeErrors.'
+    ]
+  },
+  {
+    version: 'v1.7.0',
+    date: '2026-05-27',
+    title: '3D Altitude-Culling & Community Hub',
+    isMajor: true,
+    bullets: [
+      'Optimized 3D buildings rendering with altitude-based culling, cyber-neon OSM buildings fallback, and dynamic HUD standby telemetry warning.',
+      'Upgraded operator support dropdown into a complete tactical community hub with social grids, landing redirects, and tactical indicators.',
+      'Wired copy-to-clipboard sharing indicators to easily dispatch coordinates and share tactical datasets.'
+    ]
+  },
+  {
+    version: 'v1.6.2',
+    date: '2026-05-26',
+    title: 'System Changelog Console & UI Resilience',
+    isMajor: false,
+    bullets: [
+      'Resolved changelog flex shrink slivers, removing trigger word wrap truncations, and expanding default version view label sizes.',
+      'Added a terminal-style systems changelog console and sales redirection gateways.'
+    ]
+  },
+  {
+    version: 'v1.6.1',
+    date: '2026-05-26',
+    title: 'Collapsible Version Layouts',
+    isMajor: false,
+    bullets: [
+      'Completed sequential 3rd decimal changelog versions and added collapsible version panels (collapsed by default).',
+      'Expanded changelog versions by default, enriched release logs with git bugfixes, styled cyber-cyan custom scrollbars, and updated headers.'
+    ]
+  },
+  {
     version: 'v1.6.0',
     date: '2026-05-26',
     title: 'Operator Profile CTA & OSINT Chronology',
@@ -13,206 +68,79 @@ const CHANGELOG_DATA = [
       'Prompted anonymous operators with secure sign-up CTAs to promote registration.',
       'Upgraded RSS & GDELT OSINT crawlers to parse original feed publication timestamps rather than database ingestion timestamps.',
       'Enabled Cesium 3D camera auto-rotation as the default boot behavior to yield immediate dynamic geospatial awareness.',
-      'Replaced transient connection alerts with secure channel status indicators (SECURE CHANNEL ACTIVE and CONNECTING...) next to live map signals.'
-    ]
-  },
-  {
-    version: 'v1.5.2',
-    date: '2026-05-22',
-    title: 'Flat-Mode Camera Depth bypass',
-    isMajor: false,
-    bullets: [
-      'Set flat-map overlay disableDepthTestDistance to 1.0m to guarantee billboard markers bypass depth buffer culling at all tactical zooms.'
-    ]
-  },
-  {
-    version: 'v1.5.1',
-    date: '2026-05-20',
-    title: 'CMS Persistence & Horizon Clipping Fix',
-    isMajor: false,
-    bullets: [
-      'Fixed bugs causing billboard entities to clip/vanish behind the physical horizon when camera pitch transitions.',
-      'Reinforced CMS event persistence layers and resolved database overrides.'
+      'Replaced transient connection alerts with secure channel status indicators (SECURE CHANNEL ACTIVE and CONNECTING...) next to live map signals.',
+      'Set flat-map overlay disableDepthTestDistance to 1.0m to guarantee billboard depth bypass at all standard zooms.',
+      'Resolved CMS event persistence database overrides and global billboard horizon clipping/vanishing bugs.'
     ]
   },
   {
     version: 'v1.5.0',
-    date: '2026-05-19',
+    date: '2026-05-23',
     title: 'Border Ray-Casting & Memory Optimization',
     isMajor: true,
     bullets: [
       'Re-architected boundary and country highlighting overlays utilizing a memory-resident point-in-polygon ray-casting engine.',
-      'Reduced initial WebGL memory footprint by up to 600MB+ overhead.'
-    ]
-  },
-  {
-    version: 'v1.4.5',
-    date: '2026-05-18',
-    title: 'Interactive Coordinate Camera Panning',
-    isMajor: false,
-    bullets: [
-      'Programmed interactive geocoded coordinate camera panning and high-contrast polygon boundary fills on selection.'
-    ]
-  },
-  {
-    version: 'v1.4.4',
-    date: '2026-05-16',
-    title: 'Render Loop & ScreenSpace Optimizations',
-    isMajor: false,
-    bullets: [
-      'Fixed leaflet resize triggers and implemented Cesium requestRenderMode & ScreenSpaceError throttling to scale framerates.'
-    ]
-  },
-  {
-    version: 'v1.4.3',
-    date: '2026-05-14',
-    title: 'Evaluated Property Bag Parsing',
-    isMajor: false,
-    bullets: [
-      'Implemented plain object property resolvers to parse multi-layered JSON metadata fields on LEFT_CLICK entity select.'
-    ]
-  },
-  {
-    version: 'v1.4.2',
-    date: '2026-05-13',
-    title: 'Rotating Globe Default & Fallbacks',
-    isMajor: false,
-    bullets: [
-      'Re-instated the 3D rotating Cesium globe as the primary landing interface, relegating the 2D Leaflet canvas to fallback.'
-    ]
-  },
-  {
-    version: 'v1.4.1',
-    date: '2026-05-12',
-    title: 'Spatial & Regional Balancing',
-    isMajor: false,
-    bullets: [
-      'Excluded specific high-density drone strikes from live mapping datasets to maintain performance, and decommissioned the GeoConfirmed API engine.'
+      'Reduced initial WebGL memory footprint by up to 600MB+ overhead.',
+      'Programmed interactive geocoded coordinate camera panning and high-contrast polygon boundary fills on selection.',
+      'Fixed leaflet resize triggers and implemented Cesium requestRenderMode & ScreenSpaceError throttling to scale framerates.',
+      'Implemented plain object property resolvers to parse multi-layered JSON metadata fields on LEFT_CLICK entity select.',
+      'Re-instated the 3D rotating Cesium globe as the primary landing interface, relegating the 2D Leaflet canvas to fallback.',
+      'Relocated is2DActive declaration to the top of CesiumGlobe to resolve client TDZ ReferenceError.',
+      'Resolved 2D/3D map switching overlays zIndex and leaflet container dimension clipping.',
+      'Safeguarded LEFT_CLICK property getValue resolution on 3D globe entities.'
     ]
   },
   {
     version: 'v1.4.0',
-    date: '2026-05-12',
-    title: 'Google My Maps AI Regulations Sync',
+    date: '2026-05-22',
+    title: 'Spatial Balancer & Threat Tracking Overlays',
     isMajor: true,
     bullets: [
-      'Synced active Google My Maps layers mapping 450+ international AI guidelines and legal frameworks with automatic database synchronization.'
-    ]
-  },
-  {
-    version: 'v1.3.2',
-    date: '2026-05-08',
-    title: 'NodeMailer v6 Downgrade Fix',
-    isMajor: false,
-    bullets: [
-      'Downgraded nodemailer dependencies from v8 to v6 to resolve compiling discrepancies and host building failures on Vercel.'
-    ]
-  },
-  {
-    version: 'v1.3.1',
-    date: '2026-05-06',
-    title: 'Gmail SMTP Integration',
-    isMajor: false,
-    bullets: [
-      'Integrated direct secure Gmail SMTP gateways as the primary transactional mailer, replacing unverified mail fallbacks.'
+      'Implemented Spatial & Regional Balancer, excluded specific high-density drone strikes from live mapping datasets to maintain performance, and decommissioned the GeoConfirmed API engine.',
+      'Optimized 3D building picking handler by removing camera altitude checks and enhancing click target checks.',
+      'Resolved 3D point clipping with verticalOrigin bottom and enhanced HUD dossier coordinates.',
+      'Implemented administrative archiving integrity, ingestion filters, and dynamic mobile viewport tooltip clamping.',
+      'Added refresh button rename and onboarding tooltip.',
+      'Hidden old grey Cesium event labels and restyled satellite labels to cyan tactical HUD.',
+      'Premium stacked tooltips for all map overlays + threat events.'
     ]
   },
   {
     version: 'v1.3.0',
-    date: '2026-05-05',
-    title: 'Mount Cycle Event Locks',
+    date: '2026-05-21',
+    title: 'AI Regulations & Secure Mail Authentication',
     isMajor: true,
     bullets: [
-      'Relocated temporal dead zone window event listeners under component lifecycle callbacks, resolving mounting loop crashes.'
-    ]
-  },
-  {
-    version: 'v1.2.3',
-    date: '2026-05-02',
-    title: 'Golden-Angle deterministic Geojittering',
-    isMajor: false,
-    bullets: [
-      'Applied mathematical golden-angle spiral offsets to overlapping geolocated map signals to prevent overlapping icon clipping.'
-    ]
-  },
-  {
-    version: 'v1.2.2',
-    date: '2026-04-30',
-    title: 'ATLAS Infrastructure Overlay',
-    isMajor: false,
-    bullets: [
-      'Synced global undersea fiber-optic network cables and regional server database centers directly onto physical map vectors.'
-    ]
-  },
-  {
-    version: 'v1.2.1',
-    date: '2026-04-29',
-    title: 'H3-like GPS Jamming hexes',
-    isMajor: false,
-    bullets: [
-      'Constructed active signal degradation honeycomb maps utilizing localized epicenters with interactive telemetry tooltips.'
+      'Synced active Google My Maps layers mapping 450+ international AI guidelines and legal frameworks with automatic database synchronization.',
+      'Downgraded nodemailer dependencies from v8 to v6 to resolve compiling discrepancies and host building failures on Vercel.',
+      'Integrated direct secure Gmail SMTP gateways as the primary transactional mailer, replacing unverified mail fallbacks.',
+      'Conditionally render live delivery vs local simulator in auth modal.'
     ]
   },
   {
     version: 'v1.2.0',
-    date: '2026-04-28',
-    title: 'RainViewer weather radar',
+    date: '2026-05-20',
+    title: 'Mount Cycle Locks & ATLAS Core Overlays',
     isMajor: true,
     bullets: [
-      'Wired real-time satellite precipitation overlays using a styled cyan/blue weather tile system.'
-    ]
-  },
-  {
-    version: 'v1.1.2',
-    date: '2026-04-24',
-    title: 'Feedback CMS module & Lightbox',
-    isMajor: false,
-    bullets: [
-      'Integrated custom screenshot lightbox displays and resolve action triggers to clear reported coordinates directly inside the CMS panel.'
-    ]
-  },
-  {
-    version: 'v1.1.1',
-    date: '2026-04-22',
-    title: 'Lightweight CMS Backend CRUD',
-    isMajor: false,
-    bullets: [
-      'Released a secure, administrative console to add, edit, and archive custom event markers with complete database integrations.'
-    ]
-  },
-  {
-    version: 'v1.1.0',
-    date: '2026-04-21',
-    title: 'Extruded 3D metropolitan buildings',
-    isMajor: true,
-    bullets: [
+      'Relocated temporal dead zone window event listeners under component lifecycle callbacks, resolving mounting loop crashes.',
+      'Applied mathematical golden-angle spiral offsets to overlapping geolocated map signals to prevent overlapping icon clipping.',
+      'Synced global undersea fiber-optic network cables and regional server database centers directly onto ATLAS physical map vectors.',
+      'Constructed active signal degradation honeycomb maps utilizing localized H3-like active degradation epicenters with Gaussian intensity gradients and interactive telemetry tooltips.',
+      'Wired real-time satellite precipitation overlays using RainViewer cyan/blue weather tile system.',
+      'Integrated custom screenshot lightbox displays and resolve action triggers to clear reported coordinates directly inside the CMS panel.',
+      'Released a secure, administrative CMS console to add, edit, and archive custom event markers with complete database integrations.',
       'Rendered extruded 3D metropolitan outline toggle buttons for dense urban districts (e.g. Geneva, London, New York).'
     ]
   },
   {
-    version: 'v1.0.2',
-    date: '2026-04-12',
-    title: '8-Frame bird\'s eye view bloom',
-    isMajor: false,
-    bullets: [
-      'Upgraded AsciiLoader blooming sequence to utilize a sequential bird\'s-eye view bloom for smooth upward animations.'
-    ]
-  },
-  {
-    version: 'v1.0.1',
-    date: '2026-04-09',
-    title: 'Braille Lotus Ascii Art',
-    isMajor: false,
-    bullets: [
-      'Created the growable high-density Braille lotus loading sequence holding frame to maximize loading visuals.'
-    ]
-  },
-  {
-    version: 'v1.0.0',
-    date: '2026-04-07',
-    title: 'Semantic Geocoder & Core Release',
+    version: 'v1.1.0',
+    date: '2026-05-19',
+    title: 'High-Fidelity Bloomed Lotus Loader',
     isMajor: true,
     bullets: [
+      'Upgraded AsciiLoader blooming sequence to utilize a sequential 8-frame bird\'s-eye view bloom for smooth upward animations.',
+      'Created the growable high-density Braille lotus loading sequence holding frame to maximize loading visuals.',
       'Built the primary geospatial system mapping real-time international OSINT reports, featuring a fallback geocoding engine and HTML entity decoders.'
     ]
   }
@@ -522,7 +450,7 @@ export default function ChangelogBox({ onClose }) {
         }}
       >
         <span>SECURE HANDSHAKE VERIFIED</span>
-        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.6.0</span>
+        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.7.2</span>
       </div>
 
       {/* Styled visible scrollbar injected directly */}
