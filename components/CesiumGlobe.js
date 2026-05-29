@@ -79,6 +79,12 @@ const FAMOUS_LANDMARKS = [
 
 const canvasCache = {};
 
+const isValidCoordinate = (lat, lon) => {
+  const l1 = parseFloat(lat);
+  const l2 = parseFloat(lon);
+  return !isNaN(l1) && !isNaN(l2) && l1 >= -90.0 && l1 <= 90.0 && l2 >= -180.0 && l2 <= 180.0;
+};
+
 const createReticleCanvas = (color = '#00f0ff', size = 32) => {
   if (typeof document === 'undefined') return null;
   const cacheKey = `reticle-${color}-${size}`;
@@ -1034,13 +1040,21 @@ export default function CesiumGlobe({
   const repelledMarkers = useMemo(() => {
     if (!eventsEnabled || !displayedMarkers || displayedMarkers.length === 0) return [];
     
-    // Create mutable copy of displayed markers with lat/lon coordinates
-    const points = displayedMarkers.map((m, idx) => ({
-      original: m,
-      lat: m.lat !== undefined && m.lat !== null ? m.lat : 0.0,
-      lon: m.lon !== undefined && m.lon !== null ? m.lon : 0.0,
-      index: idx
-    }));
+    // Create mutable copy of displayed markers with lat/lon coordinates, filtering invalid ones
+    const points = displayedMarkers.map((m, idx) => {
+      const parsedLat = parseFloat(m.lat);
+      const parsedLon = parseFloat(m.lon);
+      return {
+        original: m,
+        lat: isNaN(parsedLat) ? null : parsedLat,
+        lon: isNaN(parsedLon) ? null : parsedLon,
+        index: idx
+      };
+    }).filter(p => {
+      return p.lat !== null && p.lon !== null && 
+             p.lat >= -90.0 && p.lat <= 90.0 && 
+             p.lon >= -180.0 && p.lon <= 180.0;
+    });
 
     const gravity = 0.08; // Gravity pulls markers back to their real origins (softer to let them spread!)
     const repelForce = 0.38; // Repulsion pushes close markers apart (stronger push!)
@@ -2408,7 +2422,7 @@ export default function CesiumGlobe({
 
     // Surgically add new threat markers or update existing ones without recreating them!
     repelledMarkers.forEach(m => {
-      if (m.repelledLat === undefined || m.repelledLon === undefined) return;
+      if (m.repelledLat === undefined || m.repelledLon === undefined || !isValidCoordinate(m.repelledLat, m.repelledLon)) return;
 
       const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
       const threatId = `threat-${m.id || m.title}`;

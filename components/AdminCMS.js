@@ -280,8 +280,8 @@ export default function AdminCMS({ currentUser, onClose }) {
   };
 
   const handleSaveCoordsCorrection = async () => {
-    if (!coordsForm.newLat || !coordsForm.newLon) {
-      showToast('Latitude and Longitude are required', 'error');
+    if (!coordsForm.newLocation || coordsForm.newLocation.trim() === '') {
+      showToast('Location name is required', 'error');
       return;
     }
     
@@ -761,18 +761,7 @@ export default function AdminCMS({ currentUser, onClose }) {
               )}
             </div>
 
-            <div style={s.coordRow}>
-              <div>
-                <div style={s.fieldLabel}>Latitude</div>
-                <input style={s.fieldInput} type="number" step="0.0001" value={activeTab === 'rss' ? (editForm.latitude ?? '') : (editForm.lat ?? '')}
-                  onChange={e => setEditForm(f => activeTab === 'rss' ? ({...f, latitude: e.target.value}) : ({...f, lat: e.target.value}))} />
-              </div>
-              <div>
-                <div style={s.fieldLabel}>Longitude</div>
-                <input style={s.fieldInput} type="number" step="0.0001" value={activeTab === 'rss' ? (editForm.longitude ?? '') : (editForm.lon ?? '')}
-                  onChange={e => setEditForm(f => activeTab === 'rss' ? ({...f, longitude: e.target.value}) : ({...f, lon: e.target.value}))} />
-              </div>
-            </div>
+
 
             <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
               <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
@@ -891,30 +880,7 @@ export default function AdminCMS({ currentUser, onClose }) {
               )}
             </div>
 
-            <div style={s.coordRow}>
-              <div>
-                <div style={s.fieldLabel}>Latitude (Decimal)</div>
-                <input 
-                  style={s.fieldInput} 
-                  type="number" 
-                  step="0.000001" 
-                  placeholder="e.g. 51.5074" 
-                  value={coordsForm.newLat} 
-                  onChange={e => setCoordsForm(f => ({...f, newLat: e.target.value}))} 
-                />
-              </div>
-              <div>
-                <div style={s.fieldLabel}>Longitude (Decimal)</div>
-                <input 
-                  style={s.fieldInput} 
-                  type="number" 
-                  step="0.000001" 
-                  placeholder="e.g. -0.1278" 
-                  value={coordsForm.newLon} 
-                  onChange={e => setCoordsForm(f => ({...f, newLon: e.target.value}))} 
-                />
-              </div>
-            </div>
+
 
             {/* Submit Action */}
             <button 
