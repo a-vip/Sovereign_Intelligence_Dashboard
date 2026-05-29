@@ -1,11 +1,12 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-// Hubble deep-space astronomical simulation images (Wikipedia public captures, fast & reliable)
+// Hubble deep-space astronomical images (Unsplash public captures, fast & reliable CDN)
 const HUBBLE_IMAGES = [
-  { name: 'Eagle Nebula - Pillars of Creation', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_cropped.jpg/320px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_cropped.jpg' },
-  { name: 'Whirlpool Galaxy (M51)', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Messier51_sRGB.jpg/320px-Messier51_sRGB.jpg' },
-  { name: 'Carina Nebula Cosmic Cliffs', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Carina_Nebula_by_Hubble_Space_Telescope.jpg/320px-Carina_Nebula_by_Hubble_Space_Telescope.jpg' }
+  { name: 'Pillars of Creation (HST Re-imaging)', url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=600&auto=format&fit=crop&q=80' },
+  { name: 'Whirlpool Galaxy (M51 Spiral)', url: 'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=600&auto=format&fit=crop&q=80' },
+  { name: 'Carina Nebula Cosmic Cliffs', url: 'https://images.unsplash.com/photo-1538370965046-79c0d6907d47?w=600&auto=format&fit=crop&q=80' },
+  { name: 'Andromeda Galaxy (M31 Helix)', url: 'https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=600&auto=format&fit=crop&q=80' }
 ];
 
 export default function SatelliteDetailWindow({ satellite, onClose, isTracked, onTrackToggle }) {
@@ -101,6 +102,32 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
   const [liveSignal, setLiveSignal] = useState(98);
   const [downlinkRate, setDownlinkRate] = useState(4.8);
   const [hubbleIdx, setHubbleIdx] = useState(0);
+  const [issSource, setIssSource] = useState('youtube'); // 'youtube' | 'timelapse' | 'matrix'
+  const [hubbleFilter, setHubbleFilter] = useState('vis'); // 'vis' | 'ir' | 'uv'
+
+  // Get CSS filter styling for Hubble multi-spectral camera
+  const getHubbleFilterStyle = () => {
+    switch (hubbleFilter) {
+      case 'ir':
+        // Simulated Infrared (Infrared typically shifts to red/pink, warm glow, high contrast)
+        return {
+          filter: 'hue-rotate(140deg) saturate(1.8) contrast(1.3) brightness(0.9)',
+          transition: 'filter 0.5s ease-in-out'
+        };
+      case 'uv':
+        // Simulated Ultraviolet (High energy cosmic radiation, bluish-purple neon tint, inverted glow)
+        return {
+          filter: 'hue-rotate(240deg) invert(0.2) saturate(2.5) contrast(1.5)',
+          transition: 'filter 0.5s ease-in-out'
+        };
+      case 'vis':
+      default:
+        return {
+          filter: 'none',
+          transition: 'filter 0.5s ease-in-out'
+        };
+    }
+  };
 
   // General Scrolling SIGINT Telemetry Intercept Logs
   const [sigintLogs, setSigintLogs] = useState([
@@ -389,16 +416,111 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
           {/* TAB CONTENT: 2. LIVE SAT-CAM / simulated FEED */}
           {activeTab === 'cam' && (
             <div style={{ marginBottom: '8px' }}>
-              {/* A. REAL ISS Live Earth stream (Ustream Embed) */}
+              {/* A. ISS Live Viewport (Interactive Multi-Source System) */}
               {isISS ? (
                 <div style={{ position: 'relative', width: '100%', height: '140px', background: '#000000', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
-                  <iframe 
-                    src="https://ustream.tv/embed/17074538?html5=1&autoplay=1&mute=1&volume=0" 
-                    style={{ width: '100%', height: '100%', border: 'none' }} 
-                    allowFullScreen 
-                  />
-                  <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(0, 240, 255, 0.25)', color: '#00f0ff', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(0, 240, 255, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em' }}>
-                    🔴 ISS LIVE FEED [HDEV]
+                  {issSource === 'youtube' && (
+                    <iframe 
+                      src="https://www.youtube.com/embed/xQ04gONnVwA?autoplay=1&mute=1&loop=1&playlist=xQ04gONnVwA" 
+                      style={{ width: '100%', height: '100%', border: 'none' }} 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen 
+                    />
+                  )}
+                  {issSource === 'timelapse' && (
+                    <video
+                      src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Jeff%27s_Earth_-_4K.webm"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                    />
+                  )}
+                  {issSource === 'matrix' && (
+                    <div style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      background: '#040814', 
+                      padding: '6px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '4px',
+                      justifyContent: 'space-between',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div style={{ fontSize: '6.5px', color: '#22c55e', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
+                        <div style={{ color: '#00f0ff', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '3px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                          📡 SIGINT INTERCEPT WAVEFORM
+                        </div>
+                        {sigintLogs.slice(0, 3).map((log, index) => (
+                          <div key={index} style={{ opacity: index === 0 ? 1 : index === 1 ? 0.7 : 0.4, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            &gt; {log}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', height: '40px', gap: '2.5px', borderTop: '1px solid rgba(0,240,255,0.1)', paddingTop: '4px', overflow: 'hidden' }}>
+                        {Array.from({ length: 28 }).map((_, i) => {
+                          const h = Math.floor(Math.sin((i + Date.now()/600) * 0.8) * 18) + 22;
+                          return (
+                            <div 
+                              key={i} 
+                              style={{ 
+                                flex: 1, 
+                                height: `${Math.max(10, Math.min(100, h))}%`, 
+                                background: `linear-gradient(to top, rgba(0,240,255,0.15), ${i % 4 === 0 ? '#ff007f' : '#00f0ff'})`, 
+                                borderRadius: '1px' 
+                              }} 
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overlay labels */}
+                  <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(0, 240, 255, 0.25)', color: '#00f0ff', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(0, 240, 255, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em', zIndex: 10 }}>
+                    🔴 ISS LIVE FEED [{issSource.toUpperCase()}]
+                  </div>
+
+                  {/* Source Switcher Panel */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: '6px', 
+                    right: '6px', 
+                    display: 'flex', 
+                    gap: '2px', 
+                    background: 'rgba(0,0,0,0.8)', 
+                    padding: '2px', 
+                    borderRadius: '4px', 
+                    border: '1px solid rgba(0, 240, 255, 0.25)',
+                    zIndex: 20
+                  }}>
+                    {[
+                      { id: 'youtube', label: 'YT-LIVE' },
+                      { id: 'timelapse', label: 'ORBIT' },
+                      { id: 'matrix', label: 'SIGINT' }
+                    ].map(s => (
+                      <button
+                        key={s.id}
+                        onClick={(e) => { e.stopPropagation(); setIssSource(s.id); }}
+                        style={{
+                          fontSize: '6.5px',
+                          fontWeight: 'bold',
+                          fontFamily: 'Courier New, monospace',
+                          padding: '2px 4px',
+                          background: issSource === s.id ? 'rgba(0, 240, 255, 0.25)' : 'none',
+                          border: 'none',
+                          borderRadius: '2px',
+                          color: issSource === s.id ? '#00f0ff' : 'rgba(255,255,255,0.5)',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          letterSpacing: '0.05em'
+                        }}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               ) : /* B. SIMULATED HUBBLE DEEP SPACE OBSERVATIONAL VIEWER */
@@ -408,7 +530,13 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                   <img 
                     src={HUBBLE_IMAGES[hubbleIdx].url} 
                     alt="Space capture"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'all 0.8s ease' }}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover', 
+                      transition: 'all 0.8s ease',
+                      ...getHubbleFilterStyle()
+                    }}
                   />
                   {/* Green Sci-fi Scanner target Grid */}
                   <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: '1px dashed rgba(34, 197, 94, 0.3)', pointerEvents: 'none', boxSizing: 'border-box' }} />
@@ -417,10 +545,47 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                   <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', height: '10px', width: '1px', background: 'rgba(34, 197, 94, 0.7)', pointerEvents: 'none' }} />
                   
                   {/* Overlay labels */}
-                  <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(34, 197, 94, 0.25)', color: '#22c55e', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(34, 197, 94, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em' }}>
+                  <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(34, 197, 94, 0.25)', color: '#22c55e', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(34, 197, 94, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em', zIndex: 10 }}>
                     🔭 DEEP-SPACE VIEWPORT
                   </div>
-                  <div style={{ position: 'absolute', bottom: '6px', left: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', color: '#ffffff', fontSize: '6px', padding: '3px 4px', borderRadius: '3px', pointerEvents: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  
+                  {/* Spectral Filter Switcher */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: '6px', 
+                    right: '6px', 
+                    display: 'flex', 
+                    gap: '2px', 
+                    background: 'rgba(0,0,0,0.8)', 
+                    padding: '2px', 
+                    borderRadius: '4px', 
+                    border: '1px solid rgba(34, 197, 94, 0.25)',
+                    zIndex: 20
+                  }}>
+                    {['vis', 'ir', 'uv'].map(f => (
+                      <button
+                        key={f}
+                        onClick={(e) => { e.stopPropagation(); setHubbleFilter(f); }}
+                        style={{
+                          fontSize: '6.5px',
+                          fontWeight: 'bold',
+                          fontFamily: 'Courier New, monospace',
+                          padding: '2px 4px',
+                          background: hubbleFilter === f ? 'rgba(34, 197, 94, 0.25)' : 'none',
+                          border: 'none',
+                          borderRadius: '2px',
+                          color: hubbleFilter === f ? '#22c55e' : 'rgba(255,255,255,0.5)',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          letterSpacing: '0.05em'
+                        }}
+                      >
+                        {f.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ position: 'absolute', bottom: '6px', left: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', color: '#ffffff', fontSize: '6px', padding: '3px 4px', borderRadius: '3px', pointerEvents: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', zIndex: 10 }}>
                     TARGET: {HUBBLE_IMAGES[hubbleIdx].name}
                   </div>
                 </div>

@@ -503,7 +503,7 @@ export default function LiveMap({
         });
         setMarkers(data.markers || []);
       }
-      setStatus(data.status || 'live');
+      setStatus(data.status === 'success' || data.status === 'live' ? 'live' : (data.status || 'live'));
     } catch { setStatus('error'); }
   }, [isInitializing, isVisible, timeRange]);
 
@@ -3088,7 +3088,7 @@ export default function LiveMap({
       <div className="map-status-bar" style={{ zIndex: 10 }}>
         <div className="status-item">
           <span className={`status-dot ${status === 'live' ? 'live' : ''}`} />
-          {status === 'live' ? 'SECURE CHANNEL ACTIVE' : status === 'loading' ? 'CONNECTING...' : 'RECONNECTING...'}
+          {status === 'live' ? 'CONNECTED' : status === 'loading' ? 'CONNECTING...' : 'RECONNECTING...'}
         </div>
         <div className="status-item">
           ⚡ {displayedMarkers.length} MAP SIGNALS
