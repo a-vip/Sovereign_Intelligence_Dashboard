@@ -23,6 +23,38 @@ export async function GET(request) {
   }
 }
 
+export async function POST(request) {
+  const auth = await verifyAdmin(request);
+  if (auth.error) return auth.error;
+
+  try {
+    const body = await request.json();
+    
+    // Generate a unique high-precision ID if not provided
+    const id = body.id || 'evt-' + Date.now();
+    
+    const fields = {
+      title: body.title || 'Untitled Signal',
+      category: body.category || 'Political',
+      severity: parseInt(body.severity) || 1,
+      location: body.location || 'Global',
+      lat: parseFloat(body.lat) || 0.0,
+      lon: parseFloat(body.lon) || 0.0,
+      url: body.url || '',
+      summary: body.summary || '',
+      status: body.status || 'draft',
+      timestamp: body.timestamp || new Date().toISOString()
+    };
+
+    const created = await updateEvent(id, fields);
+    clearRouteCache();
+    return NextResponse.json({ success: true, event: created }, { status: 201 });
+  } catch (error) {
+    console.error('Admin events POST error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function PATCH(request) {
   const auth = await verifyAdmin(request);
   if (auth.error) return auth.error;

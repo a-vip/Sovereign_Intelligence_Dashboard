@@ -16,6 +16,8 @@ export default function AdminCMS({ currentUser, onClose }) {
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', category: 'Political', severity: 1, location: '', lat: '', lon: '', url: '', summary: '', status: 'draft' });
   const [correctingCoordsItem, setCorrectingCoordsItem] = useState(null);
   const [coordsForm, setCoordsForm] = useState({ targetId: '', title: '', newLocation: '', newLat: '', newLon: '' });
   const [saving, setSaving] = useState(false);
@@ -131,7 +133,8 @@ export default function AdminCMS({ currentUser, onClose }) {
         lat: item.lat ?? '',
         lon: item.lon ?? '',
         url: item.url || '',
-        summary: item.details?.summary || ''
+        summary: item.details?.summary || '',
+        status: item.status || 'published'
       });
     } else {
       setEditForm({
@@ -184,6 +187,54 @@ export default function AdminCMS({ currentUser, onClose }) {
       }
     } catch (err) {
       showToast('Failed to save: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateSave = async () => {
+    if (!createForm.title) {
+      showToast('Title is required', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const generatedId = 'evt-' + Date.now();
+      const res = await fetch('/api/admin/events', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id: generatedId, ...createForm })
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `HTTP ${res.status}`);
+      }
+      showToast('Signal created successfully');
+      setCreatingEvent(false);
+      setCreateForm({ title: '', category: 'Political', severity: 1, location: '', lat: '', lon: '', url: '', summary: '', status: 'draft' });
+      fetchData();
+      
+      // Hot-reload target live components if published
+      if (typeof window !== 'undefined' && createForm.status === 'published') {
+        const savedEvent = {
+          id: generatedId,
+          title: createForm.title,
+          category: createForm.category,
+          severity: parseInt(createForm.severity),
+          location: createForm.location,
+          lat: parseFloat(createForm.lat) || 0.0,
+          lon: parseFloat(createForm.lon) || 0.0,
+          url: createForm.url,
+          details: {
+            isRssItem: false,
+            summary: createForm.summary
+          },
+          summary: createForm.summary
+        };
+        window.dispatchEvent(new CustomEvent('event_updated', { detail: savedEvent }));
+      }
+    } catch (err) {
+      showToast('Failed to create: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -625,6 +676,40 @@ export default function AdminCMS({ currentUser, onClose }) {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            {activeTab === 'events' && (
+              <button 
+                onClick={() => setCreatingEvent(true)}
+                style={{
+                  background: 'rgba(0, 240, 255, 0.15)',
+                  border: '1px solid rgba(0, 240, 255, 0.4)',
+                  borderRadius: '8px',
+                  color: '#00f0ff',
+                  padding: '10px 16px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = '#00f0ff';
+                  e.currentTarget.style.color = '#000000';
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 240, 255, 0.3)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
+                  e.currentTarget.style.color = '#00f0ff';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                + Create Signal
+              </button>
+            )}
             {activeTab === 'diagnostics' && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <select 
@@ -909,7 +994,23 @@ export default function AdminCMS({ currentUser, onClose }) {
                         {item.id?.substring(0, 8)}
                       </td>
                       <td style={{...s.td, maxWidth: '350px', color: '#e8edf5', fontWeight: 500}}>
-                        {item.title?.substring(0, 80)}{item.title?.length > 80 ? '...' : ''}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {item.status === 'draft' && (
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              background: 'rgba(250, 204, 21, 0.15)',
+                              color: '#facc15',
+                              border: '1px solid rgba(250, 204, 21, 0.3)',
+                              letterSpacing: '0.5px',
+                              flexShrink: 0
+                            }}>DRAFT</span>
+                          )}
+                          <span>{item.title?.substring(0, 80)}{item.title?.length > 80 ? '...' : ''}</span>
+                        </div>
                       </td>
                       <td style={s.td}>
                         <span style={{ fontSize: '11px', color: '#a78bfa' }}>{item.category || '—'}</span>
@@ -1065,6 +1166,16 @@ export default function AdminCMS({ currentUser, onClose }) {
               <input style={s.fieldInput} value={editForm.url || ''} onChange={e => setEditForm(f => ({...f, url: e.target.value}))} />
             </div>
 
+            {activeTab !== 'rss' && editingItem?.source_table !== 'rss_items' && (
+              <div style={s.fieldGroup}>
+                <div style={s.fieldLabel}>Status</div>
+                <select style={s.fieldSelect} value={editForm.status || 'published'} onChange={e => setEditForm(f => ({...f, status: e.target.value}))}>
+                  <option value="draft">📁 DRAFT (Invisible on Dashboard)</option>
+                  <option value="published">🟢 PUBLISHED (Live on Dashboard)</option>
+                </select>
+              </div>
+            )}
+
             <div style={s.coordRow}>
               <div>
                 <div style={s.fieldLabel}>Category</div>
@@ -1167,6 +1278,175 @@ export default function AdminCMS({ currentUser, onClose }) {
 
             <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
               <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Event Modal */}
+      {creatingEvent && (
+        <div style={s.editOverlay} onClick={(e) => { if (e.target === e.currentTarget) setCreatingEvent(false); }}>
+          <div style={{...s.editPanel, border: '1px solid rgba(0, 240, 255, 0.4)', boxShadow: '0 0 50px rgba(0, 240, 255, 0.15)'}}>
+            <div style={{...s.editHeader, background: 'rgba(0, 240, 255, 0.03)'}}>
+              <div style={{...s.editTitle, color: '#00f0ff'}}><span style={{ marginRight: '6px' }}>➕</span> Create New Threat Signal</div>
+              <button style={s.closeBtn} onClick={() => setCreatingEvent(false)}><X size={16} /></button>
+            </div>
+
+            <div style={s.fieldGroup}>
+              <div style={s.fieldLabel}>Title</div>
+              <input style={s.fieldInput} placeholder="e.g. IDF Lavender AI targeting system deployment" value={createForm.title || ''} onChange={e => setCreateForm(f => ({...f, title: e.target.value}))} />
+            </div>
+
+            <div style={s.fieldGroup}>
+              <div style={s.fieldLabel}>Summary</div>
+              <textarea style={s.fieldTextarea} placeholder="Enter a comprehensive intelligence brief of the event..." value={createForm.summary || ''} onChange={e => setCreateForm(f => ({...f, summary: e.target.value}))} />
+            </div>
+
+            <div style={s.fieldGroup}>
+              <div style={s.fieldLabel}>URL / Reference Source</div>
+              <input style={s.fieldInput} placeholder="e.g. https://www.972mag.com/lavender-ai-israeli-army-gaza/" value={createForm.url || ''} onChange={e => setCreateForm(f => ({...f, url: e.target.value}))} />
+            </div>
+
+            <div style={s.coordRow}>
+              <div>
+                <div style={s.fieldLabel}>Category</div>
+                <select style={s.fieldSelect} value={createForm.category || 'Political'} onChange={e => setCreateForm(f => ({...f, category: e.target.value}))}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={s.fieldLabel}>Severity</div>
+                <select style={s.fieldSelect} value={createForm.severity || 1} onChange={e => setCreateForm(f => ({...f, severity: parseInt(e.target.value)}))}>
+                  {SEVERITIES.map(sv => <option key={sv} value={sv}>{sv} — {SEV_LABELS[sv]}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{...s.fieldGroup, position: 'relative'}}>
+              <div style={s.fieldLabel}><MapPin size={10} style={{ display: 'inline', marginRight: '4px' }} />Location Search & Autocomplete</div>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  style={s.fieldInput} 
+                  placeholder="Type an address or city to search via OpenStreetMap Nominatim..."
+                  value={createForm.location || ''} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCreateForm(f => ({...f, location: val}));
+                    setAddressQuery(val);
+                    setActiveSearchField('create');
+                  }} 
+                />
+                {isLoadingSuggestions && activeSearchField === 'create' && (
+                  <Loader2 size={14} className="animate-spin" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#00f0ff' }} />
+                )}
+              </div>
+
+              {suggestions.length > 0 && activeSearchField === 'create' && (
+                <div style={{
+                  position: 'absolute',
+                  top: '55px',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#0f141e',
+                  border: '1px solid rgba(0,240,255,0.25)',
+                  borderRadius: '6px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+                  zIndex: 10000,
+                  maxHeight: '180px',
+                  overflowY: 'auto'
+                }}>
+                  {suggestions.map((item, idx) => {
+                    const nameSegments = item.display_name.split(',');
+                    const cleanName = nameSegments.length > 3 
+                      ? `${nameSegments[0].trim()}, ${nameSegments[1].trim()}, ${nameSegments[nameSegments.length - 1].trim()}` 
+                      : item.display_name;
+
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => {
+                          setCreateForm(f => ({
+                            ...f,
+                            location: cleanName,
+                            lat: parseFloat(item.lat),
+                            lon: parseFloat(item.lon)
+                          }));
+                          setAddressQuery('');
+                          setSuggestions([]);
+                          setActiveSearchField(null);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '11px',
+                          color: '#cbd5e1',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          transition: 'background-color 0.2s',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{cleanName}</div>
+                        <div style={{ fontSize: '10px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.display_name}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#00f0ff', fontFamily: 'monospace', marginTop: '2px' }}>
+                          COORD: {parseFloat(item.lat).toFixed(4)}N, {parseFloat(item.lon).toFixed(4)}E
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={s.coordRow}>
+              <div>
+                <div style={s.fieldLabel}>Latitude</div>
+                <input style={s.fieldInput} placeholder="0.0" value={createForm.lat ?? ''} onChange={e => setCreateForm(f => ({...f, lat: e.target.value}))} />
+              </div>
+              <div>
+                <div style={s.fieldLabel}>Longitude</div>
+                <input style={s.fieldInput} placeholder="0.0" value={createForm.lon ?? ''} onChange={e => setCreateForm(f => ({...f, lon: e.target.value}))} />
+              </div>
+            </div>
+
+            <div style={s.fieldGroup}>
+              <div style={s.fieldLabel}>Operational Feed Status</div>
+              <select style={s.fieldSelect} value={createForm.status || 'draft'} onChange={e => setCreateForm(f => ({...f, status: e.target.value}))}>
+                <option value="draft">📁 KEEP AS DRAFT (Invisible on Dashboard)</option>
+                <option value="published">🟢 PUBLISH LIVE (Instant Overlay sync)</option>
+              </select>
+            </div>
+
+            <button 
+              style={{
+                ...s.saveBtn,
+                background: 'rgba(0, 240, 255, 0.15)',
+                border: '1px solid rgba(0, 240, 255, 0.4)',
+                color: '#00f0ff',
+                boxShadow: '0 0 15px rgba(0, 240, 255, 0.1)',
+                marginTop: '24px',
+                transition: 'all 0.2s',
+                width: 'calc(100% - 40px)',
+                margin: '16px auto',
+                display: 'flex'
+              }} 
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#00f0ff';
+                e.currentTarget.style.color = '#000000';
+                e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 240, 255, 0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
+                e.currentTarget.style.color = '#00f0ff';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              onClick={handleCreateSave} 
+              disabled={saving}
+            >
+              <Save size={14} /> {saving ? 'SAVING SIGNAL...' : 'SAVE TACTICAL SIGNAL'}
             </button>
           </div>
         </div>
