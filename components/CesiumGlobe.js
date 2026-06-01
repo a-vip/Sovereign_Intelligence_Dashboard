@@ -2467,7 +2467,7 @@ export default function CesiumGlobe({
           existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
           existing.label.heightReference = targetHeightRef;
           existing.label.disableDepthTestDistance = targetDisableDepthTest;
-          existing.label.show = isAdmin;
+          existing.label.show = false;
         }
         existing.properties = m;
       } else {
@@ -2497,7 +2497,7 @@ export default function CesiumGlobe({
             pixelOffset: new Cesium.Cartesian2(0, -20),
             heightReference: targetHeightRef,
             disableDepthTestDistance: targetDisableDepthTest,
-            show: isAdmin,
+            show: false,
           },
           properties: m,
         });
