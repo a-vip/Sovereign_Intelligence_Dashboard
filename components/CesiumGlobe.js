@@ -281,6 +281,17 @@ const isPointInCountry = (lat, lon, feature) => {
   return false;
 };
 
+// Global memory cache for map layers to prevent redundant network fetches
+const GLOBE_LAYER_CACHE = {
+  countries: null,
+  cables: null,
+  landingStations: null,
+  dataCenters: null,
+  aiRegulations: null,
+  oilGas: null,
+  gpsJamming: null,
+};
+
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
@@ -308,7 +319,8 @@ export default function CesiumGlobe({
   dataCentersEnabled = false,
   aiRegulationsEnabled = false,
   selectedCountry = null,
-  onCountrySelect = null
+  onCountrySelect = null,
+  isAdmin = false
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -332,9 +344,14 @@ export default function CesiumGlobe({
 
   // Pre-fetch world borders GeoJSON into memory ref on startup (under 1ms, 0MB WebGL overhead!)
   useEffect(() => {
+    if (GLOBE_LAYER_CACHE.countries) {
+      countriesGeoJsonRef.current = GLOBE_LAYER_CACHE.countries;
+      return;
+    }
     fetch('/data/countries.geo.json')
       .then(res => res.json())
       .then(data => {
+        GLOBE_LAYER_CACHE.countries = data;
         countriesGeoJsonRef.current = data;
         console.log("Sovereign country borders loaded into memory ref successfully.");
       })
@@ -374,6 +391,10 @@ export default function CesiumGlobe({
       setLeafletAiRegulations([]);
       return;
     }
+    if (GLOBE_LAYER_CACHE.aiRegulations && regulationsUpdateTrigger === 0) {
+      setLeafletAiRegulations(GLOBE_LAYER_CACHE.aiRegulations.aiRegulations);
+      return;
+    }
     fetch('/api/ai-regulations')
       .then(res => {
         if (!res.ok) throw new Error("AI Regulations data request failed");
@@ -381,6 +402,7 @@ export default function CesiumGlobe({
       })
       .then(data => {
         if (data && data.aiRegulations) {
+          GLOBE_LAYER_CACHE.aiRegulations = data;
           setLeafletAiRegulations(data.aiRegulations);
         }
       })
@@ -2429,17 +2451,23 @@ export default function CesiumGlobe({
       const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
 
       const existing = viewer.entities.getById(threatId);
+      const isManualEvent = String(m.id || '').startsWith('evt-');
+      const outlineColor = isManualEvent ? '#00f0ff' : '#ffffff';
+      const outlineWidth = isManualEvent ? 3.0 : 1.5;
+
       if (existing) {
         // Surgically update properties on the existing persistent entity
         existing.position = newPos;
         if (existing.billboard) {
           existing.billboard.heightReference = targetHeightRef;
           existing.billboard.disableDepthTestDistance = targetDisableDepthTest;
+          existing.billboard.image = createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, outlineColor, outlineWidth);
         }
         if (existing.label) {
           existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
           existing.label.heightReference = targetHeightRef;
           existing.label.disableDepthTestDistance = targetDisableDepthTest;
+          existing.label.show = isAdmin;
         }
         existing.properties = m;
       } else {
@@ -2449,7 +2477,7 @@ export default function CesiumGlobe({
           name: m.title || m.name,
           position: newPos,
           billboard: {
-            image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, '#ffffff', 1.5),
+            image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, outlineColor, outlineWidth),
             heightReference: targetHeightRef,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
@@ -2469,7 +2497,7 @@ export default function CesiumGlobe({
             pixelOffset: new Cesium.Cartesian2(0, -20),
             heightReference: targetHeightRef,
             disableDepthTestDistance: targetDisableDepthTest,
-            show: false,
+            show: isAdmin,
           },
           properties: m,
         });
@@ -2507,7 +2535,7 @@ export default function CesiumGlobe({
         }
       }
     });
-  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle]);
+  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin]);
 
   // 6. Update dynamic orbiting satellites and flight paths
   useEffect(() => {
@@ -3099,77 +3127,86 @@ export default function CesiumGlobe({
       return;
     }
 
-    fetch('/api/oil-gas')
-      .then(res => {
-        if (!res.ok) throw new Error("Oil & Gas request failed");
-        return res.json();
-      })
-      .then(data => {
-        if (!data) return;
-        clearOilGas();
+    const drawOilGas = (data) => {
+      if (!data) return;
+      clearOilGas();
 
-        const newEntities = [];
+      const newEntities = [];
 
-        // 1. Draw Pipeline Vector Paths (Thin, gorgeous custom colored lines draped on ground)
-        if (data.lines && data.lines.length > 0) {
-          data.lines.forEach(line => {
-            const degreesArray = [];
-            line.coordinates.forEach(coord => {
-              degreesArray.push(coord[0], coord[1]);
+      // 1. Draw Pipeline Vector Paths (Thin, gorgeous custom colored lines draped on ground)
+      if (data.lines && data.lines.length > 0) {
+        data.lines.forEach(line => {
+          const degreesArray = [];
+          line.coordinates.forEach(coord => {
+            degreesArray.push(coord[0], coord[1]);
+          });
+
+          try {
+            const entity = viewer.entities.add({
+              name: line.project,
+              polyline: {
+                positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
+                width: 0.8, // Elegant hairline
+                material: Cesium.Color.fromCssColorString(line.color).withAlpha(0.35), // Faint and translucent
+                clampToGround: true
+              },
+              properties: {
+                isOilGas: true,
+                isPipeline: true,
+                title: line.project
+              }
             });
+            newEntities.push(entity);
+          } catch (err) {}
+        });
+      }
 
-            try {
-              const entity = viewer.entities.add({
-                name: line.project,
-                polyline: {
-                  positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
-                  width: 0.8, // Elegant hairline
-                  material: Cesium.Color.fromCssColorString(line.color).withAlpha(0.35), // Faint and translucent
-                  clampToGround: true
-                },
-                properties: {
-                  isOilGas: true,
-                  isPipeline: true,
-                  title: line.project
-                }
-              });
-              newEntities.push(entity);
-            } catch (err) {}
-          });
-        }
+      // 2. Draw Plants, Refineries, and Terminals (Dynamic solid translucent micro-droplets color-coded correctly)
+      if (data.points && data.points.length > 0) {
+        data.points.forEach(point => {
+          try {
+            const entity = viewer.entities.add({
+              name: point.name,
+              position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1], targetHeight),
+              billboard: {
+                image: createTeardropCanvas(point.color),
+                width: 4, // Even smaller and cleaner
+                height: 6,
+                color: new Cesium.Color(1.0, 1.0, 1.0, 0.45), // Gorgeous translucent appearance (45% opacity)
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                heightReference: targetHeightRef,
+                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+              },
+              properties: {
+                isOilGas: true,
+                isPlant: true,
+                title: point.name
+              }
+            });
+            newEntities.push(entity);
+          } catch (err) {}
+        });
+      }
 
-        // 2. Draw Plants, Refineries, and Terminals (Dynamic solid translucent micro-droplets color-coded correctly)
-        if (data.points && data.points.length > 0) {
-          data.points.forEach(point => {
-            try {
-              const entity = viewer.entities.add({
-                name: point.name,
-                position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1], targetHeight),
-                billboard: {
-                  image: createTeardropCanvas(point.color),
-                  width: 4, // Even smaller and cleaner
-                  height: 6,
-                  color: new Cesium.Color(1.0, 1.0, 1.0, 0.45), // Gorgeous translucent appearance (45% opacity)
-                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                  heightReference: targetHeightRef,
-                  disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
-                },
-                properties: {
-                  isOilGas: true,
-                  isPlant: true,
-                  title: point.name
-                }
-              });
-              newEntities.push(entity);
-            } catch (err) {}
-          });
-        }
+      oilGasEntitiesRef.current = newEntities;
+    };
 
-        oilGasEntitiesRef.current = newEntities;
-      })
-      .catch(err => {
-        console.warn("Failed to load vector pipelines and refineries:", err);
-      });
+    if (GLOBE_LAYER_CACHE.oilGas) {
+      drawOilGas(GLOBE_LAYER_CACHE.oilGas);
+    } else {
+      fetch('/api/oil-gas')
+        .then(res => {
+          if (!res.ok) throw new Error("Oil & Gas request failed");
+          return res.json();
+        })
+        .then(data => {
+          GLOBE_LAYER_CACHE.oilGas = data;
+          drawOilGas(data);
+        })
+        .catch(err => {
+          console.warn("Failed to load vector pipelines and refineries:", err);
+        });
+    }
 
     return () => {
       clearOilGas();
@@ -3214,67 +3251,76 @@ export default function CesiumGlobe({
       return;
     }
 
-    fetch('/api/gps-jamming')
-      .then(res => {
-        if (!res.ok) throw new Error("GPS Jamming data request failed");
-        return res.json();
-      })
-      .then(data => {
-        if (!data || !data.cells) return;
-        clearGpsJamming();
+    const drawGpsJamming = (data) => {
+      if (!data || !data.cells) return;
+      clearGpsJamming();
 
-        const newEntities = [];
+      const newEntities = [];
 
-        data.cells.forEach(cell => {
-          const points = getHexagonPoints(cell.lat, cell.lon, cell.radiusKm);
-          
-          // Configurable opacity: less translucency representing more GPS jamming (severe is highly opaque, low is very translucent)
-          let opacity = 0.0; // Background mesh cells are empty/fully transparent by default
-          let outlineColor = Cesium.Color.fromCssColorString('#eab308').withAlpha(0.08); // Subtle, thin gold grid outline
-          
-          if (cell.category === 'high') {
-            opacity = 0.85; // Highly opaque crimson red
-            outlineColor = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.4);
-          } else if (cell.category === 'medium') {
-            opacity = 0.55; // Deep translucent orange
-            outlineColor = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.35);
-          } else if (cell.category === 'low') {
-            opacity = 0.28; // Neon translucent gold/yellow
-            outlineColor = Cesium.Color.fromCssColorString('#eab308').withAlpha(0.25);
-          }
+      data.cells.forEach(cell => {
+        const points = getHexagonPoints(cell.lat, cell.lon, cell.radiusKm);
+        
+        // Configurable opacity: less translucency representing more GPS jamming (severe is highly opaque, low is very translucent)
+        let opacity = 0.0; // Background mesh cells are empty/fully transparent by default
+        let outlineColor = Cesium.Color.fromCssColorString('#eab308').withAlpha(0.08); // Subtle, thin gold grid outline
+        
+        if (cell.category === 'high') {
+          opacity = 0.85; // Highly opaque crimson red
+          outlineColor = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.4);
+        } else if (cell.category === 'medium') {
+          opacity = 0.55; // Deep translucent orange
+          outlineColor = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.35);
+        } else if (cell.category === 'low') {
+          opacity = 0.28; // Neon translucent gold/yellow
+          outlineColor = Cesium.Color.fromCssColorString('#eab308').withAlpha(0.25);
+        }
 
-          try {
-            const entity = viewer.entities.add({
-              name: cell.source,
-              polygon: {
-                hierarchy: Cesium.Cartesian3.fromDegreesArray(points),
-                material: opacity > 0 
-                  ? Cesium.Color.fromCssColorString(cell.color).withAlpha(opacity)
-                  : Cesium.Color.TRANSPARENT,
-                outline: true,
-                outlineColor: outlineColor,
-                outlineWidth: 0.8, // Elegant hairline outline
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-              },
-              properties: {
-                isGpsJamming: true,
-                title: cell.source,
-                intensity: cell.intensity,
-                category: cell.category
-              }
-            });
-            newEntities.push(entity);
-          } catch (err) {
-            console.error("Failed to render GPS jamming hexagon polygon:", err);
-          }
-        });
-
-        gpsJammingEntitiesRef.current = newEntities;
-        console.log(`Rendered ${newEntities.length} active GPS jamming honeycomb cells.`);
-      })
-      .catch(err => {
-        console.warn("Failed to load GPS jamming vector cells:", err);
+        try {
+          const entity = viewer.entities.add({
+            name: cell.source,
+            polygon: {
+              hierarchy: Cesium.Cartesian3.fromDegreesArray(points),
+              material: opacity > 0 
+                ? Cesium.Color.fromCssColorString(cell.color).withAlpha(opacity)
+                : Cesium.Color.TRANSPARENT,
+              outline: true,
+              outlineColor: outlineColor,
+              outlineWidth: 0.8, // Elegant hairline outline
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+            },
+            properties: {
+              isGpsJamming: true,
+              title: cell.source,
+              intensity: cell.intensity,
+              category: cell.category
+            }
+          });
+          newEntities.push(entity);
+        } catch (err) {
+          console.error("Failed to render GPS jamming hexagon polygon:", err);
+        }
       });
+
+      gpsJammingEntitiesRef.current = newEntities;
+      console.log(`Rendered ${newEntities.length} active GPS jamming honeycomb cells.`);
+    };
+
+    if (GLOBE_LAYER_CACHE.gpsJamming) {
+      drawGpsJamming(GLOBE_LAYER_CACHE.gpsJamming);
+    } else {
+      fetch('/api/gps-jamming')
+        .then(res => {
+          if (!res.ok) throw new Error("GPS Jamming data request failed");
+          return res.json();
+        })
+        .then(data => {
+          GLOBE_LAYER_CACHE.gpsJamming = data;
+          drawGpsJamming(data);
+        })
+        .catch(err => {
+          console.warn("Failed to load GPS jamming vector cells:", err);
+        });
+    }
 
     return () => {
       clearGpsJamming();
@@ -3311,55 +3357,64 @@ export default function CesiumGlobe({
       return;
     }
 
-    fetch('/api/datacenters')
-      .then(res => {
-        if (!res.ok) throw new Error("Data Centers data request failed");
-        return res.json();
-      })
-      .then(data => {
-        if (!data || !data.dataCenters) return;
-        clearDataCenters();
+    const drawDataCenters = (data) => {
+      if (!data || !data.dataCenters) return;
+      clearDataCenters();
 
-        const newEntities = [];
-        data.dataCenters.forEach(dc => {
-          if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') return;
+      const newEntities = [];
+      data.dataCenters.forEach(dc => {
+        if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') return;
 
-          // Color representation: glowing orange for planned/proposed, neon cyan for active (with organic translucency)
-          const nodeColor = dc.status === 'planned' 
-            ? Cesium.Color.fromCssColorString('#f97316').withAlpha(0.65) 
-            : Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.65);
+        // Color representation: glowing orange for planned/proposed, neon cyan for active (with organic translucency)
+        const nodeColor = dc.status === 'planned' 
+          ? Cesium.Color.fromCssColorString('#f97316').withAlpha(0.65) 
+          : Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.65);
 
-          try {
-            const entity = viewer.entities.add({
-              name: dc.name,
-              position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat, targetHeight),
-              billboard: {
-                image: createCircleCanvas(nodeColor.toCssColorString(), 7, '#ffffff', 1.2),
-                heightReference: targetHeightRef,
-                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
-                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
-              },
-              properties: {
-                isDataCenter: true,
-                title: dc.name,
-                operator: dc.operator || 'Independent',
-                location: `${dc.city}, ${dc.country}`,
-                status: dc.status || 'active'
-              }
-            });
-            newEntities.push(entity);
-          } catch (err) {
-            console.error("Failed to render data center node:", err);
-          }
-        });
-
-        dataCenterEntitiesRef.current = newEntities;
-        console.log(`Rendered ${newEntities.length} global data center server nodes.`);
-      })
-      .catch(err => {
-        console.warn("Failed to load global data centers vector points:", err);
+        try {
+          const entity = viewer.entities.add({
+            name: dc.name,
+            position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat, targetHeight),
+            billboard: {
+              image: createCircleCanvas(nodeColor.toCssColorString(), 7, '#ffffff', 1.2),
+              heightReference: targetHeightRef,
+              disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+            },
+            properties: {
+              isDataCenter: true,
+              title: dc.name,
+              operator: dc.operator || 'Independent',
+              location: `${dc.city}, ${dc.country}`,
+              status: dc.status || 'active'
+            }
+          });
+          newEntities.push(entity);
+        } catch (err) {
+          console.error("Failed to render data center node:", err);
+        }
       });
+
+      dataCenterEntitiesRef.current = newEntities;
+      console.log(`Rendered ${newEntities.length} global data center server nodes.`);
+    };
+
+    if (GLOBE_LAYER_CACHE.dataCenters) {
+      drawDataCenters(GLOBE_LAYER_CACHE.dataCenters);
+    } else {
+      fetch('/api/datacenters')
+        .then(res => {
+          if (!res.ok) throw new Error("Data Centers data request failed");
+          return res.json();
+        })
+        .then(data => {
+          GLOBE_LAYER_CACHE.dataCenters = data;
+          drawDataCenters(data);
+        })
+        .catch(err => {
+          console.warn("Failed to load global data centers vector points:", err);
+        });
+    }
 
     return () => {
       clearDataCenters();
@@ -3403,55 +3458,64 @@ export default function CesiumGlobe({
       'Policy': '#a855f7'
     };
 
-    fetch('/api/ai-regulations')
-      .then(res => {
-        if (!res.ok) throw new Error("AI Regulations data request failed");
-        return res.json();
-      })
-      .then(data => {
-        if (!data || !data.aiRegulations) return;
-        clearAiRegulations();
+    const drawAiRegulations = (data) => {
+      if (!data || !data.aiRegulations) return;
+      clearAiRegulations();
 
-        const newEntities = [];
-        data.aiRegulations.forEach(item => {
-          if (typeof item.lon !== 'number' || typeof item.lat !== 'number') return;
+      const newEntities = [];
+      data.aiRegulations.forEach(item => {
+        if (typeof item.lon !== 'number' || typeof item.lat !== 'number') return;
 
-          const statusColor = REG_COLORS[item.status] || '#a855f7';
+        const statusColor = REG_COLORS[item.status] || '#a855f7';
 
-          try {
-            const entity = viewer.entities.add({
-              id: 'reg-' + item.id,
-              name: item.title,
-              position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, targetHeight),
-              billboard: {
-                image: createCircleCanvas(statusColor, 12, '#ffffff', 1.5),
-                heightReference: targetHeightRef,
-                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
-                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
-              },
-              properties: {
-                isAiRegulation: true,
-                title: item.title,
-                jurisdiction: item.jurisdiction,
-                status: item.status,
-                area: item.area,
-                date: item.date,
-                description: item.description
-              }
-            });
-            newEntities.push(entity);
-          } catch (err) {
-            console.error("Failed to render AI regulation node:", err);
-          }
-        });
-
-        aiRegulationsEntitiesRef.current = newEntities;
-        console.log(`Rendered ${newEntities.length} global AI regulation pins.`);
-      })
-      .catch(err => {
-        console.warn("Failed to load global AI regulations vector points:", err);
+        try {
+          const entity = viewer.entities.add({
+            id: 'reg-' + item.id,
+            name: item.title,
+            position: Cesium.Cesium3DTileFeature ? Cesium.Cartesian3.fromDegrees(item.lon, item.lat, targetHeight) : Cesium.Cartesian3.fromDegrees(item.lon, item.lat, targetHeight),
+            billboard: {
+              image: createCircleCanvas(statusColor, 12, '#ffffff', 1.5),
+              heightReference: targetHeightRef,
+              disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+            },
+            properties: {
+              isAiRegulation: true,
+              title: item.title,
+              jurisdiction: item.jurisdiction,
+              status: item.status,
+              area: item.area,
+              date: item.date,
+              description: item.description
+            }
+          });
+          newEntities.push(entity);
+        } catch (err) {
+          console.error("Failed to render AI regulation node:", err);
+        }
       });
+
+      aiRegulationsEntitiesRef.current = newEntities;
+      console.log(`Rendered ${newEntities.length} global AI regulation pins.`);
+    };
+
+    if (GLOBE_LAYER_CACHE.aiRegulations && regulationsUpdateTrigger === 0) {
+      drawAiRegulations(GLOBE_LAYER_CACHE.aiRegulations);
+    } else {
+      fetch('/api/ai-regulations')
+        .then(res => {
+          if (!res.ok) throw new Error("AI Regulations data request failed");
+          return res.json();
+        })
+        .then(data => {
+          GLOBE_LAYER_CACHE.aiRegulations = data;
+          drawAiRegulations(data);
+        })
+        .catch(err => {
+          console.warn("Failed to load global AI regulations vector points:", err);
+        });
+    }
 
     return () => {
       clearAiRegulations();
@@ -3488,93 +3552,103 @@ export default function CesiumGlobe({
       return;
     }
 
-    Promise.all([
-      fetch('/api/cables').then(res => {
-        if (!res.ok) throw new Error("Cables proxy request failed");
-        return res.json();
-      }),
-      fetch('/api/landing-stations').then(res => {
-        if (!res.ok) throw new Error("Landing stations proxy request failed");
-        return res.json();
-      })
-    ])
-      .then(([cablesGeo, landingGeo]) => {
-        if (!cablesGeo || !cablesGeo.features) return;
+    const drawCables = (cablesGeo, landingGeo) => {
+      if (!cablesGeo || !cablesGeo.features) return;
 
-        clearCables();
-        const newEntities = [];
+      clearCables();
+      const newEntities = [];
 
-        // 1. Draw Undersea Cable Lines (Delicate, Color-coded)
-        cablesGeo.features.forEach(feature => {
+      // 1. Draw Undersea Cable Lines (Delicate, Color-coded)
+      cablesGeo.features.forEach(feature => {
+        const { geometry, properties } = feature;
+        if (!geometry || !geometry.coordinates) return;
+
+        const colorHex = properties.color || '#ec4899';
+        const color = Cesium.Color.fromCssColorString(colorHex);
+
+        const renderLine = (coords) => {
+          const degreesArray = [];
+          coords.forEach(coord => {
+            degreesArray.push(coord[0], coord[1]);
+          });
+
+          try {
+            const entity = viewer.entities.add({
+              name: properties.name,
+              polyline: {
+                positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
+                width: 0.6, // Ultra-thin, delicate, elegant hairline lines
+                material: color.withAlpha(0.3), // Faint and elegant translucent style
+                clampToGround: true
+              },
+              properties: {
+                isCable: true,
+                title: properties.name
+              }
+            });
+            newEntities.push(entity);
+          } catch (err) {}
+        };
+
+        if (geometry.type === 'LineString') {
+          renderLine(geometry.coordinates);
+        } else if (geometry.type === 'MultiLineString') {
+          geometry.coordinates.forEach(coords => renderLine(coords));
+        }
+      });
+
+      // 2. Draw Landing Station Points (Delicate circles matching color coding)
+      if (landingGeo && landingGeo.features) {
+        landingGeo.features.forEach(feature => {
           const { geometry, properties } = feature;
           if (!geometry || !geometry.coordinates) return;
 
-          const colorHex = properties.color || '#ec4899';
-          const color = Cesium.Color.fromCssColorString(colorHex);
-
-          const renderLine = (coords) => {
-            const degreesArray = [];
-            coords.forEach(coord => {
-              degreesArray.push(coord[0], coord[1]);
+          try {
+            const entity = viewer.entities.add({
+              name: properties.name,
+              position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1], targetHeight),
+              billboard: {
+                image: createCircleCanvas('rgba(168, 85, 247, 0.4)', 4, 'rgba(255, 255, 255, 0.4)', 0.5),
+                heightReference: targetHeightRef,
+                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+              },
+              properties: {
+                isLandingStation: true,
+                title: properties.name
+              }
             });
-
-            try {
-              const entity = viewer.entities.add({
-                name: properties.name,
-                polyline: {
-                  positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
-                  width: 0.6, // Ultra-thin, delicate, elegant hairline lines
-                  material: color.withAlpha(0.3), // Faint and elegant translucent style
-                  clampToGround: true
-                },
-                properties: {
-                  isCable: true,
-                  title: properties.name
-                }
-              });
-              newEntities.push(entity);
-            } catch (err) {}
-          };
-
-          if (geometry.type === 'LineString') {
-            renderLine(geometry.coordinates);
-          } else if (geometry.type === 'MultiLineString') {
-            geometry.coordinates.forEach(coords => renderLine(coords));
-          }
+            newEntities.push(entity);
+          } catch (err) {}
         });
+      }
 
-        // 2. Draw Landing Station Points (Delicate circles matching color coding)
-        if (landingGeo && landingGeo.features) {
-          landingGeo.features.forEach(feature => {
-            const { geometry, properties } = feature;
-            if (!geometry || !geometry.coordinates) return;
+      cableEntitiesRef.current = newEntities;
+    };
 
-            try {
-              const entity = viewer.entities.add({
-                name: properties.name,
-                position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1], targetHeight),
-                billboard: {
-                  image: createCircleCanvas('rgba(168, 85, 247, 0.4)', 4, 'rgba(255, 255, 255, 0.4)', 0.5),
-                  heightReference: targetHeightRef,
-                  disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
-                  horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM
-                },
-                properties: {
-                  isLandingStation: true,
-                  title: properties.name
-                }
-              });
-              newEntities.push(entity);
-            } catch (err) {}
-          });
-        }
-
-        cableEntitiesRef.current = newEntities;
-      })
-      .catch(err => {
-        console.warn("Failed to dynamically draw global subsea cables or landing points:", err);
-      });
+    if (GLOBE_LAYER_CACHE.submarineCables && GLOBE_LAYER_CACHE.landingStations) {
+      drawCables(GLOBE_LAYER_CACHE.submarineCables, GLOBE_LAYER_CACHE.landingStations);
+    } else {
+      Promise.all([
+        fetch('/api/cables').then(res => {
+          if (!res.ok) throw new Error("Cables proxy request failed");
+          return res.json();
+        }),
+        fetch('/api/landing-stations').then(res => {
+          if (!res.ok) throw new Error("Landing stations proxy request failed");
+          return res.json();
+        })
+      ])
+        .then(([cablesGeo, landingGeo]) => {
+          GLOBE_LAYER_CACHE.submarineCables = cablesGeo;
+          GLOBE_LAYER_CACHE.landingStations = landingGeo;
+          drawCables(cablesGeo, landingGeo);
+        })
+        .catch(err => {
+          console.warn("Failed to dynamically draw global subsea cables or landing points:", err);
+        });
+    }
 
     return () => {
       clearCables();

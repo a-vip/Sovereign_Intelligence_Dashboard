@@ -108,9 +108,26 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
 
   const isAdmin = getIsAdmin();
   console.log('[EventDetailsWindow] activeUser:', activeUser?.email, 'role:', activeUser?.role, 'isAdmin:', isAdmin);
-  const [pos, setPos] = useState({ x: window.innerWidth / 2 - 200, y: 100 });
+  const [pos, setPos] = useState({ x: 100, y: 100 });
+  const [isMobile, setIsMobile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      if (mobile) {
+        setPos({ x: 0, y: 0 });
+      } else {
+        setPos({ x: window.innerWidth / 2 - 200, y: 100 });
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Accordion state
   const [expandedSection, setExpandedSection] = useState('summary');
@@ -315,6 +332,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         lon: parseFloat(editDraft.lon),
         source: editDraft.source,
         url: editDraft.url,
+        preventFocus: true,
         details: {
           ...event.details,
           summary: editDraft.summary
@@ -446,7 +464,22 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
     return (
       <div 
         className="details-window"
-        style={{
+        style={isMobile ? {
+          position: 'fixed',
+          bottom: '50px',
+          left: '12px',
+          right: '12px',
+          maxHeight: 'calc(100vh - 150px)',
+          backgroundColor: '#0c0f17',
+          border: '1px solid rgba(168, 85, 247, 0.35)',
+          borderRadius: '12px',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(168, 85, 247, 0.15)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          fontFamily: 'monospace'
+        } : {
           position: 'fixed',
           left: 0, top: 0,
           transform: `translate(${pos.x}px, ${pos.y}px)`,
@@ -700,7 +733,21 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
   return (
     <div 
       className="details-window"
-      style={{
+      style={isMobile ? {
+        position: 'fixed',
+        bottom: '50px',
+        left: '12px',
+        right: '12px',
+        maxHeight: 'calc(100vh - 150px)',
+        backgroundColor: '#0f141e',
+        border: '1px solid #1e293b',
+        borderRadius: '12px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      } : {
         position: 'fixed',
         left: 0, top: 0,
         transform: `translate(${pos.x}px, ${pos.y}px)`,

@@ -33,6 +33,15 @@ export default function AdminCMS({ currentUser, onClose }) {
 
   // Diagnostics and Bulk selection states
   const [selectedAnomalyIds, setSelectedAnomalyIds] = useState(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [anomalyFilter, setAnomalyFilter] = useState('all');
   const [isBulkOperating, setIsBulkOperating] = useState(false);
 
@@ -176,6 +185,7 @@ export default function AdminCMS({ currentUser, onClose }) {
           lat: parseFloat(isRss ? editForm.latitude : editForm.lat),
           lon: parseFloat(isRss ? editForm.longitude : editForm.lon),
           url: editForm.url,
+          preventFocus: true,
           details: {
             ...editingItem.details,
             isRssItem: isRss,
@@ -561,6 +571,7 @@ export default function AdminCMS({ currentUser, onClose }) {
           lat: parseFloat(coordsForm.newLat),
           lon: parseFloat(coordsForm.newLon),
           title: coordsForm.title || correctingCoordsItem.subject || 'Suggested Threat Marker',
+          preventFocus: true,
           details: {
             isRssItem: isRss
           }
@@ -610,13 +621,13 @@ export default function AdminCMS({ currentUser, onClose }) {
     : data;
 
   const s = {
-    overlay: { position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
-    panel: { width: '100%', maxWidth: '1200px', maxHeight: '90vh', background: '#0a0f1a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 0 60px rgba(0,240,255,0.08)', position: 'relative' },
+    overlay: { position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '8px' : '20px' },
+    panel: { width: '100%', maxWidth: '1200px', height: isMobile ? '100%' : 'auto', maxHeight: isMobile ? '100vh' : '90vh', background: '#0a0f1a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: isMobile ? '0' : '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 0 60px rgba(0,240,255,0.08)', position: 'relative' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 },
     title: { fontSize: '16px', fontWeight: 800, letterSpacing: '1px', color: '#00f0ff', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' },
     closeBtn: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#8892a4', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    tabBar: { display: 'flex', gap: '4px', padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 },
-    tab: (active) => ({ padding: '8px 18px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', border: 'none', background: active ? 'rgba(0,240,255,0.12)' : 'transparent', color: active ? '#00f0ff' : '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase', transition: 'all 0.15s ease' }),
+    tabBar: { display: 'flex', gap: '4px', padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, overflowX: isMobile ? 'auto' : 'visible', whiteSpace: isMobile ? 'nowrap' : 'normal', scrollbarWidth: 'none' },
+    tab: (active) => ({ padding: '8px 18px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', border: 'none', background: active ? 'rgba(0,240,255,0.12)' : 'transparent', color: active ? '#00f0ff' : '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase', transition: 'all 0.15s ease', flexShrink: 0 }),
     searchBar: { display: 'flex', gap: '12px', padding: '12px 24px', alignItems: 'center', flexShrink: 0 },
     searchInput: { flex: 1, padding: '10px 16px 10px 38px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#e8edf5', fontSize: '13px', outline: 'none', fontFamily: 'inherit' },
     body: { flex: 1, overflowY: 'auto', padding: '0 24px 24px', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,240,255,0.25) transparent' },
@@ -629,8 +640,8 @@ export default function AdminCMS({ currentUser, onClose }) {
     pageBtn: (disabled) => ({ background: disabled ? 'transparent' : 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: disabled ? '#334155' : '#8892a4', cursor: disabled ? 'default' : 'pointer', padding: '6px 10px', display: 'flex', alignItems: 'center' }),
     toast: (type) => ({ position: 'fixed', bottom: '24px', right: '24px', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, zIndex: 10001, background: type === 'error' ? 'rgba(255,45,85,0.9)' : 'rgba(0,240,255,0.9)', color: type === 'error' ? '#fff' : '#000', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', animation: 'fadeIn 0.2s ease' }),
     // Edit modal styles
-    editOverlay: { position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
-    editPanel: { width: '100%', maxWidth: '560px', maxHeight: '85vh', background: '#0c1220', border: '1px solid rgba(0,240,255,0.25)', borderRadius: '14px', overflowY: 'auto', boxShadow: '0 0 50px rgba(0,240,255,0.1)' },
+    editOverlay: { position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '0' : '20px' },
+    editPanel: { width: '100%', maxWidth: '560px', maxHeight: isMobile ? '100vh' : '85vh', height: isMobile ? '100%' : 'auto', background: '#0c1220', border: '1px solid rgba(0,240,255,0.25)', borderRadius: isMobile ? '0' : '14px', overflowY: 'auto', boxShadow: '0 0 50px rgba(0,240,255,0.1)' },
     editHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' },
     editTitle: { fontSize: '14px', fontWeight: 700, color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '1px' },
     fieldGroup: { padding: '6px 20px' },

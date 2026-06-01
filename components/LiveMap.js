@@ -470,6 +470,41 @@ export default function LiveMap({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
+  // Operational heartbeat registration for logging accesses and tracking active operators
+  useEffect(() => {
+    if (!currentUser || !currentUser.email) return;
+
+    let initialLogged = false;
+    const sendHeartbeat = async (isLogin = false) => {
+      try {
+        await fetch('/api/admin/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: currentUser.email,
+            name: currentUser.fullName || currentUser.full_name || 'Operator',
+            isLogin
+          })
+        });
+      } catch (err) {
+        console.warn('Operator heartbeat registration failed:', err);
+      }
+    };
+
+    // Log the initial access session instantly
+    if (!initialLogged) {
+      sendHeartbeat(true);
+      initialLogged = true;
+    }
+
+    // Trigger regular operators active heartbeats every 12 seconds
+    const interval = setInterval(() => {
+      sendHeartbeat(false);
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   const fetchEvents = useCallback(async (refresh = false) => {
     if (!isVisible) return; // Don't fetch if tab is hidden
     try {
@@ -543,11 +578,13 @@ export default function LiveMap({
     setSelectedEvent(updatedEvent);
     
     // 2. Trigger map camera focus transition to new geocoded coordinates
-    setFocusCoordinate({
-      lat: updatedEvent.lat,
-      lon: updatedEvent.lon,
-      timestamp: Date.now()
-    });
+    if (!updatedEvent.preventFocus) {
+      setFocusCoordinate({
+        lat: updatedEvent.lat,
+        lon: updatedEvent.lon,
+        timestamp: Date.now()
+      });
+    }
 
     const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
     const getNormUrl = (u) => {
@@ -2017,6 +2054,7 @@ export default function LiveMap({
           onMapStyleChange={setMapStyle}
           autoRotate={autoRotate}
           onInteraction={() => setAutoRotate(false)}
+          isAdmin={currentUser?.role === 'admin' || currentUser?.email === 'workwithavip@gmail.com'}
           onPointClick={(point) => {
             // First check GDELT events
             let fullEvent = allFetchedEvents.find(ev => {
