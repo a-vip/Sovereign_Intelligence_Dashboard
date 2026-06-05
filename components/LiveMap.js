@@ -22,6 +22,29 @@ const CAT_COLORS = {
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 
+const extractFlag = (locationStr) => {
+  if (!locationStr) return '🌐';
+  const match = locationStr.match(/\[([A-Z]{2})\]/);
+  if (match) {
+    const code = match[1];
+    return code.toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
+  }
+  if (locationStr.includes('Germany')) return '🇩🇪';
+  if (locationStr.includes('UK') || locationStr.includes('United Kingdom')) return '🇬🇧';
+  if (locationStr.includes('Japan')) return '🇯🇵';
+  if (locationStr.includes('US') || locationStr.includes('United States') || locationStr.includes('Washington')) return '🇺🇸';
+  if (locationStr.includes('Belgium')) return '🇧🇪';
+  if (locationStr.includes('Switzerland')) return '🇨🇭';
+  if (locationStr.includes('Sweden')) return '🇸🇪';
+  if (locationStr.includes('Australia')) return '🇦🇺';
+  return '🌐';
+};
+
+const cleanLocationString = (locationStr) => {
+  if (!locationStr) return 'Unknown Node';
+  return locationStr.replace(/\s*\[[A-Z]{2}\]\s*/g, ' ');
+};
+
 function parseDateSafe(ts) {
   if (!ts) return new Date(0);
   let d;
@@ -287,6 +310,7 @@ export default function LiveMap({
   const [isMinimized, setIsMinimized] = useState(false);
   const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
   const [rssItems, setRssItems] = useState([]);
+  const [onlineCount, setOnlineCount] = useState(null);
   const [rssStatus, setRssStatus] = useState('loading');
   const [rssLoading, setRssLoading] = useState(true);
   const [activeRssTab, setActiveRssTab] = useState('all');
@@ -470,9 +494,26 @@ export default function LiveMap({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  // Operational heartbeat registration for logging accesses and tracking active operators
+  // Operational heartbeat registration for logging accesses and tracking active operators & visitors
   useEffect(() => {
-    if (!currentUser || !currentUser.email) return;
+    let emailStr = '';
+    let nameStr = '';
+    let isVisitor = false;
+
+    let visitorId = sessionStorage.getItem('sovereign_visitor_id');
+    if (!visitorId) {
+      visitorId = 'visitor-' + Math.random().toString(36).substring(2, 11);
+      sessionStorage.setItem('sovereign_visitor_id', visitorId);
+    }
+
+    if (currentUser && currentUser.email) {
+      emailStr = `${currentUser.email}|${visitorId}`;
+      nameStr = currentUser.fullName || currentUser.full_name || 'Operator';
+    } else {
+      isVisitor = true;
+      emailStr = visitorId;
+      nameStr = 'Anonymous Visitor';
+    }
 
     let initialLogged = false;
     const sendHeartbeat = async (isLogin = false) => {
@@ -481,9 +522,9 @@ export default function LiveMap({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: currentUser.email,
-            name: currentUser.fullName || currentUser.full_name || 'Operator',
-            isLogin
+            email: emailStr,
+            name: nameStr,
+            isLogin: isLogin && !isVisitor
           })
         });
       } catch (err) {
@@ -497,11 +538,42 @@ export default function LiveMap({
       initialLogged = true;
     }
 
-    // Trigger regular operators active heartbeats every 12 seconds
+    // Trigger regular active heartbeats every 12 seconds
     const interval = setInterval(() => {
       sendHeartbeat(false);
     }, 12000);
 
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const [activeUsersList, setActiveUsersList] = useState([]);
+
+  // Poll active users count for all users
+  useEffect(() => {
+    const fetchOnlineCount = async () => {
+      try {
+        const res = await fetch('/api/admin/heartbeat', {
+          headers: {
+            'x-user-id': currentUser?.id || ''
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setOnlineCount(data.count);
+            setActiveUsersList(data.activeUsers || []);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch online count:', err);
+      }
+    };
+
+    // Fetch immediately
+    fetchOnlineCount();
+
+    // Poll every 12 seconds to keep it live and current
+    const interval = setInterval(fetchOnlineCount, 12000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -574,6 +646,69 @@ export default function LiveMap({
   }, [fetchEvents, fetchRss]);
 
   const handleEventUpdate = useCallback((updatedEvent) => {
+    const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
+    const getNormUrl = (u) => {
+      if (!u) return '';
+      return u.toLowerCase().split('?')[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    };
+
+    const normTitle = getNormTitle(updatedEvent.title);
+    const normUrl = getNormUrl(updatedEvent.url);
+
+    if (updatedEvent.archived) {
+      // 1. Deselect if it was the selected event
+      setSelectedEvent(prev => {
+        if (!prev) return null;
+        const matchId = prev.id === updatedEvent.id;
+        const matchTitle = getNormTitle(prev.title) === normTitle;
+        const matchUrl = normUrl && getNormUrl(prev.url) === normUrl;
+        if (matchId || matchTitle || matchUrl) {
+          return null;
+        }
+        return prev;
+      });
+
+      // 2. Filter out from displayedEvents
+      setDisplayedEvents(prev => prev.filter(ev => {
+        const matchId = ev.id === updatedEvent.id;
+        const matchTitle = getNormTitle(ev.title) === normTitle;
+        const matchUrl = normUrl && getNormUrl(ev.url) === normUrl;
+        return !matchId && !matchTitle && !matchUrl;
+      }));
+
+      // 3. Filter out from allFetchedEvents
+      setAllFetchedEvents(prev => prev.filter(ev => {
+        const matchId = ev.id === updatedEvent.id;
+        const matchTitle = getNormTitle(ev.title) === normTitle;
+        const matchUrl = normUrl && getNormUrl(ev.url) === normUrl;
+        return !matchId && !matchTitle && !matchUrl;
+      }));
+
+      // 4. Filter out from markers
+      setMarkers(prev => prev.filter(m => {
+        const mId = String(m.id || '').replace(/^db-/, '').replace(/^rss-/, '');
+        const uId = String(updatedEvent.id).replace(/^db-/, '').replace(/^rss-/, '');
+        const matchId = mId === uId;
+        const matchTitle = getNormTitle(m.name || m.title) === normTitle;
+        const matchUrl = normUrl && getNormUrl(m.url) === normUrl;
+        return !matchId && !matchTitle && !matchUrl;
+      }));
+
+      // 5. Filter out from rssItems
+      setRssItems(prev => prev.filter(item => {
+        const itemId = String(item.id || '').replace(/^db-/, '').replace(/^rss-/, '');
+        const uId = String(updatedEvent.id).replace(/^db-/, '').replace(/^rss-/, '');
+        const matchId = itemId === uId;
+        const matchTitle = getNormTitle(item.title) === normTitle;
+        const matchUrl = normUrl && getNormUrl(item.url) === normUrl;
+        return !matchId && !matchTitle && !matchUrl;
+      }));
+
+      // 6. Dispatch global custom event to trigger DB refreshes across elements
+      window.dispatchEvent(new CustomEvent('sigint-db-update'));
+      return;
+    }
+
     // 1. Update the open detail window instantly
     setSelectedEvent(updatedEvent);
     
@@ -585,15 +720,6 @@ export default function LiveMap({
         timestamp: Date.now()
       });
     }
-
-    const getNormTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 45);
-    const getNormUrl = (u) => {
-      if (!u) return '';
-      return u.toLowerCase().split('?')[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-    };
-
-    const normTitle = getNormTitle(updatedEvent.title);
-    const normUrl = getNormUrl(updatedEvent.url);
 
     // 3. Update displayedEvents and allFetchedEvents instantly in client-side state
     setDisplayedEvents(prev => prev.map(ev => {
@@ -1059,8 +1185,11 @@ export default function LiveMap({
             fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: isMobile ? '9px' : '10px',
             color: '#10b981',
-            fontWeight: 'bold'
-          }}>
+            fontWeight: 'bold',
+            position: 'relative'
+          }}
+          className="live-badge-container"
+          >
             <div style={{
               width: '6px',
               height: '6px',
@@ -1071,6 +1200,71 @@ export default function LiveMap({
             }} />
             <span>LIVE</span>
           </div>
+
+          {onlineCount !== null && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderRadius: '4px',
+              padding: isMobile ? '3px 6px' : '4px 8px',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              fontSize: isMobile ? '9px' : '10px',
+              color: '#38bdf8',
+              fontWeight: 'bold',
+              position: 'relative'
+            }}
+            title="Active operators & visitors online currently"
+            className="online-count-container"
+            >
+              <span style={{ fontSize: '11px' }}>👥</span>
+              <span>{onlineCount} ONLINE</span>
+
+              {/* Tooltip on Hover */}
+              {activeUsersList && activeUsersList.length > 0 && (
+                <div className="active-users-tooltip" style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 12px)',
+                  left: '0',
+                  width: 'max-content',
+                  maxWidth: '300px',
+                  background: 'rgba(11, 19, 43, 0.98)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  zIndex: 10005,
+                  opacity: 0,
+                  visibility: 'hidden',
+                  transition: 'opacity 0.2s, visibility 0.2s',
+                  pointerEvents: 'none'
+                }}>
+                  <style>{`
+                    .online-count-container:hover .active-users-tooltip {
+                      opacity: 1 !important;
+                      visibility: visible !important;
+                    }
+                  `}</style>
+                  <div style={{ fontSize: '9px', color: '#38bdf8', textTransform: 'uppercase', marginBottom: '2px' }}>
+                    ACTIVE SESSIONS
+                  </div>
+                  {activeUsersList.map(u => (
+                    <div key={u.email} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '12px' }}>{extractFlag(u.location)}</span>
+                      <span style={{ color: u.name === 'Anonymous Visitor' ? 'rgba(255,255,255,0.5)' : '#38bdf8' }}>{u.name}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px' }}>— {cleanLocationString(u.location)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Compact Refresh Button with onboarding tip */}
           <div style={{ position: 'relative' }}>

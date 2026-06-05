@@ -385,7 +385,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
           'x-user-id': userId || '',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ id: event.id, permanent })
+        body: JSON.stringify({ id: event.id, permanent, title: event.title, url: event.url })
       });
 
       if (!res.ok) {
@@ -393,7 +393,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         throw new Error(data.error || 'Server rejected removal protocol.');
       }
 
-      window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: event.id, archived: true } }));
+      window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: event.id, archived: true, title: event.title, url: event.url } }));
       onClose();
     } catch (error) {
       console.error("Removal failed:", error);

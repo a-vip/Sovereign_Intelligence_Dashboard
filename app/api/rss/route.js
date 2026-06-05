@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveRssItems, getRssItems, getArchivedIds } from '@/lib/db';
+import { initDb, saveRssItems, getRssItems, getArchivedInfo, isEventArchived } from '@/lib/db';
 import { scrapeAllRss, RSS_FALLBACK } from '@/lib/rssParser';
 
 export const dynamic = 'force-dynamic';
@@ -35,8 +35,8 @@ export async function GET(request) {
       status = 'curated';
     }
     
-    const archivedIds = await getArchivedIds();
-    const filteredItems = dbItems.filter(item => !archivedIds.has(item.id));
+    const archivedInfo = await getArchivedInfo();
+    const filteredItems = dbItems.filter(item => !isEventArchived(item, archivedInfo));
 
     return NextResponse.json({
       success: true,

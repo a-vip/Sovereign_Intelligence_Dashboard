@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { logAccess, updateHeartbeat } from '@/lib/db';
+import { logAccess, updateHeartbeat, getActiveUsers } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ async function fetchRealGeolocation(ip) {
     if (res.ok) {
       const data = await res.json();
       if (data && data.city && data.country_name) {
-        return `${data.city}, ${data.country_name} (${data.org || 'ISP Uplink'})`;
+        return `${data.city}, ${data.country_name} [${data.country || ''}] (${data.org || 'ISP Uplink'})`;
       }
     }
   } catch (err) {
@@ -82,6 +82,20 @@ export async function POST(request) {
     return NextResponse.json({ success: true, location });
   } catch (error) {
     console.error('Operator heartbeat logging error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function GET(request) {
+  try {
+    const activeUsers = await getActiveUsers();
+    return NextResponse.json({
+      success: true,
+      count: activeUsers.length,
+      activeUsers
+    });
+  } catch (error) {
+    console.error('Operator heartbeat fetch error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

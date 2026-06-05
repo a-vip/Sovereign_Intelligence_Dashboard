@@ -50,7 +50,7 @@ export async function DELETE(request) {
 
   try {
     const body = await request.json();
-    const { id, permanent } = body;
+    const { id, permanent, title, url } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'RSS item ID is required' }, { status: 400 });
@@ -58,9 +58,9 @@ export async function DELETE(request) {
 
     let result;
     if (permanent) {
-      result = await deleteRssItemPermanently(id);
+      result = await deleteRssItemPermanently(id, title, url);
     } else {
-      result = await archiveRssItem(id, auth.user.email);
+      result = await archiveRssItem(id, auth.user.email, title, url);
     }
     clearRouteCache();
     return NextResponse.json({ success: true, result });

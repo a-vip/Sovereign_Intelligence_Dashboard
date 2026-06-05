@@ -501,8 +501,8 @@
     "url": "https://www.eff.org/deeplinks/2026/04/open-social-web-needs-section-230-survive",
     "source": "EFF Updates",
     "timestamp": "2026-04-28T20:59:06Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not applicable",
     "details": {
       "summary": "If you want to overthrow Big Tech, you’ll need Section 230. The paradigm shift being built with the Open Social Web can put communities back in control of social media infrastructure, and finally end our dependency on enshitified corporate giants. But while these incumbents can overcome multimillion-dollar lawsuits, the small host revolution could be picked off one by one without the protections offered by 230.\nThe internet as we know it is built on Section 230, a law from the 90s that generally says internet users are legally responsible for their own speech — not the services hosting their speech. The purpose of 230 was to enable diverse forums for speech online, which defined the early internet. These scattered online communities have since been largely captured by a handful of multi-billion dollar companies that found profit in controlling your voice online. While critics are rightly concerned about this new corporate influence and surveillance, some look to diminishing Section 230 as the nuclear option to regain control. \nThe thing is, that would be a huge gift to Big Tech, and detrimental to our best shot at actually undermining corporate and state control of speech online. \nDethroning Big Tech\nWe’re fed up with legacy social media trapping us in walled gardens, where the world's biggest companies like Google and Meta call the shots. Our communities, and our voices, are being held hostage as billionaires’ platforms surveil, betray, and censor us. We’re not alone in this frustration, and fortunately, people are collaborating globally to build another way forward: the Open Social Web. \nThis new infrastructure puts the public’s interest first by reclaiming the principles of interoperability and decentralization from the early internet. In short, it puts protocols over platforms and lets people own their connections with others. Whether you choose a Fediverse app like Mastodon or an ATmosphere app like Bluesky, your audience and community stay within reach. It’s a vision of social media akin to our lives offline: you decide who to be in touch with and how, and no central authority can threaten to snuff out those connections. It’s social media for humans, not advertisers and authoritarians.\nBehind that vision is a beautiful mess of protocols bringing open social media to life. Each protocol is a unique language for applications, determining how and where messages are sent. While this means there is great variety to these projects, it also means everyone who spins up a server, develops an app, or otherwise hosts others’ speech has skin in the game when it comes to defending Section 230.\nWhat exactly is Section 230?\nSection 230 protects freedom of expression online by protecting US intermediaries that make the internet work. Passed in 1996 to preserve new bubbling communities online, 230 enshrined important protections for free expression and the ability to block or filter speech you don’t want on your site. One portion is credited as the “26 words that created the internet”:\n“No provider or user of an interactive computer service shall be treated as the publisher or speaker of any information provided by another information content provider.” \n\nIn other words, this bipartisan law recognizes that speech online relies on intermediaries — services that deliver messages between users — and holding them potentially liable for any message they deliver would only stifle that speech. Intuitively, when harmful speech occurs, the speaker should be the one held accountable. The effect is that most civil suits against users and services based on others' speech can quickly be dismissed, avoiding the most expensive parts of civil litigation. \nSection 230 was never a license to host anything online, however. It does not protect companies that create illegal or harmful content. Nor does Section 230 protect companies from intellectual property claims. \nWhat Section 230 has enabled is the freedom and flexibility for online communities to self-organize. Without the specter of one bad actor exposing the host(s) to serious legal threats, intermediaries can moderate how they see fit or even defer to volunteers within these communities.\nWhy the Open Social Web Needs Section 230\nThe superpower of decentralized systems like the Fediverse is the ability for thousands of small hosts to each shoulder some of the burdens of hosting. No single site can assert itself as a necessary intermediary for everyone; instead, all must collaborate to ensure messages reach the intended audience. The result is something superior to any one design or mandate. It is an ecosystem that is greater than the sum of its parts, resilient to disruptions, and enables free experimentation with different approaches to community governance.\nThe open social web’s kryptonite though, is the liability participants can face as intermediaries. A greater potential for liability comes with more interference from powerful interests in the form of legal threats, more monetary costs, and less space for nuance in moderation. And in practice, participants may simply stop hosting to avoid those risks. The end result is only the biggest and most resourced options can survive.\nThis isn’t just about the hosts in the Open Social Web, like Mastodon instances or Bluesky PDSes. In the U.S., Section 230’s protections extend to internet users when they distribute another person’s speech. For example, Section 230 protects a user who forwards an email with a defamatory statement. On the open social web, that means when you pass along a message to others through sharing, boosting, and quoting, you’re not liable for the other user’s speech. The alternative would be a web where one misclick could open you up to a defamation lawsuit.\nSection 230 also applies to the infrastructure stack, too, like Internet service providers, content delivery networks, and domain or hosting providers. Protections even extend to the new experimental infrastructures of decentralized mesh networks.\nBeyond the existential risks to the feasibility of indie decentralized projects in the United States, weakening 230 protections would also make services worse. Being able to customize your social media experience from highly-curated to totally laissez-faire in the open social web is only possible when the law allows space for private experiments in moderation approaches. The algorithmically driven firehose forced on users by antiquated social media giants is driven by the financial interests of advertisers, and would only be more tightly controlled in a post-230 world.\nDefending 230\nLaws aimed at changing 230 protections put decentralized projects like the open social web in a uniquely precarious position. That is why we urge lawmakers to take careful consideration of these impacts. It is also why the proponents and builders of a better web must be vigilant defenders of the legal tools that make their work possible. \nThe open social web embodies what we are protecting with Section 230. It’s our best chance at building a truly democratic public interest internet, where communities are in control. \n"
@@ -997,8 +997,8 @@
     "url": "https://www.eff.org/deeplinks/2026/05/hackers-guide-circumventing-internet-shutdowns",
     "source": "EFF Updates",
     "timestamp": "2026-05-12T15:45:04Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not specified",
     "details": {
       "summary": "Internet shutdowns are devastating for human rights. When people are disconnected from the internet and digital services, it impacts all aspects of their life—from accessing essential information, to seeking medical care, or communicating with loved ones, both in that country and externally. But on January 8th, 2026, the government of Iran shut down internet communications for the entire country as a rebellion threatened to topple the authoritarian government. The government then proceeded to execute as many as 656 dissidents over the next 3 months, though the actual number could be much higher. Which is part of the point: shutdowns often precede government acts of violence. \nIran’s shutdown was hardly an isolated incident. Earlier this month, the U.S. military invaded Venezuela and kidnapped the Venezuelan president shortly after US cyber forces shut down all internet access and power grids for the capital city of Caracas. India routinely shuts off internet access in the Kashmir region, and Syria shut down internet communications as many as 73 times, most recently in 2025. Even the UK recently had a localized temporary internet shutdown. At the time of this writing there are 14 ongoing internet shutdowns worldwide.  \nGovernment shutdowns aren’t the only reason an entire region or country might lose internet access. Hurricanes, earthquakes, and wildfires can take out internet connections in many regions of the world, and will only increase as climate change ramps up. They can completely disable the communications infrastructure relied upon by victims, their families, first responders, and disaster relief efforts. Having an alternate way to communicate in such times can save lives.  \nOne way to limit the impact of such shutdowns is to prepare in advance by setting up systems and structure for circumvention and resiliency. \nTo keep people connected during internet shutdowns and blackouts, communication networks must be operational before and after the disaster or shutdown. To be effective, they must be widespread so that people can get access to them reliably, and they must be usable by a majority of the community. And any viable solution must be accessible and sustainable on a community level, not just to people with vast financial resources or technical knowledge. You shouldn’t have to be a tech wizard to be able to communicate with your neighbors!\nRadios\nThere are many ways for a community to build their own disaster resilient communications. Radios, for example, are cheap, decentralized, and resilient. Many people with moderate technical skill have set up Meshtastic repeaters. Meshtastic is a way to use a common unlicensed radio spectrum and a technology called LoRA to have peer-to-peer decentralized communications with people in your neighborhood or city. When you buy a Meshtastic device (cheap ones cost around $20) you can link it to your phone and send text messages to people in your area without ever touching the telephone network or the internet. Messages are delivered directly from person to person over public radio waves.\nThere is also amateur radio, also known as ham radio, which has been used in disaster communications for decades. Ham radio requires a license, but allows you to communicate farther than Meshtastic, using repeaters or even bouncing signals off the stratosphere to talk to people on the other side of the planet or even on the International Space Station. It is even possible to access the internet over ham radio. \nPeer-to-peer messaging apps \nAnother option for internet communication during a shutdown is peer-to-peer messaging apps. One such project,called Briar, uses the Bluetooth functionality on phones to route messages from device to device until they reach their destination, even in instances where there is no internet. However, Briar faces the same problems many mesh projects do: almost nobody has the app installed and it’s difficult to use. If a mesh chat app isn’t already widely installed before an internet shutdown, it’s going to be even harder to get people to install it en masse once the shutdown starts. \nA similar effort called bitchat has recently gained some attention. Bitchat is a peer-to-peer chat system that routes over Nostr, Tor, and Bluetooth. It is unfortunately tainted in many people’s eyes by being a project by former Twitter CEO Jack Dorsey, but it is open source and runs on both Android and iOS. It was used with some success in Iran during the latest internet shutdown. \nAnother option is Delta Chat, which uses PGP for encryption and email for routing, while still being much simpler to use than either technology. Delta Chat is highly regarded in Iran for its ability to route a message through even the tiniest sliver of email access.\nSatellite internet \nSatellite internet is an internet connection that uses a connection to a satellite dish to reach the internet, such as Starlink. Since there are no wires and no physical connection to infrastructure, satellite internet is harder to shut down. Satellite internet has therefore been used in many cases to circumvent internet shutdowns, with people sharing bandwidth with their neighbors. Satellites are harder for governments to shut down unilaterally.  Unfortunately when the satellites are owned by tech oligarchs, such as Starlink (owned by Elon Musk), or by allied governments, the owners of those satellites may willingly shut down the network anyway. \nDreaming of a better future\nUltimately an app that is already widely being used would be the best option for shutdown resistant communication. Imagine if WhatsApp or Signal could fall back to mesh networking over bluetooth or wifi. Even better, imagine if our phones all had LoRA built in so we could have more effective mesh networks! What if our phones all had a connection to a satellite constellation run by an international coalition of hackers? We can dream of a better world and we can build it. \nWe can’t rely on tech oligarchs to save us, especially when these same companies and governments are the ones to sever our access to the internet and telecommunications. This is why it's important to set up communication mechanisms before a disaster happens. \nAs hackers, it's important for us to build these tools and infrastructure of decentralized communication, to help people learn how to use them, and to set up networks before disaster strikes. Get together with others in your city and start setting up resilient off-grid networks and building community now. \nBefore you download or use any of the tools mentioned in this guide check with a lawyer in your jurisdiction or country and make sure you understand what legal risks you might be taking on. \nA previous version of this article appeared in the Spring 2026 issue of 2600 magazine. \n"
@@ -1701,8 +1701,8 @@
     "url": "https://www.wired.com/story/dhs-plans-experiment-running-reconnaissance-drones-along-the-us-canada-border/",
     "source": "Wired Security & Tech",
     "timestamp": "2026-05-13T19:03:19Z",
-    "lat": 48.0,
-    "lon": -100.0,
+    "lat": 48,
+    "lon": -100,
     "location": "North Dakota, USA",
     "details": {
       "summary": "Autonomous drones and ground vehicles will stream “battlefield intelligence” over 5G along the US-Canada border in a bilateral DHS experiment this fall."
@@ -3680,22 +3680,6 @@
     "quality": 3
   },
   {
-    "id": "https___www_thedailybeast_com_pope_leo_issues_stark_warning_to_d",
-    "title": "Pope Leo Issues Stark Warning to Donald Trump on Artificial Intelligence",
-    "url": "https://www.thedailybeast.com/pope-leo-issues-stark-warning-to-donald-trump-on-artificial-intelligence/",
-    "source": "thedailybeast.com",
-    "timestamp": "2026-05-25T12:00:00Z",
-    "lat": 41.9029,
-    "lon": 12.4534,
-    "location": "Vatican City, Vatican City",
-    "details": {
-      "summary": "Pope Leo Issues Stark Warning to Donald Trump on Artificial Intelligence"
-    },
-    "category": "Conflict",
-    "severity": 3,
-    "quality": 3
-  },
-  {
     "id": "https___www_blic_rs_biznis_tech_papa_lav_neka_oruzja_sa_ai_su_pr",
     "title": "Papa Lav : Neka oružja sa AI su praktično van ljudske kontrole",
     "url": "https://www.blic.rs/biznis/tech/papa-lav-neka-oruzja-sa-ai-su-prakticno-van-ljudske-kontrole/9cjnl4t",
@@ -3733,8 +3717,8 @@
     "url": "https://www.fool.com/investing/2026/05/25/artificial-intelligence-ai-stocks-are-red-hot-but/?source=iedfolrf0000001",
     "source": "fool.com",
     "timestamp": "2026-05-25T12:00:00Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not applicable",
     "details": {
       "summary": "Artificial Intelligence ( AI ) Stocks Are Red Hot , but Here Why Im Not Touching Them"
@@ -3797,8 +3781,8 @@
     "url": "https://www.fool.com/investing/2026/05/25/got-3000-i-think-this-ai-stock-could-turn-it-into/?source=iedfolrf0000001",
     "source": "fool.com",
     "timestamp": "2026-05-25T12:00:00Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "None, N/A",
     "details": {
       "summary": "Got $3 , 000 ? I Think This AI Stock Could Turn It Into $20 , 000 by the End of the Decade . "
@@ -4341,8 +4325,8 @@
     "url": "https://theconversation.com/from-gait-analysis-to-fingerprint-theft-how-worried-should-we-be-about-the-latest-advances-in-biometric-technology-283454",
     "source": "theconversation.com",
     "timestamp": "2026-05-26T12:00:00Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not specified",
     "details": {
       "summary": "From gait analysis to fingerprint theft , how worried should we be about the latest advances in biometric technology ? "
@@ -4357,8 +4341,8 @@
     "url": "https://www.fool.com/investing/2026/05/26/prediction-the-sovereign-ai-boom-could-create-the/?source=iedfolrf0000001",
     "source": "fool.com",
     "timestamp": "2026-05-26T12:00:00Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not applicable",
     "details": {
       "summary": "Prediction : The Sovereign AI Boom Could Create the Next $1 Trillion Tech Company"
@@ -4437,8 +4421,8 @@
     "url": "https://www.pakistantoday.com.pk/2026/05/26/the-targeting-machine-nobody-authorized",
     "source": "pakistantoday.com.pk",
     "timestamp": "2026-05-26T12:00:00Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not applicable",
     "details": {
       "summary": "AI Targeting Program Raises Unanswered War Ethics Questions"
@@ -4469,8 +4453,8 @@
     "url": "https://brobible.com/culture/article/research-router-turned-into-surveillance/",
     "source": "brobible.com",
     "timestamp": "2026-05-26T12:00:00Z",
-    "lat": 0.0,
-    "lon": 0.0,
+    "lat": 0,
+    "lon": 0,
     "location": "Not applicable",
     "details": {
       "summary": "How Can A Router Be Turned Into A Means Of Surveillance ? "
@@ -4517,8 +4501,8 @@
     "url": "https://www.rediff.com/news/report/eye-on-china-quad-ramps-up-indo-pacific-surveillance/20260526.htm",
     "source": "rediff.com",
     "timestamp": "2026-05-26T12:00:00Z",
-    "lat": 0.0,
-    "lon": 125.0,
+    "lat": 0,
+    "lon": 125,
     "location": "Indo-Pacific",
     "details": {
       "summary": "Eye on China : Quad ramps up Indo - Pacific surveillance"
@@ -4741,8 +4725,8 @@
     "url": "https://www.dailyexcelsior.com/eye-on-china-quad-ramps-up-indo-pacific-surveillance-critical-mineral-cooperation/",
     "source": "dailyexcelsior.com",
     "timestamp": "2026-05-26T12:00:00Z",
-    "lat": 0.0,
-    "lon": 140.0,
+    "lat": 0,
+    "lon": 140,
     "location": "Indo-Pacific",
     "details": {
       "summary": "Eye On China : Quad Ramps Up Indo - Pacific Surveillance , Critical Mineral Cooperation"

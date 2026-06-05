@@ -82,7 +82,7 @@ export async function DELETE(request) {
 
   try {
     const body = await request.json();
-    const { id, permanent } = body;
+    const { id, permanent, title, url } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
@@ -90,9 +90,9 @@ export async function DELETE(request) {
 
     let result;
     if (permanent) {
-      result = await deleteEventPermanently(id);
+      result = await deleteEventPermanently(id, title, url);
     } else {
-      result = await archiveEvent(id, auth.user.email);
+      result = await archiveEvent(id, auth.user.email, title, url);
     }
     clearRouteCache();
     return NextResponse.json({ success: true, result });

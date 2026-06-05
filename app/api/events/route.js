@@ -617,7 +617,13 @@ export async function GET(request) {
 
     const cached = getRouteCache(ts);
     if (!forceRefresh && cached && now - cached.time < CACHE_EXPIRY) {
-      return NextResponse.json(cached.data, { 
+      const archivedInfo = await getArchivedInfo();
+      const filteredData = {
+        ...cached.data,
+        markers: cached.data.markers ? cached.data.markers.filter(m => !isEventArchived(m, archivedInfo)) : [],
+        events: cached.data.events ? cached.data.events.filter(e => !isEventArchived(e, archivedInfo)) : []
+      };
+      return NextResponse.json(filteredData, { 
         headers: { 'Cache-Control': 'no-store, max-age=0' } 
       });
     }

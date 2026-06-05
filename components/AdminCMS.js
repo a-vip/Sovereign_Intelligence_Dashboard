@@ -93,6 +93,8 @@ export default function AdminCMS({ currentUser, onClose }) {
 
   useEffect(() => {
     setPage(1);
+    setData([]);   // Clear stale data immediately on tab switch to prevent cross-tab render pollution
+    setTotal(0);
   }, [activeTab, search]);
 
   useEffect(() => {
@@ -258,13 +260,13 @@ export default function AdminCMS({ currentUser, onClose }) {
       const res = await fetch(endpoint, {
         method: 'DELETE',
         headers,
-        body: JSON.stringify({ id: item.id })
+        body: JSON.stringify({ id: item.id, title: item.title || '', url: item.url || '' })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       showToast('Item archived');
       fetchData();
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('event_updated'));
+        window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: item.id, archived: true, title: item.title, url: item.url } }));
       }
     } catch (err) {
       showToast('Archive failed: ' + err.message, 'error');
@@ -332,13 +334,13 @@ export default function AdminCMS({ currentUser, onClose }) {
       const res = await fetch(endpoint, {
         method: 'DELETE',
         headers,
-        body: JSON.stringify({ id: item.id, permanent: true })
+        body: JSON.stringify({ id: item.id, permanent: true, title: item.title || '', url: item.url || '' })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       showToast('Item permanently purged');
       fetchData();
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('event_updated'));
+        window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: item.id, archived: true, title: item.title, url: item.url } }));
       }
     } catch (err) {
       showToast('Purge failed: ' + err.message, 'error');
@@ -356,7 +358,8 @@ export default function AdminCMS({ currentUser, onClose }) {
   const getRowStyle = (item) => {
     if (activeTab !== 'diagnostics') return {};
     
-    const isDuplicate = item.anomalyType.toLowerCase().includes('duplicate');
+    const anomalyStr = (item.anomalyType || '').toLowerCase();
+    const isDuplicate = anomalyStr.includes('duplicate');
     if (!isDuplicate) return { borderLeft: '4px solid rgba(255, 255, 255, 0.05)' };
     
     const normKey = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -406,6 +409,7 @@ export default function AdminCMS({ currentUser, onClose }) {
     if (!confirm(confirmMsg)) return;
     
     setIsBulkOperating(true);
+    const successfullyProcessedItems = [];
     try {
       let successCount = 0;
       let failCount = 0;
@@ -420,11 +424,14 @@ export default function AdminCMS({ currentUser, onClose }) {
             headers,
             body: JSON.stringify({
               id: item.id,
-              permanent: actionType === 'purge'
+              permanent: actionType === 'purge',
+              title: item.title || '',
+              url: item.url || ''
             })
           });
           if (res.ok) {
             successCount++;
+            successfullyProcessedItems.push(item);
           } else {
             failCount++;
           }
@@ -439,7 +446,9 @@ export default function AdminCMS({ currentUser, onClose }) {
       fetchData();
       
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('event_updated'));
+        successfullyProcessedItems.forEach(item => {
+          window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: item.id, archived: true, title: item.title, url: item.url } }));
+        });
       }
     } catch (err) {
       showToast('Bulk operation encountered an error: ' + err.message, 'error');
@@ -893,7 +902,7 @@ export default function AdminCMS({ currentUser, onClose }) {
                     }}
                         onMouseEnter={e => {
                           const normKey = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                          const isDuplicate = item.anomalyType.toLowerCase().includes('duplicate');
+                          const isDuplicate = (item.anomalyType || '').toLowerCase().includes('duplicate');
                           if (isDuplicate) {
                             const hue = getHashHue(normKey);
                             e.currentTarget.style.background = `hsla(${hue}, 85%, 50%, 0.08)`;
@@ -903,7 +912,7 @@ export default function AdminCMS({ currentUser, onClose }) {
                         }}
                         onMouseLeave={e => {
                           const normKey = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                          const isDuplicate = item.anomalyType.toLowerCase().includes('duplicate');
+                          const isDuplicate = (item.anomalyType || '').toLowerCase().includes('duplicate');
                           if (isDuplicate) {
                             const hue = getHashHue(normKey);
                             e.currentTarget.style.background = `hsla(${hue}, 85%, 50%, 0.03)`;
