@@ -1201,7 +1201,7 @@ export default function LiveMap({
             <span>LIVE</span>
           </div>
 
-          {onlineCount !== null && (
+          {onlineCount !== null && currentUser?.role === 'admin' && (
             <div style={{
               display: 'flex',
               alignItems: 'center',

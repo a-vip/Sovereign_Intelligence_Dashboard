@@ -2456,19 +2456,39 @@ export default function CesiumGlobe({
       const outlineWidth = isManualEvent ? 3.0 : 1.5;
 
       if (existing) {
-        // Surgically update properties on the existing persistent entity
-        existing.position = newPos;
-        if (existing.billboard) {
+        // Surgically update properties on the existing persistent entity ONLY if they changed
+        // Constantly re-assigning properties triggers Cesium's event system and WebGL geometry rebuilds
+        
+        const currentPos = existing.position.getValue(Cesium.JulianDate.now());
+        if (!currentPos || !Cesium.Cartesian3.equalsEpsilon(currentPos, newPos, 0.01)) {
+          existing.position = newPos;
+        }
+
+        const prevProps = existing.properties ? (typeof existing.properties.getValue === 'function' ? existing.properties.getValue(Cesium.JulianDate.now()) : existing.properties) : null;
+        const needsVisualUpdate = !prevProps || prevProps.severity !== m.severity || prevProps.title !== (m.title || m.name);
+
+        if (needsVisualUpdate) {
+          if (existing.billboard) {
+            existing.billboard.image = createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, outlineColor, outlineWidth);
+          }
+          if (existing.label) {
+            existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
+          }
+        }
+
+        // Only update these if they are strictly missing or incorrect, to prevent dirtying the entity
+        if (existing.billboard && existing.billboard.heightReference?.getValue() !== targetHeightRef) {
           existing.billboard.heightReference = targetHeightRef;
           existing.billboard.disableDepthTestDistance = targetDisableDepthTest;
-          existing.billboard.image = createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, outlineColor, outlineWidth);
         }
-        if (existing.label) {
-          existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
+
+        if (existing.label && existing.label.heightReference?.getValue() !== targetHeightRef) {
           existing.label.heightReference = targetHeightRef;
           existing.label.disableDepthTestDistance = targetDisableDepthTest;
           existing.label.show = false;
         }
+        
+        // Cache the raw object directly so we can compare it next tick
         existing.properties = m;
       } else {
         // Threat circle billboard marker (perfectly clamped to terrain/3D rooftops in 3D, elevated in 2D!)

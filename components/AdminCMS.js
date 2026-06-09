@@ -43,6 +43,8 @@ export default function AdminCMS({ currentUser, onClose }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const [anomalyFilter, setAnomalyFilter] = useState('all');
+  const [moderationFilter, setModerationFilter] = useState('all');
+  const [runningEngine, setRunningEngine] = useState(false);
   const [isBulkOperating, setIsBulkOperating] = useState(false);
 
   const headers = { 'x-user-id': currentUser?.id || '', 'Content-Type': 'application/json' };
@@ -60,6 +62,7 @@ export default function AdminCMS({ currentUser, onClose }) {
       else if (activeTab === 'rss') url = `/api/admin/rss?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
       else if (activeTab === 'feedback') url = `/api/admin/feedback?page=${page}&limit=${limit}`;
       else if (activeTab === 'diagnostics') url = `/api/admin/diagnostics`;
+      else if (activeTab === 'accounts') url = `/api/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
       else url = `/api/admin/archive?page=${page}&limit=${limit}`;
 
       const res = await fetch(url, { headers });
@@ -75,6 +78,9 @@ export default function AdminCMS({ currentUser, onClose }) {
       } else if (activeTab === 'diagnostics') {
         setData(json.anomalies || []);
         setTotal(json.anomalies?.length || 0);
+      } else if (activeTab === 'accounts') {
+        setData(json.users || []);
+        setTotal(json.total || 0);
       } else {
         setData(json.events || []);
         setTotal(json.total || 0);
@@ -201,6 +207,89 @@ export default function AdminCMS({ currentUser, onClose }) {
       showToast('Failed to save: ' + err.message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRunEngine = async () => {
+    setRunningEngine(true);
+    try {
+      const res = await fetch('/api/admin/ingest', { method: 'POST', headers });
+      if (!res.ok) throw new Error('OSINT Ingestion failed. See logs.');
+      const d = await res.json();
+      if (d.success) {
+        showToast('Intel Engine completed successfully! Hard refresh to see new points.', 'success');
+        fetchData();
+      } else {
+        throw new Error(d.error || 'Failed');
+      }
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setRunningEngine(false);
+    }
+  };
+
+  const handleUpdateUserRole = async (userId, currentRole) => {
+    const newRole = currentRole === 'admin' ? 'analyst' : 'admin';
+    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
+    
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id: userId, role: newRole })
+      });
+      if (!res.ok) throw new Error('Failed to update role');
+      showToast('User role updated successfully');
+      fetchData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm('WARNING: Are you sure you want to completely delete this user account? This cannot be undone.')) return;
+    
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: userId })
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to delete user');
+      showToast('User deleted successfully');
+      fetchData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  const handleBulkMarkCoordinates = async () => {
+    if (selectedAnomalyIds.size === 0) return;
+    if (!confirm(`Are you sure you want to mark ${selectedAnomalyIds.size} missing coordinate anomalies as resolved?`)) return;
+    setIsBulkOperating(true);
+    try {
+      let successCount = 0;
+      for (const id of selectedAnomalyIds) {
+        const item = data.find(i => i.id === id);
+        if (!item) continue;
+        const isRss = item.source_table === 'rss_items';
+        const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
+        const res = await fetch(endpoint, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ id: item.id, lat: 0.0, lon: 0.0, location: item.location || 'Global (Resolved)' })
+        });
+        if (res.ok) successCount++;
+      }
+      showToast(`Successfully resolved ${successCount} coordinates`, 'success');
+      setSelectedAnomalyIds(new Set());
+      fetchData();
+    } catch (e) {
+      showToast('Bulk operation encountered errors', 'error');
+    } finally {
+      setIsBulkOperating(false);
     }
   };
 
@@ -595,8 +684,17 @@ export default function AdminCMS({ currentUser, onClose }) {
   };
 
 
+  const isNewItem = (item) => {
+    const ageHours = (Date.now() - new Date(item.created_at || item.published_at || item.createdAt).getTime()) / (1000 * 60 * 60);
+    return ageHours < 48 && !item.edited;
+  };
+
+  const isStaleItem = (item) => {
+    const ageDays = (Date.now() - new Date(item.created_at || item.published_at || item.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    return ageDays > 30;
+  };
+
   const getFilteredAnomalies = () => {
-    if (activeTab !== 'diagnostics') return data;
     return data.filter(item => {
       const matchesSearch = !search || 
         (item.title || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -622,10 +720,17 @@ export default function AdminCMS({ currentUser, onClose }) {
     });
   };
 
-  const currentFilteredData = activeTab === 'diagnostics' ? getFilteredAnomalies() : data;
-  const totalItems = activeTab === 'diagnostics' ? currentFilteredData.length : total;
+  const currentFilteredData = activeTab === 'diagnostics' 
+    ? getFilteredAnomalies() 
+    : data.filter(item => {
+        if (moderationFilter === 'new') return isNewItem(item);
+        if (moderationFilter === 'stale') return isStaleItem(item);
+        return true;
+      });
+
+  const totalItems = (activeTab === 'diagnostics' || moderationFilter !== 'all') ? currentFilteredData.length : total;
   const totalPages = Math.ceil(totalItems / limit) || 1;
-  const displayedItems = activeTab === 'diagnostics'
+  const displayedItems = (activeTab === 'diagnostics' || moderationFilter !== 'all')
     ? currentFilteredData.slice((page - 1) * limit, page * limit)
     : data;
 
@@ -667,7 +772,32 @@ export default function AdminCMS({ currentUser, onClose }) {
       <div style={s.panel}>
         {/* Header */}
         <div style={s.header}>
-          <div style={s.title}><span style={{ fontSize: '18px' }}>⚙️</span> Sovereign CMS</div>
+          <div style={s.title}>
+            <span style={{ fontSize: '18px' }}>⚙️</span> Sovereign CMS
+            <button
+              onClick={handleRunEngine}
+              disabled={runningEngine}
+              style={{
+                marginLeft: '12px',
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '6px',
+                color: '#38bdf8',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: runningEngine ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: runningEngine ? 0.6 : 1,
+                textTransform: 'uppercase'
+              }}
+            >
+              {runningEngine ? <Loader2 size={12} className="spin" /> : <RotateCcw size={12} />}
+              {runningEngine ? 'Running...' : 'Run OSINT Engine'}
+            </button>
+          </div>
           <button style={s.closeBtn} onClick={onClose}><X size={18} /></button>
         </div>
 
@@ -678,6 +808,7 @@ export default function AdminCMS({ currentUser, onClose }) {
           <button style={s.tab(activeTab === 'archive')} onClick={() => setActiveTab('archive')}>Archive</button>
           <button style={s.tab(activeTab === 'feedback')} onClick={() => setActiveTab('feedback')}>Feedback</button>
           <button style={s.tab(activeTab === 'diagnostics')} onClick={() => setActiveTab('diagnostics')}>🚨 Anomalies</button>
+          <button style={s.tab(activeTab === 'accounts')} onClick={() => setActiveTab('accounts')}>👥 Accounts</button>
           <div style={{ marginLeft: 'auto', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
             {totalItems} items
@@ -730,6 +861,27 @@ export default function AdminCMS({ currentUser, onClose }) {
                 + Create Signal
               </button>
             )}
+            {(activeTab === 'events' || activeTab === 'rss') && (
+              <select 
+                style={{
+                  background: '#0c1220',
+                  border: '1px solid rgba(0, 240, 255, 0.25)',
+                  borderRadius: '8px',
+                  color: '#00f0ff',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+                value={moderationFilter}
+                onChange={e => { setModerationFilter(e.target.value); setPage(1); }}
+              >
+                <option value="all">🟢 All Statuses</option>
+                <option value="new">🆕 New (Needs Review)</option>
+                <option value="stale">⏳ Stale (Archive Candidates)</option>
+              </select>
+            )}
             {activeTab === 'diagnostics' && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <select 
@@ -779,6 +931,15 @@ export default function AdminCMS({ currentUser, onClose }) {
                     <th style={{...s.th, maxWidth: '200px'}}>Subject</th>
                     <th style={{...s.th, maxWidth: '300px'}}>Details</th>
                     <th style={s.th}>Screenshot</th>
+                    <th style={{...s.th, textAlign: 'right'}}>Actions</th>
+                  </tr>
+                ) : activeTab === 'accounts' ? (
+                  <tr>
+                    <th style={s.th}>Email</th>
+                    <th style={s.th}>Name</th>
+                    <th style={s.th}>Role</th>
+                    <th style={s.th}>Status</th>
+                    <th style={s.th}>Joined</th>
                     <th style={{...s.th, textAlign: 'right'}}>Actions</th>
                   </tr>
                 ) : activeTab === 'diagnostics' ? (
@@ -893,6 +1054,36 @@ export default function AdminCMS({ currentUser, onClose }) {
                           </button>
                         )}
                         <button style={s.actionBtn('#ff2d55')} onClick={() => handleFeedbackDelete(item)} title="Delete / Resolve"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ) : activeTab === 'accounts' ? (
+                    <tr key={item.id} style={{ transition: 'background 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.03)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <td style={{...s.td, color: '#e8edf5', fontWeight: 600}}>{item.email}</td>
+                      <td style={s.td}>{item.full_name}</td>
+                      <td style={s.td}>
+                        <span style={{ 
+                          padding: '2px 8px', 
+                          borderRadius: '4px', 
+                          fontSize: '10px', 
+                          fontWeight: 700, 
+                          letterSpacing: '0.5px',
+                          background: item.role === 'admin' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                          color: item.role === 'admin' ? '#38bdf8' : '#8892a4'
+                        }}>
+                          {(item.role || 'user').toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{...s.td, fontSize: '11px', color: item.is_verified ? '#22c55e' : '#f59e0b'}}>
+                        {item.is_verified ? 'VERIFIED' : 'PENDING'}
+                      </td>
+                      <td style={{...s.td, fontSize: '11px', color: '#64748b'}}>
+                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td style={{...s.td, textAlign: 'right', whiteSpace: 'nowrap'}}>
+                        <button style={s.actionBtn('#00f0ff')} onClick={() => handleUpdateUserRole(item.id, item.role)} title="Toggle Role (Admin / Analyst)">🛡️</button>
+                        <button style={s.actionBtn('#ff2d55')} onClick={() => handleDeleteUser(item.id)} title="Delete User Account Permanently"><Trash2 size={14} /></button>
                       </td>
                     </tr>
                   ) : activeTab === 'diagnostics' ? (
@@ -1030,6 +1221,8 @@ export default function AdminCMS({ currentUser, onClose }) {
                             }}>DRAFT</span>
                           )}
                           <span>{item.title?.substring(0, 80)}{item.title?.length > 80 ? '...' : ''}</span>
+                          {isNewItem(item) && <span style={{ marginLeft: '6px', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800, background: '#38bdf8', color: '#000', flexShrink: 0 }}>NEW</span>}
+                          {isStaleItem(item) && <span style={{ marginLeft: '6px', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800, background: '#f59e0b', color: '#000', flexShrink: 0 }}>STALE</span>}
                         </div>
                       </td>
                       <td style={s.td}>

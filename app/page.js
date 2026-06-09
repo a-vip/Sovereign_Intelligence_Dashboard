@@ -54,8 +54,13 @@ export default function DashboardPage() {
   }, []);
 
   const handleAuthSuccess = (user) => {
-    setCurrentUser(user);
-    localStorage.setItem('operator_session', JSON.stringify(user));
+    // Synchronously enforce hardcoded admin rights upon login so CMS appears instantly
+    const userObj = { ...user };
+    if (userObj.email === 'workwithavip@gmail.com' && userObj.role !== 'admin') {
+      userObj.role = 'admin';
+    }
+    setCurrentUser(userObj);
+    localStorage.setItem('operator_session', JSON.stringify(userObj));
   };
 
   const handleLogout = () => {

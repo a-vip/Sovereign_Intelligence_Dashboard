@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, saveRssItems, saveAiRegulations } from '@/lib/db';
+import { initDb, saveEvents, saveRssItems, saveAiRegulations, getArchivedInfo, isEventArchived } from '@/lib/db';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -132,16 +132,19 @@ export async function GET(request) {
       }
     }));
 
-    const rawCombined = [...osintEvents, ...researchEvents];
-    const verifiedEvents = [];
+    // FETCH ARCHIVE BLOCKLIST FOR PRE-INGESTION FILTERING
+    const archivedInfo = await getArchivedInfo();
+    
+    const allCombinedEvents = [...osintEvents, ...researchEvents].filter(e => !isEventArchived(e, archivedInfo));
 
-    if (rawCombined.length > 0) {
-      console.log(`[Verification Bot]: Commencing concurrent verification checks on ${rawCombined.length} harvested signals...`);
+    let verifiedEvents = [];
+    if (allCombinedEvents.length > 0) {
+      console.log(`[Verification Bot]: Commencing concurrent verification checks on ${allCombinedEvents.length} harvested signals...`);
       
       // Process in small parallel chunks to avoid rate limits on news sites
       const CONCURRENCY_LIMIT = 8;
-      for (let i = 0; i < rawCombined.length; i += CONCURRENCY_LIMIT) {
-        const chunk = rawCombined.slice(i, i + CONCURRENCY_LIMIT);
+      for (let i = 0; i < allCombinedEvents.length; i += CONCURRENCY_LIMIT) {
+        const chunk = allCombinedEvents.slice(i, i + CONCURRENCY_LIMIT);
         await Promise.all(chunk.map(async (ev) => {
           try {
             if (ev.details?.isResearch) {
@@ -185,9 +188,10 @@ export async function GET(request) {
     let newRssCount = 0;
     try {
       const rssItems = await scrapeAllRss();
-      if (rssItems.length > 0) {
-        await saveRssItems(rssItems);
-        newRssCount = rssItems.length;
+      const filteredRssItems = rssItems.filter(item => !isEventArchived(item, archivedInfo));
+      if (filteredRssItems.length > 0) {
+        await saveRssItems(filteredRssItems);
+        newRssCount = filteredRssItems.length;
       }
     } catch (e) {
       console.warn('RSS ingestion failed during cron run:', e.message);
