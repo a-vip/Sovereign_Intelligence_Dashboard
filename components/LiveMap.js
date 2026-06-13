@@ -266,7 +266,7 @@ const tourSteps = [
   },
   {
     title: "Tactical Map Viewport",
-    text: "The main interactive visualization. Threat markers are color-coded: red represents active conflicts, green shows humanitarian events, and yellow indicates economic or political updates. Click and drag to pan, use the scroll wheel to zoom.",
+    text: "The main interactive visualization. Threat markers on the globe are color-coded by severity: blue represents low severity (S1), green moderate (S2), yellow alert (S3), orange high (S4), and red critical (S5). Click and drag to pan, use the scroll wheel to zoom.",
     selector: '.sigint-map-area'
   },
   {
@@ -280,43 +280,43 @@ const tourSteps = [
     selector: '.tour-search-input'
   },
   {
-    title: "Operator Uplink Feedback",
-    text: "Submit custom geocoding suggestions, correct coordinates, or report system anomalies directly to high command for moderation.",
+    title: "Shape the Dashboard",
+    text: "Your feedback directly shapes Sovereign Dashboard! Click here to easily submit feature ideas, report issues, or suggest new OSINT feeds. We highly value your suggestions.",
     selector: '.tour-feedback-button'
   },
   {
-    title: "Active Terminals",
-    text: "Shows the number of active operators and terminal sessions currently online across the global grid. Hovering reveals flags and region locations.",
-    selector: '.online-count-container'
+    title: "Manual Refresh Control",
+    text: "Need the latest intelligence? Click the Refresh button to instantly update the feed with the newest security events and reset the map viewport.",
+    selector: '.tour-refresh-button'
   },
   {
-    title: "Sign In",
-    text: "Sign in by email to sync layers, filters, Watch Zone, Monitor Mode, panel positions, and chat styling across browsers. No password required.",
+    title: "Operator Access",
+    text: "Sign in with your credentials to sync your custom data overlays, map styles, Watch Zone settings, and layout presets. Register an account to unlock full analyst privileges across all your devices!",
     selector: '.tour-login-button'
   },
   {
-    title: "Overlays & Live Data",
-    text: "Use Overlays for live layers like VIPs, aircraft, ships, markets, video, and more. This panel also holds category and severity filters.",
+    title: "Data Layers & Overlays",
+    text: "Enrich your map with real-time global overlays: toggle active weather tracking, orbital satellites, internet cable networks, pipelines, and global data centers.",
     selector: '.overlay-panel'
   },
   {
-    title: "Map Options",
-    text: "The Map Options panel controls event markers, live layers, style, and modes. Watch Zone filters events to the visible map area; 3D Globe changes the projection; Monitor Mode opens new matching event details for 30 seconds, then returns to your map.",
+    title: "Advanced Map Options",
+    text: "Customize the visualization mode (3D Globe vs 2D Map) and viewport style. Toggle specialized data options, track specific satellites, or inspect AI regulations in countries around the world.",
     selector: '.tour-map-options'
   },
   {
-    title: "Support the Project",
-    text: "Monitor the Situation is free and community-funded. Support helps cover data, compute, and alerting costs.",
+    title: "Support Sovereign Dashboard",
+    text: "Sovereign Dashboard (SovDash) is free and community-funded. Supporting this platform helps cover database hosting, map services, and real-time intelligence feeds.",
     selector: '.tour-support-button'
   },
   {
-    title: "Briefing Concluded",
-    text: "You are now fully briefed on system operations. Keep your eyes on the feed, report anomalies, and stay vigilant, analyst.",
+    title: "Ready for Launch",
+    text: "Welcome to the team! You're fully briefed and ready to explore Sovereign Dashboard. Customize your interface, track threat updates, and start analyzing the map.",
     selector: null
   }
 ];
 
-const getCardPosition = (rect, width = 320, height = 180) => {
+const getCardPosition = (rect, width = 320, height = 200) => {
   if (!rect) {
     return {
       top: '50%',
@@ -331,27 +331,42 @@ const getCardPosition = (rect, width = 320, height = 180) => {
   const spaceLeft = rect.left;
   const spaceRight = window.innerWidth - rect.right;
 
-  let top, left;
+  let top = 'auto';
+  let bottom = 'auto';
+  let left = 'auto';
 
-  if (spaceBelow > height + 20) {
-    top = `${rect.bottom + 12}px`;
-    left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2))}px`;
-  } else if (spaceAbove > height + 20) {
-    top = `${rect.top - height - 12}px`;
-    left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2))}px`;
-  } else if (spaceRight > width + 20) {
-    top = `${Math.max(12, Math.min(window.innerHeight - height - 12, rect.top + rect.height / 2 - height / 2))}px`;
-    left = `${rect.right + 12}px`;
-  } else {
-    top = `${Math.max(12, Math.min(window.innerHeight - height - 12, rect.top + rect.height / 2 - height / 2))}px`;
-    left = `${rect.left - width - 12}px`;
+  // Determine horizontal alignment
+  // If target is on the right side of the screen and we have space on the left
+  if (rect.left > window.innerWidth / 2 && spaceLeft > width + 20) {
+    left = `${rect.left - width - 16}px`;
+    top = `${Math.max(16, Math.min(window.innerHeight - height - 16, rect.top))}px`;
+  } 
+  // If target is on the left side of the screen and we have space on the right
+  else if (rect.right < window.innerWidth / 2 && spaceRight > width + 20) {
+    left = `${rect.right + 16}px`;
+    top = `${Math.max(16, Math.min(window.innerHeight - height - 16, rect.top))}px`;
+  } 
+  // Fallback: center horizontally relative to target (constrained to viewport)
+  else {
+    const targetCenter = rect.left + rect.width / 2;
+    const computedLeft = targetCenter - width / 2;
+    left = `${Math.max(16, Math.min(window.innerWidth - width - 16, computedLeft))}px`;
+    
+    // Vertical placement fallback: place above or below
+    // If there is more space above than below, or if space below is too small, place above
+    if (spaceAbove > spaceBelow) {
+      bottom = `${window.innerHeight - rect.top + 16}px`;
+    } else {
+      top = `${rect.bottom + 16}px`;
+    }
   }
 
   return {
     top,
+    bottom,
     left,
     transform: 'none',
-    position: 'absolute'
+    position: 'fixed'
   };
 };
 
@@ -393,6 +408,9 @@ export default function LiveMap({
     setTourActive(false);
     setHighlightRect(null);
     localStorage.setItem('sovereign_tour_seen', 'true');
+    localStorage.setItem('operator_pref_autoRotate', 'true');
+    setAutoRotate(true);
+    window.dispatchEvent(new Event('operator_pref_changed'));
   };
 
   const nextTourStep = () => {
@@ -481,7 +499,6 @@ export default function LiveMap({
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [showRefreshTip, setShowRefreshTip] = useState(false);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -522,7 +539,15 @@ export default function LiveMap({
     }
     return 'tactical';
   });
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hasSeenTour = localStorage.getItem('sovereign_tour_seen');
+      if (!hasSeenTour) return false;
+      const stored = localStorage.getItem('operator_pref_autoRotate');
+      return stored !== null ? stored === 'true' : true;
+    }
+    return true;
+  });
   const [tickerSpeed, setTickerSpeed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('operator_pref_tickerSpeed') || 'slow';
@@ -549,12 +574,7 @@ export default function LiveMap({
   const [dataCentersEnabled, setDataCentersEnabled] = useState(false);
   const [aiRegulationsEnabled, setAiRegulationsEnabled] = useState(false);
 
-  // Onboarding tip: show after 1.5s, auto-dismiss after 7s
-  useEffect(() => {
-    const showTimer = setTimeout(() => setShowRefreshTip(true), 1500);
-    const hideTimer = setTimeout(() => setShowRefreshTip(false), 8500);
-    return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
-  }, []);
+
 
   // Dynamic 5-second telemetry polling interval for space satellites
   useEffect(() => {
@@ -610,12 +630,18 @@ export default function LiveMap({
     return () => window.removeEventListener('operator_pref_changed', handlePrefChange);
   }, []);
 
-  // Force auto-rotate ON when page loads by default
+  // Force auto-rotate behavior based on tour status when page loads
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('operator_pref_autoRotate', 'true');
-      setAutoRotate(true);
-      window.dispatchEvent(new Event('operator_pref_changed'));
+      const hasSeenTour = localStorage.getItem('sovereign_tour_seen');
+      if (!hasSeenTour) {
+        // New user: do not auto-rotate initially
+        setAutoRotate(false);
+      } else {
+        // Returning user: auto-rotate as normal
+        const rotate = localStorage.getItem('operator_pref_autoRotate');
+        setAutoRotate(rotate !== null ? rotate === 'true' : true);
+      }
     }
   }, []);
 
@@ -1459,10 +1485,11 @@ export default function LiveMap({
             </div>
           )}
 
-          {/* Compact Refresh Button with onboarding tip */}
+          {/* Compact Refresh Button */}
           <div style={{ position: 'relative' }}>
             <button
               onClick={handleRefresh}
+              className={`tour-refresh-button ${refreshing ? 'spinning' : ''}`}
               style={{
                 background: 'rgba(255, 255, 255, 0.03)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -1477,73 +1504,12 @@ export default function LiveMap({
                 outline: 'none',
                 transition: 'all 0.2s'
               }}
-              className={refreshing ? 'spinning' : ''}
               title="Refresh Signals & Map"
               onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
             >
               <RefreshCw size={12} />
             </button>
-
-            {/* Onboarding tooltip — shown once on page load */}
-            {showRefreshTip && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 12px)',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '210px',
-                background: 'rgba(11, 19, 43, 0.98)',
-                border: '1px solid rgba(0, 240, 255, 0.45)',
-                borderRadius: '9px',
-                padding: '10px 12px 10px 12px',
-                color: '#e2e8f0',
-                fontFamily: 'monospace',
-                fontSize: '10.5px',
-                lineHeight: '1.55',
-                zIndex: 10001,
-                boxShadow: '0 10px 30px rgba(0,0,0,0.85), 0 0 14px rgba(0,240,255,0.15)',
-                backdropFilter: 'blur(10px)',
-                animation: 'fadeInDown 0.35s ease'
-              }}>
-                {/* Upward-pointing arrow */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-7px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 0,
-                  height: 0,
-                  borderLeft: '7px solid transparent',
-                  borderRight: '7px solid transparent',
-                  borderBottom: '7px solid rgba(0, 240, 255, 0.45)'
-                }} />
-                {/* Dismiss button */}
-                <button
-                  onClick={() => setShowRefreshTip(false)}
-                  style={{
-                    position: 'absolute',
-                    top: '5px',
-                    right: '7px',
-                    background: 'none',
-                    border: 'none',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    padding: 0,
-                    lineHeight: 1,
-                    transition: 'color 0.15s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#cbd5e1'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
-                  title="Dismiss"
-                >
-                  ✕
-                </button>
-                <div style={{ color: '#00f0ff', fontWeight: 'bold', marginBottom: '5px', fontSize: '11px' }}>💡 Quick Tip</div>
-                <div>Click here to <strong style={{ color: '#f8fafc' }}>refresh the intel feed</strong> and <strong style={{ color: '#f8fafc' }}>reset the globe</strong> to its default position.</div>
-              </div>
-            )}
           </div>
 
           {/* Profile User avatar (Access Control trigger) */}
@@ -3058,7 +3024,7 @@ export default function LiveMap({
             background: 'rgba(8, 12, 24, 0.95)',
             borderRadius: '0 0 6px 6px'
           }}>
-            <span>by Ryan & David</span>
+            <span>by <a href="https://aviperera.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }} onMouseEnter={(e) => e.target.style.color = '#00f0ff'} onMouseLeave={(e) => e.target.style.color = 'inherit'}>Avi</a></span>
             <span 
               style={{ color: '#00f0ff', cursor: 'pointer', fontWeight: 'bold' }}
               onClick={(e) => { e.stopPropagation(); startTour(); }}
@@ -3668,6 +3634,9 @@ export default function LiveMap({
                 onClick={() => {
                   setShowWelcomeModal(false);
                   localStorage.setItem('sovereign_tour_seen', 'true');
+                  localStorage.setItem('operator_pref_autoRotate', 'true');
+                  setAutoRotate(true);
+                  window.dispatchEvent(new Event('operator_pref_changed'));
                 }}
                 style={{
                   flex: 1,
