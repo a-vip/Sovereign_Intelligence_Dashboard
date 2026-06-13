@@ -4,6 +4,58 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 
 const CHANGELOG_DATA = [
   {
+    version: 'v1.10.0',
+    date: '2026-06-13',
+    title: 'Interactive Onboarding Tour & Layout Resilience',
+    isMajor: true,
+    bullets: [
+      'Implemented an 11-step interactive guided onboarding tour system with rounded dark SVG cutout masks.',
+      'Configured conditional page load auto-rotation: the globe remains stationary for first-time visitors until skipped or completed.',
+      'Refactored dialog card positioning math using position: "fixed" and viewport-relative collision logic.',
+      'Resolved mobile off-screen cutting for full-height elements (Tactical Map and Intelligence Feed) by shifting cards to a safe top: 75px on mobile and top: 120px on desktop.',
+      'Integrated dynamic bottom anchoring for above-target placement to prevent dynamic height overflow overlap.',
+      'Emphasized manual refresh control resetting globe projection, stopping active satellite tracking, and centering views.',
+      'Updated credit labels at the bottom of the overlays box to attribute "by Avi" with a styled link to aviperera.com.'
+    ]
+  },
+  {
+    version: 'v1.9.1',
+    date: '2026-06-06',
+    title: 'Telemetry Panel & Integrity Enhancements',
+    isMajor: false,
+    bullets: [
+      'Fixed Vercel deployment compilation by resolving a database syntax error in db.js.',
+      'Configured cascading deletion constraints and blocklists to protect core OSINT datasets.',
+      'Restored active operator telemetry signals, online counts indicator, and user presence HUD layouts.',
+      'Fixed messy threat event overlays and solved performance spikes by optimizing rendering of raw maps data layers.'
+    ]
+  },
+  {
+    version: 'v1.9.0',
+    date: '2026-06-01',
+    title: 'Manual Event Ingestion & Advanced Search Uplink',
+    isMajor: true,
+    bullets: [
+      'Programmed a manual event creation draft engine with location-based geocoding autocomplete and custom database ingestion.',
+      'Upgraded signal searches to key-value advanced syntax matching (e.g. cat:conflict, severity:critical, loc:london).',
+      'Integrated Leaflet preventFocus coordinate tracking to stop viewport jumping during feed navigation.',
+      'Fixed Hubble Optical Camera feeds, resolved Orbit livestream video 404s, and added a manual image carousel slider for Hubble telemetry.',
+      'Designed full-screen maximized camera viewports, styled connection indicator lights, and integrated sports/entertainment filtering.'
+    ]
+  },
+  {
+    version: 'v1.8.0',
+    date: '2026-05-30',
+    title: 'Domain Migration & Diagnostics Anomalies Hub',
+    isMajor: true,
+    bullets: [
+      'Replaced vercel.app URLs with the official app.sovdash.com custom domain throughout the client database and API modules.',
+      'Created an administrative diagnostics anomalies hub to capture data discrepancies and identify duplicates.',
+      'Refactored administrative archiving separations and updated primary system indexes.',
+      'Corrected coordinate duplicate propagation NaN coordinates and category/severity mismatch parsing.'
+    ]
+  },
+  {
     version: 'v1.7.2',
     date: '2026-05-29',
     title: 'Backend Auto-Geocoding & Safety Guards',
@@ -450,7 +502,7 @@ export default function ChangelogBox({ onClose }) {
         }}
       >
         <span>SECURE HANDSHAKE VERIFIED</span>
-        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.7.2</span>
+        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.10.0</span>
       </div>
 
       {/* Styled visible scrollbar injected directly */}
