@@ -1019,7 +1019,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
             )}
           </div>
           <span style={{ color: '#475569', fontSize: '0.7rem', fontFamily: "var(--font-jetbrains-fallback)" }}>
-            {formatTime(event.timestamp)}
+            {formatTime(event.original_post_time || event.timestamp)}
           </span>
         </div>
 

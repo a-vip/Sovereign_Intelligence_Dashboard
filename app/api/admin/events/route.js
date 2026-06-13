@@ -67,7 +67,8 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
 
-    const updated = await updateEvent(id, fields);
+    const lastEditedBy = auth.user?.email || auth.user?.id || 'admin';
+    const updated = await updateEvent(id, { ...fields, last_edited_by: lastEditedBy });
     clearRouteCache();
     return NextResponse.json({ success: true, event: updated });
   } catch (error) {

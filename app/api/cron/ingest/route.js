@@ -103,6 +103,7 @@ export async function GET(request) {
           url: a.url,
           source: a.domain || 'Unknown',
           timestamp: ts,
+          original_post_time: ts,
           category: categorize(decodedTitle),
           severity: scoreSeverity(decodedTitle),
           location: geo.name,

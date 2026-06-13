@@ -258,6 +258,103 @@ function AsciiLoader({ text }) {
   );
 }
 
+const tourSteps = [
+  {
+    title: "Welcome, Analyst",
+    text: "This dashboard tracks real-time global security incidents, autonomous weapons (LAWS) developments, and geopolitical conflict data. Let's take a quick walk-through of the interface.",
+    selector: null
+  },
+  {
+    title: "Tactical Map Viewport",
+    text: "The main interactive visualization. Threat markers are color-coded: red represents active conflicts, green shows humanitarian events, and yellow indicates economic or political updates. Click and drag to pan, use the scroll wheel to zoom.",
+    selector: '.sigint-map-area'
+  },
+  {
+    title: "Intelligence Feed",
+    text: "This side feed logs all incoming signal telemetry chronologically. You can switch between LIVE SIGNALS, RSS FEEDS, or SPACE RADAR at the top of the feed panel.",
+    selector: '.tour-sidebar-feed'
+  },
+  {
+    title: "Search Feed",
+    text: "Search filters events by title, summary, and location. You can type keywords or use advanced syntax queries to quickly isolate signals of interest.",
+    selector: '.tour-search-input'
+  },
+  {
+    title: "Operator Uplink Feedback",
+    text: "Submit custom geocoding suggestions, correct coordinates, or report system anomalies directly to high command for moderation.",
+    selector: '.tour-feedback-button'
+  },
+  {
+    title: "Active Terminals",
+    text: "Shows the number of active operators and terminal sessions currently online across the global grid. Hovering reveals flags and region locations.",
+    selector: '.online-count-container'
+  },
+  {
+    title: "Sign In",
+    text: "Sign in by email to sync layers, filters, Watch Zone, Monitor Mode, panel positions, and chat styling across browsers. No password required.",
+    selector: '.tour-login-button'
+  },
+  {
+    title: "Overlays & Live Data",
+    text: "Use Overlays for live layers like VIPs, aircraft, ships, markets, video, and more. This panel also holds category and severity filters.",
+    selector: '.overlay-panel'
+  },
+  {
+    title: "Map Options",
+    text: "The Map Options panel controls event markers, live layers, style, and modes. Watch Zone filters events to the visible map area; 3D Globe changes the projection; Monitor Mode opens new matching event details for 30 seconds, then returns to your map.",
+    selector: '.tour-map-options'
+  },
+  {
+    title: "Support the Project",
+    text: "Monitor the Situation is free and community-funded. Support helps cover data, compute, and alerting costs.",
+    selector: '.tour-support-button'
+  },
+  {
+    title: "Briefing Concluded",
+    text: "You are now fully briefed on system operations. Keep your eyes on the feed, report anomalies, and stay vigilant, analyst.",
+    selector: null
+  }
+];
+
+const getCardPosition = (rect, width = 320, height = 180) => {
+  if (!rect) {
+    return {
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      position: 'fixed'
+    };
+  }
+
+  const spaceAbove = rect.top;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceLeft = rect.left;
+  const spaceRight = window.innerWidth - rect.right;
+
+  let top, left;
+
+  if (spaceBelow > height + 20) {
+    top = `${rect.bottom + 12}px`;
+    left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2))}px`;
+  } else if (spaceAbove > height + 20) {
+    top = `${rect.top - height - 12}px`;
+    left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2))}px`;
+  } else if (spaceRight > width + 20) {
+    top = `${Math.max(12, Math.min(window.innerHeight - height - 12, rect.top + rect.height / 2 - height / 2))}px`;
+    left = `${rect.right + 12}px`;
+  } else {
+    top = `${Math.max(12, Math.min(window.innerHeight - height - 12, rect.top + rect.height / 2 - height / 2))}px`;
+    left = `${rect.left - width - 12}px`;
+  }
+
+  return {
+    top,
+    left,
+    transform: 'none',
+    position: 'absolute'
+  };
+};
+
 export default function LiveMap({
   currentUser,
   handleLogout,
@@ -270,6 +367,102 @@ export default function LiveMap({
   const [markers, setMarkers] = useState([]);
   const [allFetchedEvents, setAllFetchedEvents] = useState([]);
   const [categories, setCategories] = useState({ Conflict: true, Surveillance: true, Political: true, Humanitarian: true, Economic: true, Disaster: true });
+
+  // Guided Tour states
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [highlightRect, setHighlightRect] = useState(null);
+
+  // Initialize welcome modal checking
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem('sovereign_tour_seen');
+    if (!hasSeenTour) {
+      setShowWelcomeModal(true);
+    }
+  }, []);
+
+  // Functions for tour navigation
+  const startTour = () => {
+    setTourActive(true);
+    setTourStep(0);
+    setShowWelcomeModal(false);
+  };
+
+  const endTour = () => {
+    setTourActive(false);
+    setHighlightRect(null);
+    localStorage.setItem('sovereign_tour_seen', 'true');
+  };
+
+  const nextTourStep = () => {
+    if (tourStep < tourSteps.length - 1) {
+      setTourStep(prev => prev + 1);
+    } else {
+      endTour();
+    }
+  };
+
+  const prevTourStep = () => {
+    if (tourStep > 0) {
+      setTourStep(prev => prev - 1);
+    }
+  };
+
+  const getElementRect = (selector) => {
+    if (!selector) return null;
+    const el = document.querySelector(selector);
+    if (!el) return null;
+    return el.getBoundingClientRect();
+  };
+
+  const updateHighlightRect = useCallback(() => {
+    if (!tourActive) {
+      setHighlightRect(null);
+      return;
+    }
+    const stepConfig = tourSteps[tourStep];
+    if (!stepConfig || !stepConfig.selector) {
+      setHighlightRect(null);
+      return;
+    }
+    const rect = getElementRect(stepConfig.selector);
+    setHighlightRect(rect);
+  }, [tourActive, tourStep]);
+
+  // Handle tour step side-effects (auto expanding sidebars, option panels, etc.)
+  useEffect(() => {
+    if (!tourActive) return;
+    const stepConfig = tourSteps[tourStep];
+    if (!stepConfig) return;
+
+    if (stepConfig.selector === '.tour-sidebar-feed' || stepConfig.selector === '.tour-search-input') {
+      setIsFeedCollapsed(false);
+    }
+    if (stepConfig.selector === '.overlay-panel') {
+      setIsMinimized(false);
+    }
+    if (stepConfig.selector === '.tour-map-options') {
+      setIsMinimized(false);
+      setIsMapOptionsExpanded(true);
+    }
+
+    const timer = setTimeout(() => {
+      updateHighlightRect();
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [tourStep, tourActive, updateHighlightRect]);
+
+  // Recalculate highlight box position on window resize or scroll
+  useEffect(() => {
+    if (!tourActive) return;
+    window.addEventListener('resize', updateHighlightRect);
+    window.addEventListener('scroll', updateHighlightRect);
+    return () => {
+      window.removeEventListener('resize', updateHighlightRect);
+      window.removeEventListener('scroll', updateHighlightRect);
+    };
+  }, [tourActive, updateHighlightRect]);
   const [minSeverity, setMinSeverity] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('operator_pref_minSeverity');
@@ -1013,11 +1206,11 @@ export default function LiveMap({
     if (timeRange === 'critical') {
       return deduplicated.sort((a, b) => {
         if (b.severity !== a.severity) return b.severity - a.severity;
-        return parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp);
+        return parseDateSafe(b.original_post_time || b.timestamp) - parseDateSafe(a.original_post_time || a.timestamp);
       });
     }
 
-    return deduplicated.sort((a, b) => parseDateSafe(b.timestamp) - parseDateSafe(a.timestamp));
+    return deduplicated.sort((a, b) => parseDateSafe(b.original_post_time || b.timestamp) - parseDateSafe(a.original_post_time || a.timestamp));
   }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
 
   const filteredRssItems = useMemo(() => {
@@ -1057,8 +1250,8 @@ export default function LiveMap({
     if (allFetchedEvents && allFetchedEvents.length > 0) {
       allFetchedEvents.slice(0, 6).forEach(ev => {
         items.push({
-          text: `[${ev.category.toUpperCase()} // ${formatTime(ev.timestamp)}] ${ev.title.toUpperCase()}`,
-          timestamp: ev.timestamp,
+          text: `[${ev.category.toUpperCase()} // ${formatTime(ev.original_post_time || ev.timestamp)}] ${ev.title.toUpperCase()}`,
+          timestamp: ev.original_post_time || ev.timestamp,
           event: ev
         });
       });
@@ -1393,6 +1586,7 @@ export default function LiveMap({
 
             {/* Submit Feedback / Report Bug Button - ALWAYS VISIBLE */}
             <button
+              className="tour-feedback-button"
               onClick={() => onAvatarClick('suggestions')}
               style={{
                 background: 'rgba(245, 158, 11, 0.08)',
@@ -1429,6 +1623,7 @@ export default function LiveMap({
             {currentUser ? (
               <>
                 <div 
+                  className="tour-login-button"
                   onClick={() => onAvatarClick('profile')}
                   style={{
                     background: 'rgba(16, 185, 129, 0.1)',
@@ -1479,6 +1674,7 @@ export default function LiveMap({
               </>
             ) : (
               <button 
+                className="tour-login-button"
                 onClick={() => setShowAuthModal(true)}
                 style={{
                   background: 'rgba(6, 182, 212, 0.08)',
@@ -1579,9 +1775,8 @@ export default function LiveMap({
           flex: 1
         }}
       >
-        {/* Event Feed Sidebar */}
         <div 
-          className="sigint-feed"
+          className="sigint-feed tour-sidebar-feed"
           style={{
             position: isMobile ? 'absolute' : 'relative',
             left: 0,
@@ -1817,6 +2012,7 @@ export default function LiveMap({
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input
               type="text"
+              className="tour-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="SEARCH SIGNAL FEED..."
@@ -2140,7 +2336,7 @@ export default function LiveMap({
                         <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
                           S{ev.severity}
                         </span>
-                        <span className="feed-time">{formatTime(ev.timestamp)}</span>
+                        <span className="feed-time">{formatTime(ev.original_post_time || ev.timestamp)}</span>
                       </div>
                       <div className="feed-title">{ev.title}</div>
                       {ev.location && <div className="feed-location">📍 {ev.location}</div>}
@@ -2391,7 +2587,7 @@ export default function LiveMap({
           {/* Map Options Expandable Section */}
           <div className="overlay-section" style={{ paddingTop: '12px', marginTop: '12px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
             <div 
-              className="overlay-title" 
+              className="overlay-title tour-map-options" 
               onClick={() => setIsMapOptionsExpanded(!isMapOptionsExpanded)} 
               style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
@@ -2848,6 +3044,28 @@ export default function LiveMap({
               </div>
             )}
           </div>
+
+          {/* Tour Credit & Replay */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '6px 8px',
+            borderTop: '1px solid rgba(56, 189, 248, 0.15)',
+            fontSize: '9px',
+            color: 'rgba(255, 255, 255, 0.3)',
+            fontFamily: 'monospace',
+            background: 'rgba(8, 12, 24, 0.95)',
+            borderRadius: '0 0 6px 6px'
+          }}>
+            <span>by Ryan & David</span>
+            <span 
+              style={{ color: '#00f0ff', cursor: 'pointer', fontWeight: 'bold' }}
+              onClick={(e) => { e.stopPropagation(); startTour(); }}
+            >
+              Replay tutorial
+            </span>
+          </div>
         </div>
       )}
 
@@ -2900,6 +3118,7 @@ export default function LiveMap({
         {/* Support Pill Button */}
         <div style={{ position: 'relative' }}>
           <button 
+            className="tour-support-button"
             onClick={() => setShowSupportDropdown(!showSupportDropdown)}
             style={{
               display: 'flex',
@@ -3412,6 +3631,220 @@ export default function LiveMap({
           onTrackToggle={() => setIsTracked(!isTracked)}
         />
       )}
+
+      {/* Interactive Onboarding Tour Welcoming Dialog */}
+      {showWelcomeModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(2, 6, 23, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999999,
+          pointerEvents: 'auto'
+        }}>
+          <div style={{
+            width: '400px',
+            background: 'rgba(8, 12, 24, 0.98)',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            borderRadius: '10px',
+            padding: '24px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.95), 0 0 25px rgba(0,240,255,0.2)',
+            color: '#f8fafc',
+            fontFamily: 'monospace',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '16px', textShadow: '0 0 10px rgba(0, 240, 255, 0.5)' }}>🛰️</div>
+            <h2 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '800', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Welcome to the Dashboard
+            </h2>
+            <p style={{ margin: '0 0 24px 0', fontSize: '11.5px', lineHeight: '1.6', color: '#cbd5e1' }}>
+              Would you like to start a guided tour of the Sovereign Intelligence Dashboard? This introduction will walk you through the real-time feeds, live data layers, and operational controls.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  setShowWelcomeModal(false);
+                  localStorage.setItem('sovereign_tour_seen', 'true');
+                }}
+                style={{
+                  flex: 1,
+                  background: 'rgba(51, 65, 85, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '4px',
+                  color: '#e2e8f0',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '10px 0',
+                  fontFamily: 'monospace',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(51, 65, 85, 0.55)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(51, 65, 85, 0.35)'}
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => startTour()}
+                style={{
+                  flex: 1,
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#020617',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  padding: '10px 0',
+                  fontFamily: 'monospace',
+                  boxShadow: '0 0 12px rgba(6,182,212,0.4)',
+                  transition: 'box-shadow 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 0 18px rgba(6,182,212,0.6)'}
+                onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 0 12px rgba(6,182,212,0.4)'}
+              >
+                Start Tour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Dark Overlay with SVG cutout mask */}
+      {tourActive && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99998, pointerEvents: 'none' }}>
+          <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'auto' }}>
+            <defs>
+              <mask id="tour-cutout-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                {highlightRect && (
+                  <rect 
+                    x={highlightRect.left - 6} 
+                    y={highlightRect.top - 6} 
+                    width={highlightRect.width + 12} 
+                    height={highlightRect.height + 12} 
+                    rx="6" 
+                    ry="6" 
+                    fill="black" 
+                  />
+                )}
+              </mask>
+            </defs>
+            <rect 
+              x="0" 
+              y="0" 
+              width="100%" 
+              height="100%" 
+              fill="rgba(0, 0, 0, 0.72)" 
+              mask="url(#tour-cutout-mask)" 
+            />
+          </svg>
+        </div>
+      )}
+
+      {/* Tour Step Card dialog box */}
+      {tourActive && tourSteps[tourStep] && (
+        <div 
+          style={{
+            ...getCardPosition(highlightRect, 320, 180),
+            zIndex: 99999,
+            pointerEvents: 'auto',
+            width: '320px',
+            background: 'rgba(8, 12, 24, 0.98)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '8px',
+            padding: '16px',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.9), 0 0 15px rgba(0,240,255,0.15)',
+            color: '#f8fafc',
+            fontFamily: 'monospace',
+            transition: 'all 0.2s ease-out',
+            boxSizing: 'border-box'
+          }}
+        >
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '800', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {tourSteps[tourStep].title}
+          </h3>
+          <p style={{ margin: '0 0 16px 0', fontSize: '10.5px', lineHeight: '1.5', color: '#cbd5e1' }}>
+            {tourSteps[tourStep].text}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', color: '#64748b' }}>
+              {tourStep + 1} of {tourSteps.length}
+            </span>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {tourStep < tourSteps.length - 1 && (
+                <button 
+                  onClick={endTour}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    padding: '4px 8px',
+                    fontFamily: 'monospace'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+                >
+                  Skip
+                </button>
+              )}
+              {tourStep > 0 && (
+                <button 
+                  onClick={prevTourStep}
+                  style={{
+                    background: 'rgba(51, 65, 85, 0.35)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '4px',
+                    color: '#e2e8f0',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    padding: '5px 10px',
+                    fontFamily: 'monospace',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(51, 65, 85, 0.55)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(51, 65, 85, 0.35)'}
+                >
+                  Back
+                </button>
+              )}
+              <button 
+                onClick={nextTourStep}
+                style={{
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#020617',
+                  cursor: 'pointer',
+                  fontSize: '10.5px',
+                  fontWeight: '800',
+                  padding: '5px 12px',
+                  fontFamily: 'monospace',
+                  boxShadow: '0 0 10px rgba(6,182,212,0.3)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(6,182,212,0.5)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 10px rgba(6,182,212,0.3)';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                {tourStep === tourSteps.length - 1 ? 'Finish' : 'Next'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   </div>
   );
@@ -3448,7 +3881,8 @@ function matchAdvancedQuery(item, queryStr) {
       } else if (key === 'src' || key === 'source') {
         if (!itemSource.includes(val)) isMatch = false;
       } else if (key === 'date') {
-        const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleDateString().toLowerCase() : '';
+        const effectiveTime = item.original_post_time || item.timestamp;
+        const dateStr = effectiveTime ? new Date(effectiveTime).toLocaleDateString().toLowerCase() : '';
         if (!dateStr.includes(val)) isMatch = false;
       }
     });
@@ -3472,7 +3906,8 @@ function matchAdvancedQuery(item, queryStr) {
   const summaryMatch = (item.summary || item.description || item.details?.summary || '').toLowerCase().includes(q);
   const sourceMatch = (item.source || item.details?.source || '').toLowerCase().includes(q);
   
-  const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleDateString().toLowerCase() : '';
+  const effectiveTime = item.original_post_time || item.timestamp;
+  const dateStr = effectiveTime ? new Date(effectiveTime).toLocaleDateString().toLowerCase() : '';
   const dateMatch = dateStr.includes(q);
   
   const sevName = SEV_LABELS[item.severity] || '';

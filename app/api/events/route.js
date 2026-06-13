@@ -721,7 +721,7 @@ export async function GET(request) {
       const isB = b.source?.includes('Vault') || b.source?.includes('OCHA') || b.source?.includes('HRW');
       if (isA && !isB) return -1;
       if (!isA && isB) return 1;
-      return new Date(b.timestamp) - new Date(a.timestamp);
+      return new Date(b.original_post_time || b.timestamp) - new Date(a.original_post_time || a.timestamp);
     });
 
     // Assign high-fidelity coordinates
@@ -992,6 +992,7 @@ export async function POST(request) {
       id: e.id || generateHashId(e.url, e.title),
       title: e.title, url: e.url, source: e.source || 'Vault',
       timestamp: e.timestamp || new Date().toISOString(),
+      original_post_time: e.original_post_time || e.timestamp || new Date().toISOString(),
       category: e.category || getCategory(e.title),
       severity: e.severity || getSeverity(e.title),
       lat: e.lat || null, lon: e.lon || null,

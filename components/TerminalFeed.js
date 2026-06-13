@@ -113,7 +113,7 @@ export default function TerminalFeed() {
           return (
             <div key={`${ev.id}-${i}`} className="terminal-entry" style={{ animationDelay: `${i * 0.05}s` }}>
               <div className="terminal-meta">
-                <span className="terminal-time">[{formatTimeOnly(ev.timestamp)}]</span>
+                <span className="terminal-time">[{formatTimeOnly(ev.original_post_time || ev.timestamp)}]</span>
                 <span className="terminal-tag" style={{ color: tagColor, borderColor: `${tagColor}40`, backgroundColor: `${tagColor}10` }}>
                   {tag}
                 </span>
