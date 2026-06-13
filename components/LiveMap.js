@@ -286,7 +286,7 @@ const tourSteps = [
   },
   {
     title: "Manual Refresh Control",
-    text: "Need the latest intelligence? Click the Refresh button to instantly update the feed with the newest security events and reset the map viewport.",
+    text: "Need the latest intelligence or want to reset your view? Click the Refresh button to instantly update all feeds, stop active satellite tracking, and reset the globe projection back to its default viewport position.",
     selector: '.tour-refresh-button'
   },
   {
@@ -353,8 +353,16 @@ const getCardPosition = (rect, width = 320, height = 200) => {
     left = `${Math.max(16, Math.min(window.innerWidth - width - 16, computedLeft))}px`;
     
     // Vertical placement fallback: place above or below
-    // If there is more space above than below, or if space below is too small, place above
-    if (spaceAbove > spaceBelow) {
+    // If there is not enough vertical space both above and below, place inside viewport
+    if (spaceAbove < height + 20 && spaceBelow < height + 20) {
+      if (window.innerWidth < 900) {
+        // Mobile: place near the top below the header
+        top = '75px';
+      } else {
+        // Desktop: place at a safe vertical position
+        top = '120px';
+      }
+    } else if (spaceAbove > spaceBelow) {
       bottom = `${window.innerHeight - rect.top + 16}px`;
     } else {
       top = `${rect.bottom + 16}px`;
