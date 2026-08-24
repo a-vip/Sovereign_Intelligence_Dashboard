@@ -7,6 +7,7 @@ import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss } from '@/lib/rssParser';
 import { verifyLink, findAlternativeLink } from '@/lib/verification';
 import { geocodeText, decodeHtmlEntities } from '@/lib/geocoder';
+import { clearRouteCache } from '@/lib/cache';
 import { sql } from '@vercel/postgres';
 
 export const dynamic = 'force-dynamic';
@@ -73,6 +74,51 @@ export async function GET(request) {
   try {
     await initDb();
     
+    // PURGE: Remove stale events older than 7 days (preserving manually edited events)
+    const PURGE_DAYS = 7;
+    const purgeDate = new Date(Date.now() - PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      if (process.env.POSTGRES_URL) {
+        const { rowCount } = await sql`
+          DELETE FROM sigint_events 
+          WHERE (edited IS NULL OR edited = FALSE) 
+          AND timestamp < ${purgeDate}
+        `;
+        if (rowCount > 0) {
+          console.log(`[PURGE] Removed ${rowCount} stale events older than ${PURGE_DAYS} days from database.`);
+        }
+        // Also purge stale RSS items
+        const rssResult = await sql`
+          DELETE FROM rss_items 
+          WHERE published_at < ${purgeDate}
+        `;
+        if (rssResult.rowCount > 0) {
+          console.log(`[PURGE] Removed ${rssResult.rowCount} stale RSS items.`);
+        }
+      } else {
+        // Local JSON file purge
+        const localEvents = JSON.parse(fs.readFileSync(path.resolve('events-local.json'), 'utf8') || '[]');
+        const freshEvents = localEvents.filter(e => 
+          (e.edited === true || e.edited === 'true') || 
+          new Date(e.timestamp || e.original_post_time) > new Date(purgeDate)
+        );
+        if (freshEvents.length < localEvents.length) {
+          console.log(`[PURGE] Removed ${localEvents.length - freshEvents.length} stale local events.`);
+          fs.writeFileSync(path.resolve('events-local.json'), JSON.stringify(freshEvents, null, 2), 'utf8');
+        }
+        const localRss = JSON.parse(fs.readFileSync(path.resolve('rss-local.json'), 'utf8') || '[]');
+        const freshRss = localRss.filter(r => new Date(r.published_at) > new Date(purgeDate));
+        if (freshRss.length < localRss.length) {
+          fs.writeFileSync(path.resolve('rss-local.json'), JSON.stringify(freshRss, null, 2), 'utf8');
+        }
+      }
+    } catch (purgeErr) {
+      console.warn('[PURGE] Stale data cleanup failed (non-fatal):', purgeErr.message);
+    }
+
+    // Clear in-memory route cache so the events API serves fresh data immediately
+    clearRouteCache();
+
     const mainQuery = '("artificial intelligence" OR "autonomous weapons" OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR "AI military" OR "facial recognition" OR "surveillance tech" OR Palantir OR "human rights AI" OR "cyber surveillance" OR biometric)';
     const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=150&format=json&sourcelang=english&timespan=12h`;
     
