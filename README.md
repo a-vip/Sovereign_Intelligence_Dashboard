@@ -40,7 +40,7 @@ The application combines a high-performance React front-end, Next.js dynamic rou
 
 | Layer | Technology |
 | :--- | :--- |
-| **Framework** | Next.js 14+ (App Router) / React 18 |
+| **Framework** | Next.js 16 (App Router) / React 19 |
 | **Styling** | Vanilla CSS (curated HSL palettes, neon HUD, dark glassmorphism) |
 | **Mapping Engine** | Leaflet / Cesium Ion 3D Platform |
 | **Database & API** | Dynamic Server Side JSON Store (events, RSS, anomalies) / NextJS API |

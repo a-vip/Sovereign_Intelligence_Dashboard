@@ -4,6 +4,22 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 
 const CHANGELOG_DATA = [
   {
+    version: 'v1.11.0',
+    date: '2026-08-24',
+    title: 'System Restoration & Data Pipeline Overhaul',
+    isMajor: true,
+    bullets: [
+      'Restored full OSINT data pipeline after 2+ months of inactivity — all GDELT, RSS, and AI Regulations feeds are ingesting fresh intelligence again.',
+      'Fixed critical ESM/CommonJS module conflict in the cron ingestion route that caused silent build failures on Vercel.',
+      'Increased Vercel cron frequency from daily (midnight UTC) to every 6 hours for fresher data coverage.',
+      'Added maxDuration export to extend Vercel serverless function timeout for the ingestion pipeline.',
+      'Implemented automatic staleness detection: the dashboard now self-heals by triggering a background data refresh when events are older than 24 hours.',
+      'Suppressed Cesium render loop error dialogs with graceful auto-recovery and MutationObserver-based error panel hiding.',
+      'Updated RSS fallback dataset timestamps to August 2026 for current curated intelligence when live feeds are unavailable.',
+      'Improved relative timestamp formatting: added day-count display (e.g. \"3d ago\") and cleaner short-date fallback to reduce visual staleness.',
+    ]
+  },
+  {
     version: 'v1.10.0',
     date: '2026-06-13',
     title: 'Interactive Onboarding Tour & Layout Resilience',

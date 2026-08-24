@@ -74,15 +74,11 @@ function formatTime(ts) {
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
   if (diff < 172800000) return 'Yesterday';
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
   
   return d.toLocaleDateString(undefined, {
     month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }) + ' ' + d.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
+    day: 'numeric'
   });
 }
 
@@ -1025,6 +1021,22 @@ export default function LiveMap({
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
   }, [fetchEvents, fetchRss]);
+
+  // Auto-detect stale data and trigger a background refresh via the cron endpoint
+  useEffect(() => {
+    if (!allFetchedEvents || allFetchedEvents.length === 0) return;
+    const newestTs = allFetchedEvents.reduce((newest, ev) => {
+      const ts = new Date(ev.original_post_time || ev.timestamp).getTime();
+      return ts > newest ? ts : newest;
+    }, 0);
+    const ageMs = Date.now() - newestTs;
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    if (ageMs > ONE_DAY) {
+      console.log(`[SIGINT Staleness] Data is ${Math.round(ageMs / 3600000)}h old. Triggering background refresh...`);
+      fetch('/api/cron/ingest').catch(() => {});
+      fetchRss(true);
+    }
+  }, [allFetchedEvents, fetchRss]);
 
   // Listen for Admin CMS updates to immediately refresh map markers & data feeds
   useEffect(() => {

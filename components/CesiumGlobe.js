@@ -1690,7 +1690,28 @@ export default function CesiumGlobe({
       // Start as false to prevent any curvature/terrain clipping visual bugs on initial tactical dark load!
       viewer.scene.globe.depthTestAgainstTerrain = false;
       viewer.scene.globe.tileCacheSize = 35; // Dramatically reduces memory usage by limiting cached terrain/imagery tiles!
-      viewer.scene.globe.maximumScreenSpaceError = 4.5; // Optimized to reduce memory overhead and GPU footprint, saving up to ~250MB!
+      viewer.scene.globe.maximumScreenSpaceError = 4.5; // Optimized to reduce memory overhead and GPU footprint, saving up to ~250MB!\r
+\r
+      // Suppress Cesium's default error panel — auto-recover from transient render loop errors instead of blocking UI\r
+      viewer.scene.renderError.addEventListener((scene, error) => {\r
+        console.warn('[Cesium Render Loop] Suppressed render error:', error?.message || error);\r
+      });\r
+      // Hide the default Cesium error panel overlay if it appears\r
+      const errorPanel = containerRef.current?.querySelector('.cesium-widget-errorPanel');\r
+      if (errorPanel) errorPanel.style.display = 'none';\r
+      // Watch for the error panel being dynamically injected\r
+      const observer = new MutationObserver((mutations) => {\r
+        for (const mutation of mutations) {\r
+          for (const node of mutation.addedNodes) {\r
+            if (node.classList?.contains('cesium-widget-errorPanel')) {\r
+              node.style.display = 'none';\r
+            }\r
+          }\r
+        }\r
+      });\r
+      if (containerRef.current) {\r
+        observer.observe(containerRef.current, { childList: true, subtree: true });\r
+      }
 
       // Set camera to premium global view
       viewer.camera.setView({
@@ -2271,6 +2292,7 @@ export default function CesiumGlobe({
 
       // Clean up on unmount
       return () => {
+        observer.disconnect();
         handler.destroy();
         try {
           if (viewer && viewer.camera) {

@@ -10,6 +10,7 @@ import { geocodeText, decodeHtmlEntities } from '@/lib/geocoder';
 import { sql } from '@vercel/postgres';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Allow up to 60s for the ingestion pipeline
 
 function generateId(url, title) {
   return crypto.createHash('md5').update(url || title).digest('hex');
@@ -321,8 +322,6 @@ async function syncAiRegulations() {
     if (results.length > 0) {
       console.log(`[AI Regulations Ingestion]: Successfully parsed ${results.length} live regulations.`);
       
-      const fs = require('fs');
-      const path = require('path');
       const localFilePath = path.resolve('ai-regulations-local.json');
       fs.writeFileSync(localFilePath, JSON.stringify(results, null, 2), 'utf8');
       
