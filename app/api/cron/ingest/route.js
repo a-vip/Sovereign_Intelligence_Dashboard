@@ -74,18 +74,26 @@ export async function GET(request) {
   try {
     await initDb();
     
-    // PURGE: Remove stale events older than 7 days (preserving manually edited events)
+    // PURGE: Remove stale events — all non-edited events older than 7 days, and even edited events older than 14 days
     const PURGE_DAYS = 7;
+    const HARD_PURGE_DAYS = 14; // Even manually-edited events expire after 14 days
     const purgeDate = new Date(Date.now() - PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const hardPurgeDate = new Date(Date.now() - HARD_PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
     try {
       if (process.env.POSTGRES_URL) {
+        // Remove non-edited events older than 7 days
         const { rowCount } = await sql`
           DELETE FROM sigint_events 
           WHERE (edited IS NULL OR edited = FALSE) 
           AND timestamp < ${purgeDate}
         `;
-        if (rowCount > 0) {
-          console.log(`[PURGE] Removed ${rowCount} stale events older than ${PURGE_DAYS} days from database.`);
+        // Remove ALL events (including edited) older than 14 days — stale curated events are no longer useful
+        const { rowCount: hardPurgeCount } = await sql`
+          DELETE FROM sigint_events 
+          WHERE timestamp < ${hardPurgeDate}
+        `;
+        if (rowCount + hardPurgeCount > 0) {
+          console.log(`[PURGE] Removed ${rowCount} stale + ${hardPurgeCount} hard-expired events from database.`);
         }
         // Also purge stale RSS items
         const rssResult = await sql`
@@ -120,11 +128,11 @@ export async function GET(request) {
     clearRouteCache();
 
     const mainQuery = '("artificial intelligence" OR "autonomous weapons" OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR "AI military" OR "facial recognition" OR "surveillance tech" OR Palantir OR "human rights AI" OR "cyber surveillance" OR biometric)';
-    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=150&format=json&sourcelang=english&timespan=12h`;
+    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=150&format=json&sourcelang=english&timespan=72h`;
     
     let osintEvents = [];
     try {
-      const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(6000) });
+      const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(12000) });
       const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
       
       // Filter out any articles that are blocklisted or not AI/governance related
