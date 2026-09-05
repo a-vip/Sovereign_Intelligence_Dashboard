@@ -520,13 +520,19 @@ function loadStaticEvents() {
   try {
     if (fs.existsSync(staticPath)) {
       const data = fs.readFileSync(staticPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      return (Array.isArray(parsed) ? parsed : []).filter(e => {
+        const d = new Date(e.original_post_time || e.timestamp || e.created_at).getTime();
+        return !isNaN(d) && d >= cutoff;
+      });
     }
   } catch (err) {
     console.error('Error loading static events:', err);
   }
   return [];
 }
+
 
 const CURATED_STATIC_MARKERS = [
   { lat: 31.5, lon: 34.5, name: 'IDF Lavender AI targeting system deployment', category: 'Conflict', severity: 5, tag: 'CRITICAL', source: '+972 Magazine', url: 'https://www.972mag.com/lavender-ai-israeli-army-gaza/' },
@@ -746,8 +752,16 @@ export async function GET(request) {
     const allEvents = [];
     const groupCounts = { 'Ukraine': 0, 'USA': 0, 'West Asia': 0, 'Other': 0 };
     const GROUP_CAPS = { 'Ukraine': 10, 'USA': 10, 'West Asia': 10, 'Other': 150 };
+    const maxAgeMs = 14 * 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
 
     sortedEvents.forEach(e => {
+      // Hard staleness filter: enforce 14-day recency cutoff across all sources
+      const eventTime = new Date(e.original_post_time || e.timestamp || e.created_at).getTime();
+      if (!isNaN(eventTime) && (nowMs - eventTime) > maxAgeMs) {
+        return; // Skip stale events
+      }
+
       const region = getRegionGroup(e.location || 'Global', e.title);
       
       // Exclude Ukraine drone/FPV strike signals completely to resolve visual clutter
