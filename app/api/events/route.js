@@ -569,8 +569,12 @@ async function fetchGdelt(timespan) {
       const doc = await docRes.json();
       evs = (doc.articles || []).map(a => {
         let ts = a.seendate || new Date().toISOString();
-        if (typeof ts === 'string' && /^\d{14}$/.test(ts)) {
-          ts = ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z');
+        if (typeof ts === 'string') {
+          if (/^\d{14}$/.test(ts)) {
+            ts = ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z');
+          } else if (/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/i.test(ts)) {
+            ts = ts.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/i, '$1-$2-$3T$4:$5:$6Z');
+          }
         }
         const locationName = a.sourcecountry || 'Global';
         const coords = getCountryCoords(locationName, a.title, a.title);
@@ -755,11 +759,30 @@ export async function GET(request) {
     const maxAgeMs = 14 * 24 * 60 * 60 * 1000;
     const nowMs = Date.now();
 
+    const parseEventDate = (raw) => {
+      if (!raw) return 0;
+      if (typeof raw === 'string') {
+        const s = raw.trim();
+        if (/^\d{14}$/.test(s)) {
+          return new Date(s.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z')).getTime() || 0;
+        }
+        if (/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/i.test(s)) {
+          return new Date(s.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/i, '$1-$2-$3T$4:$5:$6Z')).getTime() || 0;
+        }
+      }
+      const d = new Date(raw).getTime();
+      return isNaN(d) ? 0 : d;
+    };
+
     sortedEvents.forEach(e => {
       // Hard staleness filter: enforce 14-day recency cutoff across all sources
-      const eventTime = new Date(e.original_post_time || e.timestamp || e.created_at).getTime();
-      if (!isNaN(eventTime) && (nowMs - eventTime) > maxAgeMs) {
+      const rawTime = e.original_post_time || e.timestamp || e.created_at;
+      const eventTime = parseEventDate(rawTime);
+      if (eventTime > 0 && (nowMs - eventTime) > maxAgeMs) {
         return; // Skip stale events
+      }
+      if (eventTime > 0 && typeof e.timestamp === 'string' && /^\d{8}/.test(e.timestamp)) {
+        e.timestamp = new Date(eventTime).toISOString();
       }
 
       const region = getRegionGroup(e.location || 'Global', e.title);
