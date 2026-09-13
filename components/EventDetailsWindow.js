@@ -162,8 +162,75 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
     lon: event.lon,
     source: event.source,
     url: event.url,
-    summary: event.details?.summary || event.summary || ''
+    summary: event.details?.summary || event.summary || '',
+    references: event.details?.references || []
   });
+
+  // References state & handler
+  const [newRefTitle, setNewRefTitle] = useState('');
+  const [newRefUrl, setNewRefUrl] = useState('');
+  const [isAddingRef, setIsAddingRef] = useState(false);
+  const [refAddedSuccess, setRefAddedSuccess] = useState(false);
+
+  const handleAddReference = async () => {
+    if (!newRefUrl.trim()) return;
+    setIsAddingRef(true);
+    const newRef = {
+      title: newRefTitle.trim() || 'Reference Link',
+      url: newRefUrl.trim(),
+      addedAt: new Date().toISOString()
+    };
+
+    const currentRefs = editDraft.references || event.details?.references || [];
+    const updatedRefs = [...currentRefs, newRef];
+
+    setEditDraft(prev => ({ ...prev, references: updatedRefs }));
+
+    // If user is admin, save directly to event
+    if (isAdmin) {
+      try {
+        await fetch('/api/admin/events/edit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: event.id,
+            details: {
+              ...(event.details || {}),
+              references: updatedRefs
+            }
+          })
+        });
+        if (onEventUpdate) {
+          onEventUpdate({
+            ...event,
+            details: { ...(event.details || {}), references: updatedRefs }
+          });
+        }
+      } catch (e) {
+        console.error("Failed to save reference to DB:", e);
+      }
+    } else {
+      // Also log via suggestions
+      try {
+        await fetch('/api/suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'suggestion',
+            subject: `New Reference for: ${event.title}`,
+            targetId: event.id,
+            details: `Proposed Reference: ${newRef.title} (${newRef.url})`
+          })
+        });
+      } catch (e) {}
+    }
+
+    setIsAddingRef(false);
+    setRefAddedSuccess(true);
+    setNewRefTitle('');
+    setNewRefUrl('');
+    setTimeout(() => setRefAddedSuccess(false), 3000);
+  };
 
   useEffect(() => {
     // Reset state on event change
@@ -193,7 +260,8 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
       lon: event.lon,
       source: event.source,
       url: event.url,
-      summary: event.details?.summary || event.summary || ''
+      summary: event.details?.summary || event.summary || '',
+      references: event.details?.references || []
     });
     setEditMode(false);
     setAddressQuery('');
@@ -1759,6 +1827,171 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
                   )}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* References & Research Resources Accordion */}
+        <div style={{ borderTop: '1px solid #1e293b' }}>
+          <button 
+            onClick={() => setExpandedSection(expandedSection === 'references' ? null : 'references')}
+            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: expandedSection === 'references' ? '#1e293b30' : 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer' }}
+          >
+            📚 REFERENCES & VERIFIED RESOURCES
+            <span>{expandedSection === 'references' ? '[-] ' : '[+]'}</span>
+          </button>
+          {expandedSection === 'references' && (
+            <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Existing References List */}
+              {((editDraft.references && editDraft.references.length > 0) || (event.details?.references && event.details.references.length > 0)) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    ATTACHED RESEARCH & CITATIONS:
+                  </span>
+                  {(editDraft.references || event.details?.references || []).map((ref, rIdx) => (
+                    <div 
+                      key={rIdx} 
+                      style={{ 
+                        padding: '8px 10px', 
+                        background: 'rgba(56, 189, 248, 0.05)', 
+                        border: '1px solid rgba(56, 189, 248, 0.15)', 
+                        borderRadius: '4px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '11px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                        <span style={{ color: '#e2e8f0', fontWeight: '600' }}>{ref.title || 'Reference Link'}</span>
+                        <span style={{ color: '#38bdf8', fontSize: '9.5px', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {ref.url}
+                        </span>
+                      </div>
+                      <a 
+                        href={ref.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#00f0ff', marginLeft: '8px', display: 'flex', alignItems: 'center' }}
+                      >
+                        ↗
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: '8px', background: 'rgba(15, 23, 42, 0.5)', border: '1px dashed rgba(56, 189, 248, 0.2)', borderRadius: '4px', color: '#64748b', fontSize: '10.5px', textAlign: 'center' }}>
+                  No extra references attached to this signal yet.
+                </div>
+              )}
+
+              {/* Quick Authoritative Investigation Registries */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                  AUTHORITATIVE REPOSITORIES:
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  <a 
+                    href="https://www.sipri.org/databases" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span>🛡️ SIPRI Arms DB</span>
+                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
+                  </a>
+                  <a 
+                    href="https://unidir.org/topics/artificial-intelligence-and-autonomy/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span>⚖️ UNIDIR AI Portal</span>
+                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
+                  </a>
+                  <a 
+                    href="https://www.stopkillerrobots.org/resources/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span>🤖 Stop Killer Robots</span>
+                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
+                  </a>
+                  <a 
+                    href="https://www.bellingcat.com/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span>🔎 Bellingcat OSINT</span>
+                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Add Reference Form */}
+              <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.15)', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '9.5px', color: '#00f0ff', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                  + ATTACH CITATION / RESOURCE
+                </span>
+                <input
+                  type="text"
+                  placeholder="Resource Title (e.g. UN Security Council Report S/2024/...)"
+                  value={newRefTitle}
+                  onChange={(e) => setNewRefTitle(e.target.value)}
+                  style={{
+                    background: '#0b0f19',
+                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                    borderRadius: '3px',
+                    padding: '5px 8px',
+                    color: '#ffffff',
+                    fontSize: '10.5px',
+                    outline: 'none'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={newRefUrl}
+                    onChange={(e) => setNewRefUrl(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: '#0b0f19',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      borderRadius: '3px',
+                      padding: '5px 8px',
+                      color: '#38bdf8',
+                      fontSize: '10.5px',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={handleAddReference}
+                    disabled={isAddingRef || !newRefUrl.trim()}
+                    style={{
+                      background: 'rgba(0, 240, 255, 0.15)',
+                      border: '1px solid #00f0ff',
+                      color: '#00f0ff',
+                      padding: '4px 10px',
+                      borderRadius: '3px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      cursor: !newRefUrl.trim() ? 'not-allowed' : 'pointer',
+                      fontFamily: 'monospace',
+                      opacity: !newRefUrl.trim() ? 0.5 : 1
+                    }}
+                  >
+                    {isAddingRef ? 'SAVING...' : 'ADD'}
+                  </button>
+                </div>
+                {refAddedSuccess && (
+                  <span style={{ color: '#22c55e', fontSize: '9.5px', fontFamily: 'monospace' }}>
+                    ✓ Reference attached to intelligence dossier.
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>

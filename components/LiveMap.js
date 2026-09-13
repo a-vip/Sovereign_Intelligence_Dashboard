@@ -6,6 +6,7 @@ import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
 import ChangelogBox from './ChangelogBox';
+import ResourcesModal from './ResourcesModal';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
@@ -505,6 +506,7 @@ export default function LiveMap({
   const [resetKey, setResetKey] = useState(0);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [showResourcesModal, setShowResourcesModal] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
   const handleShareDashboard = () => {
@@ -621,7 +623,7 @@ export default function LiveMap({
   // Handle preferences changes dynamically via standard browser events
   useEffect(() => {
     const handlePrefChange = () => {
-      setMapMode(localStorage.getItem('operator_pref_mapMode') || '2d');
+      setMapMode(localStorage.getItem('operator_pref_mapMode') || '3d');
       setMapStyle(localStorage.getItem('operator_pref_mapStyle') || 'dark');
       const rotate = localStorage.getItem('operator_pref_autoRotate');
       setAutoRotate(rotate !== null ? rotate === 'true' : true);
@@ -1196,9 +1198,42 @@ export default function LiveMap({
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
-    let filtered = displayedEvents.filter(e => {
-      if (feedType === 'live') return !e.curated && !e.details?.isResearch && (e.severity < 4 || !e.source?.includes('Reuters')); 
-      return e.curated || e.details?.isResearch || e.severity >= 4 || e.source?.includes('Reuters') || e.source?.includes('Guardian');
+
+    // Transform live tactical RSS items into standardized feed events
+    const formattedRssEvents = (rssItems || [])
+      .filter(item => selectedRssSources.includes(item.sid))
+      .map(item => ({
+        id: item.id || `rss-${item.url}`,
+        title: item.title,
+        category: item.category || 'Conflict',
+        severity: item.severity || 1,
+        location: item.location || 'Unknown',
+        lat: parseFloat(item.latitude),
+        lon: parseFloat(item.longitude),
+        timestamp: item.published_at || item.pubDate,
+        original_post_time: item.published_at || item.pubDate,
+        url: item.url,
+        source: item.source || 'RSS Feed',
+        edited: item.edited,
+        curated: false,
+        details: {
+          summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
+          isRssItem: true,
+          verificationStatus: 'active',
+          source: item.source
+        }
+      }));
+
+    // Combine database-persisted events and real-time incoming RSS intelligence
+    const allCandidateEvents = [...displayedEvents, ...formattedRssEvents];
+
+    let filtered = allCandidateEvents.filter(e => {
+      if (feedType === 'live') {
+        // In LIVE SIGNALS, show all real-time intelligence events and incoming signals
+        return true;
+      }
+      // In INTEL REPORTS, show curated dossiers, research papers, high severity, or investigative wires
+      return e.curated || e.details?.isResearch || e.severity >= 3 || e.source?.includes('Reuters') || e.source?.includes('Guardian') || e.source?.includes('HRW') || e.source?.includes('UN');
     });
     
     if (activeCategories.length > 0) {
@@ -1250,14 +1285,16 @@ export default function LiveMap({
     });
 
     if (timeRange === 'critical') {
-      return deduplicated.sort((a, b) => {
+      const criticalOnly = deduplicated.filter(e => e.severity >= 3);
+      const listToSort = criticalOnly.length > 0 ? criticalOnly : deduplicated;
+      return listToSort.sort((a, b) => {
         if (b.severity !== a.severity) return b.severity - a.severity;
         return parseDateSafe(b.original_post_time || b.timestamp) - parseDateSafe(a.original_post_time || a.timestamp);
       });
     }
 
     return deduplicated.sort((a, b) => parseDateSafe(b.original_post_time || b.timestamp) - parseDateSafe(a.original_post_time || a.timestamp));
-  }, [displayedEvents, categories, feedType, searchQuery, timeRange]);
+  }, [displayedEvents, rssItems, selectedRssSources, categories, feedType, searchQuery, timeRange]);
 
   const filteredRssItems = useMemo(() => {
     let items = rssItems.filter(item => selectedRssSources.includes(item.sid));
@@ -1604,6 +1641,40 @@ export default function LiveMap({
             >
               <span>💡</span>
               <span>FEEDBACK</span>
+            </button>
+
+            <button
+              onClick={() => setShowResourcesModal(true)}
+              style={{
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                color: '#38bdf8',
+                borderRadius: '4px',
+                padding: isMobile ? '3px 6px' : '4px 8px',
+                fontSize: isMobile ? '9px' : '10px',
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '4px' : '6px',
+                transition: 'all 0.2s',
+                boxShadow: '0 0 10px rgba(56, 189, 248, 0.05)',
+                outline: 'none'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.18)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(56, 189, 248, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.05)';
+              }}
+              title="Knowledge Repositories, Research Treaties & Verification Resources"
+            >
+              <span>📚</span>
+              <span>RESOURCES</span>
             </button>
 
             {currentUser ? (
@@ -3602,6 +3673,14 @@ export default function LiveMap({
           CAT_COLORS={CAT_COLORS}
           formatTime={formatTime}
           onFocusLocation={(lat, lon) => setFocusCoordinate({ lat, lon })}
+        />
+      )}
+
+      {/* Knowledge Repositories & Verification Resources Modal */}
+      {showResourcesModal && (
+        <ResourcesModal
+          onClose={() => setShowResourcesModal(false)}
+          currentUser={currentUser}
         />
       )}
 

@@ -228,10 +228,13 @@ const createPowerCanvas = (color, size = 32) => {
   return canvas;
 };
 
+const CARTO_API_KEY = 'cb1_2lpu_1_f2c6edda75611222b49c9464';
+const CARTO_DARK_MATTER_URL = `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
+
 const getLeafletTileUrl = (style) => {
   if (style === 'tactical' || style === 'dark') {
     return {
-      url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      url: CARTO_DARK_MATTER_URL,
       credit: 'CartoDB Dark Matter'
     };
   } else if (style === 'lights') {
@@ -1606,7 +1609,7 @@ export default function CesiumGlobe({
       let creditStr = 'Google Maps';
 
       if (mapStyle === 'tactical' || mapStyle === 'dark') {
-        mapUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        mapUrl = CARTO_DARK_MATTER_URL;
         creditStr = 'CartoDB Dark Matter';
       } else if (mapStyle === 'lights') {
         mapUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
@@ -1619,6 +1622,18 @@ export default function CesiumGlobe({
       });
 
       const viewerOptions = {
+        contextOptions: {
+          webgl: {
+            alpha: true,
+            depth: true,
+            stencil: false,
+            antialias: true,
+            premultipliedAlpha: true,
+            preserveDrawingBuffer: false,
+            failIfMajorPerformanceCaveat: false,
+            powerPreference: 'high-performance'
+          }
+        },
         baseLayerPicker: false,
         geocoder: false,
         homeButton: false,
@@ -2870,7 +2885,7 @@ export default function CesiumGlobe({
       let attribStr = 'Google';
 
       if (mapStyle === 'tactical' || mapStyle === 'dark') {
-        tileUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        tileUrl = CARTO_DARK_MATTER_URL;
         attribStr = 'CartoDB';
       } else if (mapStyle === 'lights') {
         tileUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
@@ -2971,7 +2986,7 @@ export default function CesiumGlobe({
     let credit = 'Google Maps';
 
     if (mapStyle === 'tactical' || mapStyle === 'dark') {
-      url = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      url = CARTO_DARK_MATTER_URL;
       credit = 'CartoDB Dark Matter';
     } else if (mapStyle === 'lights') {
       url = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
@@ -3873,10 +3888,43 @@ export default function CesiumGlobe({
         <div style={{
           position: 'absolute', top: '12px', left: '12px', zIndex: 10,
           background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.25)',
-          borderRadius: '4px', padding: '8px 12px', fontSize: '9px', fontFamily: 'monospace', color: '#38bdf8',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '0.05em'
+          borderRadius: '4px', padding: '6px 12px', fontSize: '9px', fontFamily: 'monospace', color: '#38bdf8',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '0.05em',
+          display: 'flex', alignItems: 'center', gap: '10px'
         }}>
-          🛰️ TACTICAL MAP: 2D SAT-COM ACTIVE (FALLBACK MODE)
+          <span>🛰️ TACTICAL MAP: 2D SAT-COM ACTIVE</span>
+          <button
+            onClick={() => {
+              setMapError(false);
+              localStorage.setItem('operator_pref_mapMode', '3d');
+              window.dispatchEvent(new Event('operator_pref_changed'));
+              if (onMapModeChange) onMapModeChange('3d');
+            }}
+            style={{
+              background: 'rgba(0, 240, 255, 0.15)',
+              border: '1px solid #00f0ff',
+              borderRadius: '3px',
+              color: '#00f0ff',
+              padding: '2px 8px',
+              fontSize: '8.5px',
+              fontFamily: 'monospace',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              letterSpacing: '0.05em',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(0, 240, 255, 0.3)';
+              e.currentTarget.style.boxShadow = '0 0 8px rgba(0, 240, 255, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+            title="Attempt to switch back to 3D Spherical Globe"
+          >
+            SWITCH TO 3D GLOBE
+          </button>
         </div>
       )}
 
