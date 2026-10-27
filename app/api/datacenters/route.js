@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saveDataCenters, getDataCenters, initDb } from '@/lib/db';
+import { verifyAdmin } from '@/lib/adminAuth';
 
 const OPERATORS_LIST = [
   "Equinix", "Digital Realty", "CyrusOne", "CoreSite", "NTT", "KDDI", "Interxion", "Telehouse", 
@@ -44,7 +45,10 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request) {
+  const auth = await verifyAdmin(request);
+  if (auth.error) return auth.error;
+
   try {
     await initDb();
     console.log("Triggering live ATLAS data center sync...");

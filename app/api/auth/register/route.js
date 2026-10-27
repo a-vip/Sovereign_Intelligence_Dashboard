@@ -21,8 +21,10 @@ export async function POST(req) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const cleanName = fullName.trim();
-    const cleanRole = role ? role.trim() : 'analyst';
+    const cleanName = fullName.trim().slice(0, 120);
+    const ALLOWED_ROLES = ['ethicist', 'researcher', 'analyst', 'observer'];
+    const requestedRole = role ? String(role).trim().toLowerCase() : 'analyst';
+    const cleanRole = ALLOWED_ROLES.includes(requestedRole) ? requestedRole : 'analyst';
 
     // Simple Email Regex check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

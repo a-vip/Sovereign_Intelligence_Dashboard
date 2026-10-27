@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAiRegulations, saveAiRegulations, initDb, getArchivedInfo, isEventArchived } from '@/lib/db';
+import { verifyAdmin } from '@/lib/adminAuth';
 import { sql } from '@vercel/postgres';
 import fs from 'fs';
 import path from 'path';
@@ -57,6 +58,9 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const auth = await verifyAdmin(req);
+  if (auth.error) return auth.error;
+
   try {
     await initDb();
     const body = await req.json();

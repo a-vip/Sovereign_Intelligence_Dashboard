@@ -46,3 +46,8 @@ next-env.d.ts
 # Local database fallbacks
 *-local.json
 .env*.local
+
+# Scratch & mock inbox
+/scratch
+scratch/
+public/mock-email.html

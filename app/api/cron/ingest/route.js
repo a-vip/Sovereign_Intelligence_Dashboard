@@ -19,30 +19,29 @@ function generateId(url, title) {
 
 function isEventAiRelated(e) {
   if (!e) return false;
+  if (e.details?.isPinned || e.details?.laws_disarmament) return true;
   const title = (e.title || e.name || '').toLowerCase();
   const desc = (e.description || e.summary || e.details?.summary || e.details?.description || '').toLowerCase();
   
   // 1. Blocklist for sports, entertainment, and generic irrelevant news
-  const isBlocklisted = /(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match)/i.test(title) ||
-    (desc && /(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match)/i.test(desc));
-    
-  if (isBlocklisted) return false;
+  const BLOCKLIST_REGEX = /\b(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|ballon d'or|ballon d’or|harry kane|bayern munich|champions league|world cup|fifa|uefa|nba|nfl|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match|striker|goalkeeper)\b/i;
+  if (BLOCKLIST_REGEX.test(title) || (desc && BLOCKLIST_REGEX.test(desc))) {
+    return false;
+  }
 
   // 2. AI & high-tech governance/military/surveillance keywords
-  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|drone|drones|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated|governance|nimbus|palantir|surveillance tech|biometric scan|biometric checks|biometrics scan|biometrics check|biometric scanner|gps jamming|gps jam|jamming|ads-b|cyberwar|cyberattack|hacker|hackers)\b/i;
+  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|laws|drone|drones|uav|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated|governance|nimbus|palantir|surveillance tech|biometric scan|biometric checks|biometrics scan|biometrics check|biometric scanner|gps jamming|gps jam|jamming|ads-b|cyberwar|cyberattack|hacker|hackers|spyware|pegasus|semiconductor|chip|chips|llm|generative ai|deepfake|disinformation|censorship|encryption)\b/i;
   
   return aiRegex.test(title) || aiRegex.test(desc);
 }
-
-
 
 function categorize(text) {
   const keywords = {
     Conflict: /strike|attack|bomb|missile|drone|kill|military|weapon|war|combat|troops|airstrike|explosion|clash|warfare|assault|targeting/i,
     Humanitarian: /humanitarian|refugee|aid|famine|hunger|displacement|crisis|civilian|casualties|victims|rescue|relief/i,
     Disaster: /disaster|earthquake|flood|tsunami|hurricane|wildfire|storm|cyclone|accident|tremor|quake|eruption|seismic/i,
-    Economic: /economic|trade|sanction|tariff|oil|energy|market|finance|invest|contract|billion|funding|gdp|inflation|rates|commerce/i,
-    Surveillance: /surveillance|palantir|ice|nest|dhs|facial recognition|biometric|tracking|border control|police tech|cia|fbi|nsa|monitoring|spying|espionage/i,
+    Economic: /economic|trade|sanction|tariff|oil|energy|market|finance|invest|contract|billion|funding|gdp|inflation|rates|commerce|semiconductor|stocks/i,
+    Surveillance: /surveillance|palantir|ice|nest|dhs|facial recognition|biometric|tracking|border control|police tech|cia|fbi|nsa|monitoring|spying|espionage|privacy|spyware|pegasus/i,
   };
   for (const [cat, re] of Object.entries(keywords)) {
     if (re.test(text)) return cat;
@@ -54,13 +53,13 @@ function scoreSeverity(title) {
   const t = title.toLowerCase();
   if (/mass|genocide|massacre|nuclear|chemical|emergency|catastroph/.test(t)) return 5;
   if (/kill|dead|casualties|strike|attack|bomb|destroy|violation|crime/.test(t)) return 4;
-  if (/military|weapon|deploy|escalat|conflict|war|assault|autonomous/.test(t)) return 3;
-  if (/warn|threat|tension|sanction|ban|restrict|arrest|indict/.test(t)) return 2;
+  if (/military|weapon|deploy|escalat|conflict|war|assault|autonomous|spyware|pegasus/.test(t)) return 3;
+  if (/warn|threat|tension|sanction|ban|restrict|arrest|indict|regulation|treaty/.test(t)) return 2;
   return 1;
 }
 
 function getEscalationProb(title, severity) {
-  let prob = severity * 15 + Math.floor(Math.random() * 20);
+  let prob = (severity || 2) * 16 + 12;
   if (/nuclear|genocide|war|massacre/i.test(title)) prob = Math.max(prob, 85);
   if (/tensions|warn|threat/i.test(title)) prob = Math.max(prob, 45);
   return Math.min(prob, 99);
@@ -74,57 +73,50 @@ export async function GET(request) {
   try {
     await initDb();
     
-    // PURGE: Remove stale events — all non-edited events older than 7 days, and even edited events older than 14 days
+    // PURGE: Remove stale events (>7d non-edited, >14d non-pinned) and clean noisy RSS items
     const PURGE_DAYS = 7;
-    const HARD_PURGE_DAYS = 14; // Even manually-edited events expire after 14 days
+    const HARD_PURGE_DAYS = 14;
     const purgeDate = new Date(Date.now() - PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const hardPurgeDate = new Date(Date.now() - HARD_PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
     try {
       if (process.env.POSTGRES_URL) {
-        // Remove non-edited events older than 7 days
         const { rowCount } = await sql`
           DELETE FROM sigint_events 
           WHERE (edited IS NULL OR edited = FALSE) 
+          AND (details->>'isPinned' IS NULL OR details->>'isPinned' != 'true')
           AND timestamp < ${purgeDate}
         `;
-        // Remove ALL events (including edited) older than 14 days — stale curated events are no longer useful
         const { rowCount: hardPurgeCount } = await sql`
           DELETE FROM sigint_events 
-          WHERE timestamp < ${hardPurgeDate}
+          WHERE (details->>'isPinned' IS NULL OR details->>'isPinned' != 'true')
+          AND timestamp < ${hardPurgeDate}
         `;
         if (rowCount + hardPurgeCount > 0) {
           console.log(`[PURGE] Removed ${rowCount} stale + ${hardPurgeCount} hard-expired events from database.`);
         }
-        // Also purge stale RSS items
         const rssResult = await sql`
           DELETE FROM rss_items 
           WHERE published_at < ${purgeDate}
+             OR title ~* '(ballon d|harry kane|cricket|football|soccer|premier league|champions league|super bowl|olympics)'
         `;
         if (rssResult.rowCount > 0) {
-          console.log(`[PURGE] Removed ${rssResult.rowCount} stale RSS items.`);
+          console.log(`[PURGE] Removed ${rssResult.rowCount} stale/noisy RSS items.`);
         }
       } else {
-        // Local JSON file purge
         const localEvents = JSON.parse(fs.readFileSync(path.resolve('events-local.json'), 'utf8') || '[]');
         const freshEvents = localEvents.filter(e => 
+          e.details?.isPinned === true ||
           (e.edited === true || e.edited === 'true') || 
           new Date(e.timestamp || e.original_post_time) > new Date(purgeDate)
         );
         if (freshEvents.length < localEvents.length) {
-          console.log(`[PURGE] Removed ${localEvents.length - freshEvents.length} stale local events.`);
           fs.writeFileSync(path.resolve('events-local.json'), JSON.stringify(freshEvents, null, 2), 'utf8');
-        }
-        const localRss = JSON.parse(fs.readFileSync(path.resolve('rss-local.json'), 'utf8') || '[]');
-        const freshRss = localRss.filter(r => new Date(r.published_at) > new Date(purgeDate));
-        if (freshRss.length < localRss.length) {
-          fs.writeFileSync(path.resolve('rss-local.json'), JSON.stringify(freshRss, null, 2), 'utf8');
         }
       }
     } catch (purgeErr) {
       console.warn('[PURGE] Stale data cleanup failed (non-fatal):', purgeErr.message);
     }
 
-    // Clear in-memory route cache so the events API serves fresh data immediately
     clearRouteCache();
 
     const mainQuery = '("artificial intelligence" OR "autonomous weapons" OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR "AI military" OR "facial recognition" OR "surveillance tech" OR Palantir OR "human rights AI" OR "cyber surveillance" OR biometric)';
@@ -135,7 +127,6 @@ export async function GET(request) {
       const gdeltRes = await fetch(docUrl, { signal: AbortSignal.timeout(12000) });
       const gdeltData = gdeltRes.ok ? await gdeltRes.json() : { articles: [] };
       
-      // Filter out any articles that are blocklisted or not AI/governance related
       const filteredArticles = (gdeltData.articles || []).filter(a => 
         isEventAiRelated({
           title: a.title,
@@ -150,6 +141,8 @@ export async function GET(request) {
         let ts = a.seendate || new Date().toISOString();
         if (typeof ts === 'string' && /^\d{14}$/.test(ts)) {
           ts = ts.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z');
+        } else if (typeof ts === 'string' && /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/i.test(ts)) {
+          ts = ts.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/i, '$1-$2-$3T$4:$5:$6Z');
         }
         
         return {
@@ -175,7 +168,7 @@ export async function GET(request) {
       console.warn('GDELT OSINT fetch failed or timed out. Proceeding with research feeds.', e.message);
     }
 
-    // 2. Fetch Verified Research/News from Funnel
+    // 2. Fetch Verified Research/News from Funnel (includes pinned Stop Killer Robots LAWS signals)
     const research = await fetchResearch();
 
     const researchEvents = research.map(r => ({
@@ -188,22 +181,17 @@ export async function GET(request) {
       }
     }));
 
-    // FETCH ARCHIVE BLOCKLIST FOR PRE-INGESTION FILTERING
     const archivedInfo = await getArchivedInfo();
-    
     const allCombinedEvents = [...osintEvents, ...researchEvents].filter(e => !isEventArchived(e, archivedInfo));
 
     let verifiedEvents = [];
     if (allCombinedEvents.length > 0) {
-      console.log(`[Verification Bot]: Commencing concurrent verification checks on ${allCombinedEvents.length} harvested signals...`);
-      
-      // Process in small parallel chunks to avoid rate limits on news sites
       const CONCURRENCY_LIMIT = 8;
       for (let i = 0; i < allCombinedEvents.length; i += CONCURRENCY_LIMIT) {
         const chunk = allCombinedEvents.slice(i, i + CONCURRENCY_LIMIT);
         await Promise.all(chunk.map(async (ev) => {
           try {
-            if (ev.details?.isResearch) {
+            if (ev.details?.isResearch || ev.details?.isPinned) {
               ev.details.verificationStatus = 'active';
               verifiedEvents.push(ev);
               return;
@@ -228,7 +216,6 @@ export async function GET(request) {
               }
             }
           } catch (e) {
-            console.warn(`[Verification Bot Alert]: Failed to verify link for "${ev.title}":`, e.message);
             ev.details.verificationStatus = 'pending';
           }
           verifiedEvents.push(ev);
@@ -236,11 +223,10 @@ export async function GET(request) {
       }
 
       await saveEvents(verifiedEvents);
-      // Log verified events to vault
       await logToVault(verifiedEvents);
     }
 
-    // 3. Fetch and parse Live RSS feeds, then save to Neon
+    // 3. Fetch and parse Live RSS feeds, save to Neon, and promote domain-verified intelligence to sigint_events
     let newRssCount = 0;
     try {
       const rssItems = await scrapeAllRss();
@@ -248,6 +234,36 @@ export async function GET(request) {
       if (filteredRssItems.length > 0) {
         await saveRssItems(filteredRssItems);
         newRssCount = filteredRssItems.length;
+
+        const promotedEvents = filteredRssItems
+          .filter(item => isEventAiRelated({ title: item.title, summary: item.summary }) || item.sid === 'hrw' || item.sid === 'eff' || item.sid === 'wired' || item.sid === 'arxiv')
+          .slice(0, 35)
+          .map(item => ({
+            id: item.id,
+            title: item.title,
+            url: item.url,
+            source: item.source,
+            timestamp: item.published_at,
+            original_post_time: item.published_at,
+            category: item.category || categorize(item.title),
+            severity: item.severity || scoreSeverity(item.title),
+            location: item.location || 'Global',
+            lat: item.latitude,
+            lon: item.longitude,
+            details: {
+              summary: item.summary,
+              source: item.source,
+              sid: item.sid,
+              type: 'primary_source',
+              verificationStatus: 'active',
+              probability: getEscalationProb(item.title, item.severity || 3)
+            }
+          }));
+
+        if (promotedEvents.length > 0) {
+          await saveEvents(promotedEvents);
+          verifiedEvents.push(...promotedEvents);
+        }
       }
     } catch (e) {
       console.warn('RSS ingestion failed during cron run:', e.message);
@@ -375,11 +391,16 @@ async function syncAiRegulations() {
     
     if (results.length > 0) {
       console.log(`[AI Regulations Ingestion]: Successfully parsed ${results.length} live regulations.`);
-      
-      const localFilePath = path.resolve('ai-regulations-local.json');
-      fs.writeFileSync(localFilePath, JSON.stringify(results, null, 2), 'utf8');
-      
+      // Save to Neon Postgres first so Vercel read-only filesystem never blocks DB persistence
       await saveAiRegulations(results);
+
+      try {
+        const localFilePath = path.resolve('ai-regulations-local.json');
+        fs.writeFileSync(localFilePath, JSON.stringify(results, null, 2), 'utf8');
+      } catch (fsErr) {
+        // Ignore EROFS on Vercel serverless read-only filesystem
+      }
+
       return results.length;
     }
     return 0;
@@ -388,5 +409,3 @@ async function syncAiRegulations() {
     return 0;
   }
 }
-
-

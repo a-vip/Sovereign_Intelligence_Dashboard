@@ -47,6 +47,41 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
   const [successSuggestions, setSuccessSuggestions] = useState(false);
   const [errorSuggestions, setErrorSuggestions] = useState(null);
 
+  // License Key Redemption states
+  const [licenseInput, setLicenseInput] = useState(currentUser?.licenseKey || '');
+  const [licenseEmail, setLicenseEmail] = useState(currentUser?.email || '');
+  const [licenseStatus, setLicenseStatus] = useState(null);
+  const [licenseLoading, setLicenseLoading] = useState(false);
+
+  const handleRedeemLicense = async (e) => {
+    e.preventDefault();
+    setLicenseLoading(true);
+    setLicenseStatus(null);
+    try {
+      const res = await fetch('/api/billing/verify-license', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser?.email || licenseEmail,
+          licenseKey: licenseInput
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'License verification failed.');
+      setLicenseStatus({ type: 'success', text: `Activated ${(data.tier || 'PRO').toUpperCase()} Tier (${data.licenseKey})` });
+      if (data.user && onAuthSuccess) {
+        onAuthSuccess(data.user);
+      } else if (typeof window !== 'undefined') {
+        localStorage.setItem('sovereign_license_key', data.licenseKey);
+        localStorage.setItem('sovereign_license_tier', data.tier || 'pro');
+      }
+    } catch (err) {
+      setLicenseStatus({ type: 'error', text: err.message });
+    } finally {
+      setLicenseLoading(false);
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -446,7 +481,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
               
               <a
-                href="https://sovdash.com/"
+                href="https://sovdash.com/pricing.html"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -479,7 +514,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 }}
               >
                 <Globe size={13} />
-                SOVDASH SALES
+                PRO LICENSING
               </a>
             </div>
 
@@ -729,6 +764,47 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                           EDIT EMAIL
                         </button>
                       </div>
+
+                      {/* Sovereign Pro / Enterprise License Redemption Card */}
+                      <div style={{ padding: '14px 16px', background: 'rgba(6, 182, 212, 0.04)', border: '1px solid rgba(6, 182, 212, 0.22)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: '9px', color: '#06b6d4', fontWeight: 'bold', letterSpacing: '0.6px', fontFamily: 'monospace' }}>INSTITUTIONAL / PRO CLEARANCE TIER</div>
+                            <div style={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold', marginTop: '2px' }}>
+                              {(currentUser?.tier || 'free').toUpperCase()} CLEARANCE {currentUser?.licenseKey ? `(${currentUser.licenseKey})` : ''}
+                            </div>
+                          </div>
+                          <a
+                            href="https://sovdash.com/pricing.html"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ background: '#06b6d4', color: '#020617', borderRadius: '5px', padding: '5px 10px', fontSize: '9.5px', fontWeight: 800, textDecoration: 'none', letterSpacing: '0.4px' }}
+                          >
+                            GET LICENSE KEY →
+                          </a>
+                        </div>
+                        <form onSubmit={handleRedeemLicense} style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder="Enter SOV-XXXX-XXXX-XXXX License Key"
+                            value={licenseInput}
+                            onChange={(e) => setLicenseInput(e.target.value)}
+                            style={{ flex: 1, background: 'rgba(2, 6, 23, 0.7)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', padding: '7px 10px', color: '#22d3ee', fontSize: '11px', fontFamily: 'monospace', outline: 'none' }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={licenseLoading}
+                            style={{ background: 'rgba(6, 182, 212, 0.15)', border: '1px solid #06b6d4', color: '#22d3ee', borderRadius: '6px', padding: '7px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            {licenseLoading ? 'VERIFYING...' : 'ACTIVATE'}
+                          </button>
+                        </form>
+                        {licenseStatus && (
+                          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: licenseStatus.type === 'success' ? '#10b981' : '#ef4444' }}>
+                            {licenseStatus.text}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -941,27 +1017,20 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         </p>
                         
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                          <a
-                            href="/mock-email.html"
-                            target="_blank"
+                          <span
                             style={{
-                              background: 'rgba(234, 179, 8, 0.1)',
-                              border: '1px solid rgba(234, 179, 8, 0.3)',
-                              color: '#eab308',
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              color: '#10b981',
                               borderRadius: '6px',
                               padding: '8px 16px',
                               fontSize: '10px',
                               fontWeight: 'bold',
-                              textDecoration: 'none',
-                              fontFamily: 'monospace',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s',
+                              fontFamily: 'monospace'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.18)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'}
                           >
-                            [📂 OPEN MOCK INBOX]
-                          </a>
+                            [✔ ARCHIVED IN OPERATOR CMS]
+                          </span>
 
                           <button
                             onClick={() => {

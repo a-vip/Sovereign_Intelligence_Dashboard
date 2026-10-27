@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { initDb, saveRssItems, getRssItems, getArchivedInfo, isEventArchived } from '@/lib/db';
 import { scrapeAllRss, RSS_FALLBACK } from '@/lib/rssParser';
+import { decodeHtmlEntities, geocodeText } from '@/lib/geocoder';
 
 export const dynamic = 'force-dynamic';
+
+const RSS_NOISE_BLOCKLIST = /\b(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|ballon d'or|ballon d’or|harry kane|bayern munich|champions league|world cup|fifa|uefa|nba|nfl|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match|striker|goalkeeper)\b/i;
 
 export async function GET(request) {
   try {
@@ -36,7 +39,39 @@ export async function GET(request) {
     }
     
     const archivedInfo = await getArchivedInfo();
-    const filteredItems = dbItems.filter(item => !isEventArchived(item, archivedInfo));
+    const filteredItems = dbItems
+      .filter(item => {
+        if (isEventArchived(item, archivedInfo)) return false;
+        const text = `${item.title || ''} ${item.summary || ''}`;
+        if (RSS_NOISE_BLOCKLIST.test(text)) return false;
+        return true;
+      })
+      .map(item => {
+        const cleanTitle = decodeHtmlEntities(item.title || '');
+        const cleanSummary = decodeHtmlEntities(item.summary || '');
+        let location = item.location;
+        let latitude = item.latitude;
+        let longitude = item.longitude;
+
+        // Self-heal items that were previously assigned to "Middle East Bureau" when their headline mentions another country
+        if (!item.edited && (location === 'Middle East Bureau' || location === 'Global Node')) {
+          const reGeo = geocodeText(cleanTitle, cleanSummary, item.sid);
+          if (reGeo && reGeo.name !== 'Middle East Bureau') {
+            location = reGeo.name;
+            latitude = reGeo.lat;
+            longitude = reGeo.lon;
+          }
+        }
+
+        return {
+          ...item,
+          title: cleanTitle,
+          summary: cleanSummary,
+          location,
+          latitude,
+          longitude
+        };
+      });
 
     return NextResponse.json({
       success: true,

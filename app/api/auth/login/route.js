@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserByEmail, initDb } from '@/lib/db';
-import { verifyPassword } from '@/lib/auth';
+import { verifyPassword, signSessionToken } from '@/lib/auth';
 
 export async function POST(req) {
   try {
@@ -46,17 +46,33 @@ export async function POST(req) {
       );
     }
 
-    return NextResponse.json({
+    const sessionToken = signSessionToken(user);
+
+    const response = NextResponse.json({
       success: true,
       message: 'Authentication successful. Access granted.',
+      sessionToken,
       user: {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
         role: user.role,
-        createdAt: user.created_at
+        tier: user.tier || (user.role === 'admin' ? 'enterprise' : 'free'),
+        licenseKey: user.license_key || null,
+        createdAt: user.created_at,
+        sessionToken
       }
     }, { status: 200 });
+
+    response.cookies.set('sov_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Login API Error:', error);

@@ -1487,7 +1487,30 @@ export default function AdminCMS({ currentUser, onClose }) {
               )}
             </div>
 
-
+            <div style={s.coordRow}>
+              <div>
+                <div style={s.fieldLabel}>Latitude</div>
+                <input
+                  type="number"
+                  step="any"
+                  style={s.fieldInput}
+                  placeholder="0.0"
+                  value={editForm.lat ?? ''}
+                  onChange={e => setEditForm(f => ({ ...f, lat: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div style={s.fieldLabel}>Longitude</div>
+                <input
+                  type="number"
+                  step="any"
+                  style={s.fieldInput}
+                  placeholder="0.0"
+                  value={editForm.lon ?? ''}
+                  onChange={e => setEditForm(f => ({ ...f, lon: e.target.value }))}
+                />
+              </div>
+            </div>
 
             <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
               <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
@@ -1775,7 +1798,30 @@ export default function AdminCMS({ currentUser, onClose }) {
               )}
             </div>
 
-
+            <div style={{ ...s.coordRow, marginTop: '14px' }}>
+              <div>
+                <div style={s.fieldLabel}>New Latitude</div>
+                <input
+                  type="number"
+                  step="any"
+                  style={s.fieldInput}
+                  placeholder="0.0"
+                  value={coordsForm.newLat ?? ''}
+                  onChange={e => setCoordsForm(f => ({ ...f, newLat: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div style={s.fieldLabel}>New Longitude</div>
+                <input
+                  type="number"
+                  step="any"
+                  style={s.fieldInput}
+                  placeholder="0.0"
+                  value={coordsForm.newLon ?? ''}
+                  onChange={e => setCoordsForm(f => ({ ...f, newLon: e.target.value }))}
+                />
+              </div>
+            </div>
 
             {/* Submit Action */}
             <button 

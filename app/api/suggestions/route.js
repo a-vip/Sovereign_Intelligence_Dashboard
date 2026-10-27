@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { sendSuggestionEmail } from '@/lib/mail';
 import { initDb, saveSuggestion } from '@/lib/db';
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function POST(req) {
   try {
     // Ensure DB is initialized (highly resilient)
@@ -51,13 +61,13 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       message: 'Feedback intelligence report successfully saved and dispatched to system administrator.'
-    }, { status: 200 });
+    }, { status: 200, headers: CORS_HEADERS });
 
   } catch (error) {
     console.error('Suggestions API Error:', error);
     return NextResponse.json(
       { error: 'Internal system fault. Could not dispatch feedback report.' },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }

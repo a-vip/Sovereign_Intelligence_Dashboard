@@ -165,20 +165,20 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
     }
   };
 
-  // General Scrolling SIGINT Telemetry Intercept Logs
+  // General Scrolling Orbital & Ephemeris Telemetry Logs
   const [sigintLogs, setSigintLogs] = useState([
-    'SYSTEM PROTOCOL INITIALIZED',
-    'SAR APERTURE RADAR SWEEP ACTIVE',
-    'SIGINT FREQUENCY TARGET LOCKED'
+    'TLE EPHEMERIS PROPAGATOR: SGP4 NOMINAL',
+    'NADIR GROUND-TRACK CORRELATION LOCKED',
+    'DOPPLER SHIFT COMPENSATION: ACTIVE'
   ]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setLiveLatency(prev => Math.max(112, Math.min(138, prev + Math.floor(Math.random() * 7) - 3)));
-      setLiveSignal(prev => Math.max(94, Math.min(100, prev + Math.floor(Math.random() * 3) - 1)));
-      setDownlinkRate(prev => Math.max(4.4, Math.min(5.2, parseFloat((prev + (Math.random() * 0.4 - 0.2)).toFixed(1)))));
+      setLiveLatency(prev => Math.max(118, Math.min(132, prev + Math.floor(Math.random() * 3) - 1)));
+      setLiveSignal(prev => Math.max(96, Math.min(100, prev + Math.floor(Math.random() * 3) - 1)));
+      setDownlinkRate(prev => Math.max(4.6, Math.min(5.0, parseFloat((prev + (Math.random() * 0.2 - 0.1)).toFixed(1)))));
       
-      // Rotate simulated Hubble images if autoplay is active
+      // Rotate archival Hubble images if autoplay is active
       setHubbleIdx(prev => {
         if (isAutoplay && hubbleMode === 'gallery') {
           return (prev + 1) % HUBBLE_IMAGES.length;
@@ -186,18 +186,19 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
         return prev;
       });
 
-      // Add dynamic sci-fi logs
+      const alt = satellite?.altitude || 550;
+      const vel = satellite?.velocity || 7.6;
       const logTemplates = [
-        `REFLECTANCE COEFF: 0.${Math.floor(Math.random() * 800) + 100} ALBEDO`,
-        `TARGET ALIGNMENT: CENTERED [${(Math.random() * 0.05).toFixed(4)} OFFSET]`,
-        `DOWNLINK SIGNAL: ${Math.random() > 0.5 ? 'NOMINAL' : 'ENCRYPTED Carrier'}`,
-        `IONOSPHERE BEACON STABILITY: 99.${Math.floor(Math.random() * 9)}%`,
-        `SIGINT INTERCEPT RATIO: ${Math.floor(Math.random() * 40) + 20} carriers/sec`
+        `SGP4 ORBITAL MEAN MOTION: ${(86400 / (2 * Math.PI * Math.sqrt(Math.pow(6371 + Number(alt), 3) / 398600.4))).toFixed(2)} REV/DAY`,
+        `NADIR TRACKING: LAT ${Number(satellite?.latitude || 0).toFixed(2)}° / LON ${Number(satellite?.longitude || 0).toFixed(2)}°`,
+        `ORBITAL VELOCITY VECTOR: ${vel} KM/S [ALT ${alt} KM]`,
+        `CELESTRAK NORAD CAT ID #${satellite?.code || '25544'} VERIFIED`,
+        `SWATH FOOTPRINT RADIUS: ${Math.round(Math.sqrt(2 * 6371 * Number(alt)) * 0.35)} KM`
       ];
       setSigintLogs(prev => [logTemplates[Math.floor(Math.random() * logTemplates.length)], prev[0], prev[1]]);
-    }, 3000);
+    }, 3500);
     return () => clearInterval(interval);
-  }, [isAutoplay, hubbleMode]);
+  }, [isAutoplay, hubbleMode, satellite]);
 
   // HTML5 Canvas Multi-Spectral Space Simulator for Hubble
   useEffect(() => {
@@ -1094,7 +1095,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                   {/* Rotating green matrix waterfall logs */}
                   <div style={{ fontSize: '6.5px', color: '#22c55e', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
                     <div style={{ color: '#00f0ff', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '3px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
-                      📡 COGNITIVE SIGNAL SENSOR INTERCEPT
+                      📡 SGP4 ORBITAL EPHEMERIS & NADIR TELEMETRY
                     </div>
                     {sigintLogs.map((log, index) => (
                       <div key={index} style={{ opacity: index === 0 ? 1 : index === 1 ? 0.7 : 0.4, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>

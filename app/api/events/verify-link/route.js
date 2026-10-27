@@ -58,6 +58,30 @@ async function updateEventStatus(id, finalUrl, status, originalUrl = null) {
   }
 }
 
+function isSafeExternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.endsWith('.local') ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      host.startsWith('169.254.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
@@ -65,8 +89,8 @@ export async function GET(request) {
   const title = searchParams.get('title');
   const source = searchParams.get('source');
 
-  if (!url) {
-    return NextResponse.json({ status: 'invalid', error: 'Missing URL parameter' }, { status: 400 });
+  if (!url || !isSafeExternalUrl(url)) {
+    return NextResponse.json({ status: 'invalid', error: 'Missing or unsafe URL parameter' }, { status: 400 });
   }
 
   try {

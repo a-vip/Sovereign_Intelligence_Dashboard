@@ -49,8 +49,9 @@ export async function GET() {
       dbStats = await getAggregatedStats();
     }
 
-    // Merge DB stats into vault metrics if available
+    // Merge DB stats into vault metrics if available (clone distributions so cached object is never mutated in-place)
     const mergedMetrics = { ...cache.metrics };
+    const clonedCategories = (cache.distributions?.categories || []).map(c => ({ ...c }));
     if (dbStats) {
       // "Intel Briefs" label uses totalDocuments
       mergedMetrics.totalDocuments = (mergedMetrics.totalDocuments || 0) + dbStats.total;
@@ -60,11 +61,11 @@ export async function GET() {
       // Update category distributions with live data
       if (dbStats.categories && dbStats.categories.length > 0) {
         dbStats.categories.forEach(item => {
-          const existing = cache.distributions.categories.find(c => c.name === item.category);
+          const existing = clonedCategories.find(c => c.name === item.category);
           if (existing) {
             existing.value += parseInt(item.count);
           } else {
-            cache.distributions.categories.push({ name: item.category, value: parseInt(item.count) });
+            clonedCategories.push({ name: item.category, value: parseInt(item.count) });
           }
         });
       }
@@ -73,6 +74,10 @@ export async function GET() {
     const lite = {
       ...cache,
       metrics: mergedMetrics,
+      distributions: {
+        ...(cache.distributions || {}),
+        categories: clonedCategories
+      },
       documents: cache.documents.map(({ content, ...rest }) => rest),
     };
 

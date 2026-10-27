@@ -3,16 +3,17 @@ import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, X, TrendingUp, TrendingDown } from 'lucide-react';
 
 const INITIAL_QUOTES = [
-  { symbol: 'S&P500', icon: '📈', name: 'S&P500', price: 7409, chg: -1.2, isUp: false },
-  { symbol: 'FTSE 100', region: 'GB', name: 'FTSE 100', price: 10195, chg: -1.7, isUp: false },
-  { symbol: 'Shanghai Composite', region: 'CN', name: 'Shanghai Composite', price: 4135, chg: -2.5, isUp: false },
-  { symbol: 'Nikkei', region: 'JP', name: 'Nikkei', price: 61409, chg: -2.0, isUp: false },
-  { symbol: 'Gold', icon: '🥇', name: 'Gold', price: 4543, chg: -0.4, isUp: false },
-  { symbol: 'Silver', icon: '🥈', name: 'Silver', price: 76.74, chg: -1.0, isUp: false },
-  { symbol: 'BTC', icon: '₿', name: 'BTC', price: 77194, chg: -1.2, isUp: false },
-  { symbol: 'WTI', icon: '🛢️', name: 'WTI', price: 102.56, chg: 1.5, isUp: true },
-  { symbol: 'Brent', icon: '🛢️', name: 'Brent', price: 110.71, chg: 1.3, isUp: true },
-  { symbol: 'VIX', icon: '😱', name: 'VIX', price: 18.52, chg: 7.3, isUp: true },
+  { symbol: 'S&P 500', region: 'US', name: 'S&P 500', price: 5864, chg: 0.4, isUp: true },
+  { symbol: 'FTSE 100', region: 'GB', name: 'FTSE 100', price: 8358, chg: 0.2, isUp: true },
+  { symbol: 'Shanghai', region: 'CN', name: 'Shanghai Comp', price: 3285, chg: 0.6, isUp: true },
+  { symbol: 'Nikkei 225', region: 'JP', name: 'Nikkei 225', price: 38910, chg: -0.3, isUp: false },
+  { symbol: 'NVDA', region: 'AI', name: 'NVIDIA (AI Compute)', price: 141.50, chg: 1.8, isUp: true },
+  { symbol: 'PLTR', region: 'DEF', name: 'Palantir (Defense AI)', price: 44.80, chg: 1.4, isUp: true },
+  { symbol: 'ITA', region: 'DEF', name: 'US Aerospace & Def', price: 149.20, chg: 0.5, isUp: true },
+  { symbol: 'Gold', icon: '🥇', name: 'Gold (Comex)', price: 2748, chg: 0.3, isUp: true },
+  { symbol: 'Brent', icon: '🛢️', name: 'Brent Crude', price: 74.90, chg: -0.6, isUp: false },
+  { symbol: 'BTC', icon: '₿', name: 'Bitcoin USD', price: 68420, chg: 1.1, isUp: true },
+  { symbol: 'VIX', icon: '📊', name: 'CBOE Volatility', price: 18.85, chg: -1.5, isUp: false },
 ];
 
 export default function MarketQuotesBox({ onClose }) {
@@ -87,57 +88,34 @@ export default function MarketQuotesBox({ onClose }) {
     };
   }, [dragging]);
 
-  // Live ticking simulation
+  // Live empirical market telemetry fetch via /api/markets
+  const fetchMarketQuotes = async (force = false) => {
+    try {
+      setIsRefreshing(true);
+      const res = await fetch(`/api/markets${force ? '?refresh=true' : ''}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.quotes) && data.quotes.length > 0) {
+          setQuotes(data.quotes);
+        }
+        const now = new Date();
+        setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      }
+    } catch (e) {
+      console.warn('Market quotes fetch error:', e.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const tick = () => {
-      setQuotes(prev =>
-        prev.map(q => {
-          // VIX has higher volatility, others are smaller
-          const factor = q.symbol === 'VIX' ? 2 : 0.4;
-          const fluctuation = (Math.random() * 2 - 1) * factor;
-          const priceChangePercent = fluctuation / 100;
-          const newPrice = q.price * (1 + priceChangePercent);
-          const newChg = q.chg + fluctuation;
-
-          // Decimals formatting helper
-          let decimals = q.price > 1000 ? 0 : 2;
-          if (q.symbol === 'Silver' || q.symbol === 'WTI' || q.symbol === 'Brent' || q.symbol === 'VIX') {
-            decimals = 2;
-          }
-
-          return {
-            ...q,
-            price: parseFloat(newPrice.toFixed(decimals)),
-            chg: parseFloat(newChg.toFixed(1)),
-            isUp: newChg >= 0,
-          };
-        })
-      );
-      const now = new Date();
-      setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    };
-
-    const interval = setInterval(tick, 3500);
+    fetchMarketQuotes(false);
+    const interval = setInterval(() => fetchMarketQuotes(false), 60000);
     return () => clearInterval(interval);
   }, []);
 
   const handleManualRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setQuotes(prev =>
-        prev.map(q => {
-          const shift = (Math.random() * 1.5 - 0.75);
-          return {
-            ...q,
-            chg: parseFloat((q.chg + shift).toFixed(1)),
-            isUp: (q.chg + shift) >= 0,
-          };
-        })
-      );
-      const now = new Date();
-      setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      setIsRefreshing(false);
-    }, 600);
+    fetchMarketQuotes(true);
   };
 
   return (

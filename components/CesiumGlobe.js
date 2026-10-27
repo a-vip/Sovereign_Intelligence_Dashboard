@@ -913,7 +913,7 @@ export default function CesiumGlobe({
           outlineWidth: 1
         },
         label: {
-          text: `NODE-0${i+1} [SCANNING...]`,
+          text: `VERTEX-0${i+1} [BOUNDING REF]`,
           font: 'bold 7pt monospace',
           fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
           outlineColor: Cesium.Color.BLACK,
@@ -1306,7 +1306,7 @@ export default function CesiumGlobe({
         <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(0, 240, 255, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3); backdrop-filter: blur(8px); width: 240px; white-space: normal; word-break: break-word;">
           <div style="border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
             <span>⚠️</span>
-            <span style="white-space: normal; word-break: break-word;">${m.title || m.name}</span>
+            <span style="white-space: normal; word-break: break-word;">${String(m.title || m.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 5px;">
             <div style="display: flex; justify-content: space-between; gap: 16px;">
@@ -1315,7 +1315,7 @@ export default function CesiumGlobe({
             </div>
             <div style="display: flex; justify-content: space-between; gap: 16px;">
               <span style="color: #94a3b8; font-weight: 500; white-space: nowrap;">Category:</span>
-              <span style="color: #f8fafc; font-weight: bold; word-break: break-word;">${m.category}</span>
+              <span style="color: #f8fafc; font-weight: bold; word-break: break-word;">${String(m.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
             </div>
           </div>
         </div>
@@ -1360,12 +1360,12 @@ export default function CesiumGlobe({
           <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(168, 85, 247, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(168, 85, 247, 0.3); backdrop-filter: blur(8px); width: 260px; white-space: normal; word-break: break-word;">
             <div style="border-bottom: 1px solid rgba(168, 85, 247, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
               <span>⚖️</span>
-              <span style="white-space: normal; word-break: break-word;">${item.title}</span>
+              <span style="white-space: normal; word-break: break-word;">${String(item.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 5px;">
               <div style="display: flex; justify-content: space-between; gap: 12px;">
                 <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Jurisdiction:</span>
-                <span style="color: #f8fafc; font-weight: bold; text-align: right; word-break: break-word;">${item.jurisdiction}</span>
+                <span style="color: #f8fafc; font-weight: bold; text-align: right; word-break: break-word;">${String(item.jurisdiction || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
               </div>
               <div style="display: flex; justify-content: space-between; gap: 12px;">
                 <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Status:</span>
@@ -1420,7 +1420,7 @@ export default function CesiumGlobe({
           <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(0, 240, 255, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3); backdrop-filter: blur(8px); width: 220px; white-space: normal; word-break: break-word;">
             <div style="border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
               <span>📡</span>
-              <span style="white-space: normal; word-break: break-word;">${sat.name}</span>
+              <span style="white-space: normal; word-break: break-word;">${String(sat.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 5px;">
               <div style="display: flex; justify-content: space-between; gap: 12px;">
@@ -2233,7 +2233,7 @@ export default function CesiumGlobe({
                 }
               }
 
-              let buildingName = "UNIDENTIFIED SKYSCRAPER";
+              let buildingName = "3D OSM URBAN STRUCTURE";
               if (pickedObject && typeof pickedObject.getProperty === 'function') {
                 try {
                   const name = pickedObject.getProperty('name') || pickedObject.getProperty('Label') || pickedObject.getProperty('title');
@@ -2244,12 +2244,12 @@ export default function CesiumGlobe({
               const genericLandmark = {
                 id: `generic-${pickedLat.toFixed(4)}-${pickedLon.toFixed(4)}`,
                 name: buildingName,
-                city: 'TACTICAL SECTOR',
+                city: 'WGS84 URBAN FOOTPRINT',
                 lat: pickedLat,
                 lon: pickedLon,
                 height: pickedHeight > 10 ? pickedHeight : 60,
                 boxDimensions: { x: 50, y: 50, z: pickedHeight > 10 ? pickedHeight * 1.1 : 70 },
-                description: 'Unidentified skyscraper detected on 3D photorealistic scanning telemetry.'
+                description: 'OpenStreetMap / Cesium 3D Tileset structural footprint and elevation profile.'
               };
               selectSkyscraper(genericLandmark);
             }

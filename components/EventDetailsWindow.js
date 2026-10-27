@@ -189,9 +189,20 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
     // If user is admin, save directly to event
     if (isAdmin) {
       try {
-        await fetch('/api/admin/events/edit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        let userId = activeUser?.id || currentUser?.id;
+        if (!userId) {
+          try {
+            const stored = localStorage.getItem('operator_session');
+            const parsed = stored ? JSON.parse(stored) : null;
+            userId = parsed?.id;
+          } catch (e) {}
+        }
+        await fetch('/api/admin/events', {
+          method: 'PATCH',
+          headers: {
+            'x-user-id': userId || '',
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             id: event.id,
             details: {
@@ -370,9 +381,6 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
           userId = parsed?.id;
         } catch (e) {}
       }
-      if (!userId && (currentUser?.email === 'workwithavip@gmail.com' || activeUser?.email === 'workwithavip@gmail.com')) {
-        userId = '9f7de0af-d4fe-4801-b595-b81b8d9bf48e';
-      }
 
       const res = await fetch(endpoint, {
         method: 'PATCH',
@@ -433,9 +441,6 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         const parsed = stored ? JSON.parse(stored) : null;
         userId = parsed?.id;
       } catch (e) {}
-    }
-    if (!userId && (currentUser?.email === 'workwithavip@gmail.com' || activeUser?.email === 'workwithavip@gmail.com')) {
-      userId = '9f7de0af-d4fe-4801-b595-b81b8d9bf48e';
     }
 
     const confirmMsg = permanent 

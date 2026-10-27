@@ -1035,7 +1035,7 @@ export default function LiveMap({
     const ONE_DAY = 24 * 60 * 60 * 1000;
     if (ageMs > ONE_DAY) {
       console.log(`[SIGINT Staleness] Data is ${Math.round(ageMs / 3600000)}h old. Triggering background refresh...`);
-      fetch('/api/cron/ingest').catch(() => {});
+      fetchEvents(true);
       fetchRss(true);
     }
   }, [allFetchedEvents, fetchRss]);
@@ -3477,8 +3477,9 @@ export default function LiveMap({
               {/* SECTION 3: Creator Support Patronage */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
-                  ❤️ PATRONAGE & FUNDING
+                  💎 SOVEREIGN PRO & PATRONAGE
                 </span>
+                <a href="https://sovdash.com/pricing.html" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 10px', borderRadius: '6px', fontSize: '9.5px', fontWeight: 800, textTransform: 'uppercase', textDecoration: 'none', letterSpacing: '0.4px', background: 'rgba(6, 182, 212, 0.16)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.45)', marginBottom: '4px' }}>⚡ UPGRADE TO PRO ($29/MO) →</a>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
                   {/* Patreon */}
                   <a 

@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import { initDb, saveEvents, saveVaultDocs, createUser, saveSuggestion, saveRssItems } from '@/lib/db';
+import { verifyAdmin } from '@/lib/adminAuth';
 import fs from 'fs';
 import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-  // 1. Secure token validation to restrict execution
+  // 1. Secure admin or token validation to restrict execution
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
-  if (token !== 'avi_db_migrate_secure') {
-    return NextResponse.json({ error: 'Unauthorized credentials' }, { status: 401 });
+  const expectedToken = process.env.DASHBOARD_API_TOKEN;
+  if (!expectedToken || token !== expectedToken) {
+    const auth = await verifyAdmin(request);
+    if (auth.error) return auth.error;
   }
 
   const hasDb = !!process.env.POSTGRES_URL;

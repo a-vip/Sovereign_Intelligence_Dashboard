@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, getEvents, getArchivedInfo, isEventArchived } from '@/lib/db';
+import { initDb, saveEvents, getEvents, getRssItems, getArchivedInfo, isEventArchived } from '@/lib/db';
+import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { getRouteCache, setRouteCache, clearRouteCache } from '@/lib/cache';
 import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
@@ -663,7 +664,47 @@ export async function GET(request) {
     });
     const filteredStaticEvents = staticEvents.filter(e => !isEventArchived(e, archivedInfo));
 
-    let finalEventsList = [...filteredStaticEvents, ...filteredDbEventsList];
+    // Include pinned Stop Killer Robots LAWS research signals and domain-verified RSS intelligence items
+    const pinnedSkrEvents = (getStopKillerRobotsSignals() || [])
+      .map(s => ({
+        ...s,
+        id: generateHashId(s.url, s.title),
+        fromDb: true
+      }))
+      .filter(e => !isEventArchived(e, archivedInfo));
+
+    let rssPromotedEvents = [];
+    try {
+      const dbRss = await getRssItems(80);
+      rssPromotedEvents = (dbRss || [])
+        .filter(r => !isEventArchived(r, archivedInfo) && isEventAiRelated({ title: r.title, description: r.summary }))
+        .slice(0, 35)
+        .map(r => ({
+          id: r.id || generateHashId(r.url, r.title),
+          title: r.title,
+          url: r.url,
+          source: r.source || 'OSINT Feed',
+          timestamp: r.published_at || r.created_at || new Date().toISOString(),
+          original_post_time: r.published_at || r.created_at || new Date().toISOString(),
+          category: r.category || getCategory(r.title),
+          severity: r.severity || getSeverity(r.title),
+          location: r.location || 'Global',
+          lat: r.latitude,
+          lon: r.longitude,
+          fromDb: true,
+          details: {
+            summary: r.summary,
+            source: r.source,
+            sid: r.sid,
+            type: 'primary_source',
+            verificationStatus: 'active'
+          }
+        }));
+    } catch (rssErr) {
+      console.warn('Could not merge RSS items into events:', rssErr.message);
+    }
+
+    let finalEventsList = [...filteredStaticEvents, ...filteredDbEventsList, ...rssPromotedEvents, ...pinnedSkrEvents];
     if (finalEventsList.length === 0 && filteredEvs.length === 0) {
       console.log('No online, database, or static events found. Trying local dossiers...');
       finalEventsList = parseLocalRadarDossiers().filter(e => !isEventArchived(e, archivedInfo));
@@ -775,10 +816,11 @@ export async function GET(request) {
     };
 
     sortedEvents.forEach(e => {
-      // Hard staleness filter: enforce 14-day recency cutoff across all sources
+      // Hard staleness filter: enforce 14-day recency cutoff across all sources (unless pinned)
+      const isPinned = e.details?.isPinned === true || e.details?.laws_disarmament === true;
       const rawTime = e.original_post_time || e.timestamp || e.created_at;
       const eventTime = parseEventDate(rawTime);
-      if (eventTime > 0 && (nowMs - eventTime) > maxAgeMs) {
+      if (!isPinned && eventTime > 0 && (nowMs - eventTime) > maxAgeMs) {
         return; // Skip stale events
       }
       if (eventTime > 0 && typeof e.timestamp === 'string' && /^\d{8}/.test(e.timestamp)) {
@@ -1087,15 +1129,20 @@ function calculateTitleFuzzySimilarity(title1, title2) {
 
 function isEventAiRelated(e) {
   if (!e) return false;
-  if (e.edited === true || e.edited === 'true') return true; // Always preserve admin edited events
   const title = (e.title || e.name || '').toLowerCase();
-  const desc = (e.description || e.details?.summary || e.details?.description || '').toLowerCase();
+  const desc = (e.description || e.summary || e.details?.summary || e.details?.description || '').toLowerCase();
+
+  // Always block sports/entertainment noise
+  const BLOCKLIST_REGEX = /\b(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|ballon d'or|ballon d’or|harry kane|bayern munich|champions league|world cup|fifa|uefa|nba|nfl|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match|striker|goalkeeper)\b/i;
+  if (BLOCKLIST_REGEX.test(title) || (desc && BLOCKLIST_REGEX.test(desc))) return false;
+
+  if (e.edited === true || e.edited === 'true' || e.details?.isPinned === true || e.details?.laws_disarmament === true) return true;
   const gear = (e.details?.gear || '').toLowerCase();
   const units = (e.details?.units || '').toLowerCase();
   const faction = (e.details?.faction || e.faction || '').toLowerCase();
   const conflict = (e.details?.conflict || e.conflict || '').toLowerCase();
   
-  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|drone|drones|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated)\b/i;
+  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|laws|drone|drones|uav|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated|governance|palantir|spyware|pegasus|privacy|encryption|semiconductor|llm|deepfake|disinformation|treaty|human rights|warfare|targeting|strike|missile)\b/i;
   
   return aiRegex.test(title) || aiRegex.test(desc) || aiRegex.test(gear) || aiRegex.test(units) || aiRegex.test(faction) || aiRegex.test(conflict);
 }

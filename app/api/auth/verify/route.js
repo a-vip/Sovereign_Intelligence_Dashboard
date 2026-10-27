@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserByEmail, verifyUser, initDb } from '@/lib/db';
+import { signSessionToken } from '@/lib/auth';
 
 export async function GET(req) {
   try {
@@ -196,13 +197,17 @@ export async function GET(req) {
 
 // Serves the elegant success authentication and local session write HTML page
 function serveSuccessHTML(user, styles) {
+  const sessionToken = signSessionToken(user);
   const userSession = {
     id: user.id,
     email: user.email,
     fullName: user.full_name || user.fullName,
     role: user.role,
+    tier: user.tier || (user.role === 'admin' ? 'enterprise' : 'free'),
+    sessionToken,
     createdAt: user.created_at || user.createdAt
   };
+  const safeSessionJson = JSON.stringify(userSession).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 
   const html = `
     <!DOCTYPE html>
@@ -248,7 +253,7 @@ function serveSuccessHTML(user, styles) {
       
       <script>
         // Securely write the credentials handshake token directly into the browser
-        localStorage.setItem('operator_session', JSON.stringify(${JSON.stringify(userSession)}));
+        localStorage.setItem('operator_session', JSON.stringify(${safeSessionJson}));
         
         // Auto-redirect to Sovereign Terminal Console
         setTimeout(() => {
@@ -259,9 +264,17 @@ function serveSuccessHTML(user, styles) {
     </html>
   `;
 
-  return new NextResponse(html, {
+  const response = new NextResponse(html, {
     headers: { 'Content-Type': 'text/html' }
   });
+  response.cookies.set('sov_session', sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60
+  });
+  return response;
 }
 
 // Serves the custom error HTML page

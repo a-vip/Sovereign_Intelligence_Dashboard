@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { logAccess, updateHeartbeat, getActiveUsers } from '@/lib/db';
+import { verifyAdmin } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,30 +12,11 @@ function getClientIp(request) {
   return ip || '127.0.0.1';
 }
 
-function geolocateMock(ip, email) {
-  const cleanEmail = (email || '').toLowerCase().trim();
-  const mockMap = {
-    'workwithavip@gmail.com': 'Munich, Germany (Command Terminal Stn-1)',
-    'analyst1@sovdash.com': 'London, UK (OSINT Hub-4)',
-    'guest@sovdash.com': 'Tokyo, Japan (Remote Observer Station)',
-  };
-  if (mockMap[cleanEmail]) {
-    return mockMap[cleanEmail];
+function geolocateFallback(ip) {
+  if (!ip || ip === '::1' || ip === '127.0.0.1' || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.')) {
+    return 'Local Workstation (Encrypted Loopback)';
   }
-  
-  const locations = [
-    'Washington D.C., US (HQ Command Desk)',
-    'Brussels, Belgium (NATO Cyber Command)',
-    'Geneva, Switzerland (Disarmament Watch)',
-    'Stockholm, Sweden (Sovereign Node-B)',
-    'Canberra, Australia (Pacific Uplink)'
-  ];
-  let hash = 0;
-  for (let i = 0; i < cleanEmail.length; i++) {
-    hash = cleanEmail.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % locations.length;
-  return locations[idx];
+  return 'Authenticated Edge Node (GeoIP Redacted)';
 }
 
 async function fetchRealGeolocation(ip) {
@@ -67,10 +49,9 @@ export async function POST(request) {
     const ip = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || 'Unknown Agent';
     
-    // Attempt dynamic lookup, fallback to deterministic cyber stations for local testing
     let location = await fetchRealGeolocation(ip);
     if (!location) {
-      location = geolocateMock(ip, email);
+      location = geolocateFallback(ip);
     }
 
     if (isLogin) {
@@ -89,10 +70,13 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const activeUsers = await getActiveUsers();
+    const auth = await verifyAdmin(request);
+    const isAdmin = !auth.error && auth.user?.role === 'admin';
+
     return NextResponse.json({
       success: true,
       count: activeUsers.length,
-      activeUsers
+      activeUsers: isAdmin ? activeUsers : []
     });
   } catch (error) {
     console.error('Operator heartbeat fetch error:', error);
