@@ -60,7 +60,16 @@ export async function POST(request) {
     
     await updateHeartbeat(email, name || 'Anonymous Operator', ip, location);
 
-    return NextResponse.json({ success: true, location });
+    const activeUsers = await getActiveUsers();
+    const auth = await verifyAdmin(request);
+    const isAdmin = !auth.error && auth.user?.role === 'admin';
+
+    return NextResponse.json({
+      success: true,
+      location,
+      count: activeUsers.length,
+      activeUsers: isAdmin ? activeUsers : []
+    });
   } catch (error) {
     console.error('Operator heartbeat logging error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

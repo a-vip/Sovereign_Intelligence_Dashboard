@@ -7,6 +7,7 @@ import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss } from '@/lib/rssParser';
 import { verifyLink, findAlternativeLink } from '@/lib/verification';
 import { geocodeText, decodeHtmlEntities } from '@/lib/geocoder';
+import { classifyTechPolicySignal } from '@/lib/policyClassifier';
 import { clearRouteCache } from '@/lib/cache';
 import { sql } from '@vercel/postgres';
 
@@ -20,19 +21,9 @@ function generateId(url, title) {
 function isEventAiRelated(e) {
   if (!e) return false;
   if (e.details?.isPinned || e.details?.laws_disarmament) return true;
-  const title = (e.title || e.name || '').toLowerCase();
-  const desc = (e.description || e.summary || e.details?.summary || e.details?.description || '').toLowerCase();
-  
-  // 1. Blocklist for sports, entertainment, and generic irrelevant news
-  const BLOCKLIST_REGEX = /\b(cricket|football|soccer|baseball|rugby|tennis|olympics|stadium|batting|bowler|innings|ballon d'or|ballon d’or|harry kane|bayern munich|champions league|world cup|fifa|uefa|nba|nfl|celebrity|hollywood|bollywood|pop star|concert|album|actors|actress|theatre|box office|super bowl|ipl match|championship|premier league|tournament|cricket match|striker|goalkeeper)\b/i;
-  if (BLOCKLIST_REGEX.test(title) || (desc && BLOCKLIST_REGEX.test(desc))) {
-    return false;
-  }
-
-  // 2. AI & high-tech governance/military/surveillance keywords
-  const aiRegex = /\b(artificial intelligence|ai|autonomous weapon|autonomous weapons|laws|drone|drones|uav|military ai|surveillance|facial recognition|biometric|biometrics|cyber|killer robot|killer robots|robotics|robotic|algorithm|algorithmic|automated|governance|nimbus|palantir|surveillance tech|biometric scan|biometric checks|biometrics scan|biometrics check|biometric scanner|gps jamming|gps jam|jamming|ads-b|cyberwar|cyberattack|hacker|hackers|spyware|pegasus|semiconductor|chip|chips|llm|generative ai|deepfake|disinformation|censorship|encryption)\b/i;
-  
-  return aiRegex.test(title) || aiRegex.test(desc);
+  const title = e.title || e.name || '';
+  const desc = e.description || e.summary || e.details?.summary || e.details?.description || '';
+  return classifyTechPolicySignal(title, desc, e.sid || '').isRelevant;
 }
 
 function categorize(text) {
@@ -119,8 +110,8 @@ export async function GET(request) {
 
     clearRouteCache();
 
-    const mainQuery = '("artificial intelligence" OR "autonomous weapons" OR "Stop Killer Robots" OR "LAWS disarmament" OR "killer robots" OR "lethal autonomous weapons" OR "AI military" OR "facial recognition" OR "surveillance tech" OR Palantir OR "human rights AI" OR "cyber surveillance" OR biometric)';
-    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=150&format=json&sourcelang=english&timespan=72h`;
+    const mainQuery = '("artificial intelligence" OR "AI regulation" OR "EU AI Act" OR "autonomous weapons" OR "lethal autonomous" OR "cyberattack" OR "ransomware" OR "zero-day" OR "facial recognition" OR "spyware" OR "semiconductor export" OR "digital sovereignty")';
+    const docUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(mainQuery)}&mode=artlist&maxrecords=120&format=json&sourcelang=english&timespan=72h`;
     
     let osintEvents = [];
     try {
@@ -130,13 +121,17 @@ export async function GET(request) {
       const filteredArticles = (gdeltData.articles || []).filter(a => 
         isEventAiRelated({
           title: a.title,
-          description: (a.title || '') + ' ' + (a.domain || '')
+          description: a.title || ''
         })
       );
 
       osintEvents = filteredArticles.map(a => {
         const decodedTitle = decodeHtmlEntities(a.title || 'Untitled');
-        const geo = geocodeText(decodedTitle, a.sourcecountry || '', a.domain || null);
+        const cls = classifyTechPolicySignal(decodedTitle, '', a.domain || '');
+        const geo = geocodeText(decodedTitle, a.sourcecountry || '', a.domain || '');
+        if (!geo.hasExplicitLocation || geo.lat === null || geo.lon === null) {
+          return null;
+        }
         
         let ts = a.seendate || new Date().toISOString();
         if (typeof ts === 'string' && /^\d{14}$/.test(ts)) {
@@ -152,18 +147,19 @@ export async function GET(request) {
           source: a.domain || 'Unknown',
           timestamp: ts,
           original_post_time: ts,
-          category: categorize(decodedTitle),
-          severity: scoreSeverity(decodedTitle),
+          category: cls.category || categorize(decodedTitle),
+          severity: cls.severity || scoreSeverity(decodedTitle),
           location: geo.name,
           lat: geo.lat,
           lon: geo.lon,
           details: { 
             ...a, 
+            domainPillar: cls.domainPillar,
             media: extractMedia(a),
-            probability: getEscalationProb(decodedTitle, scoreSeverity(decodedTitle))
+            probability: getEscalationProb(decodedTitle, cls.severity || scoreSeverity(decodedTitle))
           }
         };
-      });
+      }).filter(Boolean);
     } catch (e) {
       console.warn('GDELT OSINT fetch failed or timed out. Proceeding with research feeds.', e.message);
     }
@@ -236,8 +232,11 @@ export async function GET(request) {
         newRssCount = filteredRssItems.length;
 
         const promotedEvents = filteredRssItems
-          .filter(item => isEventAiRelated({ title: item.title, summary: item.summary }) || item.sid === 'hrw' || item.sid === 'eff' || item.sid === 'wired' || item.sid === 'arxiv')
-          .slice(0, 35)
+          .filter(item => {
+            if (item.latitude === null || item.latitude === undefined || item.longitude === null || item.longitude === undefined) return false;
+            return classifyTechPolicySignal(item.title, item.summary, item.sid).isRelevant;
+          })
+          .slice(0, 45)
           .map(item => ({
             id: item.id,
             title: item.title,
@@ -247,13 +246,14 @@ export async function GET(request) {
             original_post_time: item.published_at,
             category: item.category || categorize(item.title),
             severity: item.severity || scoreSeverity(item.title),
-            location: item.location || 'Global',
+            location: item.location,
             lat: item.latitude,
             lon: item.longitude,
             details: {
               summary: item.summary,
               source: item.source,
               sid: item.sid,
+              domainPillar: item.domainPillar,
               type: 'primary_source',
               verificationStatus: 'active',
               probability: getEscalationProb(item.title, item.severity || 3)

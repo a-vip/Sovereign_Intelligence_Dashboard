@@ -1088,6 +1088,23 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
                 >
                   SEV-{editDraft.severity}
                 </span>
+
+                {(event.domainPillar || event.details?.domainPillar) && (
+                  <span
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      padding: '3px 7px',
+                      borderRadius: '4px',
+                      fontSize: '0.6rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.3px'
+                    }}
+                  >
+                    {event.domainPillar || event.details?.domainPillar}
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -1334,8 +1351,8 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
         ) : (
           <div 
             onClick={(e) => {
-              if (event.lat !== undefined && event.lon !== undefined && onFocusLocation) {
-                onFocusLocation(event.lat, event.lon);
+              if (event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && !isNaN(Number(event.lon)) && onFocusLocation) {
+                onFocusLocation(Number(event.lat), Number(event.lon));
               }
             }}
             style={{ 
@@ -1397,7 +1414,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
                 </div>
               )}
             </div>
-            {editDraft.lat !== undefined && editDraft.lon !== undefined && (
+            {typeof editDraft.lat === 'number' && typeof editDraft.lon === 'number' && !isNaN(editDraft.lat) && !isNaN(editDraft.lon) && (
               <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "var(--font-jetbrains-fallback)", display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                 <span>GEO_REF: {editDraft.lat.toFixed(4)}N, {editDraft.lon.toFixed(4)}E</span>
                 {onReportIssue && !currentUser && (

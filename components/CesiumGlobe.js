@@ -1081,10 +1081,11 @@ export default function CesiumGlobe({
              p.lon >= -180.0 && p.lon <= 180.0;
     });
 
-    const gravity = 0.08; // Gravity pulls markers back to their real origins (softer to let them spread!)
-    const repelForce = 0.38; // Repulsion pushes close markers apart (stronger push!)
-    const thresholdDegrees = 0.95; // Spacing threshold in degrees (perfectly spaced out!)
-    const iterations = 12; // Force resolution passes
+    const gravity = 0.28; // Strong anchor to true city coordinate so coastal pins never drift into oceans
+    const repelForce = 0.20; // Gentle micro-separation for nearby pins
+    const thresholdDegrees = 0.24; // ~25km micro-spacing threshold
+    const maxDriftDegrees = 0.28; // Hard clamp so pins never cross borders or coastlines
+    const iterations = 8;
 
     for (let step = 0; step < iterations; step++) {
       for (let i = 0; i < points.length; i++) {
@@ -1116,8 +1117,8 @@ export default function CesiumGlobe({
         forceLat += origLatDiff * gravity;
         forceLon += origLonDiff * gravity;
 
-        p1.lat += forceLat;
-        p1.lon += forceLon;
+        p1.lat = Math.max(p1.original.lat - maxDriftDegrees, Math.min(p1.original.lat + maxDriftDegrees, p1.lat + forceLat));
+        p1.lon = Math.max(p1.original.lon - maxDriftDegrees, Math.min(p1.original.lon + maxDriftDegrees, p1.lon + forceLon));
       }
     }
 
@@ -1661,8 +1662,9 @@ export default function CesiumGlobe({
       // Initialize clean premium satellite globe
       viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
 
-      // Force Retina-quality crisp resolution scaling for maps, labels, and text, capping at 1.25 to protect GPU
-      viewer.resolutionScale = Math.min(1.25, window.devicePixelRatio || 1.0);
+      // Force Retina-quality crisp resolution scaling on desktop, while capping at 1.0 on mobile to save GPU/battery
+      const maxScale = (typeof window !== 'undefined' && window.innerWidth <= 900) ? 1.0 : 1.25;
+      viewer.resolutionScale = Math.min(maxScale, window.devicePixelRatio || 1.0);
       viewer.useBrowserRecommendedResolution = false;
 
       // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
@@ -2033,6 +2035,8 @@ export default function CesiumGlobe({
             const evtSeverity = getPropValue(props, 'severity',  1);
             const evtCategory = getPropValue(props, 'category',  'Unknown');
             const evtLocation = getPropValue(props, 'location',  'Unknown');
+            const evtSource   = getPropValue(props, 'source',    null);
+            const evtDetails  = getPropValue(props, 'details',   null);
             const evtTs       = getPropValue(props, 'timestamp', null);
 
             if (typeof setHoverTooltipRef.current === 'function') {
@@ -2044,9 +2048,10 @@ export default function CesiumGlobe({
                 type: 'event',
                 title: evtTitle,
                 details: {
-                  'Severity': `S${evtSeverity}`,
-                  'Category': String(evtCategory || 'Unknown'),
                   'Location': String(evtLocation || 'Unknown'),
+                  'Domain': String(evtDetails?.domainPillar || evtCategory || 'Tech Policy'),
+                  'Severity': `S${evtSeverity}`,
+                  ...(evtSource ? { 'Source': String(evtSource) } : {}),
                   ...(evtTs ? { 'Date': new Date(evtTs).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) } : {})
                 }
               });

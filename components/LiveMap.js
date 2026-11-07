@@ -1,16 +1,39 @@
 'use client';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check } from 'lucide-react';
+import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check, Plus, Rss } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
 import ChangelogBox from './ChangelogBox';
 import ResourcesModal from './ResourcesModal';
+import SourceManagerModal from './SourceManagerModal';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
-const EVENTS_POLL = 15000; // Increased frequency (15s)
+const EVENTS_POLL = 60000; // 60s visibility-gated sync for minimal CPU/network footprint
+
+const DEFAULT_RSS_SOURCE_LIST = [
+  { id: 'cisa', name: 'CISA Cyber Advisories' },
+  { id: 'thn', name: 'The Hacker News' },
+  { id: 'row', name: 'Rest of World Tech' },
+  { id: 'mittr', name: 'MIT Tech Review AI' },
+  { id: 'wired', name: 'Wired Security & Policy' },
+  { id: 'eff', name: 'EFF Digital Rights' },
+  { id: 'arxiv', name: 'arXiv Computers & Society' },
+  { id: 'nature', name: 'Nature Machine Intel' },
+  { id: 'hrw', name: 'HRW Tech & Rights' },
+  { id: 'aje', name: 'Al Jazeera Tech Wire' },
+  { id: 'un', name: 'UN Global Tech & Peace' }
+];
+
+const REGION_VIEWPORTS = [
+  { id: 'global', label: '🌍 GLOBAL', lat: 20.0, lon: 12.0, reset: true },
+  { id: 'europe', label: '🇪🇺 EUROPE', lat: 50.85, lon: 8.5 },
+  { id: 'americas', label: '🌎 AMERICAS', lat: 34.0, lon: -92.0 },
+  { id: 'indopac', label: '🌏 ASIA-PAC', lat: 24.5, lon: 118.0 },
+  { id: 'mena', label: '🌐 MENA/AFR', lat: 18.0, lon: 32.0 }
+];
 
 const CAT_COLORS = {
   Conflict: '#ff2d55',
@@ -507,6 +530,9 @@ export default function LiveMap({
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
   const [showResourcesModal, setShowResourcesModal] = useState(false);
+  const [showSourceModal, setShowSourceModal] = useState(false);
+  const [activeRegionId, setActiveRegionId] = useState('global');
+  const searchInputRef = useRef(null);
   const [shareCopied, setShareCopied] = useState(false);
 
   const handleShareDashboard = () => {
@@ -531,7 +557,8 @@ export default function LiveMap({
   const [rssLoading, setRssLoading] = useState(true);
   const [activeRssTab, setActiveRssTab] = useState('all');
   const [isRssDropdownOpen, setIsRssDropdownOpen] = useState(false);
-  const [selectedRssSources, setSelectedRssSources] = useState(['arxiv', 'aje', 'hrw', 'nature', 'un', 'wired', 'eff']);
+  const [availableRssSources, setAvailableRssSources] = useState(DEFAULT_RSS_SOURCE_LIST);
+  const [selectedRssSources, setSelectedRssSources] = useState(() => DEFAULT_RSS_SOURCE_LIST.map(s => s.id));
   const [mapMode, setMapMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('operator_pref_mapMode') || '3d';
@@ -564,8 +591,11 @@ export default function LiveMap({
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
 
-  // Satellite Tracking & Observation States
-  const [showSatellites, setShowSatellites] = useState(true);
+  // Satellite Tracking & Observation States (disabled by default on mobile to conserve battery & bandwidth)
+  const [showSatellites, setShowSatellites] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 900) return false;
+    return true;
+  });
   const [satellites, setSatellites] = useState([]);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [isTracked, setIsTracked] = useState(false);
@@ -582,7 +612,56 @@ export default function LiveMap({
 
 
 
-  // Dynamic 5-second telemetry polling interval for space satellites
+  // Hydrate custom intelligence sources from DB so they appear in filters & auto-pins
+  const syncAvailableSources = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sources', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const builtIn = (data.builtInSources || DEFAULT_RSS_SOURCE_LIST).map(s => ({ id: s.id || s.sid, name: s.name }));
+      const custom = (data.customSources || []).map(s => ({ id: s.sid || s.id, name: s.name, isCustom: true }));
+      const mergedMap = new Map();
+      [...builtIn, ...custom].forEach(s => {
+        if (s.id) mergedMap.set(s.id, s);
+      });
+      const mergedList = Array.from(mergedMap.values());
+      setAvailableRssSources(mergedList);
+      setSelectedRssSources(prev => {
+        const next = new Set(prev);
+        custom.forEach(c => next.add(c.id));
+        return Array.from(next);
+      });
+    } catch (e) {
+      // Fallback to built-in list silently
+    }
+  }, []);
+
+  useEffect(() => {
+    syncAvailableSources();
+  }, [syncAvailableSources]);
+
+  // Keyboard ergonomics: '/' focuses signal search, 'Escape' dismisses active modals/selections
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = (e.target?.tagName || '').toLowerCase();
+      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable;
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        setIsFeedCollapsed(false);
+        searchInputRef.current?.focus();
+      } else if (e.key === 'Escape') {
+        if (showSourceModal) setShowSourceModal(false);
+        else if (showResourcesModal) setShowResourcesModal(false);
+        else if (showChangelog) setShowChangelog(false);
+        else if (selectedEvent) setSelectedEvent(null);
+        else if (selectedCountry) setSelectedCountry(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showSourceModal, showResourcesModal, showChangelog, selectedEvent, selectedCountry]);
+
+  // Dynamic 15-second visibility-gated telemetry polling interval for space satellites
   useEffect(() => {
     if (!showSatellites) {
       setSatellites([]);
@@ -590,6 +669,7 @@ export default function LiveMap({
     }
 
     const fetchSatellites = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await fetch('/api/satellite');
         if (res.ok) {
@@ -610,7 +690,7 @@ export default function LiveMap({
     };
 
     fetchSatellites();
-    const interval = setInterval(fetchSatellites, 5000);
+    const interval = setInterval(fetchSatellites, 15000);
     return () => clearInterval(interval);
   }, [showSatellites]);
 
@@ -719,7 +799,9 @@ export default function LiveMap({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  // Operational heartbeat registration for logging accesses and tracking active operators & visitors
+  const [activeUsersList, setActiveUsersList] = useState([]);
+
+  // Unified visibility-gated 45-second heartbeat & active session counter (replaces dual 12s loops)
   useEffect(() => {
     let emailStr = '';
     let nameStr = '';
@@ -740,65 +822,33 @@ export default function LiveMap({
       nameStr = 'Anonymous Visitor';
     }
 
-    let initialLogged = false;
     const sendHeartbeat = async (isLogin = false) => {
+      if (!isLogin && typeof document !== 'undefined' && document.hidden) return;
       try {
-        await fetch('/api/admin/heartbeat', {
+        const res = await fetch('/api/admin/heartbeat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': currentUser?.id || ''
+          },
           body: JSON.stringify({
             email: emailStr,
             name: nameStr,
             isLogin: isLogin && !isVisitor
           })
         });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.count === 'number') setOnlineCount(data.count);
+          if (Array.isArray(data.activeUsers)) setActiveUsersList(data.activeUsers);
+        }
       } catch (err) {
         console.warn('Operator heartbeat registration failed:', err);
       }
     };
 
-    // Log the initial access session instantly
-    if (!initialLogged) {
-      sendHeartbeat(true);
-      initialLogged = true;
-    }
-
-    // Trigger regular active heartbeats every 12 seconds
-    const interval = setInterval(() => {
-      sendHeartbeat(false);
-    }, 12000);
-
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
-  const [activeUsersList, setActiveUsersList] = useState([]);
-
-  // Poll active users count for all users
-  useEffect(() => {
-    const fetchOnlineCount = async () => {
-      try {
-        const res = await fetch('/api/admin/heartbeat', {
-          headers: {
-            'x-user-id': currentUser?.id || ''
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setOnlineCount(data.count);
-            setActiveUsersList(data.activeUsers || []);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch online count:', err);
-      }
-    };
-
-    // Fetch immediately
-    fetchOnlineCount();
-
-    // Poll every 12 seconds to keep it live and current
-    const interval = setInterval(fetchOnlineCount, 12000);
+    sendHeartbeat(true);
+    const interval = setInterval(() => sendHeartbeat(false), 45000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -1066,15 +1116,23 @@ export default function LiveMap({
       lon: parseFloat(m.lon)
     }));
 
-    // 2. Map RSS Feed items containing valid locations to standard marker layouts
+    // 2. Map RSS Feed items containing verified sovereign/city locations (never unlocated 'Global / Multilateral' items)
     const rssMarkers = rssItems
-      .filter(item => selectedRssSources.includes(item.sid) && item.latitude !== null && item.longitude !== null && !isNaN(parseFloat(item.latitude)) && !isNaN(parseFloat(item.longitude)))
+      .filter(item =>
+        selectedRssSources.includes(item.sid) &&
+        item.latitude !== null &&
+        item.longitude !== null &&
+        item.location !== 'Global / Multilateral' &&
+        item.location !== 'Global / Non-Territorial' &&
+        !isNaN(parseFloat(item.latitude)) &&
+        !isNaN(parseFloat(item.longitude))
+      )
       .map(item => ({
         id: item.id || `rss-${item.url}`,
         name: item.title,
         title: item.title,
         category: item.category || 'Political',
-        severity: item.severity || 1,
+        severity: item.severity || 2,
         location: item.location || 'Unknown',
         lat: parseFloat(item.latitude),
         lon: parseFloat(item.longitude),
@@ -1083,7 +1141,8 @@ export default function LiveMap({
         source: item.source,
         edited: item.edited,
         details: {
-          summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
+          summary: item.summary || `Source: ${item.source}. Verified international policy signal.`,
+          domainPillar: item.domainPillar,
           isRssItem: true,
           edited: item.edited
         }
@@ -1155,45 +1214,45 @@ export default function LiveMap({
       filtered = filtered.filter(m => matchAdvancedQuery(m, searchQuery));
     }
 
-    // Apply deterministic spiraling coordinate jitter to resolve any overlapping/stacked coordinates
-    const coordCounts = {};
-    const jittered = filtered.map(m => {
+    // Cap per-hub pin density & apply deterministic golden-angle micro-offsets so pins never stack or drift into oceans
+    const hubCounts = {};
+    const dispersed = [];
+
+    for (const m of filtered) {
       const latVal = parseFloat(m.lat);
       const lonVal = parseFloat(m.lon);
-      if (isNaN(latVal) || isNaN(lonVal)) {
-        return m;
+      if (isNaN(latVal) || isNaN(lonVal)) continue;
+
+      // Group nearby coordinates within ~16km city hub bucket
+      const hubKey = `${Math.round(latVal / 0.15)},${Math.round(lonVal / 0.15)}`;
+      const count = hubCounts[hubKey] || 0;
+
+      // Prevent automated feed spam from crowding any single city while always preserving pinned/edited dossiers
+      if (count >= 5 && !m.isPinned && !m.isEdited) {
+        continue;
       }
-      
-      // Use 4 decimal places for overlap detection key (approx 11m resolution)
-      const key = `${latVal.toFixed(4)},${lonVal.toFixed(4)}`;
-      if (coordCounts[key] === undefined) {
-        coordCounts[key] = 0;
-      }
-      const count = coordCounts[key];
-      coordCounts[key] += 1;
+      hubCounts[hubKey] = count + 1;
 
       if (count === 0) {
-        return { ...m, lat: latVal, lon: lonVal }; // Keep first element at exact spot
+        dispersed.push({ ...m, lat: latVal, lon: lonVal });
+        continue;
       }
 
-      // Distribute subsequent overlapping items in a neat spiral ring
-      const angle = count * 0.95; // Golden-angle-like step for even layout distribution
-      const radius = 0.0022 * Math.sqrt(count); // Radial distance (approx. 200m step)
-      
+      // Golden-angle (137.508 deg) land-safe micro-spiral capped at ~10km max radius
+      const angle = count * 2.39996323;
+      const radius = Math.min(0.10, 0.024 * Math.sqrt(count));
       const dLat = radius * Math.cos(angle);
-      // Adjust longitude based on local latitude compression
-      const latRad = latVal * Math.PI / 180.0;
-      const cosLat = Math.max(0.1, Math.cos(latRad));
+      const cosLat = Math.max(0.25, Math.cos((latVal * Math.PI) / 180.0));
       const dLon = (radius * Math.sin(angle)) / cosLat;
 
-      return {
+      dispersed.push({
         ...m,
-        lat: latVal + dLat,
-        lon: lonVal + dLon
-      };
-    });
+        lat: Number((latVal + dLat).toFixed(5)),
+        lon: Number((lonVal + dLon).toFixed(5))
+      });
+    }
 
-    return jittered;
+    return dispersed;
   }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources]);
 
   const filteredEvents = useMemo(() => {
@@ -1436,12 +1495,12 @@ export default function LiveMap({
             {!isMobile && (
               <div style={{
                 fontSize: '9px',
-                color: 'rgba(255,255,255,0.4)',
+                color: 'rgba(255,255,255,0.45)',
                 fontWeight: '500',
                 letterSpacing: '0.5px',
                 marginTop: '1px'
               }}>
-                LAWS Tracking • State Violations • Corporate Complicity
+                International AI Governance • Cyber Operations • Tech Policy
               </div>
             )}
           </div>
@@ -1641,6 +1700,40 @@ export default function LiveMap({
             >
               <span>💡</span>
               <span>FEEDBACK</span>
+            </button>
+
+            <button
+              onClick={() => setShowSourceModal(true)}
+              style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#10b981',
+                borderRadius: '4px',
+                padding: isMobile ? '3px 6px' : '4px 8px',
+                fontSize: isMobile ? '9px' : '10px',
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '3px' : '5px',
+                transition: 'all 0.2s',
+                boxShadow: '0 0 10px rgba(16, 185, 129, 0.08)',
+                outline: 'none'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.08)';
+              }}
+              title="Add Intelligence Feed / Auto-Pin Relevant Signals to Globe"
+            >
+              <Plus size={11} />
+              <span>{isMobile ? 'SOURCE' : 'ADD SOURCE'}</span>
             </button>
 
             <button
@@ -1924,7 +2017,7 @@ export default function LiveMap({
                 onMouseEnter={(e) => e.currentTarget.style.borderColor = '#00f0ff'}
                 onMouseLeave={(e) => e.currentTarget.style.borderColor = isRssDropdownOpen ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)'}
               >
-                <span>📡 SOURCES ({selectedRssSources.length}/7)</span>
+                <span>📡 SOURCES ({selectedRssSources.length}/{availableRssSources.length})</span>
                 <span style={{ fontSize: '9px', color: '#00f0ff' }}>{isRssDropdownOpen ? '▲' : '▼'}</span>
               </button>
 
@@ -1950,12 +2043,14 @@ export default function LiveMap({
                     zIndex: 1001,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px'
+                    gap: '4px',
+                    maxHeight: '280px',
+                    overflowY: 'auto'
                   }}>
                     {/* Toggle All Button */}
                     <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
                       <button
-                        onClick={() => setSelectedRssSources(['arxiv', 'aje', 'hrw', 'nature', 'un', 'wired', 'eff'])}
+                        onClick={() => setSelectedRssSources(availableRssSources.map(s => s.id))}
                         style={{ flex: 1, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)'}
@@ -1970,18 +2065,16 @@ export default function LiveMap({
                       >
                         [CLEAR ALL]
                       </button>
+                      <button
+                        onClick={() => { setIsRssDropdownOpen(false); setShowSourceModal(true); }}
+                        style={{ flex: 1, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#10b981', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
+                      >
+                        [+ ADD FEED]
+                      </button>
                     </div>
 
                     {/* Sources Map Checkboxes */}
-                    {[
-                      { id: 'arxiv', name: 'arXiv cs.AI' },
-                      { id: 'aje', name: 'Al Jazeera' },
-                      { id: 'hrw', name: 'Human Rights Watch' },
-                      { id: 'nature', name: 'Nature MI' },
-                      { id: 'un', name: 'UN News' },
-                      { id: 'wired', name: 'Wired AI & Security' },
-                      { id: 'eff', name: 'EFF Updates' }
-                    ].map(src => {
+                    {availableRssSources.map(src => {
                       const isChecked = selectedRssSources.includes(src.id);
                       return (
                         <label 
@@ -2014,7 +2107,10 @@ export default function LiveMap({
                             }}
                             style={{ accentColor: '#00f0ff', cursor: 'pointer' }}
                           />
-                          <span>{src.name}</span>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{src.name}</span>
+                          {src.isCustom && (
+                            <span style={{ fontSize: '8px', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', borderRadius: '3px', padding: '0 4px' }}>CUSTOM</span>
+                          )}
                         </label>
                       );
                     })}
@@ -2022,6 +2118,31 @@ export default function LiveMap({
                 </>
               )}
             </div>
+
+            {/* Add Source Trigger */}
+            <button
+              onClick={() => setShowSourceModal(true)}
+              title="Add custom or curated RSS/Atom source & auto-pin signals"
+              style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                borderRadius: '4px',
+                color: '#10b981',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                padding: '6px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                outline: 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Plus size={11} />
+              <span>ADD</span>
+            </button>
 
             {/* Sync Refresh Button */}
             <button 
@@ -2051,9 +2172,32 @@ export default function LiveMap({
             </button>
           </div>
         ) : (
-          <div className="feed-tabs">
+          <div className="feed-tabs" style={{ display: 'flex', alignItems: 'center' }}>
             <button className={`feed-tab ${timeRange === 'recent' ? 'active' : ''}`} onClick={() => setTimeRange('recent')}>LATEST</button>
             <button className={`feed-tab live-tab ${timeRange === 'critical' ? 'active' : ''}`} onClick={() => setTimeRange('critical')}>CRITICAL</button>
+            <button
+              onClick={() => setShowSourceModal(true)}
+              title="Add new RSS/Atom source & auto-pin relevant signals to the map"
+              style={{
+                marginLeft: 'auto',
+                marginRight: '8px',
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#10b981',
+                borderRadius: '4px',
+                padding: '3px 7px',
+                fontSize: '9px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px'
+              }}
+            >
+              <Plus size={10} />
+              <span>ADD SOURCE</span>
+            </button>
           </div>
         )}
         
@@ -2068,11 +2212,12 @@ export default function LiveMap({
         }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input
+              ref={searchInputRef}
               type="text"
               className="tour-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="SEARCH SIGNAL FEED..."
+              placeholder="SEARCH AI, CYBER & POLICY SIGNALS... ( / )"
               style={{
                 width: '100%',
                 background: 'rgba(15, 23, 42, 0.55)',
@@ -2130,6 +2275,50 @@ export default function LiveMap({
                 ×
               </button>
             )}
+          </div>
+
+          {/* Global Theater Quick-Jump Strip */}
+          <div style={{
+            display: 'flex',
+            gap: '4px',
+            overflowX: 'auto',
+            paddingTop: '2px',
+            scrollbarWidth: 'none'
+          }}>
+            {REGION_VIEWPORTS.map(region => {
+              const isActive = activeRegionId === region.id;
+              return (
+                <button
+                  key={region.id}
+                  onClick={() => {
+                    setActiveRegionId(region.id);
+                    if (region.reset) {
+                      setResetKey(prev => prev + 1);
+                      setSelectedCountry(null);
+                    } else {
+                      setFocusCoordinate({ lat: region.lat, lon: region.lon, timestamp: Date.now() });
+                    }
+                  }}
+                  style={{
+                    flex: '1 1 auto',
+                    background: isActive ? 'rgba(0, 240, 255, 0.14)' : 'rgba(15, 23, 42, 0.5)',
+                    border: isActive ? '1px solid rgba(0, 240, 255, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    color: isActive ? '#00f0ff' : 'rgba(226, 232, 240, 0.65)',
+                    borderRadius: '4px',
+                    padding: '3px 5px',
+                    fontSize: '8.5px',
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={`Focus globe viewport on ${region.label}`}
+                >
+                  {region.label}
+                </button>
+              );
+            })}
           </div>
           {searchQuery && (
             <div style={{
@@ -2466,8 +2655,32 @@ export default function LiveMap({
               animation: 'pulse 1.5s infinite'
             }} />
             <span>ACTIVE SECTOR MONITOR: <strong>{selectedCountry.toUpperCase()}</strong></span>
+            <button
+              onClick={() => {
+                const targetQuery = `loc:"${selectedCountry}"`;
+                setSearchQuery(prev => prev === targetQuery ? '' : targetQuery);
+              }}
+              style={{
+                background: searchQuery === `loc:"${selectedCountry}"` ? 'rgba(0, 240, 255, 0.25)' : 'rgba(0, 240, 255, 0.08)',
+                border: '1px solid rgba(0, 240, 255, 0.35)',
+                color: '#00f0ff',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                outline: 'none',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                transition: 'all 0.15s ease'
+              }}
+              title="Filter intelligence feed to this jurisdiction"
+            >
+              {searchQuery === `loc:"${selectedCountry}"` ? '[CLEAR FILTER]' : '[FILTER FEED]'}
+            </button>
             <button 
-              onClick={() => setSelectedCountry(null)}
+              onClick={() => {
+                if (searchQuery === `loc:"${selectedCountry}"`) setSearchQuery('');
+                setSelectedCountry(null);
+              }}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -3682,6 +3895,60 @@ export default function LiveMap({
         <ResourcesModal
           onClose={() => setShowResourcesModal(false)}
           currentUser={currentUser}
+        />
+      )}
+
+      {/* Intelligence Source Manager & Auto-Pin Ingestion Modal */}
+      {showSourceModal && (
+        <SourceManagerModal
+          onClose={() => setShowSourceModal(false)}
+          currentUser={currentUser}
+          selectedRssSources={selectedRssSources}
+          onToggleRssSource={(sid) => {
+            setSelectedRssSources(prev =>
+              prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]
+            );
+          }}
+          onSourcesIngested={(data) => {
+            if (data?.source?.sid) {
+              const newSid = data.source.sid;
+              const newName = data.source.name || newSid;
+              setAvailableRssSources(prev =>
+                prev.some(s => s.id === newSid)
+                  ? prev
+                  : [...prev, { id: newSid, name: newName, isCustom: true }]
+              );
+              setSelectedRssSources(prev =>
+                prev.includes(newSid) ? prev : [...prev, newSid]
+              );
+            }
+            if (Array.isArray(data?.relevantItems) && data.relevantItems.length > 0) {
+              setRssItems(prev => {
+                const seen = new Set(prev.map(i => i.url));
+                const fresh = data.relevantItems.filter(i => !seen.has(i.url));
+                return [...fresh, ...prev];
+              });
+            }
+            if (Array.isArray(data?.pinnedEvents) && data.pinnedEvents.length > 0) {
+              const mergeUnique = (prev) => {
+                const seen = new Set(prev.map(e => e.id || e.url));
+                const fresh = data.pinnedEvents.filter(e => !seen.has(e.id) && !seen.has(e.url));
+                return [...fresh, ...prev];
+              };
+              setMarkers(mergeUnique);
+              setDisplayedEvents(mergeUnique);
+              setAllFetchedEvents(mergeUnique);
+            }
+            syncAvailableSources();
+            fetchEvents(false);
+          }}
+          onFlyToEvent={(ev) => {
+            setShowSourceModal(false);
+            setSelectedEvent(ev);
+            if (ev?.lat != null && ev?.lon != null) {
+              setFocusCoordinate({ lat: Number(ev.lat), lon: Number(ev.lon), timestamp: Date.now() });
+            }
+          }}
         />
       )}
 
