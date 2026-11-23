@@ -228,9 +228,10 @@ const createPowerCanvas = (color, size = 32) => {
   return canvas;
 };
 
-const CARTO_DARK_MATTER_URL = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
-const CARTO_DARK_MINIMAL_URL = 'https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png';
-const CARTO_LIGHT_URL = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
+const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY || 'cb1_2lpu_1_f2c6edda75611222b49c9464';
+const CARTO_DARK_MATTER_URL = `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`;
+const CARTO_DARK_MINIMAL_URL = `https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
+const CARTO_LIGHT_URL = `https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`;
 
 const getLeafletTileUrl = (style) => {
   if (style === 'light') {

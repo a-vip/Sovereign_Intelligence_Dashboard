@@ -80,7 +80,7 @@ export default function DashboardTopMenus({
   setShowResourcesModal,
   setShowCommandPalette
 }) {
-  const [openMenu, setOpenMenu] = useState(null); // null | 'observatory' | 'settings'
+  const [openMenu, setOpenMenu] = useState(null);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -105,12 +105,14 @@ export default function DashboardTopMenus({
   const menuBorder = isLightUi ? 'rgba(148, 163, 184, 0.5)' : 'rgba(56, 189, 248, 0.3)';
   const subSurface = isLightUi ? '#f1f5f9' : 'rgba(15, 23, 42, 0.72)';
 
-  const pillBtnStyle = (active = false) => ({
+  const pillBtnStyle = (active = false, iconOnly = false) => ({
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '5px',
+    justifyContent: 'center',
+    gap: iconOnly ? 0 : '5px',
     height: '30px',
-    padding: isMobile ? '0 8px' : '0 10px',
+    width: iconOnly ? '30px' : 'auto',
+    padding: iconOnly ? 0 : '0 10px',
     borderRadius: '6px',
     border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
     background: active ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
@@ -130,19 +132,22 @@ export default function DashboardTopMenus({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: isMobile ? '6px' : '8px',
+        gap: isMobile ? '5px' : '8px',
         position: 'relative',
-        flexShrink: 0
+        flexShrink: 0,
+        maxWidth: isMobile ? 'calc(100vw - 135px)' : 'none',
+        overflowX: isMobile ? 'auto' : 'visible',
+        scrollbarWidth: 'none'
       }}
     >
-      {/* 1. Command Search Pill */}
+      {/* 1. Command Search */}
       <button
         type="button"
         onClick={() => {
           setOpenMenu(null);
           setShowCommandPalette(true);
         }}
-        style={pillBtnStyle(false)}
+        style={pillBtnStyle(false, isMobile)}
         title="Quick Search & Jump (Ctrl/Cmd + K)"
       >
         <Search size={13} style={{ color: 'var(--sov-accent)' }} />
@@ -162,33 +167,49 @@ export default function DashboardTopMenus({
         )}
       </button>
 
-      {/* 2. Observatory Modules Dropdown */}
+      {/* 2. Standalone Refresh Button */}
+      <button
+        type="button"
+        className="tour-refresh-button"
+        onClick={() => {
+          setOpenMenu(null);
+          handleRefresh();
+        }}
+        disabled={refreshing}
+        style={pillBtnStyle(refreshing, true)}
+        title="Refresh Live Signals & Reset View"
+      >
+        <RefreshCw size={13} className={refreshing ? 'spinning' : ''} style={{ color: refreshing ? 'var(--sov-accent)' : 'var(--sov-text)' }} />
+      </button>
+
+      {/* 3. Observatory Modules Dropdown (Icon-only on mobile!) */}
       <button
         type="button"
         onClick={() => setOpenMenu((prev) => (prev === 'observatory' ? null : 'observatory'))}
-        style={pillBtnStyle(openMenu === 'observatory')}
+        style={pillBtnStyle(openMenu === 'observatory', isMobile)}
         aria-expanded={openMenu === 'observatory'}
+        title="Observatory Modules (Atlas, Compare, Index, Briefs, Whitepaper, API)"
       >
         <LayoutGrid size={13} style={{ color: 'var(--sov-accent)' }} />
-        <span>Observatory</span>
-        <ChevronDown size={12} />
+        {!isMobile && <span>Observatory</span>}
+        {!isMobile && <ChevronDown size={12} />}
       </button>
 
-      {/* 3. Theme & Settings Dropdown */}
+      {/* 4. Theme & Settings Dropdown */}
       <button
         type="button"
         onClick={() => setOpenMenu((prev) => (prev === 'settings' ? null : 'settings'))}
-        style={pillBtnStyle(openMenu === 'settings')}
+        style={pillBtnStyle(openMenu === 'settings', isMobile)}
         aria-expanded={openMenu === 'settings'}
-        title="Theme, Map Style, Sources & Workspace Settings"
+        title="Color Theme, Map Style, Sources & Settings"
       >
         <SlidersHorizontal size={13} style={{ color: 'var(--sov-accent)' }} />
         {!isMobile && <span>Theme &amp; Settings</span>}
       </button>
 
-      {/* 4. Compact Account Avatar */}
+      {/* 5. Compact Account Avatar */}
       {currentUser ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           <button
             type="button"
             className="tour-login-button"
@@ -197,8 +218,8 @@ export default function DashboardTopMenus({
               onAvatarClick('profile');
             }}
             style={{
-              width: '30px',
-              height: '30px',
+              width: '28px',
+              height: '28px',
               borderRadius: '50%',
               border: '1px solid #10b981',
               background: 'rgba(16, 185, 129, 0.14)',
@@ -211,26 +232,28 @@ export default function DashboardTopMenus({
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title={`Account: ${currentUser.fullName || currentUser.email}`}
+            title={`Profile & Bookmarks: ${currentUser.fullName || currentUser.email}`}
           >
             {(currentUser.fullName || 'O').charAt(0).toUpperCase()}
           </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--sov-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-            title="Sign Out"
-          >
-            <LogOut size={13} />
-          </button>
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--sov-muted)',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Sign Out"
+            >
+              <LogOut size={13} />
+            </button>
+          )}
         </div>
       ) : (
         <button
@@ -241,8 +264,8 @@ export default function DashboardTopMenus({
             setShowAuthModal(true);
           }}
           style={{
-            width: '30px',
-            height: '30px',
+            width: '28px',
+            height: '28px',
             borderRadius: '50%',
             border: '1px solid var(--sov-border)',
             background: 'var(--sov-card-bg)',
@@ -250,7 +273,8 @@ export default function DashboardTopMenus({
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexShrink: 0
           }}
           title="Sign In / Register"
         >
@@ -526,10 +550,10 @@ export default function DashboardTopMenus({
             </button>
             <button
               type="button"
-              onClick={() => { setOpenMenu(null); handleRefresh(); }}
+              onClick={() => { setOpenMenu(null); onAvatarClick('bookmarks'); }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 9px', borderRadius: '6px', border: `1px solid ${menuBorder}`, background: subSurface, color: isLightUi ? '#0f172a' : '#e2e8f0', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
             >
-              <RefreshCw size={13} className={refreshing ? 'spinning' : ''} /> Refresh Signals
+              Saved Bookmarks
             </button>
             <button
               type="button"

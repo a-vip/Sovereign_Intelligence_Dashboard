@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check, Plus, Rss } from 'lucide-react';
+import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check, Plus, Rss, Bookmark } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
@@ -31,7 +31,14 @@ const DEFAULT_RSS_SOURCE_LIST = [
   { id: 'aje', name: 'Al Jazeera Tech Wire' },
   { id: 'un', name: 'UN Global Tech & Peace' },
   { id: 'aiid', name: 'AI Incident Database (AIID)' },
-  { id: 'eurlex', name: 'EUR-Lex EU Official Journal' }
+  { id: 'eurlex', name: 'EUR-Lex EU Official Journal' },
+  { id: 'arxiv-ai', name: 'arXiv CS.AI Research' },
+  { id: 'arxiv-cr', name: 'arXiv Cryptography & Security' },
+  { id: 'citizenlab', name: 'Citizen Lab (Toronto)' },
+  { id: 'accessnow', name: 'Access Now (Global South)' },
+  { id: 'advox', name: 'Global Voices Advox' },
+  { id: 'cipesa', name: 'CIPESA Africa Digital Rights' },
+  { id: 'techcabal', name: 'TechCabal Africa Policy' }
 ];
 
 const REGION_VIEWPORTS = [
@@ -628,6 +635,150 @@ export default function LiveMap({
       try { localStorage.setItem('operator_pref_mapStyle', 'tactical'); } catch {}
     }
   }, [mapStyle]);
+  const [bookmarks, setBookmarks] = useState([]);
+
+  const getBookmarkKey = useCallback((ev) => {
+    if (!ev) return '';
+    return String(ev.eventId || ev.id || ev.url || ev.title || '').trim();
+  }, []);
+
+  const isBookmarked = useCallback((ev) => {
+    const key = getBookmarkKey(ev);
+    if (!key) return false;
+    const normUrl = (ev?.url || '').toLowerCase().split('?')[0].replace(/\/+$/, '');
+    return bookmarks.some((b) => {
+      const bKey = String(b.eventId || b.id || '');
+      const bUrl = (b.url || '').toLowerCase().split('?')[0].replace(/\/+$/, '');
+      return bKey === key || (normUrl && bUrl && normUrl === bUrl);
+    });
+  }, [bookmarks, getBookmarkKey]);
+
+  const loadLocalBookmarks = useCallback(() => {
+    try {
+      const rawStored = localStorage.getItem('sovdash_bookmarks');
+      const parsed = rawStored ? JSON.parse(rawStored) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Hydrate & sync bookmarks (localStorage for guests, Neon Postgres /api/bookmarks for signed-in users)
+  useEffect(() => {
+    let active = true;
+    const syncBookmarks = async () => {
+      const guestList = loadLocalBookmarks();
+      if (!currentUser?.email) {
+        if (active) setBookmarks(guestList);
+        return;
+      }
+      try {
+        const res = await fetch('/api/bookmarks', { cache: 'no-store' });
+        const data = await res.json();
+        let serverList = Array.isArray(data?.bookmarks) ? data.bookmarks : [];
+        const serverIds = new Set(serverList.map((b) => String(b.eventId || b.id || '')));
+        // Upload any guest bookmarks queued prior to login
+        for (const g of guestList) {
+          const gId = String(g.eventId || g.id || '');
+          if (gId && !serverIds.has(gId)) {
+            await fetch('/api/bookmarks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(g)
+            }).catch(() => {});
+          }
+        }
+        if (guestList.some((g) => !serverIds.has(String(g.eventId || g.id || '')))) {
+          const refreshed = await fetch('/api/bookmarks', { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+          if (Array.isArray(refreshed?.bookmarks)) serverList = refreshed.bookmarks;
+        }
+        if (active) {
+          setBookmarks(serverList);
+          try { localStorage.setItem('sovdash_bookmarks', JSON.stringify(serverList)); } catch {}
+        }
+      } catch {
+        if (active) setBookmarks(guestList);
+      }
+    };
+    syncBookmarks();
+
+    const onChanged = () => {
+      setBookmarks(loadLocalBookmarks());
+    };
+    const onFocusBookmark = (evt) => {
+      const bm = evt?.detail;
+      if (!bm) return;
+      const lat = parseFloat(bm.lat);
+      const lon = parseFloat(bm.lon);
+      if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+        setFocusCoordinate({ lat, lon, timestamp: Date.now() });
+      }
+      setSelectedEvent({
+        id: bm.eventId || bm.id,
+        title: bm.title,
+        category: bm.category || 'Political',
+        severity: bm.severity || 3,
+        location: bm.location || 'Global',
+        lat: Number.isNaN(lat) ? undefined : lat,
+        lon: Number.isNaN(lon) ? undefined : lon,
+        source: bm.source || 'Sovereign',
+        url: bm.url || '',
+        timestamp: bm.timestamp || bm.createdAt,
+        details: { summary: bm.summary || '' }
+      });
+    };
+    window.addEventListener('sovereign_bookmarks_changed', onChanged);
+    window.addEventListener('sovereign_focus_bookmark', onFocusBookmark);
+    return () => {
+      active = false;
+      window.removeEventListener('sovereign_bookmarks_changed', onChanged);
+      window.removeEventListener('sovereign_focus_bookmark', onFocusBookmark);
+    };
+  }, [currentUser?.email, loadLocalBookmarks]);
+
+  const toggleBookmark = useCallback(async (ev) => {
+    const key = getBookmarkKey(ev);
+    if (!key) return;
+    const currentlySaved = isBookmarked(ev);
+    const payload = {
+      eventId: key,
+      id: ev.id || key,
+      title: ev.title || 'Untitled Signal',
+      category: ev.category || 'Political',
+      severity: ev.severity || 2,
+      location: ev.location || 'Global',
+      lat: ev.lat ?? ev.latitude ?? null,
+      lon: ev.lon ?? ev.longitude ?? null,
+      source: ev.source || ev.details?.source || 'Sovereign',
+      url: ev.url || '',
+      summary: (ev.details?.summary || ev.summary || '').slice(0, 600),
+      timestamp: ev.original_post_time || ev.timestamp || new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    const nextList = currentlySaved
+      ? bookmarks.filter((b) => String(b.eventId || b.id || '') !== key)
+      : [payload, ...bookmarks.filter((b) => String(b.eventId || b.id || '') !== key)];
+
+    setBookmarks(nextList);
+    try { localStorage.setItem('sovdash_bookmarks', JSON.stringify(nextList)); } catch {}
+    window.dispatchEvent(new Event('sovereign_bookmarks_changed'));
+
+    if (currentUser?.email) {
+      try {
+        if (currentlySaved) {
+          await fetch(`/api/bookmarks?eventId=${encodeURIComponent(key)}`, { method: 'DELETE' });
+        } else {
+          await fetch('/api/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+      } catch {}
+    }
+  }, [bookmarks, currentUser?.email, getBookmarkKey, isBookmarked]);
+
   const [satellites, setSatellites] = useState([]);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [isTracked, setIsTracked] = useState(false);
@@ -1382,20 +1533,22 @@ export default function LiveMap({
         details: {
           summary: item.summary || `Source: ${item.source}. Geotagged live feed article.`,
           isRssItem: true,
+          isAcademic: Boolean(item.isAcademic),
+          sid: item.sid || '',
           verificationStatus: 'active',
           source: item.source
         }
       }));
 
-    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|oecd|nist|aisi|metr|epoch|sipri|cset|stanford|cambridge|brookings|rand|carnegie|hrw|eff|un|eur-lex|aiid|sovereign research)/i;
+    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|citizen\s*lab|oecd|nist|aisi|metr|epoch|sipri|unesco|african\s*union|cset|stanford|cambridge|brookings|rand|carnegie|hrw|eff|un|eur-lex|aiid|cipesa|access\s*now|advox|sovereign research)/i;
     const allCandidateEvents = feedType === 'papers'
       ? [...vaultPapers, ...displayedEvents, ...formattedRssEvents]
       : [...displayedEvents, ...formattedRssEvents];
 
     let filtered = allCandidateEvents.filter(e => {
-      if (feedType === 'live') return true;
+      if (feedType !== 'papers') return true;
       const srcHay = `${e.source || ''} ${e.details?.source || ''} ${e.details?.sid || ''}`;
-      return Boolean(e.curated || e.details?.isResearch || RESEARCH_SOURCE_RE.test(srcHay));
+      return Boolean(e.details?.isAcademic || e.details?.isResearch || e.curated || RESEARCH_SOURCE_RE.test(srcHay));
     });
     
     if (activeCategories.length > 0) {
@@ -1545,7 +1698,7 @@ export default function LiveMap({
   }, [allFetchedEvents, rssItems, selectedRssSources]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: '#020617', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: 'var(--sov-bg)', overflow: 'hidden' }}>
       {/* Clean Unified Header Bar */}
       <header style={{
         height: isMobile ? '48px' : '52px',
@@ -1593,22 +1746,26 @@ export default function LiveMap({
               GLOBAL AI POLICY OBSERVATORY
             </span>
           )}
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '2px 7px',
-            borderRadius: '999px',
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: '#10b981',
-            fontSize: '9.5px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-jetbrains-fallback)',
-            whiteSpace: 'nowrap'
-          }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10b981' }} />
-            LIVE
+          <span
+            title="Live Signal Telemetry Active"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: isMobile ? '4px' : '2px 7px',
+              borderRadius: '999px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: '#10b981',
+              fontSize: '9.5px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
+            {!isMobile && 'LIVE'}
           </span>
         </div>
 
@@ -1707,10 +1864,10 @@ export default function LiveMap({
             transform: isFeedCollapsed ? 'translateX(-100%)' : 'translateX(0)',
             opacity: isFeedCollapsed ? 0 : 1,
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            borderRight: isFeedCollapsed ? 'none' : '1px solid rgba(56, 189, 248, 0.2)',
+            borderRight: isFeedCollapsed ? 'none' : '1px solid var(--sov-border)',
             visibility: isFeedCollapsed ? 'hidden' : 'visible',
             zIndex: 1000,
-            background: 'rgba(8, 12, 24, 0.96)',
+            background: 'var(--sov-panel-bg)',
             boxShadow: isFeedCollapsed ? 'none' : '10px 0 40px rgba(0, 0, 0, 0.7)',
             backdropFilter: 'blur(15px)',
             display: 'flex',
@@ -1973,14 +2130,17 @@ export default function LiveMap({
         )}
         
         {/* Live Search Bar */}
-        <div style={{
-          padding: '10px 14px',
-          borderBottom: '1px solid rgba(56, 189, 248, 0.1)',
-          background: 'rgba(8, 12, 24, 0.25)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px'
-        }}>
+        <div
+          className="feed-search-bar"
+          style={{
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--sov-border)',
+            background: 'var(--sov-card-bg)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}
+        >
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input
               ref={searchInputRef}
@@ -1991,11 +2151,11 @@ export default function LiveMap({
               placeholder="SEARCH AI, CYBER & POLICY SIGNALS... ( / )"
               style={{
                 width: '100%',
-                background: 'rgba(15, 23, 42, 0.55)',
-                border: '1px solid rgba(56, 189, 248, 0.2)',
+                background: 'var(--sov-bg)',
+                border: '1px solid var(--sov-border)',
                 borderRadius: '6px',
                 padding: '8px 32px 8px 12px',
-                color: '#ffffff',
+                color: 'var(--sov-text)',
                 fontFamily: 'Courier New, monospace',
                 fontSize: '11px',
                 letterSpacing: '0.05em',
@@ -2061,6 +2221,7 @@ export default function LiveMap({
               return (
                 <button
                   key={region.id}
+                  className={`region-jump-btn${isActive ? ' active' : ''}`}
                   onClick={() => {
                     setActiveRegionId(region.id);
                     if (region.reset) {
@@ -2072,9 +2233,9 @@ export default function LiveMap({
                   }}
                   style={{
                     flex: '1 1 auto',
-                    background: isActive ? 'rgba(0, 240, 255, 0.14)' : 'rgba(15, 23, 42, 0.5)',
-                    border: isActive ? '1px solid rgba(0, 240, 255, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-                    color: isActive ? '#00f0ff' : 'rgba(226, 232, 240, 0.65)',
+                    background: isActive ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                    border: isActive ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+                    color: isActive ? 'var(--sov-accent)' : 'var(--sov-muted)',
                     borderRadius: '4px',
                     padding: '3px 5px',
                     fontSize: '8.5px',
@@ -2336,7 +2497,11 @@ export default function LiveMap({
                         <span className="feed-category" style={{ background: `${CAT_COLORS[ev.category]}20`, color: CAT_COLORS[ev.category], borderColor: `${CAT_COLORS[ev.category]}40` }}>
                           {ev.category}
                         </span>
-                        {ev.details?.isResearch && <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>}
+                        {(ev.details?.isAcademic || String(ev.source || '').toLowerCase().includes('arxiv') || String(ev.source || '').toLowerCase().includes('citizen lab') || String(ev.source || '').toLowerCase().includes('nature')) ? (
+                          <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(168,85,247,0.16)', color: '#a855f7', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.3)', fontWeight: '800' }}>ACADEMIC</span>
+                        ) : ev.details?.isResearch ? (
+                          <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>
+                        ) : null}
                         <span className="feed-verification" style={{ 
                           fontSize: '8px', 
                           background: badgeStyles.bg, 
@@ -2354,6 +2519,27 @@ export default function LiveMap({
                           S{ev.severity}
                         </span>
                         <span className="feed-time">{formatTime(ev.original_post_time || ev.timestamp)}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleBookmark(ev);
+                          }}
+                          title={isBookmarked(ev) ? 'Remove Bookmark' : 'Bookmark Signal'}
+                          aria-label={isBookmarked(ev) ? 'Remove Bookmark' : 'Bookmark Signal'}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '2px',
+                            cursor: 'pointer',
+                            color: isBookmarked(ev) ? '#f59e0b' : 'var(--sov-muted)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            marginLeft: '2px'
+                          }}
+                        >
+                          <Bookmark size={12} fill={isBookmarked(ev) ? '#f59e0b' : 'none'} />
+                        </button>
                       </div>
                       <div className="feed-title">{ev.title}</div>
                       {ev.location && <div className="feed-location">📍 {ev.location}</div>}
@@ -2593,8 +2779,8 @@ export default function LiveMap({
             style={{
               height: '24px', cursor: isDragging ? 'grabbing' : 'grab',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '0 8px', background: 'rgba(15, 23, 42, 0.95)',
-              borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+              padding: '0 8px', background: 'var(--sov-card-bg)',
+              borderBottom: '1px solid var(--sov-border)',
               borderRadius: '6px 6px 0 0'
             }}
           >
@@ -2729,18 +2915,18 @@ export default function LiveMap({
               <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 
                 {/* Map style selection */}
-                <div style={{ marginBottom: '4px', paddingBottom: '6px', borderBottom: '1px solid rgba(56, 189, 248, 0.15)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>MAP VIEWPORT STYLE</div>
+                <div style={{ marginBottom: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--sov-muted)', marginBottom: '5px', letterSpacing: '0.05em' }}>MAP VIEWPORT STYLE</div>
                   <select
                     value={mapStyle}
                     onChange={(e) => setMapStyle(e.target.value)}
                     style={{
                       width: '100%',
-                      background: '#0f172a',
-                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      background: 'var(--sov-card-bg)',
+                      border: '1px solid var(--sov-border)',
                       borderRadius: '4px',
                       padding: '4px 6px',
-                      color: '#e2e8f0',
+                      color: 'var(--sov-text)',
                       fontSize: '9px',
                       fontWeight: '800',
                       outline: 'none',
@@ -2776,7 +2962,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: eventsEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: eventsEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: eventsEnabled ? 1 : 0.4 }}>👁️</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Events</span>
                     </div>
@@ -2811,7 +2997,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: autoRotate ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: autoRotate ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: autoRotate ? 1 : 0.4 }}>🔄</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Auto Rotate</span>
                     </div>
@@ -2841,7 +3027,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: weatherEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: weatherEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: weatherEnabled ? 1 : 0.4 }}>🌧️</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Weather</span>
                     </div>
@@ -2871,7 +3057,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: gpsJammingEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: gpsJammingEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: gpsJammingEnabled ? 1 : 0.4 }}>📡</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>GPS Jamming</span>
                     </div>
@@ -2901,7 +3087,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: dataCentersEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: dataCentersEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: dataCentersEnabled ? 1 : 0.4 }}>🏢</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Data Centers</span>
                     </div>
@@ -2931,7 +3117,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: aiRegulationsEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: aiRegulationsEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: aiRegulationsEnabled ? 1 : 0.4 }}>⚖️</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>AI Regulation</span>
                     </div>
@@ -2963,7 +3149,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: oilGasEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: oilGasEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: oilGasEnabled ? 1 : 0.4 }}>💧</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Oil & Gas</span>
                     </div>
@@ -2993,7 +3179,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: internetCablesEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: internetCablesEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: internetCablesEnabled ? 1 : 0.4 }}>🌐</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Internet & Cables</span>
                     </div>
@@ -3031,7 +3217,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: showSatellites ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: showSatellites ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: showSatellites ? 1 : 0.4 }}>🛰️</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Satellite Tracking</span>
                     </div>
@@ -3061,7 +3247,7 @@ export default function LiveMap({
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: dayNightEnabled ? '#f3f4f6' : '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: dayNightEnabled ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                       <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: dayNightEnabled ? 1 : 0.4 }}>🌗</span>
                       <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Day / Night</span>
                     </div>
@@ -3079,7 +3265,7 @@ export default function LiveMap({
 
                 {/* Tactical Widgets */}
                 <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', marginBottom: '5px', letterSpacing: '0.05em' }}>TACTICAL WIDGETS</div>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--sov-muted)', marginBottom: '5px', letterSpacing: '0.05em' }}>TACTICAL WIDGETS</div>
                   <button
                     className={`sev-btn${showMarkets ? ' active' : ''}`}
                     style={{
@@ -3110,21 +3296,24 @@ export default function LiveMap({
           </div>
 
           {/* Tour Credit & Replay */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '6px 8px',
-            borderTop: '1px solid rgba(56, 189, 248, 0.15)',
-            fontSize: '9px',
-            color: 'rgba(255, 255, 255, 0.3)',
-            fontFamily: 'monospace',
-            background: 'rgba(8, 12, 24, 0.95)',
-            borderRadius: '0 0 6px 6px'
-          }}>
-            <span>by <a href="https://aviperera.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }} onMouseEnter={(e) => e.target.style.color = '#00f0ff'} onMouseLeave={(e) => e.target.style.color = 'inherit'}>Avi</a></span>
+          <div
+            className="overlay-footer"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '6px 8px',
+              borderTop: '1px solid var(--sov-border)',
+              fontSize: '9px',
+              color: 'var(--sov-muted)',
+              fontFamily: 'monospace',
+              background: 'var(--sov-card-bg)',
+              borderRadius: '0 0 6px 6px'
+            }}
+          >
+            <span>by <a href="https://aviperera.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Avi</a></span>
             <span 
-              style={{ color: '#00f0ff', cursor: 'pointer', fontWeight: 'bold' }}
+              style={{ color: 'var(--sov-accent)', cursor: 'pointer', fontWeight: 'bold' }}
               onClick={(e) => { e.stopPropagation(); startTour(); }}
             >
               Replay tutorial
@@ -3148,6 +3337,7 @@ export default function LiveMap({
       }}>
         {/* Feed Pill Button */}
         <button 
+          className={`bottom-dock-pill${!isFeedCollapsed ? ' active' : ''}`}
           onClick={() => setIsFeedCollapsed(!isFeedCollapsed)}
           style={{
             display: 'flex',
@@ -3155,9 +3345,9 @@ export default function LiveMap({
             gap: '6px',
             padding: isMobile ? '6px 12px' : '8px 16px',
             borderRadius: '24px',
-            background: 'rgba(8, 12, 24, 0.85)',
-            border: !isFeedCollapsed ? '1px solid #00f0ff' : '1px solid rgba(56, 189, 248, 0.25)',
-            color: !isFeedCollapsed ? '#00f0ff' : '#e2e8f0',
+            background: 'var(--sov-panel-bg)',
+            border: !isFeedCollapsed ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+            color: !isFeedCollapsed ? 'var(--sov-accent)' : 'var(--sov-text)',
             fontSize: isMobile ? '10px' : '11px',
             fontWeight: '700',
             cursor: 'pointer',
@@ -3182,7 +3372,7 @@ export default function LiveMap({
         {/* Support Pill Button */}
         <div style={{ position: 'relative' }}>
           <button 
-            className="tour-support-button"
+            className={`tour-support-button bottom-dock-pill${showSupportDropdown ? ' active' : ''}`}
             onClick={() => setShowSupportDropdown(!showSupportDropdown)}
             style={{
               display: 'flex',
@@ -3190,9 +3380,9 @@ export default function LiveMap({
               gap: '6px',
               padding: isMobile ? '6px 12px' : '8px 16px',
               borderRadius: '24px',
-              background: 'rgba(8, 12, 24, 0.85)',
-              border: showSupportDropdown ? '1px solid #ec4899' : '1px solid rgba(236, 72, 153, 0.25)',
-              color: showSupportDropdown ? '#ec4899' : '#e2e8f0',
+              background: 'var(--sov-panel-bg)',
+              border: showSupportDropdown ? '1px solid #ec4899' : '1px solid rgba(236, 72, 153, 0.3)',
+              color: showSupportDropdown ? '#ec4899' : 'var(--sov-text)',
               fontSize: isMobile ? '10px' : '11px',
               fontWeight: '700',
               cursor: 'pointer',
@@ -3568,6 +3758,7 @@ export default function LiveMap({
 
         {/* Overlays Pill Button */}
         <button 
+          className={`bottom-dock-pill${!isMinimized ? ' active' : ''}`}
           onClick={() => setIsMinimized(!isMinimized)}
           style={{
             display: 'flex',
@@ -3575,9 +3766,9 @@ export default function LiveMap({
             gap: '6px',
             padding: isMobile ? '6px 12px' : '8px 16px',
             borderRadius: '24px',
-            background: 'rgba(8, 12, 24, 0.85)',
-            border: !isMinimized ? '1px solid #00f0ff' : '1px solid rgba(0, 240, 255, 0.25)',
-            color: !isMinimized ? '#00f0ff' : '#e2e8f0',
+            background: 'var(--sov-panel-bg)',
+            border: !isMinimized ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+            color: !isMinimized ? 'var(--sov-accent)' : 'var(--sov-text)',
             fontSize: isMobile ? '10px' : '11px',
             fontWeight: '700',
             cursor: 'pointer',
@@ -3681,6 +3872,8 @@ export default function LiveMap({
           CAT_COLORS={CAT_COLORS}
           formatTime={formatTime}
           onFocusLocation={(lat, lon) => setFocusCoordinate({ lat, lon })}
+          isBookmarked={isBookmarked(selectedEvent)}
+          onToggleBookmark={toggleBookmark}
         />
       )}
 

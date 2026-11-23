@@ -89,6 +89,11 @@ export default function RootLayout({ children }) {
         {/* Modern Custom Premium Favicon Link */}
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('sovdash_ui_theme')||'obsidian';if(['obsidian','cambridge','emerald','light'].indexOf(t)===-1)t='obsidian';document.documentElement.setAttribute('data-ui-theme',t);if(t==='light'){document.documentElement.classList.add('editorial-light');}else{document.documentElement.classList.remove('editorial-light');}}catch(e){}})();`
+          }}
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(OBSERVATORY_JSON_LD) }}
         />

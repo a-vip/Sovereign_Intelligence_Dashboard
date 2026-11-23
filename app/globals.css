@@ -942,3 +942,121 @@ html[data-ui-theme="light"] .event-card {
 html[data-ui-theme="light"] .event-card * {
   color: #0f172a;
 }
+
+/* Complete light & multi-theme overrides across Sidebar Search, Region Buttons, Overlays, Bottom Dock, Event Windows, Modals & All Sub-Pages */
+html[data-ui-theme="light"] .feed-search-bar,
+html[data-ui-theme="light"] .overlay-footer {
+  background: #f1f5f9 !important;
+  border-color: rgba(148, 163, 184, 0.45) !important;
+  color: #334155 !important;
+}
+
+html[data-ui-theme="light"] .feed-search-bar input,
+html[data-ui-theme="light"] .overlay-panel select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-ui-theme="light"] .region-jump-btn {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-ui-theme="light"] .region-jump-btn.active {
+  background: rgba(2, 132, 199, 0.12) !important;
+  color: #0284c7 !important;
+  border-color: #0284c7 !important;
+}
+
+html[data-ui-theme="light"] .bottom-dock-pill {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: #0f172a !important;
+  border-color: rgba(148, 163, 184, 0.55) !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-ui-theme="light"] .bottom-dock-pill.active {
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+}
+
+html[data-ui-theme="light"] .details-window,
+html[data-ui-theme="light"] .account-modal-shell {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* Sub-pages global Editorial Light consistency (works even on pages without .editorial-page wrapper) */
+html[data-ui-theme="light"] main,
+html[data-ui-theme="light"] div[style*="#060a12"],
+html[data-ui-theme="light"] div[style*="rgb(6, 10, 18)"] {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html[data-ui-theme="light"] div[style*="rgba(11, 17, 32"],
+html[data-ui-theme="light"] div[style*="rgba(10, 16, 30"],
+html[data-ui-theme="light"] section[style*="rgba(10, 16, 30"],
+html[data-ui-theme="light"] section[style*="rgba(11, 17, 32"],
+html[data-ui-theme="light"] article[style*="rgba(11, 17, 32"],
+html[data-ui-theme="light"] header[style*="rgba(11, 17, 32"],
+html[data-ui-theme="light"] form[style*="rgba(11, 17, 32"] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html[data-ui-theme="light"] div[style*="rgba(15, 23, 42"] {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html[data-ui-theme="light"] main h1,
+html[data-ui-theme="light"] main h2,
+html[data-ui-theme="light"] main h3,
+html[data-ui-theme="light"] .details-window h1,
+html[data-ui-theme="light"] .details-window h2,
+html[data-ui-theme="light"] .details-window h3,
+html[data-ui-theme="light"] div[style*="#060a12"] h1,
+html[data-ui-theme="light"] div[style*="#060a12"] h2,
+html[data-ui-theme="light"] div[style*="#060a12"] h3,
+html[data-ui-theme="light"] div[style*="#060a12"] strong {
+  color: #0f172a !important;
+}
+
+html[data-ui-theme="light"] div[style*="#060a12"] p,
+html[data-ui-theme="light"] div[style*="#060a12"] li,
+html[data-ui-theme="light"] div[style*="#060a12"] td,
+html[data-ui-theme="light"] .account-modal-shell p {
+  color: #334155 !important;
+}
+
+html[data-ui-theme="light"] div[style*="#060a12"] pre,
+html[data-ui-theme="light"] .editorial-page pre {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+html[data-ui-theme="light"] div[style*="#060a12"] input,
+html[data-ui-theme="light"] div[style*="#060a12"] select,
+html[data-ui-theme="light"] .editorial-page select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+html[data-ui-theme="cambridge"] div[style*="#060a12"],
+html[data-ui-theme="cambridge"] .editorial-page {
+  background: #0a1122 !important;
+}
+
+html[data-ui-theme="emerald"] div[style*="#060a12"],
+html[data-ui-theme="emerald"] .editorial-page {
+  background: #050f0c !important;
+}

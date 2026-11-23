@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff, MessageSquare, Globe } from 'lucide-react';
+import { Shield, Key, Mail, User, ShieldAlert, X, ChevronRight, Check, LogOut, Settings, Eye, EyeOff, MessageSquare, Globe, Bookmark, MapPin, Trash2, ExternalLink } from 'lucide-react';
 
 export default function AccountModal({ onClose, currentUser, onAuthSuccess, handleLogout, initialTab = 'profile', prefilledSuggestion = null, onOpenAuth = null }) {
   const [activeTab, setActiveTab] = useState(() => {
@@ -46,6 +46,58 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [successSuggestions, setSuccessSuggestions] = useState(false);
   const [errorSuggestions, setErrorSuggestions] = useState(null);
+
+  // Bookmarks states (Neon Postgres synced when signed in, localStorage when guest)
+  const [bookmarks, setBookmarks] = useState([]);
+  const [loadingBookmarks, setLoadingBookmarks] = useState(false);
+
+  const loadBookmarks = async () => {
+    setLoadingBookmarks(true);
+    try {
+      const localRaw = typeof window !== 'undefined' ? localStorage.getItem('sovdash_bookmarks') : null;
+      const localList = localRaw ? JSON.parse(localRaw) : [];
+      if (currentUser?.email) {
+        const res = await fetch('/api/bookmarks');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.bookmarks)) {
+            setBookmarks(data.bookmarks);
+            setLoadingBookmarks(false);
+            return;
+          }
+        }
+      }
+      setBookmarks(Array.isArray(localList) ? localList : []);
+    } catch {
+      setBookmarks([]);
+    } finally {
+      setLoadingBookmarks(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBookmarks();
+    const onSync = () => loadBookmarks();
+    window.addEventListener('sovereign_bookmarks_changed', onSync);
+    return () => window.removeEventListener('sovereign_bookmarks_changed', onSync);
+  }, [currentUser?.email]);
+
+  const handleRemoveBookmark = async (eventId) => {
+    const cleanTarget = String(eventId || '').replace(/^event-/, '');
+    setBookmarks((prev) => prev.filter((b) => String(b.eventId || b.id).replace(/^event-/, '') !== cleanTarget));
+    try {
+      const localRaw = localStorage.getItem('sovdash_bookmarks');
+      const localList = localRaw ? JSON.parse(localRaw) : [];
+      const updated = (Array.isArray(localList) ? localList : []).filter(
+        (b) => String(b.eventId || b.id).replace(/^event-/, '') !== cleanTarget
+      );
+      localStorage.setItem('sovdash_bookmarks', JSON.stringify(updated));
+    } catch {}
+    if (currentUser?.email) {
+      await fetch(`/api/bookmarks?eventId=${encodeURIComponent(cleanTarget)}`, { method: 'DELETE' }).catch(() => {});
+    }
+    window.dispatchEvent(new Event('sovereign_bookmarks_changed'));
+  };
 
   // License Key Redemption states
   const [licenseInput, setLicenseInput] = useState(currentUser?.licenseKey || '');
@@ -301,15 +353,15 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
       }} />
 
       {/* Main Options Container */}
-      <div style={{
+      <div className="account-modal-shell" style={{
         position: 'relative',
         width: 'calc(100% - 32px)',
         maxWidth: '680px',
         height: 'min(560px, 90vh)',
-        background: 'rgba(8, 12, 24, 0.95)',
-        border: '1px solid rgba(6, 182, 212, 0.25)',
+        background: 'var(--sov-panel-bg)',
+        border: '1px solid var(--sov-border)',
         borderRadius: '16px',
-        boxShadow: '0 0 45px rgba(6, 182, 212, 0.15)',
+        boxShadow: '0 20px 55px rgba(0, 0, 0, 0.45)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -453,6 +505,37 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
               >
                 <Settings size={13} />
                 PREFS
+              </button>
+              <button
+                onClick={() => { setActiveTab('bookmarks'); setWizardType(''); }}
+                style={{
+                  width: '100%',
+                  background: activeTab === 'bookmarks' ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                  border: activeTab === 'bookmarks' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid transparent',
+                  color: activeTab === 'bookmarks' ? '#06b6d4' : '#8892a4',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '6px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Bookmark size={13} />
+                  SAVED
+                </span>
+                {bookmarks.length > 0 && (
+                  <span style={{ fontSize: '9px', background: 'rgba(6,182,212,0.18)', color: '#06b6d4', padding: '1px 5px', borderRadius: '999px' }}>
+                    {bookmarks.length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => { setActiveTab('suggestions'); setWizardType(''); }}
@@ -945,6 +1028,101 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         </select>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeTab === 'bookmarks' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ borderBottom: '1px solid var(--sov-border)', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--sov-text)', textTransform: 'uppercase', margin: '0 0 3px 0', letterSpacing: '0.5px' }}>
+                          SAVED SIGNAL BOOKMARKS ({bookmarks.length})
+                        </h3>
+                        <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0 }}>
+                          {currentUser?.email ? `Cloud-synced to your account (${currentUser.email}).` : 'Saved locally on this device. Sign in to sync across devices.'}
+                        </p>
+                      </div>
+                      {!currentUser && onOpenAuth && (
+                        <button
+                          type="button"
+                          onClick={onOpenAuth}
+                          style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--sov-accent)', background: 'var(--sov-accent-soft)', color: 'var(--sov-accent)', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Sign In to Sync
+                        </button>
+                      )}
+                    </div>
+
+                    {loadingBookmarks ? (
+                      <div style={{ fontSize: '12px', color: 'var(--sov-muted)', padding: '20px 0', textAlign: 'center' }}>Loading saved bookmarks...</div>
+                    ) : bookmarks.length === 0 ? (
+                      <div style={{ padding: '24px', borderRadius: '8px', border: '1px dashed var(--sov-border)', textAlign: 'center', fontSize: '12px', color: 'var(--sov-muted)' }}>
+                        No signals bookmarked yet. Click the Bookmark icon on any map pin, sidebar card, or event panel to save it here.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {bookmarks.map((bm) => {
+                          const bmId = String(bm.eventId || bm.id || '').replace(/^event-/, '');
+                          return (
+                            <div
+                              key={bmId}
+                              style={{
+                                padding: '10px 12px',
+                                borderRadius: '8px',
+                                background: 'var(--sov-card-bg)',
+                                border: '1px solid var(--sov-border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)' }}>
+                                <span>{bm.category || 'Policy'} · S{bm.severity || 2} · {bm.location || 'Global'}</span>
+                                <span>{bm.savedAt ? new Date(bm.savedAt).toLocaleDateString() : ''}</span>
+                              </div>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sov-text)', lineHeight: 1.35 }}>
+                                {bm.title}
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    window.dispatchEvent(new CustomEvent('sovereign_focus_bookmark', { detail: bm }));
+                                    onClose();
+                                  }}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--sov-accent)', background: 'var(--sov-accent-soft)', color: 'var(--sov-accent)', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                  <MapPin size={11} /> Locate on Map
+                                </button>
+                                <a
+                                  href={`/signal/${encodeURIComponent(bmId)}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--sov-border)', background: 'transparent', color: 'var(--sov-text)', fontSize: '10.5px', fontWeight: 600, textDecoration: 'none' }}
+                                >
+                                  Dossier ↗
+                                </a>
+                                {bm.url && (
+                                  <a
+                                    href={bm.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--sov-border)', background: 'transparent', color: 'var(--sov-muted)', fontSize: '10.5px', textDecoration: 'none' }}
+                                  >
+                                    <ExternalLink size={11} /> Source
+                                  </a>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveBookmark(bmId)}
+                                  style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '10.5px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={11} /> Remove
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 

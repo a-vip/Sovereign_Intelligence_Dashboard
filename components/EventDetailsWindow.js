@@ -1,7 +1,25 @@
 'use client';
+
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Edit3, Check, X, Search, Loader2, Save, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Bookmark,
+  Edit3,
+  X,
+  MapPin,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  Archive,
+  Trash2,
+  Loader2,
+  Check,
+  Search
+} from 'lucide-react';
 import CitationProvenanceCard from './CitationProvenanceCard';
+import { computeAdmiraltyGrade, normalizeSignalId } from '@/lib/provenance';
+import { classifyMitRiskDomain } from '@/lib/mitRiskTaxonomy';
 
 const CAT_COLORS = {
   Conflict: '#ff2d55',
@@ -9,68 +27,45 @@ const CAT_COLORS = {
   Political: '#a855f7',
   Humanitarian: '#22c55e',
   Economic: '#facc15',
-  Disaster: '#ff6b35',
+  Disaster: '#ff6b35'
 };
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 
 function formatTime(ts) {
-  if (!ts) return 'Unknown time';
+  if (!ts) return '';
   let d;
-  
-  // Handle GDELT / Compact format YYYYMMDDHHMMSS or YYYYMMDDTHHMMSSZ
   if (typeof ts === 'string') {
-    const cleanTs = ts.trim();
-    if (/^\d{14}$/.test(cleanTs)) {
-      // YYYYMMDDHHMMSS
-      d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
-    } else if (/^\d{8}T\d{6}Z$/.test(cleanTs)) {
-      // YYYYMMDDTHHMMSSZ
-      d = new Date(cleanTs.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+    const clean = ts.trim();
+    if (/^\d{14}$/.test(clean)) {
+      d = new Date(clean.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'));
+    } else if (/^\d{8}T\d{6}Z$/.test(clean)) {
+      d = new Date(clean.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
     } else {
-      d = new Date(cleanTs);
+      d = new Date(clean);
     }
   } else {
     d = new Date(ts);
   }
-  
-  if (isNaN(d.getTime())) return ts;
-  
+  if (isNaN(d.getTime())) return String(ts);
   const diff = Date.now() - d.getTime();
-  if (diff < 0) return 'Just now';
-  if (diff < 60000) return 'Just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  if (diff < 172800000) return 'Yesterday';
-  
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }) + ' ' + d.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  if (diff >= 0 && diff < 60000) return 'Just now';
+  if (diff >= 0 && diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff >= 0 && diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function EventDetailsWindow({ event, onClose, onReportIssue, currentUser, onEventUpdate, onFocusLocation }) {
-  // Self-healing: read session from localStorage as a reliable fallback in case the prop is stale
-  const [activeUser, setActiveUser] = useState(() => {
-    // Merge prop with localStorage — localStorage is always the ground truth
-    try {
-      const stored = typeof window !== 'undefined' ? localStorage.getItem('operator_session') : null;
-      const parsed = stored ? JSON.parse(stored) : null;
-      // Use prop if it has admin role, else fall back to localStorage
-      if (currentUser?.role === 'admin' || currentUser?.email === 'workwithavip@gmail.com') return currentUser;
-      if (parsed?.role === 'admin' || parsed?.email === 'workwithavip@gmail.com') return parsed;
-      return currentUser || parsed;
-    } catch (e) {
-      return currentUser;
-    }
-  });
-
-  // Keep activeUser synced if the prop updates after mount
+export default function EventDetailsWindow({
+  event,
+  onClose,
+  onReportIssue,
+  currentUser,
+  onEventUpdate,
+  onFocusLocation,
+  isBookmarked = false,
+  onToggleBookmark = null
+}) {
+  const [activeUser, setActiveUser] = useState(currentUser || null);
   useEffect(() => {
     try {
       const stored = localStorage.getItem('operator_session');
@@ -82,34 +77,19 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
       } else {
         setActiveUser(currentUser || parsed);
       }
-    } catch (e) {
+    } catch {
       setActiveUser(currentUser);
     }
   }, [currentUser]);
 
-  // Bulletproof, self-healing administrator check
-  const getIsAdmin = () => {
-    if (currentUser?.email === 'workwithavip@gmail.com' || currentUser?.role === 'admin') {
-      return true;
-    }
-    if (activeUser?.email === 'workwithavip@gmail.com' || activeUser?.role === 'admin') {
-      return true;
-    }
-    try {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('operator_session');
-        const parsed = stored ? JSON.parse(stored) : null;
-        if (parsed?.email === 'workwithavip@gmail.com' || parsed?.role === 'admin') {
-          return true;
-        }
-      }
-    } catch (e) {}
-    return false;
-  };
+  const isAdmin = Boolean(
+    currentUser?.role === 'admin' ||
+      currentUser?.email === 'workwithavip@gmail.com' ||
+      activeUser?.role === 'admin' ||
+      activeUser?.email === 'workwithavip@gmail.com'
+  );
 
-  const isAdmin = getIsAdmin();
-  console.log('[EventDetailsWindow] activeUser:', activeUser?.email, 'role:', activeUser?.role, 'isAdmin:', isAdmin);
-  const [pos, setPos] = useState({ x: 100, y: 100 });
+  const [pos, setPos] = useState({ x: 100, y: 84 });
   const [isMobile, setIsMobile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
@@ -117,12 +97,10 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleResize = () => {
-      const mobile = window.innerWidth < 640;
+      const mobile = window.innerWidth < 680;
       setIsMobile(mobile);
-      if (mobile) {
-        setPos({ x: 0, y: 0 });
-      } else {
-        setPos({ x: window.innerWidth / 2 - 200, y: 100 });
+      if (!mobile) {
+        setPos({ x: Math.max(24, Math.min(window.innerWidth - 460, window.innerWidth / 2 - 210)), y: 82 });
       }
     };
     handleResize();
@@ -130,232 +108,121 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Accordion state
-  const [expandedSection, setExpandedSection] = useState('summary');
+  const handleDragStart = (e) => {
+    if (isMobile || e.button !== 0) return;
+    setIsDragging(true);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
+  };
 
-  // Self-Healing Link Verification State
-  const [currentUrl, setCurrentUrl] = useState(event.url);
-  const [verificationStatus, setVerificationStatus] = useState('checking'); // 'checking', 'active', 'healed', 'broken'
-  const [verificationMessage, setVerificationMessage] = useState('Verifying source link integrity...');
+  const handleDragMove = useCallback(
+    (e) => {
+      if (!isDragging) return;
+      setPos({
+        x: Math.max(8, Math.min(window.innerWidth - 360, dragRef.current.startPosX + (e.clientX - dragRef.current.startX))),
+        y: Math.max(54, Math.min(window.innerHeight - 160, dragRef.current.startPosY + (e.clientY - dragRef.current.startY)))
+      });
+    },
+    [isDragging]
+  );
 
-  // Admin Override States
+  const handleDragEnd = useCallback(() => setIsDragging(false), []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [isDragging, handleDragMove, handleDragEnd]);
+
+  const [showProvenance, setShowProvenance] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  const handleToggleEditMode = () => {
-    if (!editMode) {
-      setEditMode(true);
-      setExpandedSection('summary');
-    } else {
-      setEditMode(false);
-    }
-  };
   const [addressQuery, setAddressQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [loadingGeo, setLoadingGeo] = useState(false);
+
+  const [newRefTitle, setNewRefTitle] = useState('');
+  const [newRefUrl, setNewRefUrl] = useState('');
+  const [addingRef, setAddingRef] = useState(false);
+  const [refAdded, setRefAdded] = useState(false);
 
   const [editDraft, setEditDraft] = useState({
-    category: event.category,
-    severity: event.severity,
-    title: event.title,
-    location: event.location,
-    lat: event.lat,
-    lon: event.lon,
-    source: event.source,
-    url: event.url,
-    summary: event.details?.summary || event.summary || '',
+    category: event.category || 'Political',
+    severity: event.severity || 2,
+    title: event.title || '',
+    location: event.location || '',
+    lat: event.lat ?? '',
+    lon: event.lon ?? '',
+    source: event.details?.source || event.source || '',
+    url: event.url || '',
+    summary: event.details?.summary || event.summary || event.description || '',
     references: event.details?.references || []
   });
 
-  // References state & handler
-  const [newRefTitle, setNewRefTitle] = useState('');
-  const [newRefUrl, setNewRefUrl] = useState('');
-  const [isAddingRef, setIsAddingRef] = useState(false);
-  const [refAddedSuccess, setRefAddedSuccess] = useState(false);
-
-  const handleAddReference = async () => {
-    if (!newRefUrl.trim()) return;
-    setIsAddingRef(true);
-    const newRef = {
-      title: newRefTitle.trim() || 'Reference Link',
-      url: newRefUrl.trim(),
-      addedAt: new Date().toISOString()
-    };
-
-    const currentRefs = editDraft.references || event.details?.references || [];
-    const updatedRefs = [...currentRefs, newRef];
-
-    setEditDraft(prev => ({ ...prev, references: updatedRefs }));
-
-    // If user is admin, save directly to event
-    if (isAdmin) {
-      try {
-        let userId = activeUser?.id || currentUser?.id;
-        if (!userId) {
-          try {
-            const stored = localStorage.getItem('operator_session');
-            const parsed = stored ? JSON.parse(stored) : null;
-            userId = parsed?.id;
-          } catch (e) {}
-        }
-        await fetch('/api/admin/events', {
-          method: 'PATCH',
-          headers: {
-            'x-user-id': userId || '',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: event.id,
-            details: {
-              ...(event.details || {}),
-              references: updatedRefs
-            }
-          })
-        });
-        if (onEventUpdate) {
-          onEventUpdate({
-            ...event,
-            details: { ...(event.details || {}), references: updatedRefs }
-          });
-        }
-      } catch (e) {
-        console.error("Failed to save reference to DB:", e);
-      }
-    } else {
-      // Also log via suggestions
-      try {
-        await fetch('/api/suggestions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'suggestion',
-            subject: `New Reference for: ${event.title}`,
-            targetId: event.id,
-            details: `Proposed Reference: ${newRef.title} (${newRef.url})`
-          })
-        });
-      } catch (e) {}
-    }
-
-    setIsAddingRef(false);
-    setRefAddedSuccess(true);
-    setNewRefTitle('');
-    setNewRefUrl('');
-    setTimeout(() => setRefAddedSuccess(false), 3000);
-  };
-
   useEffect(() => {
-    // Reset state on event change
-    setCurrentUrl(event.url);
-    
-    const cachedStatus = event.url ? (event.details?.verificationStatus || 'checking') : 'broken';
-    setVerificationStatus(cachedStatus);
-    
-    const cachedMessage = !event.url 
-      ? 'No external source link provided.'
-      : cachedStatus === 'active'
-      ? 'Source link verified active and authentic (served from database cache).'
-      : cachedStatus === 'healed'
-      ? 'Broken link healed! Verified alternative press wire found (served from database cache).'
-      : cachedStatus === 'broken'
-      ? 'Primary source link is dead (404/broken).'
-      : 'Verifying source link integrity...';
-      
-    setVerificationMessage(cachedMessage);
-
     setEditDraft({
-      category: event.category,
-      severity: event.severity,
-      title: event.title,
-      location: event.location,
-      lat: event.lat,
-      lon: event.lon,
-      source: event.source,
-      url: event.url,
-      summary: event.details?.summary || event.summary || '',
+      category: event.category || 'Political',
+      severity: event.severity || 2,
+      title: event.title || '',
+      location: event.location || '',
+      lat: event.lat ?? '',
+      lon: event.lon ?? '',
+      source: event.details?.source || event.source || '',
+      url: event.url || '',
+      summary: event.details?.summary || event.summary || event.description || '',
       references: event.details?.references || []
     });
     setEditMode(false);
-    setAddressQuery('');
-    setSuggestions([]);
-
-    if (!event.url || cachedStatus === 'active' || cachedStatus === 'healed' || cachedStatus === 'broken') {
-      return;
-    }
-
-    let active = true;
-    async function checkLink() {
-      try {
-        const res = await fetch(`/api/events/verify-link?id=${event.id}&url=${encodeURIComponent(event.url)}&title=${encodeURIComponent(event.title)}&source=${encodeURIComponent(event.source || '')}`);
-        const data = await res.json();
-        if (!active) return;
-
-        if (data.status === 'active') {
-          setVerificationStatus('active');
-          setVerificationMessage('Source link verified active and authentic.');
-        } else if (data.status === 'healed') {
-          setVerificationStatus('healed');
-          setCurrentUrl(data.url);
-          setVerificationMessage('Broken link healed! Verified alternative press wire found.');
-          event.url = data.url; // Locally correct the event url
-          setEditDraft(prev => ({ ...prev, url: data.url }));
-        } else {
-          setVerificationStatus('broken');
-          setVerificationMessage('Primary source link is dead (404/broken).');
-        }
-      } catch (e) {
-        if (!active) return;
-        setVerificationStatus('broken');
-        setVerificationMessage('Link verification protocol offline.');
-      }
-    }
-
-    checkLink();
-    return () => { active = false; };
+    setShowProvenance(false);
   }, [event]);
 
-  // Debounced Nominatim suggestion search
-  useEffect(() => {
-    if (!addressQuery || addressQuery.trim().length < 3) {
-      setSuggestions([]);
-      return;
-    }
+  const isRegulation = Boolean(event?.jurisdiction && event?.area && event?.description);
+  const catColor = isRegulation ? '#a855f7' : CAT_COLORS[event.category] || '#00f0ff';
+  const sev = Number(event.severity) || 2;
+  const sevColor = SEV_COLORS[sev] || '#38bdf8';
+  const cleanId = normalizeSignalId(event.id);
+  const adm = computeAdmiraltyGrade(event);
+  const mit = event.details?.mitRisk || classifyMitRiskDomain(event.title || '', editDraft.summary || '', event.details?.domainPillar || '');
+  const displaySource = event.details?.source || event.source || (isRegulation ? 'AI Regulation Registry' : 'Sovereign OSINT');
+  const displayDate = isRegulation ? event.date : formatTime(event.original_post_time || event.timestamp);
+  const readableType = isRegulation
+    ? 'AI Regulation'
+    : event.details?.domainPillar || event.category || 'Policy Signal';
 
-    const handler = setTimeout(async () => {
-      setIsLoadingSuggestions(true);
+  const getOperatorId = () => {
+    let userId = activeUser?.id || currentUser?.id;
+    if (!userId && typeof window !== 'undefined') {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addressQuery)}&format=json&addressdetails=1&limit=6`, {
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Sovereign-Intelligence-Dashboard/1.0'
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setSuggestions(data);
-        }
-      } catch (err) {
-        console.error("Nominatim suggestion fetch failed:", err);
-      } finally {
-        setIsLoadingSuggestions(false);
-      }
-    }, 400);
+        userId = JSON.parse(localStorage.getItem('operator_session') || '{}')?.id;
+      } catch {}
+    }
+    return userId || '';
+  };
 
-    return () => clearTimeout(handler);
-  }, [addressQuery]);
+  const handleSearchAddress = async () => {
+    if (!addressQuery.trim()) return;
+    setLoadingGeo(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=5`);
+      if (res.ok) setSuggestions(await res.json());
+    } catch {}
+    setLoadingGeo(false);
+  };
 
-  const handleSave = async () => {
+  const handleSaveAdminEdit = async () => {
     setIsSaving(true);
     try {
-      const isRss = event.details?.isRssItem;
+      const isRss = Boolean(event.details?.isRssItem);
       const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
-      
-      const payload = isRss 
+      const payload = isRss
         ? {
             id: event.id,
             title: editDraft.title,
             category: editDraft.category,
-            severity: parseInt(editDraft.severity),
+            severity: parseInt(editDraft.severity, 10),
             location: editDraft.location,
             latitude: parseFloat(editDraft.lat),
             longitude: parseFloat(editDraft.lon),
@@ -366,7 +233,7 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
             id: event.id,
             title: editDraft.title,
             category: editDraft.category,
-            severity: parseInt(editDraft.severity),
+            severity: parseInt(editDraft.severity, 10),
             location: editDraft.location,
             lat: parseFloat(editDraft.lat),
             lon: parseFloat(editDraft.lon),
@@ -374,1772 +241,607 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
             summary: editDraft.summary
           };
 
-      let userId = activeUser?.id || currentUser?.id;
-      if (!userId) {
-        try {
-          const stored = localStorage.getItem('operator_session');
-          const parsed = stored ? JSON.parse(stored) : null;
-          userId = parsed?.id;
-        } catch (e) {}
-      }
-
       const res = await fetch(endpoint, {
         method: 'PATCH',
-        headers: {
-          'x-user-id': userId || '',
-          'Content-Type': 'application/json'
-        },
+        headers: { 'x-user-id': getOperatorId(), 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Server rejected intel commit protocol.');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update event');
       }
 
-      const data = await res.json();
-      
-      const savedEvent = {
+      const saved = {
         ...event,
         title: editDraft.title,
         category: editDraft.category,
-        severity: parseInt(editDraft.severity),
+        severity: parseInt(editDraft.severity, 10),
         location: editDraft.location,
         lat: parseFloat(editDraft.lat),
         lon: parseFloat(editDraft.lon),
         source: editDraft.source,
         url: editDraft.url,
         preventFocus: true,
-        details: {
-          ...event.details,
-          summary: editDraft.summary
-        }
+        details: { ...(event.details || {}), summary: editDraft.summary }
       };
-
-      if (onEventUpdate) {
-        onEventUpdate(savedEvent);
-      }
-      
-      window.dispatchEvent(new CustomEvent('event_updated', { detail: savedEvent }));
+      if (onEventUpdate) onEventUpdate(saved);
+      window.dispatchEvent(new CustomEvent('event_updated', { detail: saved }));
       setEditMode(false);
-
-    } catch (error) {
-      console.error("Intel commit failed:", error);
-      alert(`Intel modification failed: ${error.message}`);
+    } catch (e) {
+      alert(`Save failed: ${e.message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleArchiveEvent = async (permanent = false) => {
-    const isRss = event.details?.isRssItem;
-    const endpoint = isRss ? '/api/admin/rss' : '/api/admin/events';
-    
-    let userId = activeUser?.id || currentUser?.id;
-    if (!userId) {
-      try {
-        const stored = typeof window !== 'undefined' ? localStorage.getItem('operator_session') : null;
-        const parsed = stored ? JSON.parse(stored) : null;
-        userId = parsed?.id;
-      } catch (e) {}
-    }
-
-    const confirmMsg = permanent 
-      ? 'ARE YOU SURE? This will PERMANENTLY PURGE this signal from the database completely. It will not be stored in the archive!'
-      : 'Are you sure you want to archive this signal? It will be removed from the map and active feed, but stored in the archive database for further processing.';
-
-    if (!confirm(confirmMsg)) {
-      return;
-    }
-
+    const msg = permanent
+      ? 'Permanently purge this signal from the database?'
+      : 'Archive this signal from the live globe?';
+    if (!confirm(msg)) return;
     try {
+      const endpoint = event.details?.isRssItem ? '/api/admin/rss' : '/api/admin/events';
       const res = await fetch(endpoint, {
         method: 'DELETE',
-        headers: {
-          'x-user-id': userId || '',
-          'Content-Type': 'application/json'
-        },
+        headers: { 'x-user-id': getOperatorId(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: event.id, permanent, title: event.title, url: event.url })
       });
-
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Server rejected removal protocol.');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Action failed');
       }
-
-      window.dispatchEvent(new CustomEvent('event_updated', { detail: { id: event.id, archived: true, title: event.title, url: event.url } }));
+      window.dispatchEvent(
+        new CustomEvent('event_updated', { detail: { id: event.id, archived: true, title: event.title, url: event.url } })
+      );
+      if (onEventUpdate) onEventUpdate({ id: event.id, archived: true });
       onClose();
-    } catch (error) {
-      console.error("Removal failed:", error);
-      alert(`Removal failed: ${error.message}`);
+    } catch (e) {
+      alert(e.message);
     }
   };
 
-  const hasChanges = 
-    editDraft.category !== event.category ||
-    editDraft.severity !== event.severity ||
-    editDraft.title !== event.title ||
-    editDraft.location !== event.location ||
-    editDraft.lat !== event.lat ||
-    editDraft.lon !== event.lon ||
-    editDraft.source !== event.source ||
-    editDraft.url !== event.url ||
-    editDraft.summary !== (event.details?.summary || event.summary || '');
-
-  const catColor = CAT_COLORS[editDraft.category] || '#38bdf8';
-  const sevColor = SEV_COLORS[editDraft.severity] || '#38bdf8';
-
-  const handleDragStart = (e) => {
-    if (e.button !== 0) return;
-    // Don't drag if user is typing in inputs
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-      return;
-    }
-    setIsDragging(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startPosX: pos.x,
-      startPosY: pos.y,
-    };
+  const handleAddReference = async () => {
+    if (!newRefUrl.trim()) return;
+    setAddingRef(true);
+    const newRef = { title: newRefTitle.trim() || 'Reference Link', url: newRefUrl.trim(), addedAt: new Date().toISOString() };
+    const updatedRefs = [...(editDraft.references || []), newRef];
+    setEditDraft((prev) => ({ ...prev, references: updatedRefs }));
+    try {
+      if (isAdmin) {
+        await fetch('/api/admin/events', {
+          method: 'PATCH',
+          headers: { 'x-user-id': getOperatorId(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: event.id, details: { ...(event.details || {}), references: updatedRefs } })
+        });
+        if (onEventUpdate) onEventUpdate({ ...event, details: { ...(event.details || {}), references: updatedRefs } });
+      } else {
+        await fetch('/api/suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'suggestion',
+            subject: `New Reference for: ${event.title}`,
+            targetId: event.id,
+            details: `${newRef.title} (${newRef.url})`
+          })
+        });
+      }
+      setRefAdded(true);
+      setNewRefTitle('');
+      setNewRefUrl('');
+      setTimeout(() => setRefAdded(false), 2500);
+    } catch {}
+    setAddingRef(false);
   };
 
-  const handleDrag = useCallback((e) => {
-    if (!isDragging) return;
-    setPos({
-      x: dragRef.current.startPosX + (e.clientX - dragRef.current.startX),
-      y: Math.max(0, dragRef.current.startPosY + (e.clientY - dragRef.current.startY)), // don't drag above screen
+  const handleBookmarkClick = () => {
+    if (!onToggleBookmark) return;
+    onToggleBookmark({
+      id: cleanId || event.id,
+      title: event.title,
+      category: event.category || 'Political',
+      severity: sev,
+      location: event.location || event.jurisdiction || 'Global / Multilateral',
+      lat: event.lat,
+      lon: event.lon,
+      source: displaySource,
+      url: editDraft.url || event.url || '',
+      summary: editDraft.summary || '',
+      timestamp: event.original_post_time || event.timestamp || ''
     });
-  }, [isDragging]);
-
-  const handleDragEnd = useCallback(() => setIsDragging(false), []);
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleDrag);
-      window.addEventListener('mouseup', handleDragEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleDrag);
-      window.removeEventListener('mouseup', handleDragEnd);
-    };
-  }, [isDragging, handleDrag, handleDragEnd]);
-
-  const REG_COLORS = {
-    'In effect': '#22c55e',
-    'Passed': '#38bdf8',
-    'Proposed': '#facc15',
-    'Policy': '#a855f7'
   };
 
-  if (event.isAiRegulation) {
-    const statusColor = REG_COLORS[event.status] || '#a855f7';
-    
-    return (
-      <div 
-        className="details-window"
-        style={isMobile ? {
-          position: 'fixed',
-          bottom: '50px',
-          left: '12px',
-          right: '12px',
-          maxHeight: 'calc(100vh - 150px)',
-          backgroundColor: '#0c0f17',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          borderRadius: '12px',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(168, 85, 247, 0.15)',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: 'monospace'
-        } : {
-          position: 'fixed',
-          left: 0, top: 0,
-          transform: `translate(${pos.x}px, ${pos.y}px)`,
-          width: '400px',
-          maxHeight: 'calc(100vh - 120px)',
-          backgroundColor: '#0c0f17',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          borderRadius: '8px',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 15px rgba(168, 85, 247, 0.15)',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: 'monospace'
-        }}
-      >
-        {/* Top Border */}
-        <div style={{ height: '3px', width: '100%', backgroundColor: '#a855f7', boxShadow: '0 0 10px #a855f7' }} />
-
-        {isAdmin && (
-          <div style={{
-            background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(12, 15, 23, 0.95) 100%)',
-            borderBottom: '1px solid rgba(168, 85, 247, 0.25)',
-            padding: '6px 16px',
-            display: 'flex', flexDirection: 'column', gap: '6px',
-            fontSize: '0.65rem', fontWeight: 'bold', color: '#a855f7', letterSpacing: '1px', fontFamily: 'monospace'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-              <button 
-                onClick={() => handleArchiveEvent(false)} 
-                style={{
-                  flex: 1,
-                  background: 'rgba(168, 85, 247, 0.15)',
-                  color: '#a855f7',
-                  border: '1px solid rgba(168, 85, 247, 0.4)',
-                  borderRadius: '4px',
-                  padding: '4px 6px',
-                  fontSize: '0.6rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                  transition: 'all 0.2s',
-                  textAlign: 'center'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.3)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)'}
-              >
-                📦 ARCHIVE SIGNAL
-              </button>
-              <button 
-                onClick={() => handleArchiveEvent(true)} 
-                style={{
-                  flex: 1,
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#ef4444',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  borderRadius: '4px',
-                  padding: '4px 6px',
-                  fontSize: '0.6rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                  transition: 'all 0.2s',
-                  textAlign: 'center'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
-              >
-                🗑️ REMOVE PERMANENTLY
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Drag Handle & Header */}
-        <div
-          onMouseDown={handleDragStart}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '10px 14px',
-            background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(12, 15, 23, 0.95) 100%)',
-            borderBottom: '1px solid rgba(168, 85, 247, 0.2)',
-            cursor: 'grab'
-          }}
-        >
-          <span style={{ fontSize: '10px', fontWeight: '800', color: '#a855f7', letterSpacing: '1.5px' }}>
-            ⚖️ SIGINT://AI_REGULATION
-          </span>
-          <button 
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'rgba(168, 85, 247, 0.65)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '2px',
-              transition: 'color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#a855f7'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(168, 85, 247, 0.65)'}
-          >
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Main Content Area */}
-        <div 
-          className="details-window-scroll ai-regulation-scroll"
-          style={{ 
-            padding: '16px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '14px',
-            overflowY: 'auto',
-            flex: 1
-          }}
-        >
-          
-          {/* Title */}
-          <div>
-            <h3 style={{
-              margin: 0,
-              fontSize: '13px',
-              fontWeight: '700',
-              color: '#f3f4f6',
-              lineHeight: '1.4',
-              letterSpacing: '0.02em',
-              fontFamily: 'var(--font-main)'
-            }}>
-              {event.title}
-            </h3>
-          </div>
-
-          {/* Badges Row */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {/* Status Badge */}
-            <span style={{
-              fontSize: '9px',
-              fontWeight: '800',
-              padding: '3px 8px',
-              borderRadius: '4px',
-              backgroundColor: `${statusColor}22`,
-              border: `1px solid ${statusColor}55`,
-              color: statusColor,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              STATUS: {event.status}
-            </span>
-            {/* Area Badge */}
-            <span style={{
-              fontSize: '9px',
-              fontWeight: '800',
-              padding: '3px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#94a3b8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              FOCUS: {event.area}
-            </span>
-          </div>
-
-          {/* Metadata Table */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            backgroundColor: 'rgba(15, 23, 42, 0.45)',
-            border: '1px solid rgba(168, 85, 247, 0.15)',
-            borderRadius: '6px',
-            padding: '10px 12px'
-          }}>
-            {/* Jurisdiction */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
-              <span style={{ color: 'rgba(168, 85, 247, 0.85)', fontWeight: 'bold' }}>JURISDICTION</span>
-              <span style={{ color: '#e2e8f0', textAlign: 'right' }}>{event.jurisdiction}</span>
-            </div>
-            
-            {/* Date */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
-              <span style={{ color: 'rgba(168, 85, 247, 0.85)', fontWeight: 'bold' }}>EFFECTIVE/PROPOSED DATE</span>
-              <span style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{event.date}</span>
-            </div>
-
-            {/* Coordinates */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px' }}>
-              <span style={{ color: 'rgba(168, 85, 247, 0.85)', fontWeight: 'bold' }}>TARGET COORDINATES</span>
-              <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>
-                {typeof event.lat === 'number' ? event.lat.toFixed(4) : event.lat}°N, {typeof event.lon === 'number' ? event.lon.toFixed(4) : event.lon}°E
-              </span>
-            </div>
-          </div>
-
-          {/* Description Block */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '9.5px', fontWeight: '800', color: 'rgba(168, 85, 247, 0.85)', letterSpacing: '0.5px' }}>
-              TACTICAL INTEL / SUMMARY:
-            </span>
-            <div style={{
-              backgroundColor: 'rgba(2, 6, 23, 0.65)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '6px',
-              padding: '12px',
-              fontSize: '11px',
-              lineHeight: '1.6',
-              color: '#d1d5db',
-              maxHeight: '150px',
-              overflowY: 'auto',
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'var(--font-main)',
-              scrollbarWidth: 'thin'
-            }}>
-              {event.description}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: '10px 16px',
-          background: 'rgba(15, 23, 42, 0.85)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '9px',
-          color: '#64748b'
-        }}>
-          <span>SOURCE: ASENION TRACKER</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <MapPin size={10} style={{ color: '#a855f7' }} />
-            <span>GEOLOCATED CAPITAL</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const summary = event.details?.summary || `Intelligence report regarding: ${event.title}. This event has been flagged under the ${event.category} category with a severity level of ${event.severity}. Open Source Intelligence gathering indicates potential implications for regional stability and policy frameworks.`;
+  const summaryText = editDraft.summary
+    ? String(editDraft.summary).replace(/\n{3,}/g, '\n\n').trim()
+    : 'Primary signal captured from verified observatory wire.';
 
   return (
-    <div 
+    <div
       className="details-window"
-      style={isMobile ? {
-        position: 'fixed',
-        bottom: '50px',
-        left: '12px',
-        right: '12px',
-        maxHeight: 'calc(100vh - 150px)',
-        backgroundColor: '#0f141e',
-        border: '1px solid #1e293b',
-        borderRadius: '12px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      } : {
-        position: 'fixed',
-        left: 0, top: 0,
-        transform: `translate(${pos.x}px, ${pos.y}px)`,
-        width: '400px',
-        maxHeight: 'calc(100vh - 120px)',
-        backgroundColor: '#0f141e',
-        border: '1px solid #1e293b',
-        borderRadius: '8px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}
+      style={
+        isMobile
+          ? {
+              position: 'fixed',
+              bottom: '54px',
+              left: '10px',
+              right: '10px',
+              maxHeight: 'calc(100vh - 115px)',
+              background: 'var(--sov-panel-bg)',
+              border: '1px solid var(--sov-border)',
+              borderRadius: '12px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
+              backdropFilter: 'blur(16px)',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }
+          : {
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              transform: `translate(${pos.x}px, ${pos.y}px)`,
+              width: '420px',
+              maxHeight: 'calc(100vh - 110px)',
+              background: 'var(--sov-panel-bg)',
+              border: '1px solid var(--sov-border)',
+              borderRadius: '12px',
+              boxShadow: '0 24px 56px rgba(0,0,0,0.45)',
+              backdropFilter: 'blur(16px)',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }
+      }
     >
-      {/* Top Border */}
-      <div style={{ height: '3px', width: '100%', backgroundColor: isAdmin ? '#00f0ff' : catColor }} />
+      {/* Top Category Accent Hairline */}
+      <div style={{ height: '3px', width: '100%', backgroundColor: catColor, flexShrink: 0 }} />
 
-      {/* Admin Override Banner */}
-      {isAdmin && (
-        <div style={{
-          background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.12) 0%, rgba(15, 20, 30, 0.95) 100%)',
-          borderBottom: '1px solid rgba(0, 240, 255, 0.2)',
-          padding: '8px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          fontSize: '0.65rem',
-          fontWeight: 'bold',
-          color: '#00f0ff',
-          letterSpacing: '1px',
-          fontFamily: 'monospace'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>🔐 OPERATOR OVERRIDE ACTIVE</span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
-            <button
-              onClick={handleToggleEditMode}
-              style={{
-                flex: 1,
-                background: editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.15)',
-                color: editMode ? '#ef4444' : '#00f0ff',
-                border: `1px solid ${editMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 240, 255, 0.4)'}`,
-                borderRadius: '4px',
-                padding: '5px 6px',
-                fontSize: '0.6rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                transition: 'all 0.2s',
-                fontFamily: 'monospace',
-                boxShadow: editMode ? '0 0 8px rgba(239, 68, 68, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)',
-                textAlign: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(0, 240, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = editMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 240, 255, 0.15)';
-              }}
-            >
-              {editMode ? '✕ CLOSE EDIT' : '✏️ EDIT INTEL'}
-            </button>
-            <button
-              onClick={() => handleArchiveEvent(false)}
-              style={{
-                flex: 1,
-                background: 'rgba(56, 189, 248, 0.15)',
-                color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.4)',
-                borderRadius: '4px',
-                padding: '5px 6px',
-                fontSize: '0.6rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                transition: 'all 0.2s',
-                fontFamily: 'monospace',
-                boxShadow: '0 0 8px rgba(56, 189, 248, 0.2)',
-                textAlign: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
-              }}
-            >
-              📦 ARCHIVE
-            </button>
-            <button
-              onClick={() => handleArchiveEvent(true)}
-              style={{
-                flex: 1.2,
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                borderRadius: '4px',
-                padding: '5px 6px',
-                fontSize: '0.6rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                transition: 'all 0.2s',
-                fontFamily: 'monospace',
-                boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)',
-                textAlign: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-              }}
-            >
-              🗑️ PURGE PERM
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Header / Drag Handle */}
-      <div 
-        className="details-header"
+      {/* Minimal Header / Drag Handle */}
+      <div
         onMouseDown={handleDragStart}
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '12px 16px',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          borderBottom: '1px solid #1e293b',
-          backgroundColor: '#151b26'
+          justifyContent: 'space-between',
+          gap: '8px',
+          padding: '10px 14px',
+          borderBottom: '1px solid var(--sov-border)',
+          background: 'var(--sov-card-bg)',
+          cursor: isMobile ? 'default' : isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-           <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '1px', color: event.details?.isRssItem ? '#00f0ff' : '#64748b' }}>
-             {event.details?.isRssItem ? 'SIGINT://OSINT_FEED' : 'SIGINT://DETAILS'}
-           </span>
-           <span style={{ fontSize: '0.7rem', color: '#334155' }}>|</span>
-           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', fontFamily: "var(--font-jetbrains-fallback)" }}>{event.id?.substring(0, 8).toUpperCase()}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: catColor, flexShrink: 0 }} />
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--sov-text)',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {readableType}
+          </span>
+          {!isRegulation && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: '4px',
+                background: `${sevColor}22`,
+                color: sevColor,
+                fontFamily: 'var(--font-jetbrains-fallback)'
+              }}
+            >
+              S{sev}
+            </span>
+          )}
         </div>
-        <button 
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            border: '1px solid #334155',
-            color: '#94a3b8',
-            borderRadius: '4px',
-            width: '24px', height: '24px',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            cursor: 'pointer'
-          }}
-        >✕</button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onMouseDown={(e) => e.stopPropagation()}>
+          {onToggleBookmark && (
+            <button
+              type="button"
+              onClick={handleBookmarkClick}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                border: `1px solid ${isBookmarked ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
+                background: isBookmarked ? 'var(--sov-accent-soft)' : 'transparent',
+                color: isBookmarked ? 'var(--sov-accent)' : 'var(--sov-muted)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title={isBookmarked ? 'Remove Bookmark' : 'Bookmark Signal to Profile'}
+            >
+              <Bookmark size={12} fill={isBookmarked ? 'currentColor' : 'none'} />
+              <span>{isBookmarked ? 'Saved' : 'Save'}</span>
+            </button>
+          )}
+
+          {isAdmin && !isRegulation && (
+            <button
+              type="button"
+              onClick={() => setEditMode((prev) => !prev)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                border: `1px solid ${editMode ? '#ef4444' : 'var(--sov-border)'}`,
+                background: editMode ? 'rgba(239,68,68,0.12)' : 'transparent',
+                color: editMode ? '#ef4444' : 'var(--sov-muted)',
+                cursor: 'pointer'
+              }}
+              title="Toggle Admin Editor"
+            >
+              <Edit3 size={12} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: '6px',
+              border: '1px solid var(--sov-border)',
+              background: 'transparent',
+              color: 'var(--sov-muted)',
+              cursor: 'pointer'
+            }}
+            title="Close"
+          >
+            <X size={13} />
+          </button>
+        </div>
       </div>
 
-      <div className="details-window-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '20px' }}>
-        {/* Badges & Meta */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {editMode ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <label style={{ fontSize: '0.55rem', color: '#64748b', fontWeight: 'bold' }}>CATEGORY</label>
-                  <select 
-                    value={editDraft.category} 
-                    onChange={(e) => {
-                      setEditDraft(prev => ({ ...prev, category: e.target.value }));
-                    }}
-                    style={{
-                      background: '#0f141e',
-                      color: '#00f0ff',
-                      border: '1px solid #1e293b',
-                      borderRadius: '4px',
-                      fontSize: '0.65rem',
-                      fontWeight: 800,
-                      padding: '4px 6px',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {Object.keys(CAT_COLORS).map(cat => (
-                      <option key={cat} value={cat}>{cat.toUpperCase()}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <label style={{ fontSize: '0.55rem', color: '#64748b', fontWeight: 'bold' }}>SEVERITY</label>
-                  <select 
-                    value={editDraft.severity} 
-                    onChange={(e) => {
-                      setEditDraft(prev => ({ ...prev, severity: parseInt(e.target.value) }));
-                    }}
-                    style={{
-                      background: '#0f141e',
-                      color: '#00f0ff',
-                      border: '1px solid #1e293b',
-                      borderRadius: '4px',
-                      fontSize: '0.65rem',
-                      fontWeight: 800,
-                      padding: '4px 6px',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5].map(sev => (
-                      <option key={sev} value={sev}>SEV-{sev}</option>
-                    ))}
-                  </select>
-                </div>
+      {/* Scrollable Minimal Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {!editMode ? (
+          <>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: 700,
+                lineHeight: 1.4,
+                color: 'var(--sov-text)',
+                fontFamily: 'var(--font-inter-fallback)'
+              }}
+            >
+              {event.title}
+            </h2>
+
+            {/* Single Clean Metadata Line */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--sov-muted)' }}>
+              <span>{event.location || event.jurisdiction || 'Global'}</span>
+              {displayDate && <span>· {displayDate}</span>}
+              <span>· {displaySource}</span>
+            </div>
+
+            {!isRegulation && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', color: 'var(--sov-accent)' }}>
+                  Admiralty {adm.grade}
+                </span>
+                <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', color: 'var(--sov-muted)' }}>
+                  {mit.code}: {mit.shortLabel || mit.domain}
+                </span>
               </div>
-            ) : (
-              <>
-                <span 
-                  onClick={() => isAdmin && handleToggleEditMode()}
-                  style={{ 
-                    background: `${catColor}20`, 
-                    color: catColor, 
-                    padding: '4px 8px', 
-                    borderRadius: '4px', 
-                    fontSize: '0.65rem', 
-                    fontWeight: 800, 
-                    textTransform: 'uppercase',
-                    cursor: isAdmin ? 'pointer' : 'default',
-                    border: '1px solid transparent',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'border 0.2s'
-                  }}
-                  title={isAdmin ? "Click to enter Edit Mode" : undefined}
-                >
-                  {editDraft.category}
-                </span>
-
-                <span 
-                  onClick={() => isAdmin && handleToggleEditMode()}
-                  style={{ 
-                    background: `${sevColor}20`, 
-                    color: sevColor, 
-                    padding: '4px 8px', 
-                    borderRadius: '4px', 
-                    fontSize: '0.65rem', 
-                    fontWeight: 800,
-                    cursor: isAdmin ? 'pointer' : 'default',
-                    border: '1px solid transparent',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'border 0.2s'
-                  }}
-                  title={isAdmin ? "Click to enter Edit Mode" : undefined}
-                >
-                  SEV-{editDraft.severity}
-                </span>
-
-                {(event.domainPillar || event.details?.domainPillar) && (
-                  <span
-                    style={{
-                      background: 'rgba(56, 189, 248, 0.1)',
-                      color: '#38bdf8',
-                      border: '1px solid rgba(56, 189, 248, 0.25)',
-                      padding: '3px 7px',
-                      borderRadius: '4px',
-                      fontSize: '0.6rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.3px'
-                    }}
-                  >
-                    {event.domainPillar || event.details?.domainPillar}
-                  </span>
-                )}
-              </>
             )}
-          </div>
-          <span style={{ color: '#475569', fontSize: '0.7rem', fontFamily: "var(--font-jetbrains-fallback)" }}>
-            {formatTime(event.original_post_time || event.timestamp)}
-          </span>
-        </div>
 
-        {/* Title */}
-        {editMode ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '20px' }}>
-            <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Event Title
-            </label>
-            <input 
+            <p
+              style={{
+                margin: 0,
+                fontSize: '13.5px',
+                lineHeight: 1.65,
+                color: 'var(--sov-text)',
+                whiteSpace: 'pre-wrap'
+              }}
+            >
+              {summaryText}
+            </p>
+
+            {/* Primary Actions */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '2px' }}>
+              {editDraft.url && (
+                <a
+                  href={editDraft.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: '1 1 auto',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    borderRadius: '7px',
+                    border: '1px solid var(--sov-accent)',
+                    background: 'var(--sov-accent-soft)',
+                    color: 'var(--sov-accent)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textDecoration: 'none'
+                  }}
+                >
+                  <span>Read Source</span>
+                  <ExternalLink size={12} />
+                </a>
+              )}
+
+              {cleanId && !isRegulation && (
+                <Link
+                  href={`/signal/${encodeURIComponent(cleanId)}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    padding: '8px 12px',
+                    borderRadius: '7px',
+                    border: '1px solid var(--sov-border)',
+                    background: 'var(--sov-card-bg)',
+                    color: 'var(--sov-text)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    textDecoration: 'none'
+                  }}
+                >
+                  Dossier ↗
+                </Link>
+              )}
+
+              {onFocusLocation && event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && (
+                <button
+                  type="button"
+                  onClick={() => onFocusLocation(Number(event.lat), Number(event.lon))}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '8px 10px',
+                    borderRadius: '7px',
+                    border: '1px solid var(--sov-border)',
+                    background: 'var(--sov-card-bg)',
+                    color: 'var(--sov-muted)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                  title="Center map on coordinates"
+                >
+                  <MapPin size={12} />
+                  <span>Locate</span>
+                </button>
+              )}
+            </div>
+
+            {/* Collapsible Provenance, Citations & References */}
+            {!isRegulation && (
+              <div style={{ borderTop: '1px solid var(--sov-border)', paddingTop: '10px', marginTop: '2px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowProvenance((p) => !p)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--sov-muted)',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-jetbrains-fallback)',
+                    cursor: 'pointer',
+                    padding: '2px 0'
+                  }}
+                >
+                  <span>CITATIONS, HASH &amp; REFERENCES</span>
+                  {showProvenance ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+
+                {showProvenance && (
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <CitationProvenanceCard event={event} />
+
+                    {editDraft.references?.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {editDraft.references.map((ref, idx) => (
+                          <a
+                            key={idx}
+                            href={ref.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: '12px', color: 'var(--sov-accent)', textDecoration: 'underline' }}
+                          >
+                            {ref.title || ref.url} ↗
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={newRefTitle}
+                        onChange={(e) => setNewRefTitle(e.target.value)}
+                        placeholder="Ref title"
+                        style={{ flex: 1, minWidth: '100px', padding: '5px 8px', borderRadius: '5px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '11.5px' }}
+                      />
+                      <input
+                        type="url"
+                        value={newRefUrl}
+                        onChange={(e) => setNewRefUrl(e.target.value)}
+                        placeholder="https://..."
+                        style={{ flex: 1.5, minWidth: '130px', padding: '5px 8px', borderRadius: '5px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '11.5px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddReference}
+                        disabled={addingRef || !newRefUrl.trim()}
+                        style={{ padding: '5px 10px', borderRadius: '5px', border: '1px solid var(--sov-accent)', background: 'var(--sov-accent-soft)', color: 'var(--sov-accent)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        {refAdded ? <Check size={12} /> : '+ Add'}
+                      </button>
+                    </div>
+
+                    {onReportIssue && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onReportIssue('suggestions', {
+                            type: 'link',
+                            subject: `Report Issue: ${event.title}`,
+                            targetId: event.id,
+                            details: `Signal URL: ${editDraft.url || 'None'}`
+                          })
+                        }
+                        style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: '#f59e0b', fontSize: '11px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                      >
+                        Report broken link or wrong coordinates
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Clean Compact Admin Editor */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <input
               type="text"
               value={editDraft.title}
-              onChange={(e) => setEditDraft(prev => ({ ...prev, title: e.target.value }))}
-              style={{
-                background: '#151b26',
-                color: '#f8fafc',
-                border: '1px solid #1e293b',
-                borderRadius: '4px',
-                padding: '6px 10px',
-                fontSize: '0.95rem',
-                outline: 'none',
-                width: '100%',
-                boxSizing: 'border-box'
-              }}
+              onChange={(e) => setEditDraft((p) => ({ ...p, title: e.target.value }))}
+              placeholder="Title"
+              style={{ padding: '7px 9px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '13px', fontWeight: 600 }}
             />
-          </div>
-        ) : (
-          <h2 
-            onClick={() => isAdmin && handleToggleEditMode()}
-            style={{ 
-              fontSize: '1.1rem', 
-              fontWeight: 600, 
-              color: '#f8fafc', 
-              lineHeight: 1.4, 
-              marginBottom: '20px',
-              cursor: isAdmin ? 'pointer' : 'default',
-              padding: isAdmin ? '4px' : '0',
-              borderRadius: '4px',
-              border: isAdmin ? '1px dashed rgba(0, 240, 255, 0.15)' : 'none',
-              position: 'relative',
-              transition: 'border-color 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.15)';
-            }}
-            title={isAdmin ? "Click to enter Edit Mode" : undefined}
-          >
-            {editDraft.title}
-            {isAdmin && (
-              <span style={{ position: 'absolute', right: '4px', top: '4px', color: '#64748b' }}>
-                <Edit3 size={10} />
-              </span>
-            )}
-          </h2>
-        )}
-
-        {/* Location Display & Address Searchbox with Autocomplete */}
-        {editMode ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', position: 'relative' }}>
-            {/* Direct Location Name Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                📍 Location Name
-              </label>
-              <input 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <select
+                value={editDraft.category}
+                onChange={(e) => setEditDraft((p) => ({ ...p, category: e.target.value }))}
+                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
+              >
+                {Object.keys(CAT_COLORS).map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={editDraft.severity}
+                onChange={(e) => setEditDraft((p) => ({ ...p, severity: e.target.value }))}
+                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
+              >
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <option key={s} value={s}>Severity S{s}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
                 type="text"
-                value={editDraft.location || ''}
-                onChange={(e) => setEditDraft(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="e.g. Geneva, Switzerland or custom text"
-                style={{
-                  background: '#151b26',
-                  color: '#f8fafc',
-                  border: '1px solid #1e293b',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  fontSize: '0.8rem',
-                  outline: 'none',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
+                value={addressQuery}
+                onChange={(e) => setAddressQuery(e.target.value)}
+                placeholder="Lookup place / city..."
+                style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
               />
+              <button type="button" onClick={handleSearchAddress} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-accent)', cursor: 'pointer' }}>
+                {loadingGeo ? <Loader2 size={13} /> : <Search size={13} />}
+              </button>
             </div>
-
-            {/* Direct Latitude & Longitude Inputs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Latitude
-                </label>
-                <input 
-                  type="number"
-                  step="any"
-                  value={editDraft.lat !== undefined && editDraft.lat !== null ? editDraft.lat : ''}
-                  onChange={(e) => setEditDraft(prev => ({ ...prev, lat: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
-                  placeholder="e.g. 46.2044"
-                  style={{
-                    background: '#151b26',
-                    color: '#f8fafc',
-                    border: '1px solid #1e293b',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    outline: 'none',
-                    width: '100%',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Longitude
-                </label>
-                <input 
-                  type="number"
-                  step="any"
-                  value={editDraft.lon !== undefined && editDraft.lon !== null ? editDraft.lon : ''}
-                  onChange={(e) => setEditDraft(prev => ({ ...prev, lon: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
-                  placeholder="e.g. 6.1432"
-                  style={{
-                    background: '#151b26',
-                    color: '#f8fafc',
-                    border: '1px solid #1e293b',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    outline: 'none',
-                    width: '100%',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Geocode Search Helper */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', position: 'relative' }}>
-              <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                🔍 Geocode Search Helper (OSM Lookup)
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#151b26', border: '1px solid #1e293b', borderRadius: '6px', padding: '6px 10px' }}>
-                <Search size={14} style={{ color: '#64748b' }} />
-                <input 
-                  type="text"
-                  placeholder="Type city/address to lookup coordinates..."
-                  value={addressQuery}
-                  onChange={(e) => setAddressQuery(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    color: '#f8fafc',
-                    border: 'none',
-                    fontSize: '0.8rem',
-                    outline: 'none',
-                    width: '100%',
-                  }}
-                />
-                {isLoadingSuggestions && <Loader2 size={12} className="animate-spin" style={{ color: '#00f0ff' }} />}
-                {addressQuery && (
-                  <button 
+            {suggestions.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '90px', overflowY: 'auto' }}>
+                {suggestions.map((sg) => (
+                  <button
+                    key={sg.place_id}
+                    type="button"
                     onClick={() => {
-                      setAddressQuery('');
+                      setEditDraft((p) => ({ ...p, location: sg.display_name.split(',')[0], lat: sg.lat, lon: sg.lon }));
                       setSuggestions([]);
                     }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
+                    style={{ textAlign: 'left', padding: '4px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', cursor: 'pointer' }}
                   >
-                    <X size={14} />
+                    {sg.display_name}
                   </button>
-                )}
-              </div>
-
-              {/* Suggestions list dropdown overlay */}
-              {suggestions.length > 0 && (
-                <div style={{
-                  position: 'absolute',
-                  top: '55px',
-                  left: 0,
-                  right: 0,
-                  backgroundColor: '#0f141e',
-                  border: '1px solid #1e293b',
-                  borderRadius: '6px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
-                  zIndex: 10000,
-                  maxHeight: '180px',
-                  overflowY: 'auto'
-                }}>
-                  {suggestions.map((item, idx) => {
-                    const nameSegments = item.display_name.split(',');
-                    const cleanName = nameSegments.length > 3 
-                      ? `${nameSegments[0].trim()}, ${nameSegments[1].trim()}, ${nameSegments[nameSegments.length - 1].trim()}` 
-                      : item.display_name;
-
-                    return (
-                      <div 
-                        key={idx}
-                        onClick={() => {
-                          setEditDraft(prev => ({
-                            ...prev,
-                            location: cleanName,
-                            lat: parseFloat(item.lat),
-                            lon: parseFloat(item.lon)
-                          }));
-                          setAddressQuery('');
-                          setSuggestions([]);
-                        }}
-                        style={{
-                          padding: '8px 12px',
-                          fontSize: '0.75rem',
-                          color: '#cbd5e1',
-                          cursor: 'pointer',
-                          borderBottom: '1px solid #1e293b',
-                          transition: 'background-color 0.2s',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{cleanName}</div>
-                        <div style={{ fontSize: '0.65rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.display_name}
-                        </div>
-                        <div style={{ fontSize: '0.6rem', color: '#00f0ff', fontFamily: 'monospace', marginTop: '2px' }}>
-                          COORD: {parseFloat(item.lat).toFixed(4)}N, {parseFloat(item.lon).toFixed(4)}E
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div 
-            onClick={(e) => {
-              if (event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && !isNaN(Number(event.lon)) && onFocusLocation) {
-                onFocusLocation(Number(event.lat), Number(event.lon));
-              }
-            }}
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '4px', 
-              marginBottom: '20px', 
-              padding: '12px', 
-              background: '#1e293b40', 
-              borderRadius: '6px', 
-              border: '1px solid rgba(0, 240, 255, 0.2)',
-              cursor: 'pointer',
-              position: 'relative',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 0 10px rgba(0, 240, 255, 0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.6)';
-              e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 240, 255, 0.15)';
-              e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.2)';
-              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.05)';
-              e.currentTarget.style.background = '#1e293b40';
-            }}
-            title="Click to focus map camera on these coordinates"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '0.85rem', fontWeight: 600 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-              {editDraft.location || 'GLOBAL / REMOTE'}
-              {isAdmin && (
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleEditMode();
-                  }}
-                  style={{
-                    marginLeft: 'auto',
-                    cursor: 'pointer',
-                    background: 'rgba(0, 240, 255, 0.1)',
-                    border: '1px solid rgba(0, 240, 255, 0.3)',
-                    borderRadius: '4px',
-                    padding: '2px 6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '9px',
-                    color: '#00f0ff',
-                    fontWeight: 'bold',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.25)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.1)'}
-                  title="Edit Location Settings"
-                >
-                  <Edit3 size={10} />
-                  <span>EDIT</span>
-                </div>
-              )}
-            </div>
-            {typeof editDraft.lat === 'number' && typeof editDraft.lon === 'number' && !isNaN(editDraft.lat) && !isNaN(editDraft.lon) && (
-              <div style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '22px', fontFamily: "var(--font-jetbrains-fallback)", display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                <span>GEO_REF: {editDraft.lat.toFixed(4)}N, {editDraft.lon.toFixed(4)}E</span>
-                {onReportIssue && !currentUser && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onReportIssue('suggestions', {
-                        type: 'map',
-                        subject: `Incorrect Coordinates for: ${event.title}`,
-                        targetId: String(event.id),
-                        details: `Current: ${event.location || 'Unknown'} (${event.lat?.toFixed(5)}, ${event.lon?.toFixed(5)})\nSuggested Coordinates / Location:\n[Format: Latitude, Longitude, Location Name]\ne.g. 51.5074, -0.1278, London`
-                      });
-                    }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#f59e0b',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontFamily: 'monospace',
-                      outline: 'none'
-                    }}
-                    title="Report incorrect placement of this marker on the map"
-                  >
-                    [REPORT INCORRECT COORDS]
-                  </button>
-                )}
+                ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Source and Link Badges */}
-        {editMode ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', padding: '12px', background: '#1e293b20', borderRadius: '6px', border: '1px solid #1e293b' }}>
-            <div>
-              <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>SOURCE NAME(S)</label>
-              <input 
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.9fr', gap: '6px' }}>
+              <input
                 type="text"
-                value={editDraft.source || ''}
-                onChange={(e) => setEditDraft(prev => ({ ...prev, source: e.target.value }))}
-                style={{
-                  background: '#151b26',
-                  color: '#cbd5e1',
-                  border: '1px solid #1e293b',
-                  borderRadius: '4px',
-                  padding: '6px 10px',
-                  fontSize: '0.75rem',
-                  outline: 'none',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
+                value={editDraft.location}
+                onChange={(e) => setEditDraft((p) => ({ ...p, location: e.target.value }))}
+                placeholder="Location"
+                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
+              />
+              <input
+                type="text"
+                value={editDraft.lat}
+                onChange={(e) => setEditDraft((p) => ({ ...p, lat: e.target.value }))}
+                placeholder="Lat"
+                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
+              />
+              <input
+                type="text"
+                value={editDraft.lon}
+                onChange={(e) => setEditDraft((p) => ({ ...p, lon: e.target.value }))}
+                placeholder="Lon"
+                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
               />
             </div>
-            {!event.details?.isRssItem && (
-              <div>
-                <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>SOURCE URL LINK</label>
-                <input 
-                  type="text"
-                  value={editDraft.url || ''}
-                  onChange={(e) => setEditDraft(prev => ({ ...prev, url: e.target.value }))}
-                  style={{
-                    background: '#151b26',
-                    color: '#38bdf8',
-                    border: '1px solid #1e293b',
-                    borderRadius: '4px',
-                    padding: '6px 10px',
-                    fontSize: '0.75rem',
-                    outline: 'none',
-                    width: '100%',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div 
-            onClick={() => isAdmin && handleToggleEditMode()}
-            style={{ 
-              display: 'flex', 
-              flexWrap: 'wrap', 
-              gap: '6px', 
-              alignItems: 'center', 
-              marginBottom: '20px',
-              cursor: isAdmin ? 'pointer' : 'default',
-              padding: isAdmin ? '6px 8px' : '0',
-              borderRadius: '4px',
-              border: isAdmin ? '1px dashed rgba(0, 240, 255, 0.3)' : 'none',
-              transition: 'border-color 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.6)';
-            }}
-            onMouseLeave={(e) => {
-              if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.3)';
-            }}
-            title={isAdmin ? "Click to enter Edit Mode" : undefined}
-          >
-            <span style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '4px' }}>SOURCES:</span>
-            {(editDraft.source || 'Verified Intelligence')
-              .split(/[\/\&]|\band\b/i)
-              .map(s => s.trim())
-              .filter(Boolean)
-              .map((src, idx) => {
-                const lowerSrc = src.toLowerCase();
-                const lowerUrl = (editDraft.url || '').toLowerCase();
-                const isMatch = lowerUrl.includes(lowerSrc.replace(/\s+/g, '')) || 
-                                (lowerSrc.includes('reuters') && lowerUrl.includes('reuters')) ||
-                                (lowerSrc.includes('bbc') && lowerUrl.includes('bbc')) ||
-                                (lowerSrc.includes('guardian') && lowerUrl.includes('theguardian')) ||
-                                (lowerSrc.includes('al jazeera') && lowerUrl.includes('aljazeera'));
-
-                return (
-                  <span 
-                    key={idx} 
-                    style={{ 
-                      background: isMatch ? 'rgba(56, 189, 248, 0.12)' : 'rgba(30, 41, 59, 0.5)',
-                      color: isMatch ? '#38bdf8' : '#64748b', 
-                      border: isMatch ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(30, 41, 59, 0.8)',
-                      padding: '3px 8px', 
-                      borderRadius: '4px', 
-                      fontSize: '0.65rem', 
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      boxShadow: isMatch ? '0 0 10px rgba(56, 189, 248, 0.1)' : 'none'
-                    }}
-                  >
-                    {src}
-                    {isMatch && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#38bdf8' }} />}
-                  </span>
-                );
-              })}
-            {editDraft.url && (
-              <a 
-                href={editDraft.url} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                onClick={(e) => e.stopPropagation() /* Prevent opening editor on click */}
-                style={{ 
-                  color: '#38bdf8', 
-                  marginLeft: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '4px',
-                  background: 'rgba(56, 189, 248, 0.08)',
-                  border: '1px solid rgba(56, 189, 248, 0.15)',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
-                  e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.15)';
-                }}
-                title="Audit Active Press Link"
+            <textarea
+              rows={4}
+              value={editDraft.summary}
+              onChange={(e) => setEditDraft((p) => ({ ...p, summary: e.target.value }))}
+              style={{ padding: '7px 9px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12.5px', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleSaveAdminEdit}
+                disabled={isSaving}
+                style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '7px 10px', borderRadius: '6px', border: 'none', background: '#00f0ff', color: '#020617', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-              </a>
-            )}
-            {isAdmin && <Edit3 size={10} style={{ marginLeft: editDraft.url ? '6px' : 'auto', color: '#00f0ff' }} />}
+                <Save size={12} /> {isSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleArchiveEvent(false)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: '#38bdf8', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                <Archive size={12} /> Archive
+              </button>
+              <button
+                type="button"
+                onClick={() => handleArchiveEvent(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '7px 10px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                <Trash2 size={12} /> Purge
+              </button>
+            </div>
           </div>
         )}
-      </div>
-
-      {/* Accordions */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        
-        {/* Summary Accordion */}
-        <div style={{ borderTop: '1px solid #1e293b' }}>
-          <button 
-            onClick={() => setExpandedSection(expandedSection === 'summary' ? null : 'summary')}
-            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: expandedSection === 'summary' ? '#1e293b30' : 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer' }}
-          >
-            INTELLIGENCE SUMMARY
-            <span>{expandedSection === 'summary' ? '[-] ' : '[+]'}</span>
-          </button>
-          {expandedSection === 'summary' && (
-            <>
-              {editMode ? (
-                <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
-                    Intelligence Summary Report
-                  </label>
-                  <textarea 
-                    value={editDraft.summary}
-                    onChange={(e) => setEditDraft(prev => ({ ...prev, summary: e.target.value }))}
-                    rows={6}
-                    style={{
-                      background: '#151b26',
-                      color: '#cbd5e1',
-                      border: '1px solid #1e293b',
-                      borderRadius: '4px',
-                      padding: '8px 12px',
-                      fontSize: '0.85rem',
-                      lineHeight: 1.6,
-                      fontFamily: 'system-ui',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      resize: 'vertical'
-                    }}
-                  />
-                </div>
-              ) : (
-                <div 
-                  onClick={() => isAdmin && handleToggleEditMode()}
-                  style={{ 
-                    padding: '0 20px 20px 20px', 
-                    color: '#cbd5e1', 
-                    fontSize: '0.85rem', 
-                    lineHeight: 1.6, 
-                    fontFamily: 'system-ui',
-                    cursor: isAdmin ? 'pointer' : 'default',
-                    borderRadius: '4px',
-                    border: isAdmin ? '1px dashed rgba(0, 240, 255, 0.15)' : 'none',
-                    position: 'relative',
-                    transition: 'border-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (isAdmin) e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.15)';
-                  }}
-                  title={isAdmin ? "Click to enter Edit Mode" : undefined}
-                >
-                  {editDraft.summary || summary}
-                  {isAdmin && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#00f0ff', fontSize: '10px', marginTop: '8px', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                      <Edit3 size={10} /> [EDIT REPORT DETAILED SUMMARY]
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Cryptographic Provenance, NATO Admiralty Grade & Scholarly Citations */}
-        <div style={{ padding: '0 20px 16px 20px' }}>
-          <CitationProvenanceCard
-            event={{
-              ...event,
-              ...editDraft,
-              id: event.id,
-              details: event.details
-            }}
-          />
-        </div>
-
-        {/* Media Accordion */}
-        <div style={{ borderTop: '1px solid #1e293b' }}>
-          <button 
-            onClick={() => setExpandedSection(expandedSection === 'media' ? null : 'media')}
-            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: expandedSection === 'media' ? '#1e293b30' : 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer' }}
-          >
-            SATELLITE / MEDIA ASSETS
-            <span>{expandedSection === 'media' ? '[-] ' : '[+]'}</span>
-          </button>
-          {expandedSection === 'media' && (
-            <div style={{ padding: '0 20px 20px 20px', color: '#64748b', fontSize: '0.85rem' }}>
-              {event.image ? (
-                <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: '4px', overflow: 'hidden', border: '1px solid #334155' }}>
-                  <img src={event.image} alt={event.title} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-              ) : (
-                <div style={{ padding: '20px', textAlign: 'center', background: '#1e293b20', border: '1px dashed #334155', borderRadius: '4px' }}>
-                  NO VISUAL ASSETS VERIFIED
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Sourcing & Fact-Check Accordion */}
-        <div style={{ borderTop: '1px solid #1e293b' }}>
-          <button 
-            onClick={() => setExpandedSection(expandedSection === 'factcheck' ? null : 'factcheck')}
-            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: expandedSection === 'factcheck' ? '#1e293b30' : 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer' }}
-          >
-            🛡️ PERSISTENCE & FACT-CHECK PROTOCOL
-            <span>{expandedSection === 'factcheck' ? '[-] ' : '[+]'}</span>
-          </button>
-          {expandedSection === 'factcheck' && (
-            <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ padding: '10px', background: '#1e293b30', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.15)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span style={{ color: '#64748b' }}>DATABASE STORAGE:</span>
-                  <span style={{ color: '#38bdf8', fontWeight: 700, fontFamily: 'monospace' }}>Neon PG Serverless</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span style={{ color: '#64748b' }}>VERIFICATION NODE:</span>
-                  <span style={{ 
-                    color: verificationStatus === 'active' ? '#22c55e' : verificationStatus === 'healed' ? '#00f0ff' : verificationStatus === 'checking' ? '#38bdf8' : '#ef4444', 
-                    fontWeight: 700, 
-                    fontFamily: 'monospace',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    {verificationStatus === 'checking' && '🔍 SRC_CHECKING...'}
-                    {verificationStatus === 'active' && '✓ SRC_VERIFIED'}
-                    {verificationStatus === 'healed' && '⚡ SRC_HEALED'}
-                    {verificationStatus === 'broken' && '⚠ SRC_BROKEN'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span style={{ color: '#64748b' }}>FACT-CHECK INDEX:</span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 600, fontFamily: 'monospace' }}>
-                    FC-{event.id?.substring(0, 6).toUpperCase()}
-                  </span>
-                </div>
-                
-                {/* Real-time Diagnostics log */}
-                <div style={{ 
-                  marginTop: '4px',
-                  paddingTop: '6px', 
-                  borderTop: '1px solid rgba(56, 189, 248, 0.08)',
-                  fontSize: '9px', 
-                  color: '#64748b', 
-                  fontStyle: 'italic', 
-                  display: 'flex', 
-                  gap: '6px', 
-                  alignItems: 'center' 
-                }}>
-                  <span style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    borderRadius: '50%', 
-                    background: verificationStatus === 'active' ? '#22c55e' : verificationStatus === 'healed' ? '#00f0ff' : verificationStatus === 'checking' ? '#38bdf8' : '#ef4444',
-                    display: 'inline-block'
-                  }} />
-                  {verificationMessage}
-                </div>
-              </div>
-              
-              <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
-                <strong>Fact-Check Summary:</strong> {event.details?.isRssItem ? 'This signal is geotagged live from open-source feeds and persistently archived in our Neon database. Sourced directly via secure TLS handshake protocol and synthesized using our real-time Web Scraping Summarizer agent.' : 'This signal is logged persistently inside our Neon database. Sourced from trusted press wires, cross-referenced using fuzzy geocoding specificity algorithms, and cataloged by the Sovereign AI background ingestion protocol.'}
-              </div>
-              
-              {editDraft.url ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <a 
-                    href={editDraft.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      gap: '8px', 
-                      padding: '8px', 
-                      background: verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)', 
-                      color: verificationStatus === 'healed' ? '#00f0ff' : '#38bdf8', 
-                      border: verificationStatus === 'healed' ? '1px solid rgba(0, 240, 255, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)', 
-                      borderRadius: '4px', 
-                      fontSize: '11px', 
-                      fontWeight: 700, 
-                      textDecoration: 'none',
-                      transition: 'all 0.2s',
-                      boxShadow: verificationStatus === 'healed' ? '0 0 12px rgba(0, 240, 255, 0.15)' : 'none'
-                    }}
-                    onMouseEnter={(e) => { 
-                      e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.2)' : 'rgba(56, 189, 248, 0.2)'; 
-                    }}
-                    onMouseLeave={(e) => { 
-                      e.currentTarget.style.background = verificationStatus === 'healed' ? 'rgba(0, 240, 255, 0.1)' : 'rgba(56, 189, 248, 0.1)'; 
-                    }}
-                  >
-                    {verificationStatus === 'healed' ? '⚡ AUDIT HEALED PRESS WIRE' : '🌐 AUDIT ORIGINAL PRESS WIRE'}
-                  </a>
-                  {onReportIssue && !currentUser && (
-                    <button
-                      onClick={() => onReportIssue('suggestions', {
-                        type: 'link',
-                        subject: `Broken Press Link for: ${event.title}`,
-                        targetId: `URL: ${editDraft.url} (ID: ${event.id})`,
-                        details: `The press link for "${event.title}" seems to be broken, throws an error, or links to incorrect information. The URL reported is: ${editDraft.url}`
-                      })}
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        background: 'rgba(245, 158, 11, 0.05)',
-                        border: '1px solid rgba(245, 158, 11, 0.2)',
-                        borderRadius: '4px',
-                        color: '#f59e0b',
-                        fontSize: '9px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        fontFamily: 'monospace',
-                        transition: 'all 0.2s',
-                        outline: 'none'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.05)'}
-                    >
-                      [⚡ REPORT BROKEN INTEL LINK]
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 600 }}>
-                    ⚠ LINK UNVERIFIED (BROKEN)
-                  </div>
-                  {onReportIssue && !currentUser && (
-                    <button
-                      onClick={() => onReportIssue('suggestions', {
-                        type: 'link',
-                        subject: `Missing/Broken Link for: ${event.title}`,
-                        targetId: `ID: ${event.id}`,
-                        details: `The intelligence dossier for "${event.title}" has a missing or dead source press link.`
-                      })}
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        background: 'rgba(239, 68, 68, 0.05)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                        borderRadius: '4px',
-                        color: '#ef4444',
-                        fontSize: '9px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        fontFamily: 'monospace',
-                        transition: 'all 0.2s',
-                        outline: 'none'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
-                    >
-                      [⚡ REPORT MISSING SOURCE LINK]
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* References & Research Resources Accordion */}
-        <div style={{ borderTop: '1px solid #1e293b' }}>
-          <button 
-            onClick={() => setExpandedSection(expandedSection === 'references' ? null : 'references')}
-            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: expandedSection === 'references' ? '#1e293b30' : 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer' }}
-          >
-            📚 REFERENCES & VERIFIED RESOURCES
-            <span>{expandedSection === 'references' ? '[-] ' : '[+]'}</span>
-          </button>
-          {expandedSection === 'references' && (
-            <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Existing References List */}
-              {((editDraft.references && editDraft.references.length > 0) || (event.details?.references && event.details.references.length > 0)) ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                    ATTACHED RESEARCH & CITATIONS:
-                  </span>
-                  {(editDraft.references || event.details?.references || []).map((ref, rIdx) => (
-                    <div 
-                      key={rIdx} 
-                      style={{ 
-                        padding: '8px 10px', 
-                        background: 'rgba(56, 189, 248, 0.05)', 
-                        border: '1px solid rgba(56, 189, 248, 0.15)', 
-                        borderRadius: '4px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '11px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-                        <span style={{ color: '#e2e8f0', fontWeight: '600' }}>{ref.title || 'Reference Link'}</span>
-                        <span style={{ color: '#38bdf8', fontSize: '9.5px', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                          {ref.url}
-                        </span>
-                      </div>
-                      <a 
-                        href={ref.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ color: '#00f0ff', marginLeft: '8px', display: 'flex', alignItems: 'center' }}
-                      >
-                        ↗
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ padding: '8px', background: 'rgba(15, 23, 42, 0.5)', border: '1px dashed rgba(56, 189, 248, 0.2)', borderRadius: '4px', color: '#64748b', fontSize: '10.5px', textAlign: 'center' }}>
-                  No extra references attached to this signal yet.
-                </div>
-              )}
-
-              {/* Quick Authoritative Investigation Registries */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                  AUTHORITATIVE REPOSITORIES:
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <a 
-                    href="https://www.sipri.org/databases" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <span>🛡️ SIPRI Arms DB</span>
-                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
-                  </a>
-                  <a 
-                    href="https://unidir.org/topics/artificial-intelligence-and-autonomy/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <span>⚖️ UNIDIR AI Portal</span>
-                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
-                  </a>
-                  <a 
-                    href="https://www.stopkillerrobots.org/resources/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <span>🤖 Stop Killer Robots</span>
-                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
-                  </a>
-                  <a 
-                    href="https://www.bellingcat.com/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '4px', color: '#cbd5e1', fontSize: '10px', textDecoration: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <span>🔎 Bellingcat OSINT</span>
-                    <span style={{ color: '#00f0ff', fontSize: '10px' }}>↗</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Add Reference Form */}
-              <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.15)', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '9.5px', color: '#00f0ff', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                  + ATTACH CITATION / RESOURCE
-                </span>
-                <input
-                  type="text"
-                  placeholder="Resource Title (e.g. UN Security Council Report S/2024/...)"
-                  value={newRefTitle}
-                  onChange={(e) => setNewRefTitle(e.target.value)}
-                  style={{
-                    background: '#0b0f19',
-                    border: '1px solid rgba(56, 189, 248, 0.2)',
-                    borderRadius: '3px',
-                    padding: '5px 8px',
-                    color: '#ffffff',
-                    fontSize: '10.5px',
-                    outline: 'none'
-                  }}
-                />
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={newRefUrl}
-                    onChange={(e) => setNewRefUrl(e.target.value)}
-                    style={{
-                      flex: 1,
-                      background: '#0b0f19',
-                      border: '1px solid rgba(56, 189, 248, 0.2)',
-                      borderRadius: '3px',
-                      padding: '5px 8px',
-                      color: '#38bdf8',
-                      fontSize: '10.5px',
-                      outline: 'none'
-                    }}
-                  />
-                  <button
-                    onClick={handleAddReference}
-                    disabled={isAddingRef || !newRefUrl.trim()}
-                    style={{
-                      background: 'rgba(0, 240, 255, 0.15)',
-                      border: '1px solid #00f0ff',
-                      color: '#00f0ff',
-                      padding: '4px 10px',
-                      borderRadius: '3px',
-                      fontSize: '10px',
-                      fontWeight: 'bold',
-                      cursor: !newRefUrl.trim() ? 'not-allowed' : 'pointer',
-                      fontFamily: 'monospace',
-                      opacity: !newRefUrl.trim() ? 0.5 : 1
-                    }}
-                  >
-                    {isAddingRef ? 'SAVING...' : 'ADD'}
-                  </button>
-                </div>
-                {refAddedSuccess && (
-                  <span style={{ color: '#22c55e', fontSize: '9.5px', fontFamily: 'monospace' }}>
-                    ✓ Reference attached to intelligence dossier.
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      </div>
-      
-      {/* Interactive Save and Revert Action HUD Panel */}
-      {hasChanges && (
-        <div style={{
-          padding: '12px 20px',
-          background: 'rgba(15, 20, 30, 0.95)',
-          borderTop: '1px solid rgba(0, 240, 255, 0.3)',
-          display: 'flex',
-          gap: '10px',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backdropFilter: 'blur(8px)',
-        }}>
-          <span style={{ fontSize: '0.65rem', color: '#facc15', fontWeight: 'bold', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            ⚠ DRAFT PENDING
-          </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => {
-                setEditDraft({
-                  category: event.category,
-                  severity: event.severity,
-                  title: event.title,
-                  location: event.location,
-                  lat: event.lat,
-                  lon: event.lon,
-                  source: event.source,
-                  url: event.url,
-                  summary: event.details?.summary || event.summary || ''
-                });
-                setEditMode(false);
-              }}
-              style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'all 0.2s',
-                fontFamily: 'monospace'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
-            >
-              <X size={12} /> REVERT
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              style={{
-                background: 'rgba(0, 240, 255, 0.15)',
-                color: '#00f0ff',
-                border: '1px solid rgba(0, 240, 255, 0.4)',
-                borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'all 0.2s',
-                boxShadow: '0 0 10px rgba(0, 240, 255, 0.15)',
-                fontFamily: 'monospace'
-              }}
-              onMouseEnter={(e) => {
-                if (!isSaving) {
-                  e.currentTarget.style.background = 'rgba(0, 240, 255, 0.25)';
-                  e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 240, 255, 0.4)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSaving) {
-                  e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
-                  e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.15)';
-                }
-              }}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" /> COMMITTING...
-                </>
-              ) : (
-                <>
-                  <Save size={12} /> COMMIT INTEL TO DB
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Footer Decoration */}
-      <div style={{ padding: '8px 16px', borderTop: '1px solid #1e293b', background: '#0a0f18', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-         <span style={{ fontSize: '10px', color: '#334155', fontFamily: 'monospace' }}>SECURE_NODE_ALPHA_v2</span>
-         <div style={{ display: 'flex', gap: '4px' }}>
-            <div style={{ width: '4px', height: '4px', background: '#22c55e', borderRadius: '50%' }}></div>
-            <div style={{ width: '4px', height: '4px', background: '#334155', borderRadius: '50%' }}></div>
-            <div style={{ width: '4px', height: '4px', background: '#334155', borderRadius: '50%' }}></div>
-         </div>
       </div>
     </div>
   );
 }
-
