@@ -1,0 +1,294 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
+import { Shield, Copy, Check, ExternalLink, Archive, BookOpen, Globe } from 'lucide-react';
+import {
+  computeAdmiraltyGrade,
+  computeContentHash,
+  generateCitations,
+  getWaybackUrls,
+  normalizeSignalId
+} from '@/lib/provenance';
+import { resolveJurisdictionForLocation } from '@/lib/jurisdictions';
+
+export default function CitationProvenanceCard({ event, isStandalone = false }) {
+  const [citeFormat, setCiteFormat] = useState('oscola');
+  const [copiedType, setCopiedType] = useState(null);
+
+  const cleanId = useMemo(() => normalizeSignalId(event?.id), [event?.id]);
+  const admiralty = useMemo(() => computeAdmiraltyGrade(event || {}), [event]);
+  const contentHash = useMemo(() => computeContentHash(event || {}), [event]);
+  const citations = useMemo(() => generateCitations(event || {}), [event]);
+  const wayback = useMemo(() => getWaybackUrls(event?.url), [event?.url]);
+  const matchedJurisdiction = useMemo(
+    () => resolveJurisdictionForLocation(event?.location || event?.title || ''),
+    [event?.location, event?.title]
+  );
+
+  if (!event) return null;
+
+  const handleCopy = (value, type) => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard || !value) return;
+    navigator.clipboard.writeText(value);
+    setCopiedType(type);
+    setTimeout(() => setCopiedType(null), 1800);
+  };
+
+  const activeCitation = citations[citeFormat] || citations.oscola;
+
+  return (
+    <div
+      style={{
+        background: 'rgba(11, 17, 32, 0.85)',
+        border: '1px solid rgba(56, 189, 248, 0.25)',
+        borderRadius: '8px',
+        padding: isStandalone ? '18px' : '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        fontFamily: 'var(--font-inter-fallback)'
+      }}
+    >
+      {/* Top Row: NATO Admiralty Grade + Cryptographic Fingerprint */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          paddingBottom: '10px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span
+            title={admiralty.rationale}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              background: `${admiralty.badgeColor}18`,
+              border: `1px solid ${admiralty.badgeColor}55`,
+              color: admiralty.badgeColor,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.04em'
+            }}
+          >
+            <Shield size={11} />
+            ADMIRALTY {admiralty.grade}
+          </span>
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+            {admiralty.sourceLabel} • {admiralty.infoLabel}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleCopy(contentHash, 'hash')}
+          title={`Click to copy full SHA-256 fingerprint: ${contentHash}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: 'rgba(15, 23, 42, 0.9)',
+            border: '1px solid rgba(148, 163, 184, 0.25)',
+            borderRadius: '4px',
+            padding: '3px 8px',
+            color: copiedType === 'hash' ? '#34d399' : '#cbd5e1',
+            fontFamily: 'var(--font-jetbrains-fallback)',
+            fontSize: '10px',
+            cursor: 'pointer'
+          }}
+        >
+          {copiedType === 'hash' ? <Check size={10} /> : <Copy size={10} />}
+          <span>SHA-256: {contentHash.slice(0, 14)}…</span>
+        </button>
+      </div>
+
+      {/* Provenance Action Links */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+        {!isStandalone && cleanId && (
+          <Link
+            href={`/signal/${encodeURIComponent(cleanId)}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 9px',
+              borderRadius: '4px',
+              background: 'rgba(0, 240, 255, 0.1)',
+              border: '1px solid rgba(0, 240, 255, 0.35)',
+              color: '#00f0ff',
+              fontSize: '10.5px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              textDecoration: 'none'
+            }}
+          >
+            <ExternalLink size={11} />
+            <span>FULL DOSSIER PAGE</span>
+          </Link>
+        )}
+
+        {matchedJurisdiction && (
+          <Link
+            href={`/jurisdiction/${matchedJurisdiction.slug}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 9px',
+              borderRadius: '4px',
+              background: 'rgba(168, 85, 247, 0.12)',
+              border: '1px solid rgba(168, 85, 247, 0.35)',
+              color: '#c084fc',
+              fontSize: '10.5px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              textDecoration: 'none'
+            }}
+          >
+            <Globe size={11} />
+            <span>{matchedJurisdiction.name.toUpperCase()} ATLAS</span>
+          </Link>
+        )}
+
+        {(event.archive_url || wayback) && (
+          <a
+            href={event.archive_url || wayback.lookupUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 9px',
+              borderRadius: '4px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              color: '#38bdf8',
+              fontSize: '10.5px',
+              fontWeight: 600,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              textDecoration: 'none'
+            }}
+          >
+            <Archive size={11} />
+            <span>WAYBACK SNAPSHOT</span>
+          </a>
+        )}
+
+        {wayback && !event.archive_url && (
+          <a
+            href={wayback.saveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              color: '#34d399',
+              fontSize: '10px',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              textDecoration: 'none'
+            }}
+            title="Submit primary source URL to Internet Archive Wayback Machine"
+          >
+            <span>+ ARCHIVE NOW</span>
+          </a>
+        )}
+      </div>
+
+      {/* Academic Citation Generator (OSCOLA / APA / BibTeX) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#cbd5e1', fontSize: '11px', fontWeight: 700 }}>
+            <BookOpen size={12} style={{ color: '#00f0ff' }} />
+            <span>SCHOLARLY CITATION GENERATOR</span>
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {[
+              { id: 'oscola', label: 'OSCOLA' },
+              { id: 'apa', label: 'APA 7th' },
+              { id: 'bibtex', label: 'BibTeX' }
+            ].map((tab) => {
+              const active = citeFormat === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setCiteFormat(tab.id)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    border: active ? '1px solid #00f0ff' : '1px solid rgba(148,163,184,0.2)',
+                    background: active ? 'rgba(0, 240, 255, 0.14)' : 'rgba(15, 23, 42, 0.6)',
+                    color: active ? '#00f0ff' : '#94a3b8',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-jetbrains-fallback)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <pre
+          style={{
+            margin: 0,
+            padding: '10px',
+            borderRadius: '6px',
+            background: '#050914',
+            border: '1px solid rgba(30, 41, 59, 0.9)',
+            color: '#e2e8f0',
+            fontFamily: 'var(--font-jetbrains-fallback)',
+            fontSize: '10.5px',
+            lineHeight: 1.5,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word'
+          }}
+        >
+          {activeCitation}
+        </pre>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={() => handleCopy(activeCitation, 'citation')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 11px',
+              borderRadius: '4px',
+              border: '1px solid rgba(0, 240, 255, 0.4)',
+              background: copiedType === 'citation' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 240, 255, 0.1)',
+              color: copiedType === 'citation' ? '#34d399' : '#00f0ff',
+              fontSize: '10.5px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              cursor: 'pointer'
+            }}
+          >
+            {copiedType === 'citation' ? <Check size={11} /> : <Copy size={11} />}
+            <span>{copiedType === 'citation' ? 'CITATION COPIED' : `COPY ${citeFormat.toUpperCase()} CITATION`}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

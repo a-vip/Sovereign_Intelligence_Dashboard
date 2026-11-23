@@ -7,7 +7,10 @@ import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
 import ChangelogBox from './ChangelogBox';
 import ResourcesModal from './ResourcesModal';
+import Link from 'next/link';
 import SourceManagerModal from './SourceManagerModal';
+import { getJurisdictionBySlug, resolveJurisdictionForLocation } from '@/lib/jurisdictions';
+import { normalizeSignalId } from '@/lib/provenance';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
 
@@ -1067,12 +1070,50 @@ export default function LiveMap({
     window.dispatchEvent(new CustomEvent('sigint-db-update'));
   }, []);
 
+  const deepLinkAppliedRef = useRef(false);
+
   useEffect(() => {
     fetchEvents();
     fetchRss(false);
     const interval = setInterval(fetchEvents, EVENTS_POLL);
     return () => clearInterval(interval);
   }, [fetchEvents, fetchRss]);
+
+  // Hydrate deep-linked ?signal=<id> or ?country=<name> query parameters once initial events arrive
+  useEffect(() => {
+    if (deepLinkAppliedRef.current || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const targetSignal = params.get('signal');
+    const targetCountry = params.get('country');
+    if (!targetSignal && !targetCountry) {
+      deepLinkAppliedRef.current = true;
+      return;
+    }
+
+    if (targetCountry) {
+      deepLinkAppliedRef.current = true;
+      setSelectedCountry(targetCountry);
+      const jur = getJurisdictionBySlug(targetCountry) || resolveJurisdictionForLocation(targetCountry);
+      if (jur && jur.lat != null && jur.lon != null) {
+        setFocusCoordinate({ lat: jur.lat, lon: jur.lon, timestamp: Date.now() });
+      }
+      return;
+    }
+
+    if (targetSignal && allFetchedEvents.length > 0) {
+      const normalizedTarget = normalizeSignalId(targetSignal);
+      const found =
+        allFetchedEvents.find((ev) => normalizeSignalId(ev.id) === normalizedTarget) ||
+        markers.find((m) => normalizeSignalId(m.id) === normalizedTarget);
+      if (found) {
+        deepLinkAppliedRef.current = true;
+        setSelectedEvent(found);
+        if (found.lat != null && found.lon != null) {
+          setFocusCoordinate({ lat: Number(found.lat), lon: Number(found.lon), timestamp: Date.now() });
+        }
+      }
+    }
+  }, [allFetchedEvents, markers]);
 
   // Auto-detect stale data and trigger a background refresh via the cron endpoint
   useEffect(() => {
@@ -1735,6 +1776,52 @@ export default function LiveMap({
               <Plus size={11} />
               <span>{isMobile ? 'SOURCE' : 'ADD SOURCE'}</span>
             </button>
+
+            <Link
+              href="/jurisdictions"
+              style={{
+                background: 'rgba(168, 85, 247, 0.1)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                color: '#c084fc',
+                borderRadius: '4px',
+                padding: isMobile ? '3px 6px' : '4px 8px',
+                fontSize: isMobile ? '9px' : '10px',
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '3px' : '5px',
+                textDecoration: 'none'
+              }}
+              title="Explore Global AI Governance Jurisdiction Atlas"
+            >
+              <Globe size={11} />
+              <span>ATLAS</span>
+            </Link>
+
+            {!isMobile && (
+              <Link
+                href="/methodology"
+                style={{
+                  background: 'rgba(148, 163, 184, 0.08)',
+                  border: '1px solid rgba(148, 163, 184, 0.3)',
+                  color: '#cbd5e1',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  fontFamily: 'var(--font-jetbrains-fallback)',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none'
+                }}
+                title="View Observatory Methodology, Codebook & Verification Standards"
+              >
+                <span>METHODOLOGY</span>
+              </Link>
+            )}
 
             <button
               onClick={() => setShowResourcesModal(true)}
@@ -2655,6 +2742,28 @@ export default function LiveMap({
               animation: 'pulse 1.5s infinite'
             }} />
             <span>ACTIVE SECTOR MONITOR: <strong>{selectedCountry.toUpperCase()}</strong></span>
+            {(() => {
+              const jur = getJurisdictionBySlug(selectedCountry) || resolveJurisdictionForLocation(selectedCountry);
+              if (!jur) return null;
+              return (
+                <Link
+                  href={`/jurisdiction/${jur.slug}`}
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.14)',
+                    border: '1px solid rgba(168, 85, 247, 0.45)',
+                    color: '#c084fc',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    padding: '2px 7px',
+                    borderRadius: '3px',
+                    textDecoration: 'none'
+                  }}
+                  title={`Open full AI Policy & Safety Dossier for ${jur.name}`}
+                >
+                  [DOSSIER ↗]
+                </Link>
+              );
+            })()}
             <button
               onClick={() => {
                 const targetQuery = `loc:"${selectedCountry}"`;

@@ -64,48 +64,49 @@ export async function GET(request) {
   try {
     await initDb();
     
-    // PURGE: Remove stale events (>7d non-edited, >14d non-pinned) and clean noisy RSS items
-    const PURGE_DAYS = 7;
-    const HARD_PURGE_DAYS = 14;
-    const purgeDate = new Date(Date.now() - PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    const hardPurgeDate = new Date(Date.now() - HARD_PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    // ARCHIVE TRANSITION: Non-destructive archival of stale unpinned/unedited markers (>21d) to preserve full historical research record
+    const ARCHIVE_DAYS = 21;
+    const RSS_RETENTION_DAYS = 90;
+    const archiveDate = new Date(Date.now() - ARCHIVE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const rssPurgeDate = new Date(Date.now() - RSS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
     try {
       if (process.env.POSTGRES_URL) {
-        const { rowCount } = await sql`
-          DELETE FROM sigint_events 
-          WHERE (edited IS NULL OR edited = FALSE) 
-          AND (details->>'isPinned' IS NULL OR details->>'isPinned' != 'true')
-          AND timestamp < ${purgeDate}
+        const { rowCount: archivedCount } = await sql`
+          UPDATE sigint_events
+          SET lifecycle_state = 'archived'
+          WHERE (edited IS NULL OR edited = FALSE)
+            AND (details->>'isPinned' IS NULL OR details->>'isPinned' != 'true')
+            AND COALESCE(original_post_time, timestamp) < ${archiveDate}
+            AND COALESCE(lifecycle_state, 'active') = 'active'
         `;
-        const { rowCount: hardPurgeCount } = await sql`
-          DELETE FROM sigint_events 
-          WHERE (details->>'isPinned' IS NULL OR details->>'isPinned' != 'true')
-          AND timestamp < ${hardPurgeDate}
-        `;
-        if (rowCount + hardPurgeCount > 0) {
-          console.log(`[PURGE] Removed ${rowCount} stale + ${hardPurgeCount} hard-expired events from database.`);
+        if (archivedCount > 0) {
+          console.log(`[ARCHIVE] Transitioned ${archivedCount} historical signals (>21d) to permanent archive state.`);
         }
         const rssResult = await sql`
-          DELETE FROM rss_items 
-          WHERE published_at < ${purgeDate}
+          DELETE FROM rss_items
+          WHERE published_at < ${rssPurgeDate}
              OR title ~* '(ballon d|harry kane|cricket|football|soccer|premier league|champions league|super bowl|olympics)'
         `;
         if (rssResult.rowCount > 0) {
-          console.log(`[PURGE] Removed ${rssResult.rowCount} stale/noisy RSS items.`);
+          console.log(`[PURGE] Cleaned ${rssResult.rowCount} >90d or sports-noise RSS items.`);
         }
       } else {
         const localEvents = JSON.parse(fs.readFileSync(path.resolve('events-local.json'), 'utf8') || '[]');
-        const freshEvents = localEvents.filter(e => 
-          e.details?.isPinned === true ||
-          (e.edited === true || e.edited === 'true') || 
-          new Date(e.timestamp || e.original_post_time) > new Date(purgeDate)
-        );
-        if (freshEvents.length < localEvents.length) {
-          fs.writeFileSync(path.resolve('events-local.json'), JSON.stringify(freshEvents, null, 2), 'utf8');
+        let changed = false;
+        const updatedEvents = localEvents.map(e => {
+          const isProtected = e.details?.isPinned === true || e.edited === true || e.edited === 'true';
+          if (!isProtected && new Date(e.timestamp || e.original_post_time) < new Date(archiveDate) && e.lifecycle_state !== 'archived') {
+            changed = true;
+            return { ...e, lifecycle_state: 'archived' };
+          }
+          return e;
+        });
+        if (changed) {
+          fs.writeFileSync(path.resolve('events-local.json'), JSON.stringify(updatedEvents, null, 2), 'utf8');
         }
       }
-    } catch (purgeErr) {
-      console.warn('[PURGE] Stale data cleanup failed (non-fatal):', purgeErr.message);
+    } catch (archiveErr) {
+      console.warn('[ARCHIVE] Lifecycle transition warning (non-fatal):', archiveErr.message);
     }
 
     clearRouteCache();

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Edit3, Check, X, Search, Loader2, Save, MapPin } from 'lucide-react';
+import CitationProvenanceCard from './CitationProvenanceCard';
 
 const CAT_COLORS = {
   Conflict: '#ff2d55',
@@ -1662,6 +1663,18 @@ export default function EventDetailsWindow({ event, onClose, onReportIssue, curr
               )}
             </>
           )}
+        </div>
+
+        {/* Cryptographic Provenance, NATO Admiralty Grade & Scholarly Citations */}
+        <div style={{ padding: '0 20px 16px 20px' }}>
+          <CitationProvenanceCard
+            event={{
+              ...event,
+              ...editDraft,
+              id: event.id,
+              details: event.details
+            }}
+          />
         </div>
 
         {/* Media Accordion */}
