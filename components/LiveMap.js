@@ -9,6 +9,7 @@ import ChangelogBox from './ChangelogBox';
 import ResourcesModal from './ResourcesModal';
 import Link from 'next/link';
 import SourceManagerModal from './SourceManagerModal';
+import CommandPaletteModal from './CommandPaletteModal';
 import { getJurisdictionBySlug, resolveJurisdictionForLocation } from '@/lib/jurisdictions';
 import { normalizeSignalId } from '@/lib/provenance';
 
@@ -536,6 +537,10 @@ export default function LiveMap({
   const [showChangelog, setShowChangelog] = useState(false);
   const [showResourcesModal, setShowResourcesModal] = useState(false);
   const [showSourceModal, setShowSourceModal] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [timeWindowDays, setTimeWindowDays] = useState(21);
+  const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
+  const [timelineCutoffMs, setTimelineCutoffMs] = useState(null);
   const [activeRegionId, setActiveRegionId] = useState('global');
   const searchInputRef = useRef(null);
   const [shareCopied, setShareCopied] = useState(false);
@@ -645,9 +650,14 @@ export default function LiveMap({
     syncAvailableSources();
   }, [syncAvailableSources]);
 
-  // Keyboard ergonomics: '/' focuses signal search, 'Escape' dismisses active modals/selections
+  // Keyboard ergonomics: Cmd/Ctrl+K opens Command Palette, '/' focuses signal search, 'Escape' dismisses modals
   useEffect(() => {
     const onKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette((prev) => !prev);
+        return;
+      }
       const tag = (e.target?.tagName || '').toLowerCase();
       const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable;
       if (e.key === '/' && !isTyping) {
@@ -655,7 +665,8 @@ export default function LiveMap({
         setIsFeedCollapsed(false);
         searchInputRef.current?.focus();
       } else if (e.key === 'Escape') {
-        if (showSourceModal) setShowSourceModal(false);
+        if (showCommandPalette) setShowCommandPalette(false);
+        else if (showSourceModal) setShowSourceModal(false);
         else if (showResourcesModal) setShowResourcesModal(false);
         else if (showChangelog) setShowChangelog(false);
         else if (selectedEvent) setSelectedEvent(null);
@@ -664,7 +675,37 @@ export default function LiveMap({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showSourceModal, showResourcesModal, showChangelog, selectedEvent, selectedCountry]);
+  }, [showCommandPalette, showSourceModal, showResourcesModal, showChangelog, selectedEvent, selectedCountry]);
+
+  // Historical Timeline Playback Scrubber (12 chronological steps)
+  useEffect(() => {
+    if (!isTimelinePlaying) return;
+    const times = [...markers, ...allFetchedEvents]
+      .map((ev) => parseDateSafe(ev.original_post_time || ev.timestamp).getTime())
+      .filter((t) => t > 0)
+      .sort((a, b) => a - b);
+    if (times.length < 2) {
+      setIsTimelinePlaying(false);
+      return;
+    }
+    const minTs = times[0];
+    const maxTs = times[times.length - 1];
+    const span = Math.max(86400000, maxTs - minTs);
+    let step = 0;
+    const totalSteps = 12;
+    setTimelineCutoffMs(minTs);
+    const id = setInterval(() => {
+      step += 1;
+      if (step > totalSteps) {
+        setIsTimelinePlaying(false);
+        setTimelineCutoffMs(null);
+        clearInterval(id);
+        return;
+      }
+      setTimelineCutoffMs(minTs + Math.round((span * step) / totalSteps));
+    }, 750);
+    return () => clearInterval(id);
+  }, [isTimelinePlaying]);
 
   // Dynamic 15-second visibility-gated telemetry polling interval for space satellites
   useEffect(() => {
@@ -860,7 +901,8 @@ export default function LiveMap({
   const fetchEvents = useCallback(async (refresh = false) => {
     if (!isVisible) return; // Don't fetch if tab is hidden
     try {
-      const res = await fetch(`/api/events?timespan=today${refresh ? '&refresh=true' : ''}`, { cache: 'no-store' });
+      const apiTimespan = timeWindowDays >= 365 ? 'all' : timeWindowDays >= 90 ? '90d' : 'today';
+      const res = await fetch(`/api/events?timespan=${apiTimespan}${refresh ? '&refresh=true' : ''}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.events?.length) {
         setAllFetchedEvents(data.events);
@@ -892,7 +934,7 @@ export default function LiveMap({
       }
       setStatus(data.status === 'success' || data.status === 'live' ? 'live' : (data.status || 'live'));
     } catch { setStatus('error'); }
-  }, [isInitializing, isVisible, timeRange]);
+  }, [isInitializing, isVisible, timeRange, timeWindowDays]);
 
   const fetchRss = useCallback(async (refresh = false) => {
     if (!isVisible) return;
@@ -1250,8 +1292,15 @@ export default function LiveMap({
       }
     });
 
-    // Filter combined list by checkbox categories & minSeverity
-    let filtered = deduplicated.filter(m => categories[m.category] && m.severity >= minSeverity);
+    // Filter combined list by checkbox categories, minSeverity & optional Timeline Scrubber cutoff
+    let filtered = deduplicated.filter(m => {
+      if (!categories[m.category] || m.severity < minSeverity) return false;
+      if (timelineCutoffMs !== null) {
+        const tMs = parseDateSafe(m.original_post_time || m.timestamp).getTime();
+        if (tMs > 0 && tMs > timelineCutoffMs) return false;
+      }
+      return true;
+    });
 
     if (searchQuery.trim() !== '') {
       filtered = filtered.filter(m => matchAdvancedQuery(m, searchQuery));
@@ -1296,7 +1345,7 @@ export default function LiveMap({
     }
 
     return dispersed;
-  }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources]);
+  }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources, timelineCutoffMs]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -1779,95 +1828,80 @@ export default function LiveMap({
               <span>{isMobile ? 'SOURCE' : 'ADD SOURCE'}</span>
             </button>
 
-            <Link
-              href="/jurisdictions"
+            <button
+              onClick={() => setShowCommandPalette(true)}
               style={{
-                background: 'rgba(168, 85, 247, 0.1)',
-                border: '1px solid rgba(168, 85, 247, 0.35)',
-                color: '#c084fc',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#cbd5e1',
                 borderRadius: '4px',
                 padding: isMobile ? '3px 6px' : '4px 8px',
                 fontSize: isMobile ? '9px' : '10px',
                 fontWeight: 'bold',
                 fontFamily: 'var(--font-jetbrains-fallback)',
-                letterSpacing: '0.5px',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '3px' : '5px',
-                textDecoration: 'none'
+                gap: '4px'
               }}
-              title="Explore Global AI Governance Jurisdiction Atlas"
+              title="Open Quick Command Palette (Ctrl/Cmd + K)"
             >
-              <Globe size={11} />
-              <span>ATLAS</span>
-            </Link>
+              <span>⌘K</span>
+            </button>
 
-            {!isMobile && (
-              <Link
-                href="/labs"
+            {!isMobile ? (
+              <div
                 style={{
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  color: '#34d399',
-                  borderRadius: '4px',
-                  padding: '4px 8px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  fontFamily: 'var(--font-jetbrains-fallback)',
-                  letterSpacing: '0.5px',
                   display: 'flex',
                   alignItems: 'center',
-                  textDecoration: 'none'
+                  background: 'rgba(15, 23, 42, 0.75)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: '5px',
+                  overflow: 'hidden'
                 }}
-                title="Frontier AI Safety Frameworks, METR & AISI Evaluations"
               >
-                <span>LABS</span>
-              </Link>
-            )}
-
-            {!isMobile && (
+                {[
+                  { href: '/jurisdictions', label: 'ATLAS', color: '#c084fc' },
+                  { href: '/compare', label: 'COMPARE', color: '#00f0ff' },
+                  { href: '/index', label: 'INDEX', color: '#34d399' },
+                  { href: '/labs', label: 'LABS', color: '#38bdf8' },
+                  { href: '/compute', label: 'COMPUTE', color: '#facc15' },
+                  { href: '/methodology', label: 'CODEBOOK', color: '#cbd5e1' }
+                ].map((navItem, nIdx) => (
+                  <Link
+                    key={navItem.href}
+                    href={navItem.href}
+                    style={{
+                      padding: '4px 7px',
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-jetbrains-fallback)',
+                      color: navItem.color,
+                      textDecoration: 'none',
+                      borderLeft: nIdx === 0 ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                      letterSpacing: '0.4px'
+                    }}
+                  >
+                    {navItem.label}
+                  </Link>
+                ))}
+              </div>
+            ) : (
               <Link
-                href="/compute"
+                href="/jurisdictions"
                 style={{
-                  background: 'rgba(250, 204, 21, 0.08)',
-                  border: '1px solid rgba(250, 204, 21, 0.3)',
-                  color: '#facc15',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  color: '#c084fc',
                   borderRadius: '4px',
-                  padding: '4px 8px',
-                  fontSize: '10px',
+                  padding: '3px 6px',
+                  fontSize: '9px',
                   fontWeight: 'bold',
                   fontFamily: 'var(--font-jetbrains-fallback)',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
                   textDecoration: 'none'
                 }}
-                title="Epoch AI Global Compute Clusters & Governance Coverage"
               >
-                <span>COMPUTE</span>
-              </Link>
-            )}
-
-            {!isMobile && (
-              <Link
-                href="/methodology"
-                style={{
-                  background: 'rgba(148, 163, 184, 0.08)',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  color: '#cbd5e1',
-                  borderRadius: '4px',
-                  padding: '4px 8px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  fontFamily: 'var(--font-jetbrains-fallback)',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  textDecoration: 'none'
-                }}
-                title="View Observatory Methodology, Codebook & Verification Standards"
-              >
-                <span>METHODOLOGY</span>
+                ATLAS
               </Link>
             )}
 
@@ -2860,6 +2894,89 @@ export default function LiveMap({
             </button>
           </div>
         )}
+        {/* Historical Time-Window & Playback Control Pill */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: isMobile ? '44px' : '42px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 25,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(6, 10, 20, 0.88)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            borderRadius: '20px',
+            padding: '4px 10px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            pointerEvents: 'auto'
+          }}
+        >
+          {[
+            { days: 7, label: '7D' },
+            { days: 21, label: '21D' },
+            { days: 90, label: '90D' },
+            { days: 365, label: 'ALL' }
+          ].map((opt) => {
+            const active = timeWindowDays === opt.days;
+            return (
+              <button
+                key={opt.label}
+                onClick={() => {
+                  setTimelineCutoffMs(null);
+                  setIsTimelinePlaying(false);
+                  setTimeWindowDays(opt.days);
+                }}
+                style={{
+                  background: active ? 'rgba(0, 240, 255, 0.18)' : 'transparent',
+                  border: active ? '1px solid rgba(0, 240, 255, 0.45)' : '1px solid transparent',
+                  color: active ? '#00f0ff' : '#94a3b8',
+                  borderRadius: '12px',
+                  padding: '2px 7px',
+                  fontSize: '9.5px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-jetbrains-fallback)',
+                  cursor: 'pointer'
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+          <span style={{ color: "rgba(255,255,255,0.15)" }}>|</span>
+          <button
+            onClick={() => {
+              if (isTimelinePlaying) {
+                setIsTimelinePlaying(false);
+                setTimelineCutoffMs(null);
+              } else {
+                setIsTimelinePlaying(true);
+              }
+            }}
+            style={{
+              background: isTimelinePlaying ? 'rgba(239, 68, 68, 0.18)' : 'rgba(16, 185, 129, 0.14)',
+              border: isTimelinePlaying ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)',
+              color: isTimelinePlaying ? '#f87171' : '#34d399',
+              borderRadius: '12px',
+              padding: '2px 8px',
+              fontSize: '9.5px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {isTimelinePlaying ? '⏹ STOP' : '▶ PLAY'}
+          </button>
+          {timelineCutoffMs && (
+            <span style={{ fontSize: "9.5px", color: "#facc15", fontFamily: "var(--font-jetbrains-fallback)", whiteSpace: "nowrap" }}>
+              {new Date(timelineCutoffMs).toISOString().slice(0, 10)}
+            </span>
+          )}
+        </div>
+
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
           focusCoordinate={focusCoordinate}
@@ -4046,6 +4163,25 @@ export default function LiveMap({
           onFocusLocation={(lat, lon) => setFocusCoordinate({ lat, lon })}
         />
       )}
+
+      {/* Global Quick Command Palette (Cmd/Ctrl + K) */}
+      <CommandPaletteModal
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        signals={allFetchedEvents}
+        onFlyToLocation={(lat, lon, countryName) => {
+          if (countryName) setSelectedCountry(countryName);
+          if (lat != null && lon != null) {
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }
+        }}
+        onSelectSignal={(ev) => {
+          setSelectedEvent(ev);
+          if (ev?.lat != null && ev?.lon != null) {
+            setFocusCoordinate({ lat: Number(ev.lat), lon: Number(ev.lon), timestamp: Date.now() });
+          }
+        }}
+      />
 
       {/* Knowledge Repositories & Verification Resources Modal */}
       {showResourcesModal && (

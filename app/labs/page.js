@@ -73,6 +73,8 @@ export default async function FrontierLabsWatchPage() {
             ← RETURN TO LIVE 3D GLOBE
           </Link>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
+            <Link href="/compare" style={{ color: '#00f0ff', textDecoration: 'none' }}>LEGAL DIFF</Link>
+            <Link href="/index" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
             <Link href="/compute" style={{ color: '#facc15', textDecoration: 'none' }}>COMPUTE OBSERVATORY</Link>
             <Link href="/jurisdictions" style={{ color: '#c084fc', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
             <Link href="/methodology" style={{ color: '#38bdf8', textDecoration: 'none' }}>METHODOLOGY</Link>
