@@ -7,7 +7,7 @@ import { JURISDICTIONS } from '@/lib/jurisdictions';
 import { FRONTIER_LABS } from '@/lib/frontierLabs';
 
 const MODULES = [
-  { id: 'mod-atlas', title: 'Global AI Jurisdiction Atlas (24 Profiles)', subtitle: 'Statutory frameworks, treaties & domestic compute', href: '/jurisdictions', icon: 'globe' },
+  { id: 'mod-atlas', title: 'Global AI Jurisdiction Atlas (38 Profiles)', subtitle: 'Statutory frameworks, Global South regimes, treaties & compute', href: '/jurisdictions', icon: 'globe' },
   { id: 'mod-compare', title: 'Cross-Jurisdictional AI Law Diff Matrix', subtitle: 'Side-by-side comparison: EU AI Act vs. SB 53 vs. Korea vs. China', href: '/compare', icon: 'scale' },
   { id: 'mod-index', title: 'SAGRI Readiness Index & Epistemic Parity', subtitle: 'Interactive 0–100 benchmark sliders & Global North/South analytics', href: '/readiness', icon: 'chart' },
   { id: 'mod-labs', title: 'Frontier Lab Watch & Safety Matrix', subtitle: 'Anthropic RSP, OpenAI Preparedness, DeepMind FSF, METR & AISI evals', href: '/labs', icon: 'shield' },

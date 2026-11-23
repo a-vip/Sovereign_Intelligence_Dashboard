@@ -17,44 +17,7 @@ let isDbInitialized = false;
 const GDELT_DOC_API =
   'https://api.gdeltproject.org/api/v2/doc/doc?query=(%22artificial%20intelligence%22%20OR%20%22AI%20regulation%22%20OR%20%22EU%20AI%20Act%22%20OR%20%22autonomous%20weapons%22%20OR%20%22cyberattack%22%20OR%20%22ransomware%22%20OR%20%22facial%20recognition%22%20OR%20%22spyware%22%20OR%20%22semiconductor%20export%22)%20sourcelang:english&mode=artlist&maxrecords=100&format=json';
 
-const CURATED_STATIC_MARKERS = [
-  {
-    id: 'curated-lavender-gaza',
-    lat: 31.5017,
-    lon: 34.4668,
-    name: 'Algorithmic Target Generation ("Lavender" & "Where’s Daddy?") IHL Review',
-    location: 'Gaza / Palestinian Territories',
-    category: 'Conflict',
-    severity: 5,
-    tag: 'CRITICAL',
-    source: '+972 Magazine / IHL Dossier',
-    url: 'https://www.972mag.com/lavender-ai-israeli-army-gaza/'
-  },
-  {
-    id: 'curated-red-wolf-hebron',
-    lat: 31.7683,
-    lon: 35.2137,
-    name: 'Automated Biometric Checkpoint & Facial Recognition Network ("Red Wolf")',
-    location: 'West Bank / Jerusalem',
-    category: 'Surveillance',
-    severity: 4,
-    tag: 'ALERT',
-    source: 'Amnesty International Tech Lab',
-    url: 'https://www.amnesty.org/en/latest/news/2023/05/israel-opt-israeli-authorities-are-using-facial-recognition-technology-to-entrench-apartheid/'
-  },
-  {
-    id: 'curated-sipri-stockholm',
-    lat: 59.3293,
-    lon: 18.0686,
-    name: 'SIPRI Global Assessment on Military AI & Autonomous Weapons Proliferation',
-    location: 'Stockholm, Sweden',
-    category: 'Political',
-    severity: 3,
-    tag: 'POLICY',
-    source: 'SIPRI Stockholm',
-    url: 'https://www.sipri.org/research/armament-and-disarmament/emerging-military-and-security-technologies'
-  }
-];
+const CURATED_STATIC_MARKERS = [];
 
 function generateHashId(url, title) {
   const seed = url || title || Math.random().toString();
@@ -395,14 +358,27 @@ export async function GET(request) {
     }
 
     // Apply deterministic, land-safe golden-angle dispersion & cap automated hub density (max 4 per city)
-    const dispersedEvents = disperseCoLocatedEvents(deduplicated, 4).slice(0, 120);
+    const normalizedDispersed = disperseCoLocatedEvents(deduplicated, 4).slice(0, 120).map((e) => {
+      const safeSource = String(e.source || e.details?.source || 'Sovereign Observatory').trim() || 'Sovereign Observatory';
+      const safeUrl = e.url && String(e.url).startsWith('http') ? e.url : 'https://app.sovdash.com/methodology';
+      const safeSummary =
+        (e.details?.summary && String(e.details.summary).trim()) ||
+        (e.summary && String(e.summary).trim()) ||
+        `${safeSource} documented this ${e.details?.domainPillar || e.category || 'AI policy'} signal in ${e.location || 'Global'}.`;
+      return {
+        ...e,
+        source: safeSource,
+        url: safeUrl,
+        summary: safeSummary,
+        details: {
+          ...(e.details || {}),
+          source: e.details?.source || safeSource,
+          summary: safeSummary
+        }
+      };
+    });
 
-    // Build cleanly matched markers
-    const curatedMarkers = CURATED_STATIC_MARKERS
-      .filter(m => !isEventArchived(m, archivedInfo))
-      .map(m => ({ ...m, count: 1 }));
-
-    const dbMarkers = dispersedEvents.map(e => ({
+    const dbMarkers = normalizedDispersed.map(e => ({
       id: `db-${e.id}`,
       lat: e.lat,
       lon: e.lon,
@@ -421,7 +397,7 @@ export async function GET(request) {
 
     const seenNames = new Set();
     const finalMarkers = [];
-    for (const m of [...dbMarkers, ...curatedMarkers]) {
+    for (const m of dbMarkers) {
       const nk = getNormTitle(m.name || m.title);
       if (nk && seenNames.has(nk)) continue;
       if (nk) seenNames.add(nk);
@@ -430,7 +406,7 @@ export async function GET(request) {
 
     const responseData = {
       markers: finalMarkers.slice(0, 120),
-      events: dispersedEvents,
+      events: normalizedDispersed,
       lastUpdated: new Date().toISOString(),
       status: 'success'
     };

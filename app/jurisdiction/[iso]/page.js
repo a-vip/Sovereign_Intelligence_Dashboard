@@ -5,6 +5,7 @@ import { getEventsByJurisdiction, getAiRegulations, getFrontierClusters } from '
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeAdmiraltyGrade, normalizeSignalId } from '@/lib/provenance';
 import EmbedCopyCard from '@/components/EmbedCopyCard';
+import EditorialThemeToggle from '@/components/EditorialThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,7 +110,7 @@ export default async function JurisdictionDossierPage({ params }) {
             <span style={{ color: 'var(--sov-text)', fontWeight: 700 }}>{jurisdiction.iso}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link
               href={`/brief?jurisdiction=${encodeURIComponent(jurisdiction.slug)}`}
               style={{
@@ -142,6 +143,7 @@ export default async function JurisdictionDossierPage({ params }) {
             >
               OPEN ON 3D GLOBE ↗
             </Link>
+            <EditorialThemeToggle />
           </div>
         </nav>
 

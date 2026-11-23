@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Link from 'next/link';
 import { getObservatoryMetrics } from '@/lib/db';
+import EditorialThemeToggle from '@/components/EditorialThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,7 @@ export default async function MethodologyPage() {
             <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>
               JURISDICTION ATLAS →
             </Link>
+            <EditorialThemeToggle />
           </div>
         </nav>
 

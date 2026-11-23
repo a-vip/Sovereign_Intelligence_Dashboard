@@ -383,6 +383,8 @@ export default function CesiumGlobe({
   const aiRegulationsEntitiesRef = useRef([]);
   const threatDataSourceRef = useRef(null);
   const leafletThreatGroupRef = useRef(null);
+  const leafletOverlayGroupRef = useRef(null);
+  const leafletWeatherLayerRef = useRef(null);
   const lastPickedFeatureRef = useRef(null);
   const selectionEntityRef = useRef(null);
   const lastRepelledMarkersJsonRef = useRef('');
@@ -419,7 +421,6 @@ export default function CesiumGlobe({
   const is2DActive = mapError || mapMode === '2d';
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
-  const [clusterPicker, setClusterPicker] = useState(null);
   const setHoverTooltipRef = useRef(setHoverTooltip);
   useEffect(() => {
     setHoverTooltipRef.current = setHoverTooltip;
@@ -1130,11 +1131,11 @@ export default function CesiumGlobe({
              p.lon >= -180.0 && p.lon <= 180.0;
     });
 
-    const gravity = 0.14; // Strong anchor to true city coordinate so coastal pins never drift into oceans
-    const repelForce = 0.24; // Crisp separation for nearby city pins
-    const thresholdDegrees = 0.14; // ~15km micro-spacing threshold
-    const maxDriftDegrees = 0.20; // Hard clamp so pins never cross borders or coastlines
-    const iterations = 8;
+    const gravity = 0.08; // Preserve true regional placement while allowing clear visual separation
+    const repelForce = 0.28; // Push co-located nodes cleanly apart so none overlap
+    const thresholdDegrees = 0.90; // Distinct individual node spacing threshold
+    const maxDriftDegrees = 0.72; // Bounded regional spread
+    const iterations = 16;
 
     for (let step = 0; step < iterations; step++) {
       for (let i = 0; i < points.length; i++) {
@@ -1321,7 +1322,7 @@ export default function CesiumGlobe({
     }
   }, [selectedCountry, scriptsLoaded, viewerReady]);
 
-  // 2. Update threat markers on Leaflet map with screen-space cluster collapsing
+  // 2. Update individual spaced threat markers on Leaflet map (no numbered consolidation circles)
   useEffect(() => {
     if (!scriptsLoaded || !is2DActive || !leafletMapRef.current) return;
 
@@ -1332,179 +1333,59 @@ export default function CesiumGlobe({
       leafletThreatGroupRef.current = L.layerGroup().addTo(map);
     }
     const threatGroup = leafletThreatGroupRef.current;
+    threatGroup.clearLayers();
 
+    // Clear transient satellite markers/paths from base map
     map.eachLayer(layer => {
-      if (layer instanceof L.CircleMarker || layer instanceof L.Polyline) {
+      if ((layer instanceof L.CircleMarker || layer instanceof L.Polyline) && !threatGroup.hasLayer(layer) && !(leafletOverlayGroupRef.current && leafletOverlayGroupRef.current.hasLayer(layer))) {
         map.removeLayer(layer);
       }
     });
 
-    const render2DThreatMarkers = () => {
-      threatGroup.clearLayers();
-      const clusters = [];
-      const thresholdPx = 28;
+    repelledMarkers.forEach(m => {
+      if (m.repelledLat === undefined || m.repelledLon === undefined) return;
+      const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
+      const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
+        radius: Math.min(5 + (m.severity || 1) * 1.15, 11),
+        fillColor: sevColorStr,
+        color: '#0f172a',
+        weight: 2,
+        opacity: 0.9,
+        fillOpacity: 0.95
+      }).addTo(threatGroup);
 
-      repelledMarkers.forEach(m => {
-        if (m.repelledLat === undefined || m.repelledLon === undefined) return;
-        const pt = map.latLngToContainerPoint([m.repelledLat, m.repelledLon]);
-        let target = null;
-        for (const c of clusters) {
-          const dx = pt.x - c.px;
-          const dy = pt.y - c.py;
-          if (dx * dx + dy * dy <= thresholdPx * thresholdPx) {
-            target = c;
-            break;
-          }
-        }
-        if (target) {
-          target.items.push(m);
-        } else {
-          clusters.push({ px: pt.x, py: pt.y, items: [m] });
-        }
-      });
-
-      clusters.forEach(c => {
-        if (c.items.length === 1) {
-          const m = c.items[0];
-          const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
-          const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
-            radius: Math.min(6 + (m.severity || 1) * 1.6, 14),
-            fillColor: sevColorStr,
-            color: '#0f172a',
-            weight: 2,
-            opacity: 0.9,
-            fillOpacity: 0.95
-          }).addTo(threatGroup);
-
-          marker.bindTooltip(`
-            <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(56, 189, 248, 0.65); border-radius: 8px; color: #f8fafc; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); width: 240px; white-space: normal; word-break: break-word;">
-              <div style="border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 6px; margin-bottom: 6px; font-weight: bold; font-size: 12px;">
-                ${String(m.title || m.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <div style="display: flex; justify-content: space-between; gap: 12px;">
-                  <span style="opacity: 0.72;">Severity:</span>
-                  <span style="color: ${sevColorStr}; font-weight: bold;">S${m.severity}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; gap: 12px;">
-                  <span style="opacity: 0.72;">Category:</span>
-                  <span style="font-weight: bold; word-break: break-word;">${String(m.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-                </div>
-              </div>
+      marker.bindTooltip(`
+        <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(56, 189, 248, 0.65); border-radius: 8px; color: #f8fafc; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); width: 240px; white-space: normal; word-break: break-word;">
+          <div style="border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 6px; margin-bottom: 6px; font-weight: bold; font-size: 12px;">
+            ${String(m.title || m.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+              <span style="opacity: 0.72;">Location:</span>
+              <span style="font-weight: bold; word-break: break-word;">${String(m.location || 'Global').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
             </div>
-          `, {
-            direction: 'top',
-            className: 'leaflet-tooltip-custom',
-            permanent: false,
-            sticky: true,
-            opacity: 1
-          });
-
-          marker.on('click', () => {
-            setClusterPicker(null);
-            if (onPointClickRef.current) onPointClickRef.current(m);
-          });
-        } else {
-          const maxSev = c.items.reduce((mx, item) => Math.max(mx, item.severity || 1), 1);
-          const badgeColor = SEV_COLORS[maxSev] || '#38bdf8';
-          const avgLat = c.items.reduce((s, item) => s + item.repelledLat, 0) / c.items.length;
-          const avgLon = c.items.reduce((s, item) => s + item.repelledLon, 0) / c.items.length;
-          const size = c.items.length >= 10 ? 30 : 26;
-
-          const clusterIcon = L.divIcon({
-            className: 'sov-leaflet-cluster',
-            iconSize: [size, size],
-            iconAnchor: [size / 2, size / 2],
-            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#0f172a;border:2.5px solid ${badgeColor};color:#ffffff;font-family:monospace;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.45);cursor:pointer;">${c.items.length}</div>`
-          });
-
-          const cMarker = L.marker([avgLat, avgLon], { icon: clusterIcon }).addTo(threatGroup);
-          cMarker.bindTooltip(`
-            <div style="font-family: monospace; font-size: 11px; padding: 8px 12px; background: rgba(11, 19, 43, 0.98); border: 1px solid ${badgeColor}; border-radius: 8px; color: #f8fafc;">
-              <strong>${c.items.length} Stacked Signals</strong><br/><span style="opacity:0.78;">Click to expand or select</span>
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+              <span style="opacity: 0.72;">Severity:</span>
+              <span style="color: ${sevColorStr}; font-weight: bold;">S${m.severity}</span>
             </div>
-          `, { direction: 'top', className: 'leaflet-tooltip-custom', opacity: 1 });
-
-          cMarker.on('click', (e) => {
-            if (map.getZoom() < 10) {
-              map.flyTo([avgLat, avgLon], Math.min(12, map.getZoom() + 3), { duration: 0.6 });
-            } else {
-              const containerPt = map.latLngToContainerPoint(e.latlng);
-              setClusterPicker({ x: containerPt.x, y: containerPt.y, items: c.items });
-            }
-          });
-        }
-      });
-    };
-
-    render2DThreatMarkers();
-    map.on('zoomend', render2DThreatMarkers);
-
-    // Render 2D AI Regulations Fallback
-    if (aiRegulationsEnabled && leafletAiRegulations && leafletAiRegulations.length > 0) {
-      const REG_COLORS = {
-        'In effect': '#22c55e',
-        'Passed': '#38bdf8',
-        'Proposed': '#facc15',
-        'Policy': '#a855f7'
-      };
-
-      leafletAiRegulations.forEach(item => {
-        if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
-        const color = REG_COLORS[item.status] || '#a855f7';
-
-        const marker = L.circleMarker([item.lat, item.lon], {
-          radius: 6,
-          fillColor: color,
-          color: '#ffffff',
-          weight: 1.5,
-          opacity: 1,
-          fillOpacity: 0.95
-        }).addTo(map);
-
-        marker.bindTooltip(`
-          <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(168, 85, 247, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(168, 85, 247, 0.3); backdrop-filter: blur(8px); width: 260px; white-space: normal; word-break: break-word;">
-            <div style="border-bottom: 1px solid rgba(168, 85, 247, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-              <span>⚖️</span>
-              <span style="white-space: normal; word-break: break-word;">${String(item.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 5px;">
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Jurisdiction:</span>
-                <span style="color: #f8fafc; font-weight: bold; text-align: right; word-break: break-word;">${String(item.jurisdiction || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Status:</span>
-                <span style="color: ${color}; font-weight: bold;">${String(item.status || '').toUpperCase()}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Area:</span>
-                <span style="color: #f8fafc; font-weight: bold; text-align: right; word-break: break-word;">${item.area}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Date:</span>
-                <span style="color: #f8fafc; font-weight: bold;">${item.date || 'Unknown'}</span>
-              </div>
+            <div style="display: flex; justify-content: space-between; gap: 12px;">
+              <span style="opacity: 0.72;">Category:</span>
+              <span style="font-weight: bold; word-break: break-word;">${String(m.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
             </div>
           </div>
-        `, {
-          direction: 'top',
-          className: 'leaflet-tooltip-custom',
-          permanent: false,
-          sticky: true,
-          opacity: 1
-        });
-
-        marker.on('click', () => {
-          if (onPointClickRef.current) {
-            onPointClickRef.current({
-              ...item,
-              isAiRegulation: true
-            });
-          }
-        });
+        </div>
+      `, {
+        direction: 'top',
+        className: 'leaflet-tooltip-custom',
+        permanent: false,
+        sticky: true,
+        opacity: 1
       });
-    }
+
+      marker.on('click', () => {
+        if (onPointClickRef.current) onPointClickRef.current(m);
+      });
+    });
 
     // Render 2D Satellites Fallback
     if (showSatellites && satellites) {
@@ -1591,10 +1472,167 @@ export default function CesiumGlobe({
       }).addTo(map);
     }
 
-    return () => {
-      map.off('zoomend', render2DThreatMarkers);
+  }, [is2DActive, repelledMarkers, leafletReady, showSatellites, satellites, selectedSatellite]);
+
+  // 2e. Full 2D Leaflet Overlay Parity (Data Centers, AI Regulations, GPS Jamming, Oil & Gas, Cables, Weather)
+  useEffect(() => {
+    if (!scriptsLoaded || !is2DActive || !leafletMapRef.current) return;
+    const L = window.L;
+    const map = leafletMapRef.current;
+
+    if (!leafletOverlayGroupRef.current) {
+      leafletOverlayGroupRef.current = L.layerGroup().addTo(map);
+    }
+    const overlayGroup = leafletOverlayGroupRef.current;
+    overlayGroup.clearLayers();
+
+    if (leafletWeatherLayerRef.current) {
+      try { map.removeLayer(leafletWeatherLayerRef.current); } catch {}
+      leafletWeatherLayerRef.current = null;
+    }
+
+    let cancelled = false;
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const loadJsonCached = async (key, url) => {
+      if (GLOBE_LAYER_CACHE[key]) return GLOBE_LAYER_CACHE[key];
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const d = await res.json();
+      GLOBE_LAYER_CACHE[key] = d;
+      return d;
     };
-  }, [is2DActive, repelledMarkers, leafletReady, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
+
+    if (internetCablesEnabled) {
+      Promise.all([
+        loadJsonCached('submarineCables', '/api/cables'),
+        loadJsonCached('landingStations', '/api/landing-stations')
+      ]).then(([cablesGeo, landingGeo]) => {
+        if (cancelled) return;
+        (cablesGeo?.features || []).forEach(f => {
+          const g = f.geometry;
+          const color = f.properties?.color || '#ec4899';
+          const drawCoords = (coords) => {
+            L.polyline(coords.map(c => [c[1], c[0]]), { color, weight: 1.4, opacity: 0.55 }).bindTooltip(esc(f.properties?.name || 'Undersea Cable'), { sticky: true, className: 'leaflet-tooltip-custom' }).addTo(overlayGroup);
+          };
+          if (g?.type === 'LineString') drawCoords(g.coordinates);
+          else if (g?.type === 'MultiLineString') g.coordinates.forEach(drawCoords);
+        });
+        (landingGeo?.features || []).forEach(f => {
+          const c = f.geometry?.coordinates;
+          if (Array.isArray(c) && c.length >= 2) {
+            L.circleMarker([c[1], c[0]], { radius: 3, fillColor: '#a855f7', color: '#0f172a', weight: 1, fillOpacity: 0.85 })
+              .bindTooltip(esc(f.properties?.name || 'Landing Station'), { sticky: true })
+              .addTo(overlayGroup);
+          }
+        });
+      }).catch(() => {});
+    }
+
+    if (oilGasEnabled) {
+      loadJsonCached('oilGas', '/api/oil-gas').then((data) => {
+        if (cancelled || !data) return;
+        (data.lines || []).forEach(line => {
+          L.polyline(line.coordinates.map(c => [c[1], c[0]]), { color: line.color || '#f59e0b', weight: 1.4, opacity: 0.6 })
+            .bindTooltip(esc(line.project || 'Pipeline'), { sticky: true })
+            .addTo(overlayGroup);
+        });
+        (data.points || []).forEach(pt => {
+          if (!Array.isArray(pt.coordinate)) return;
+          L.circleMarker([pt.coordinate[1], pt.coordinate[0]], { radius: 3.5, fillColor: pt.color || '#f59e0b', color: '#0f172a', weight: 1, fillOpacity: 0.8 })
+            .bindTooltip(esc(pt.name || 'Energy Facility'), { sticky: true })
+            .addTo(overlayGroup);
+        });
+      }).catch(() => {});
+    }
+
+    if (gpsJammingEnabled) {
+      loadJsonCached('gpsJamming', '/api/gps-jamming').then((data) => {
+        if (cancelled || !data?.cells) return;
+        data.cells.filter(c => c.category && c.category !== 'none' && c.intensity > 0).forEach(cell => {
+          const kmPerDeg = 111.32;
+          const dLat = cell.radiusKm / kmPerDeg;
+          const dLon = cell.radiusKm / (kmPerDeg * Math.max(0.25, Math.cos(cell.lat * Math.PI / 180)));
+          const ring = [];
+          for (let i = 0; i < 6; i++) {
+            const a = (i * 60) * Math.PI / 180;
+            ring.push([cell.lat + dLat * Math.sin(a), cell.lon + dLon * Math.cos(a)]);
+          }
+          const fillOp = cell.category === 'high' ? 0.52 : cell.category === 'medium' ? 0.36 : 0.22;
+          L.polygon(ring, { color: cell.color || '#ef4444', weight: 1, fillColor: cell.color || '#ef4444', fillOpacity: fillOp })
+            .bindTooltip(`GPS Interference (${esc(cell.category.toUpperCase())}) • ${Math.round((cell.intensity || 0) * 100)}%`, { sticky: true })
+            .addTo(overlayGroup);
+        });
+      }).catch(() => {});
+    }
+
+    if (dataCentersEnabled) {
+      loadJsonCached('dataCenters', '/api/datacenters').then((data) => {
+        if (cancelled || !data?.dataCenters) return;
+        const gridCounts = {};
+        const selected = [];
+        for (const dc of data.dataCenters) {
+          if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') continue;
+          if (dc.isFrontierCluster) {
+            selected.push(dc);
+            continue;
+          }
+          const gk = `${Math.round(dc.lat / 0.65)},${Math.round(dc.lon / 0.65)}`;
+          if ((gridCounts[gk] || 0) < 2 && selected.length < 750) {
+            gridCounts[gk] = (gridCounts[gk] || 0) + 1;
+            selected.push(dc);
+          }
+        }
+        selected.forEach(dc => {
+          const isFrontier = Boolean(dc.isFrontierCluster || dc.status === 'planned');
+          L.circleMarker([dc.lat, dc.lon], {
+            radius: isFrontier ? 6.5 : 4,
+            fillColor: isFrontier ? '#f59e0b' : '#0ea5e9',
+            color: '#0f172a',
+            weight: isFrontier ? 1.8 : 1,
+            fillOpacity: 0.9
+          }).bindTooltip(`${esc(dc.name)} (${esc(dc.operator || 'Independent')} · ${esc(dc.city || '')}, ${esc(dc.country || '')})`, { sticky: true })
+            .addTo(overlayGroup);
+        });
+      }).catch(() => {});
+    }
+
+    if (aiRegulationsEnabled) {
+      loadJsonCached('aiRegulations', '/api/ai-regulations').then((data) => {
+        if (cancelled || !data?.aiRegulations) return;
+        const REG_COLORS = { 'In effect': '#10b981', 'Passed': '#0ea5e9', 'Proposed': '#f59e0b', 'Policy': '#8b5cf6' };
+        const regBuckets = {};
+        data.aiRegulations.forEach(item => {
+          if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
+          const bk = `${item.lat.toFixed(1)},${item.lon.toFixed(1)}`;
+          const idx = regBuckets[bk] || 0;
+          regBuckets[bk] = idx + 1;
+          const angle = idx * 2.39996323;
+          const r = idx === 0 ? 0 : Math.min(0.32, 0.12 * Math.sqrt(idx));
+          const pLat = item.lat + r * Math.cos(angle);
+          const pLon = item.lon + (r * Math.sin(angle)) / Math.max(0.3, Math.cos(item.lat * Math.PI / 180));
+          const color = REG_COLORS[item.status] || '#8b5cf6';
+          L.circleMarker([pLat, pLon], { radius: 6, fillColor: color, color: '#0f172a', weight: 1.6, fillOpacity: 0.92 })
+            .bindTooltip(`<b>${esc(item.title)}</b><br/>${esc(item.jurisdiction)} · ${esc(item.status)}`, { sticky: true })
+            .on('click', () => { if (onPointClickRef.current) onPointClickRef.current({ ...item, isAiRegulation: true }); })
+            .addTo(overlayGroup);
+        });
+      }).catch(() => {});
+    }
+
+    if (weatherEnabled) {
+      fetch('https://api.rainviewer.com/public/weather-maps.json')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (cancelled || !data?.radar?.past?.length) return;
+          const latest = data.radar.past[data.radar.past.length - 1];
+          const layer = L.tileLayer(`${data.host || 'https://tilecache.rainviewer.com'}${latest.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.6 }).addTo(map);
+          leafletWeatherLayerRef.current = layer;
+        }).catch(() => {});
+    }
+
+    return () => { cancelled = true; };
+  }, [is2DActive, leafletReady, aiRegulationsEnabled, dataCentersEnabled, gpsJammingEnabled, oilGasEnabled, internetCablesEnabled, weatherEnabled]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
@@ -1837,32 +1875,9 @@ export default function CesiumGlobe({
         }
       });
 
-      // Dedicated threat datasource with automatic pixelRange clustering so nodes never stack
+      // Dedicated threat datasource showing individual grounded event nodes (clustering disabled)
       const threatDS = new Cesium.CustomDataSource('sovereign-threats');
-      threatDS.clustering.enabled = true;
-      threatDS.clustering.pixelRange = 30;
-      threatDS.clustering.minimumClusterSize = 2;
-      threatDS.clustering.clusterBillboards = true;
-      threatDS.clustering.clusterLabels = false;
-      threatDS.clustering.clusterPoints = false;
-      threatDS.clustering.clusterEvent.addEventListener((clusteredEntities, cluster) => {
-        let maxSev = 1;
-        clusteredEntities.forEach((ent) => {
-          const props = ent.properties;
-          let s = 1;
-          try {
-            s = props?.severity?.getValue ? props.severity.getValue(Cesium.JulianDate.now()) : (props?.severity || 1);
-          } catch {}
-          if (s > maxSev) maxSev = s;
-        });
-        cluster.label.show = false;
-        cluster.billboard.show = true;
-        cluster.billboard.image = createClusterCanvas(clusteredEntities.length, SEV_COLORS[maxSev] || '#38bdf8');
-        cluster.billboard.verticalOrigin = Cesium.VerticalOrigin.CENTER;
-        cluster.billboard.horizontalOrigin = Cesium.HorizontalOrigin.CENTER;
-        cluster.billboard.eyeOffset = new Cesium.Cartesian3(0.0, 0.0, -60.0);
-        cluster.billboard.disableDepthTestDistance = 350000.0;
-      });
+      threatDS.clustering.enabled = false;
       viewer.dataSources.add(threatDS);
       threatDataSourceRef.current = threatDS;
 
@@ -1978,24 +1993,6 @@ export default function CesiumGlobe({
           });
           if (typeof setHoverTooltipRef.current === 'function') {
             setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
-          }
-          return;
-        }
-
-        // Handle clustered billboard hover before single-entity inspection
-        if (Cesium.defined(pickedObject) && Array.isArray(pickedObject.id) && pickedObject.id.length > 1) {
-          lastHoveredId = 'cluster';
-          document.body.style.cursor = 'pointer';
-          if (typeof setHoverTooltipRef.current === 'function') {
-            setHoverTooltipRef.current({
-              show: true,
-              x: movement.endPosition.x,
-              y: movement.endPosition.y,
-              content: `${pickedObject.id.length} Clustered Signals`,
-              type: 'event',
-              title: `${pickedObject.id.length} Signals in Cluster`,
-              details: { Action: 'Click to zoom or select signal' }
-            });
           }
           return;
         }
@@ -2285,31 +2282,6 @@ export default function CesiumGlobe({
             selectSkyscraper(closestLM);
             handled = true;
           }
-        }
-
-        // 1b. Handle clicking a clustered group of Cesium threat billboards
-        if (Cesium.defined(pickedObject) && Array.isArray(pickedObject.id) && pickedObject.id.length > 0) {
-          const clusterItems = pickedObject.id.map(ent => resolveProperties(ent)).filter(Boolean);
-          const validCoords = clusterItems.filter(it => isValidCoordinate(it.repelledLat ?? it.lat, it.repelledLon ?? it.lon));
-          const camHeight = viewer.camera.positionCartographic?.height || 15000000;
-          if (validCoords.length > 0) {
-            const avgLat = validCoords.reduce((s, it) => s + parseFloat(it.repelledLat ?? it.lat), 0) / validCoords.length;
-            const avgLon = validCoords.reduce((s, it) => s + parseFloat(it.repelledLon ?? it.lon), 0) / validCoords.length;
-            const latSpan = Math.max(...validCoords.map(it => parseFloat(it.repelledLat ?? it.lat))) - Math.min(...validCoords.map(it => parseFloat(it.repelledLat ?? it.lat)));
-            const lonSpan = Math.max(...validCoords.map(it => parseFloat(it.repelledLon ?? it.lon))) - Math.min(...validCoords.map(it => parseFloat(it.repelledLon ?? it.lon)));
-            if (camHeight > 320000 && (latSpan > 0.02 || lonSpan > 0.02 || camHeight > 600000)) {
-              setClusterPicker(null);
-              viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(avgLon, avgLat, Math.max(95000, Math.min(camHeight * 0.25, 650000))),
-                duration: 0.9
-              });
-            } else {
-              setClusterPicker({ x: movement.position.x, y: movement.position.y, items: clusterItems });
-            }
-            return;
-          }
-        } else {
-          setClusterPicker(null);
         }
 
         // 2. Check if we clicked an existing Cesium Entity (threat marker, satellite, or landmark reticle)
@@ -2698,7 +2670,7 @@ export default function CesiumGlobe({
 
         if (needsVisualUpdate) {
           if (existing.billboard) {
-            existing.billboard.image = createCircleCanvas(sevColorStr, 7 + (m.severity || 1) * 1.4, outlineColor, outlineWidth);
+            existing.billboard.image = createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.2, outlineColor, outlineWidth);
           }
           if (existing.label) {
             existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
@@ -2723,7 +2695,8 @@ export default function CesiumGlobe({
           name: m.title || m.name,
           position: newPos,
           billboard: {
-            image: createCircleCanvas(sevColorStr, 7 + (m.severity || 1) * 1.4, outlineColor, outlineWidth),
+            image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.2, outlineColor, outlineWidth),
+            scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.4e7, 0.72),
             heightReference: targetHeightRef,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
@@ -3292,7 +3265,7 @@ export default function CesiumGlobe({
 
           try {
             weatherLayer = viewer.imageryLayers.addImageryProvider(weatherProvider);
-            console.log("RainViewer global real-time weather radar loaded successfully.");
+            viewer.scene.requestRender();
           } catch (err) {
             console.warn("RainViewer radar tiles failed to add:", err);
           }
@@ -3334,6 +3307,7 @@ export default function CesiumGlobe({
             viewer.scene.postProcessStages.remove(rainStage);
           } catch (e) {}
         }
+        try { viewer.scene.requestRender(); } catch {}
       }
     };
   }, [weatherEnabled, scriptsLoaded, mapError, viewerReady]);
@@ -3350,7 +3324,8 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
+    const eyeOffsetOverlay = new Cesium.Cartesian3(0.0, 0.0, -40.0);
 
     // Helper to generate a crisp, solid vector teardrop marker filled dynamically by pipeline category (no bulky white outline)
     const createTeardropCanvas = (colorHex) => {
@@ -3381,6 +3356,7 @@ export default function CesiumGlobe({
           }
         });
         oilGasEntitiesRef.current = [];
+        try { if (viewer && !viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -3408,8 +3384,8 @@ export default function CesiumGlobe({
               name: line.project,
               polyline: {
                 positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
-                width: 0.8, // Elegant hairline
-                material: Cesium.Color.fromCssColorString(line.color).withAlpha(0.35), // Faint and translucent
+                width: 1.4,
+                material: Cesium.Color.fromCssColorString(line.color || '#f59e0b').withAlpha(0.65),
                 clampToGround: true
               },
               properties: {
@@ -3431,13 +3407,13 @@ export default function CesiumGlobe({
               name: point.name,
               position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1], targetHeight),
               billboard: {
-                image: createTeardropCanvas(point.color),
-                width: 4, // Even smaller and cleaner
-                height: 6,
-                color: new Cesium.Color(1.0, 1.0, 1.0, 0.45), // Gorgeous translucent appearance (45% opacity)
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                image: createCircleCanvas(point.color || '#f59e0b', 6, '#ffffff', 1.1),
+                scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.0, 1.4e7, 0.6),
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                eyeOffset: eyeOffsetOverlay,
                 heightReference: targetHeightRef,
-                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+                disableDepthTestDistance: targetDisableDepthTest,
               },
               properties: {
                 isOilGas: true,
@@ -3451,6 +3427,7 @@ export default function CesiumGlobe({
       }
 
       oilGasEntitiesRef.current = newEntities;
+      try { viewer.scene.requestRender(); } catch {}
     };
 
     if (GLOBE_LAYER_CACHE.oilGas) {
@@ -3505,6 +3482,7 @@ export default function CesiumGlobe({
           }
         });
         gpsJammingEntitiesRef.current = [];
+        try { if (viewer && !viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -3519,7 +3497,7 @@ export default function CesiumGlobe({
 
       const newEntities = [];
 
-      data.cells.forEach(cell => {
+      data.cells.filter(cell => cell.category && cell.category !== 'none' && Number(cell.intensity) > 0).forEach(cell => {
         const points = getHexagonPoints(cell.lat, cell.lon, cell.radiusKm);
         
         // Configurable opacity: less translucency representing more GPS jamming (severe is highly opaque, low is very translucent)
@@ -3564,7 +3542,7 @@ export default function CesiumGlobe({
       });
 
       gpsJammingEntitiesRef.current = newEntities;
-      console.log(`Rendered ${newEntities.length} active GPS jamming honeycomb cells.`);
+      try { viewer.scene.requestRender(); } catch {}
     };
 
     if (GLOBE_LAYER_CACHE.gpsJamming) {
@@ -3589,7 +3567,7 @@ export default function CesiumGlobe({
     };
   }, [gpsJammingEnabled, scriptsLoaded, mapError, viewerReady]);
 
-  // E3. Global Data Centers Map Layer Ingestion & Point Plotting (ATLAS OSINT Dataset)
+  // E3. Global Data Centers & Epoch AI Frontier Compute Clusters (Grounded + Spatially Stratified)
   useEffect(() => {
     if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
     const viewer = viewerRef.current;
@@ -3601,7 +3579,8 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
+    const eyeOffsetDc = new Cesium.Cartesian3(0.0, 0.0, -40.0);
 
     const clearDataCenters = () => {
       if (dataCenterEntitiesRef.current && dataCenterEntitiesRef.current.length > 0) {
@@ -3611,6 +3590,7 @@ export default function CesiumGlobe({
           }
         });
         dataCenterEntitiesRef.current = [];
+        try { if (viewer && !viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -3623,42 +3603,55 @@ export default function CesiumGlobe({
       if (!data || !data.dataCenters) return;
       clearDataCenters();
 
-      const newEntities = [];
-      data.dataCenters.forEach(dc => {
-        if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') return;
+      // Always render all Epoch AI Frontier Clusters + spatially stratified colocation hubs globally
+      const gridCounts = {};
+      const selectedDcs = [];
+      for (const dc of data.dataCenters) {
+        if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') continue;
+        if (dc.isFrontierCluster) {
+          selectedDcs.push(dc);
+          continue;
+        }
+        const gk = `${Math.round(dc.lat / 0.65)},${Math.round(dc.lon / 0.65)}`;
+        if ((gridCounts[gk] || 0) < 2 && selectedDcs.length < 750) {
+          gridCounts[gk] = (gridCounts[gk] || 0) + 1;
+          selectedDcs.push(dc);
+        }
+      }
 
-        // Color representation: glowing orange for planned/proposed, neon cyan for active (with organic translucency)
-        const nodeColor = dc.status === 'planned' 
-          ? Cesium.Color.fromCssColorString('#f97316').withAlpha(0.65) 
-          : Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.65);
+      const newEntities = [];
+      selectedDcs.forEach(dc => {
+        const isFrontier = Boolean(dc.isFrontierCluster || dc.status === 'planned');
+        const fillHex = isFrontier ? '#f59e0b' : '#0ea5e9';
+        const dotSize = isFrontier ? 10 : 6.5;
 
         try {
           const entity = viewer.entities.add({
             name: dc.name,
             position: Cesium.Cartesian3.fromDegrees(dc.lon, dc.lat, targetHeight),
             billboard: {
-              image: createCircleCanvas(nodeColor.toCssColorString(), 7, '#ffffff', 1.2),
+              image: createCircleCanvas(fillHex, dotSize, '#ffffff', isFrontier ? 1.8 : 1.2),
+              scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.0, 1.4e7, 0.65),
               heightReference: targetHeightRef,
-              disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+              disableDepthTestDistance: targetDisableDepthTest,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-              verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+              verticalOrigin: Cesium.VerticalOrigin.CENTER,
+              eyeOffset: eyeOffsetDc
             },
             properties: {
               isDataCenter: true,
               title: dc.name,
               operator: dc.operator || 'Independent',
-              location: `${dc.city}, ${dc.country}`,
-              status: dc.status || 'active'
+              location: `${dc.city || ''}${dc.city && dc.country ? ', ' : ''}${dc.country || 'Global'}`,
+              status: isFrontier ? (dc.powerMw ? `Frontier (${dc.powerMw} MW)` : 'Frontier Cluster') : (dc.status || 'Active')
             }
           });
           newEntities.push(entity);
-        } catch (err) {
-          console.error("Failed to render data center node:", err);
-        }
+        } catch (err) {}
       });
 
       dataCenterEntitiesRef.current = newEntities;
-      console.log(`Rendered ${newEntities.length} global data center server nodes.`);
+      try { viewer.scene.requestRender(); } catch {}
     };
 
     if (GLOBE_LAYER_CACHE.dataCenters) {
@@ -3695,7 +3688,8 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
+    const eyeOffsetReg = new Cesium.Cartesian3(0.0, 0.0, -40.0);
 
     const clearAiRegulations = () => {
       if (aiRegulationsEntitiesRef.current && aiRegulationsEntitiesRef.current.length > 0) {
@@ -3705,6 +3699,7 @@ export default function CesiumGlobe({
           }
         });
         aiRegulationsEntitiesRef.current = [];
+        try { if (viewer && !viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -3714,33 +3709,44 @@ export default function CesiumGlobe({
     }
 
     const REG_COLORS = {
-      'In effect': '#22c55e',
-      'Passed': '#38bdf8',
-      'Proposed': '#facc15',
-      'Policy': '#a855f7'
+      'In effect': '#10b981',
+      'Passed': '#0ea5e9',
+      'Proposed': '#f59e0b',
+      'Policy': '#8b5cf6'
     };
 
     const drawAiRegulations = (data) => {
       if (!data || !data.aiRegulations) return;
       clearAiRegulations();
 
+      const regBuckets = {};
       const newEntities = [];
       data.aiRegulations.forEach(item => {
         if (typeof item.lon !== 'number' || typeof item.lat !== 'number') return;
 
-        const statusColor = REG_COLORS[item.status] || '#a855f7';
+        const bk = `${item.lat.toFixed(1)},${item.lon.toFixed(1)}`;
+        const idx = regBuckets[bk] || 0;
+        regBuckets[bk] = idx + 1;
+        const angle = idx * 2.39996323;
+        const r = idx === 0 ? 0 : Math.min(0.32, 0.12 * Math.sqrt(idx));
+        const dLat = item.lat + r * Math.cos(angle);
+        const dLon = item.lon + (r * Math.sin(angle)) / Math.max(0.3, Math.cos(item.lat * Math.PI / 180));
+
+        const statusColor = REG_COLORS[item.status] || '#8b5cf6';
 
         try {
           const entity = viewer.entities.add({
             id: 'reg-' + item.id,
             name: item.title,
-            position: Cesium.Cesium3DTileFeature ? Cesium.Cartesian3.fromDegrees(item.lon, item.lat, targetHeight) : Cesium.Cartesian3.fromDegrees(item.lon, item.lat, targetHeight),
+            position: Cesium.Cartesian3.fromDegrees(dLon, dLat, targetHeight),
             billboard: {
-              image: createCircleCanvas(statusColor, 12, '#ffffff', 1.5),
+              image: createCircleCanvas(statusColor, 9.5, '#ffffff', 1.5),
+              scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.0, 1.4e7, 0.65),
               heightReference: targetHeightRef,
-              disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+              disableDepthTestDistance: targetDisableDepthTest,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-              verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+              verticalOrigin: Cesium.VerticalOrigin.CENTER,
+              eyeOffset: eyeOffsetReg
             },
             properties: {
               isAiRegulation: true,
@@ -3759,7 +3765,7 @@ export default function CesiumGlobe({
       });
 
       aiRegulationsEntitiesRef.current = newEntities;
-      console.log(`Rendered ${newEntities.length} global AI regulation pins.`);
+      try { viewer.scene.requestRender(); } catch {}
     };
 
     if (GLOBE_LAYER_CACHE.aiRegulations && regulationsUpdateTrigger === 0) {
@@ -3796,7 +3802,8 @@ export default function CesiumGlobe({
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
+    const eyeOffsetCable = new Cesium.Cartesian3(0.0, 0.0, -40.0);
 
     const clearCables = () => {
       if (cableEntitiesRef.current && cableEntitiesRef.current.length > 0) {
@@ -3806,6 +3813,7 @@ export default function CesiumGlobe({
           }
         });
         cableEntitiesRef.current = [];
+        try { if (viewer && !viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -3839,8 +3847,8 @@ export default function CesiumGlobe({
               name: properties.name,
               polyline: {
                 positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
-                width: 0.6, // Ultra-thin, delicate, elegant hairline lines
-                material: color.withAlpha(0.3), // Faint and elegant translucent style
+                width: 1.3,
+                material: color.withAlpha(0.62),
                 clampToGround: true
               },
               properties: {
@@ -3870,11 +3878,13 @@ export default function CesiumGlobe({
               name: properties.name,
               position: Cesium.Cartesian3.fromDegrees(geometry.coordinates[0], geometry.coordinates[1], targetHeight),
               billboard: {
-                image: createCircleCanvas('rgba(168, 85, 247, 0.4)', 4, 'rgba(255, 255, 255, 0.4)', 0.5),
+                image: createCircleCanvas('#a855f7', 5.5, '#ffffff', 1.0),
+                scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.0, 1.4e7, 0.6),
                 heightReference: targetHeightRef,
-                disableDepthTestDistance: targetDisableDepthTest, // Prevent horizon/curvature clipping
+                disableDepthTestDistance: targetDisableDepthTest,
                 horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+                verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                eyeOffset: eyeOffsetCable
               },
               properties: {
                 isLandingStation: true,
@@ -3887,6 +3897,7 @@ export default function CesiumGlobe({
       }
 
       cableEntitiesRef.current = newEntities;
+      try { viewer.scene.requestRender(); } catch {}
     };
 
     if (GLOBE_LAYER_CACHE.submarineCables && GLOBE_LAYER_CACHE.landingStations) {
@@ -4136,138 +4147,53 @@ export default function CesiumGlobe({
       {/* Visual Navigation controls HUD overlay */}
       {!mapError && (
         <>
-          {/* Tactical Control Toolbar */}
-          <div style={{
-            position: 'absolute',
-            bottom: '100px',
-            right: '20px',
-            zIndex: 10,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}>
-            <button 
-              onClick={() => {
-                if (onMapStyleChange) {
-                  onMapStyleChange(mapStyle === 'buildings' ? 'tactical' : 'buildings');
-                }
-              }}
-              style={{
-                width: '36px', height: '36px',
-                background: mapStyle === 'buildings' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(8, 12, 24, 0.85)',
-                border: mapStyle === 'buildings' ? '1px solid #00f0ff' : '1px solid rgba(56, 189, 248, 0.3)',
-                borderRadius: '6px',
-                color: mapStyle === 'buildings' ? '#00f0ff' : '#38bdf8',
-                fontSize: '11px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: mapStyle === 'buildings' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)',
-                backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s ease',
-                outline: 'none'
-              }}
-              title={mapStyle === 'buildings' ? "Disable Premium 3D Buildings & Mesh" : "Enable Premium 3D Buildings & Mesh"}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#00f0ff';
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = mapStyle === 'buildings' ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)';
-                e.currentTarget.style.color = mapStyle === 'buildings' ? '#00f0ff' : '#38bdf8';
-                e.currentTarget.style.boxShadow = mapStyle === 'buildings' ? '0 0 12px rgba(0, 240, 255, 0.35)' : '0 4px 12px rgba(0,0,0,0.5)';
-              }}
-            >
-              3D
-            </button>
-            <button 
-              onClick={handleResetNorth}
-              style={{
-                width: '36px', height: '36px',
-                background: 'rgba(8, 12, 24, 0.85)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                borderRadius: '6px',
-                color: '#38bdf8',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s ease',
-                outline: 'none'
-              }}
-              title="Reset North Orientation"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#00f0ff';
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
-                e.currentTarget.style.color = '#38bdf8';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-              }}
-            >
-              🧭
-            </button>
-          </div>
-
-          {/* Tactical Controls Legend Overlay (Bottom Left) */}
+          {/* Tactical Controls Legend Overlay (Bottom Left, theme-aware) */}
           {showLegend && !isMobile && (
-            <div style={{
-              position: 'absolute',
-              bottom: '48px',
-              left: '20px',
-              zIndex: 10,
-              background: 'rgba(8, 12, 24, 0.85)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontFamily: 'Courier New, monospace',
-              fontSize: '10px',
-              color: '#e2e8f0',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)',
-              pointerEvents: 'auto',
-              letterSpacing: '0.02em',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                fontWeight: '800', 
-                color: '#00f0ff', 
-                marginBottom: '2px', 
-                borderBottom: '1px solid rgba(56, 189, 248, 0.25)', 
-                paddingBottom: '2px',
+            <div
+              className="sov-popover-shell"
+              style={{
+                position: 'absolute',
+                bottom: '48px',
+                left: '20px',
+                zIndex: 10,
+                background: 'var(--sov-panel-bg)',
+                border: '1px solid var(--sov-border)',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                fontSize: '10px',
+                color: 'var(--sov-text)',
+                boxShadow: 'var(--sov-shadow)',
+                backdropFilter: 'blur(8px)',
+                pointerEvents: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontWeight: '800',
+                color: 'var(--sov-accent)',
+                marginBottom: '2px',
+                borderBottom: '1px solid var(--sov-border)',
+                paddingBottom: '4px',
                 gap: '24px'
               }}>
                 <span>📡 MAP NAVIGATION HUD</span>
-                <span 
+                <span
                   onClick={() => setShowLegend(false)}
-                  style={{
-                    cursor: 'pointer',
-                    color: 'rgba(56, 189, 248, 0.6)',
-                    fontWeight: 'bold',
-                    fontSize: '12px',
-                    padding: '0 4px',
-                    transition: 'color 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(56, 189, 248, 0.6)'}
+                  style={{ cursor: 'pointer', color: 'var(--sov-muted)', fontWeight: 'bold', fontSize: '13px', padding: '0 4px' }}
                   title="Close Controls HUD"
                 >
                   ×
                 </span>
               </div>
-              <div style={{ pointerEvents: 'none' }}>🖱️ <span style={{ color: '#38bdf8' }}>Drag:</span> Pan / Orbit</div>
-              <div style={{ pointerEvents: 'none' }}>⌨️ <span style={{ color: '#38bdf8' }}>Shift + Drag:</span> Rotate & Tilt</div>
-              <div style={{ pointerEvents: 'none' }}>🔄 <span style={{ color: '#38bdf8' }}>Scroll:</span> Zoom <span style={{ color: 'rgba(56, 189, 248, 0.6)' }}>[Shift+Scroll to Tilt]</span></div>
+              <div style={{ pointerEvents: 'none' }}>🖱️ <span style={{ color: 'var(--sov-sky)', fontWeight: 700 }}>Drag:</span> Pan / Orbit</div>
+              <div style={{ pointerEvents: 'none' }}>⌨️ <span style={{ color: 'var(--sov-sky)', fontWeight: 700 }}>Shift + Drag:</span> Rotate &amp; Tilt</div>
+              <div style={{ pointerEvents: 'none' }}>🔄 <span style={{ color: 'var(--sov-sky)', fontWeight: 700 }}>Scroll:</span> Zoom <span style={{ color: 'var(--sov-muted)' }}>[Shift+Scroll to Tilt]</span></div>
             </div>
           )}
         </>
@@ -4398,82 +4324,7 @@ export default function CesiumGlobe({
         </div>
       )}
 
-      {/* Cluster Signal Picker Popover (when zoomed into overlapping city signals) */}
-      {clusterPicker && Array.isArray(clusterPicker.items) && clusterPicker.items.length > 0 && (
-        <div
-          className="sov-popover-shell"
-          style={{
-            position: 'absolute',
-            left: `${Math.max(12, Math.min((containerRef.current?.clientWidth || 600) - 290, clusterPicker.x + 12))}px`,
-            top: `${Math.max(12, Math.min((containerRef.current?.clientHeight || 500) - 260, clusterPicker.y + 12))}px`,
-            width: '276px',
-            maxHeight: '250px',
-            background: 'var(--sov-panel-bg)',
-            border: '1px solid var(--sov-border)',
-            borderRadius: '10px',
-            boxShadow: 'var(--sov-shadow)',
-            color: 'var(--sov-text)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 12px',
-            borderBottom: '1px solid var(--sov-border)',
-            background: 'var(--sov-card-bg)',
-            fontSize: '11px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-jetbrains-fallback)'
-          }}>
-            <span>{clusterPicker.items.length} SIGNALS HERE</span>
-            <button
-              type="button"
-              onClick={() => setClusterPicker(null)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--sov-muted)', cursor: 'pointer', fontSize: '14px', fontWeight: 700, padding: '0 4px' }}
-              aria-label="Close signal picker"
-            >
-              ×
-            </button>
-          </div>
-          <div style={{ overflowY: 'auto', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {clusterPicker.items.map((item, idx) => (
-              <button
-                key={item.id || idx}
-                type="button"
-                onClick={() => {
-                  setClusterPicker(null);
-                  if (onPointClickRef.current) onPointClickRef.current(item);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '7px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid transparent',
-                  background: 'transparent',
-                  color: 'var(--sov-text)',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  lineHeight: 1.35
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--sov-card-bg)'; e.currentTarget.style.borderColor = 'var(--sov-border)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
-              >
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: SEV_COLORS[item.severity] || '#38bdf8', flexShrink: 0, marginTop: '4px' }} />
-                <span style={{ flex: 1, fontWeight: 600 }}>{item.title || item.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Individual nodes spaced cleanly without cluster Consolidation Popover */}
 
       {/* Nearby Landmark Target Detector Pop-up */}
       {nearbyLandmark && !selectedSkyscraper && (

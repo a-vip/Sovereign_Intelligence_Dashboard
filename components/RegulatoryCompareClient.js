@@ -8,8 +8,9 @@ import { DIFF_DIMENSIONS, REGULATORY_DIFF_PROFILES } from '@/lib/governanceIndex
 
 const PRESETS = [
   { id: 'big4', label: 'Frontier Safety Big 4', slugs: ['eu', 'us-ca', 'kr', 'gb'] },
-  { id: 'superpowers', label: 'US Fed vs. EU vs. China vs. UK', slugs: ['us', 'eu', 'cn', 'gb'] },
-  { id: 'indopac', label: 'Indo-Pacific & Global South', slugs: ['kr', 'sg', 'cn', 'br'] }
+  { id: 'globalsouth', label: 'Global South & Majority Leaders', slugs: ['in', 'br', 'za', 'id'] },
+  { id: 'africaasean', label: 'Africa & ASEAN Oversight', slugs: ['za', 'ke', 'id', 'sg'] },
+  { id: 'superpowers', label: 'US Fed vs. EU vs. China vs. UK', slugs: ['us', 'eu', 'cn', 'gb'] }
 ];
 
 export default function RegulatoryCompareClient() {

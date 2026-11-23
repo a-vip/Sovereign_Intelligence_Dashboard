@@ -125,7 +125,7 @@ export default function BriefGeneratorClient({
   }, [selectedJurisdiction, selectedPillar, timeframe, minSeverity, topSignals]);
 
   const buildMarkdownBrief = () => {
-    const scopeLabel = activeJurisdiction ? activeJurisdiction.name : 'Global (24 Sovereign Jurisdictions)';
+    const scopeLabel = activeJurisdiction ? activeJurisdiction.name : 'Global (38 Sovereign Jurisdictions)';
     const dateIso = new Date().toISOString().slice(0, 10);
     const lines = [
       `# Sovereign AI Safety & Policy Observatory — Executive Intelligence Brief`,
@@ -266,7 +266,7 @@ export default function BriefGeneratorClient({
               onChange={(e) => setSelectedJurisdiction(e.target.value)}
               style={{ padding: '7px 9px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'var(--sov-backdrop)', color: 'var(--sov-text)', fontSize: '12.5px' }}
             >
-              <option value="all">Global (All 24 Jurisdictions)</option>
+              <option value="all">Global (All 38 Jurisdictions)</option>
               {jurisdictions.map((j) => (
                 <option key={j.slug} value={j.slug}>{j.iso} — {j.name}</option>
               ))}

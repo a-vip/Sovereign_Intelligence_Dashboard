@@ -2,13 +2,14 @@ import Link from 'next/link';
 import { JURISDICTIONS, JURISDICTION_REGIONS, eventMatchesJurisdiction } from '@/lib/jurisdictions';
 import { getEvents, getAiRegulations } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
+import EditorialThemeToggle from '@/components/EditorialThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Global AI Governance Jurisdiction Atlas',
   description:
-    'Comparative directory of binding AI legislation, safety institutes, multilateral treaties, and live incident telemetry across 24 major global AI jurisdictions.',
+    'Comparative directory of binding AI legislation, safety institutes, multilateral treaties, and live incident telemetry across 38 major global AI jurisdictions.',
   alternates: { canonical: '/jurisdictions' }
 };
 
@@ -40,12 +41,13 @@ export default async function JurisdictionsAtlasPage() {
           <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             ← RETURN TO LIVE 3D GLOBE
           </Link>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
             <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>READINESS INDEX</Link>
             <Link href="/labs" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>LAB WATCH</Link>
             <Link href="/compute" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>COMPUTE</Link>
             <Link href="/methodology" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>METHODOLOGY →</Link>
+            <EditorialThemeToggle />
           </div>
         </nav>
 

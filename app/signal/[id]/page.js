@@ -5,6 +5,7 @@ import { getEventById, getEvents } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeAdmiraltyGrade, computeContentHash, normalizeSignalId } from '@/lib/provenance';
 import { resolveJurisdictionForLocation } from '@/lib/jurisdictions';
+import EditorialThemeToggle from '@/components/EditorialThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,22 +123,25 @@ export default async function SignalDossierPage({ params }) {
             <span style={{ color: 'var(--sov-text)' }}>{cleanId.slice(0, 14)}</span>
           </div>
 
-          <Link
-            href={`/?signal=${encodeURIComponent(cleanId)}`}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '6px',
-              background: 'rgba(0, 240, 255, 0.12)',
-              border: '1px solid rgba(0, 240, 255, 0.45)',
-              color: 'var(--sov-accent)',
-              fontFamily: 'var(--font-jetbrains-fallback)',
-              fontSize: '11px',
-              fontWeight: 700,
-              textDecoration: 'none'
-            }}
-          >
-            LOCATE ON 3D GLOBE ↗
-          </Link>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link
+              href={`/?signal=${encodeURIComponent(cleanId)}`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                background: 'rgba(0, 240, 255, 0.12)',
+                border: '1px solid rgba(0, 240, 255, 0.45)',
+                color: 'var(--sov-accent)',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                fontSize: '11px',
+                fontWeight: 700,
+                textDecoration: 'none'
+              }}
+            >
+              LOCATE ON 3D GLOBE ↗
+            </Link>
+            <EditorialThemeToggle />
+          </div>
         </nav>
 
         {/* Main Dossier Header */}

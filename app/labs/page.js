@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { FRONTIER_LABS, matchModelsToLab } from '@/lib/frontierLabs';
 import { getFrontierModels, saveFrontierModels } from '@/lib/db';
 import { fetchEpochFrontierModels } from '@/lib/epochSync';
+import EditorialThemeToggle from '@/components/EditorialThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,12 +73,13 @@ export default async function FrontierLabsWatchPage() {
           <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             ← RETURN TO LIVE 3D GLOBE
           </Link>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
             <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>READINESS INDEX</Link>
             <Link href="/compute" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>COMPUTE OBSERVATORY</Link>
             <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
             <Link href="/methodology" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>METHODOLOGY</Link>
+            <EditorialThemeToggle />
           </div>
         </nav>
 

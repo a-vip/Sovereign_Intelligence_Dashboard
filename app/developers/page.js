@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import EmbedCopyCard from '@/components/EmbedCopyCard';
+import EditorialThemeToggle from '@/components/EditorialThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Developer REST API, GeoJSON Feeds & Institutional Embeds',
   description:
-    'Programmatic REST and RFC 7946 GeoJSON endpoints for AI safety signals, 24-jurisdiction SAGRI readiness scores, Epoch AI compute clusters, and iframeable institutional widgets.',
+    'Programmatic REST and RFC 7946 GeoJSON endpoints for AI safety signals, 38-jurisdiction SAGRI readiness scores, Epoch AI compute clusters, and iframeable institutional widgets.',
   alternates: { canonical: '/developers' }
 };
 
@@ -21,7 +22,7 @@ const ENDPOINTS = [
   {
     path: '/api/v1/jurisdictions',
     title: 'GET /api/v1/jurisdictions',
-    desc: 'Returns all 24 sovereign AI jurisdiction profiles merged with live SAGRI readiness scores (0–100) and statutory diff parameters. Supports ?slug=eu.',
+    desc: 'Returns all 38 sovereign AI jurisdiction profiles merged with live SAGRI readiness scores (0–100) and statutory diff parameters. Supports ?slug=eu.',
     curl: 'curl -s "https://app.sovdash.com/api/v1/jurisdictions?slug=eu" | jq .',
     proCurl: null
   },
@@ -49,12 +50,13 @@ export default function DevelopersPage() {
           <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             ← RETURN TO LIVE 3D GLOBE
           </Link>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             <Link href="/brief" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>BRIEF EXPORTER</Link>
             <Link href="/watchlists" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>WATCHLISTS</Link>
             <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>SAGRI INDEX</Link>
             <Link href="/whitepaper" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>WHITEPAPER</Link>
             <Link href="/methodology" style={{ color: 'var(--sov-muted)', textDecoration: 'none' }}>METHODOLOGY</Link>
+            <EditorialThemeToggle />
           </div>
         </nav>
 
@@ -79,7 +81,7 @@ export default function DevelopersPage() {
               <li>Up to <strong>15 records</strong> per API call</li>
               <li>21-day live rolling signal window</li>
               <li>Full JSON &amp; RFC 7946 GeoJSON output</li>
-              <li>Complete 24-jurisdiction SAGRI &amp; Embed access</li>
+              <li>Complete 38-jurisdiction SAGRI &amp; Embed access</li>
             </ul>
           </div>
 

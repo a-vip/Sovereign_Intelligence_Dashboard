@@ -1500,7 +1500,7 @@ export default function LiveMap({
       const count = hubCounts[hubKey] || 0;
 
       // Prevent automated feed spam from crowding any single city while always preserving pinned/edited dossiers
-      if (count >= 5 && !m.isPinned && !m.isEdited) {
+      if (count >= 3 && !m.isPinned && !m.isEdited) {
         continue;
       }
       hubCounts[hubKey] = count + 1;
@@ -1510,9 +1510,9 @@ export default function LiveMap({
         continue;
       }
 
-      // Golden-angle (137.508 deg) land-safe micro-spiral separating co-located markers cleanly
+      // Golden-angle (137.508 deg) land-safe micro-spiral separating co-located markers clearly
       const angle = count * 2.39996323;
-      const radius = Math.min(0.14, 0.045 * Math.sqrt(count));
+      const radius = Math.min(0.36, 0.18 * Math.sqrt(count));
       const dLat = radius * Math.cos(angle);
       const cosLat = Math.max(0.25, Math.cos((latVal * Math.PI) / 180.0));
       const dLon = (radius * Math.sin(angle)) / cosLat;
@@ -3472,7 +3472,7 @@ export default function LiveMap({
                 }}
               >
                 <Globe size={13} />
-                Visit sovdash.com
+                <span>🌐 Visit sovdash.com</span>
               </a>
 
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -3561,7 +3561,7 @@ export default function LiveMap({
                 }}
               >
                 {shareCopied ? <Check size={13} /> : <Share2 size={13} />}
-                <span>{shareCopied ? 'Link Copied' : 'Share Dashboard'}</span>
+                <span>{shareCopied ? '✅ Link Copied' : '⚡ Share Dashboard'}</span>
               </button>
 
               <a
@@ -3582,7 +3582,7 @@ export default function LiveMap({
                   color: '#ffffff'
                 }}
               >
-                Upgrade to Pro ($29/mo)
+                💎 Upgrade to Pro ($29/mo)
               </a>
 
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -3606,7 +3606,7 @@ export default function LiveMap({
                     border: '1px solid rgba(239, 68, 68, 0.28)'
                   }}
                 >
-                  Patreon
+                  ⚡ Patreon
                 </a>
                 <a
                   href="https://buymeacoffee.com/avip"
@@ -3628,7 +3628,7 @@ export default function LiveMap({
                     border: '1px solid rgba(245, 158, 11, 0.35)'
                   }}
                 >
-                  Coffee
+                  ☕ Coffee
                 </a>
               </div>
             </div>

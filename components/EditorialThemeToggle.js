@@ -1,76 +1,94 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Sun, Moon, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
+
+const THEMES = [
+  { id: 'obsidian', label: 'Obsidian', dot: '#00f0ff' },
+  { id: 'cambridge', label: 'Cambridge', dot: '#60a5fa' },
+  { id: 'emerald', label: 'Emerald', dot: '#10b981' },
+  { id: 'light', label: 'Light', dot: '#0284c7' }
+];
 
 export default function EditorialThemeToggle() {
-  const [isLight, setIsLight] = useState(false);
+  const [activeTheme, setActiveTheme] = useState('obsidian');
 
   useEffect(() => {
     try {
       const uiTheme = localStorage.getItem('sovdash_ui_theme');
       const savedEditorial = localStorage.getItem('sovdash_editorial_theme');
-      const light = uiTheme ? uiTheme === 'light' : savedEditorial === 'light';
-      setIsLight(light);
-      if (light) {
-        document.documentElement.setAttribute('data-ui-theme', 'light');
+      const resolved = uiTheme || (savedEditorial === 'light' ? 'light' : 'obsidian');
+      setActiveTheme(resolved);
+      document.documentElement.setAttribute('data-ui-theme', resolved);
+      if (resolved === 'light') {
         document.documentElement.classList.add('editorial-light');
       } else {
-        const darkTheme = uiTheme && uiTheme !== 'light' ? uiTheme : (localStorage.getItem('sovdash_last_dark_theme') || 'obsidian');
-        document.documentElement.setAttribute('data-ui-theme', darkTheme);
         document.documentElement.classList.remove('editorial-light');
       }
     } catch {}
   }, []);
 
-  const toggleTheme = () => {
-    const nextLight = !isLight;
-    setIsLight(nextLight);
+  const selectTheme = (themeId) => {
+    setActiveTheme(themeId);
     try {
-      if (nextLight) {
-        const currentUi = localStorage.getItem('sovdash_ui_theme');
-        if (currentUi && currentUi !== 'light') {
-          localStorage.setItem('sovdash_last_dark_theme', currentUi);
-        }
-        localStorage.setItem('sovdash_ui_theme', 'light');
-        localStorage.setItem('sovdash_editorial_theme', 'light');
-        document.documentElement.setAttribute('data-ui-theme', 'light');
+      localStorage.setItem('sovdash_ui_theme', themeId);
+      localStorage.setItem('sovdash_editorial_theme', themeId === 'light' ? 'light' : 'dark');
+      if (themeId !== 'light') {
+        localStorage.setItem('sovdash_last_dark_theme', themeId);
+      }
+      document.documentElement.setAttribute('data-ui-theme', themeId);
+      if (themeId === 'light') {
         document.documentElement.classList.add('editorial-light');
       } else {
-        const darkTheme = localStorage.getItem('sovdash_last_dark_theme') || 'obsidian';
-        localStorage.setItem('sovdash_ui_theme', darkTheme);
-        localStorage.setItem('sovdash_editorial_theme', 'dark');
-        document.documentElement.setAttribute('data-ui-theme', darkTheme);
         document.documentElement.classList.remove('editorial-light');
       }
     } catch {}
   };
 
   return (
-    <div className="no-print" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="editorial-btn"
+    <div className="no-print" style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div
+        role="group"
+        aria-label="Color Theme"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '6px',
-          padding: '6px 11px',
-          borderRadius: '6px',
-          border: isLight ? '1px solid #94a3b8' : '1px solid rgba(56, 189, 248, 0.35)',
-          background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
-          color: isLight ? '#0f172a' : '#38bdf8',
-          fontSize: '11px',
-          fontWeight: 700,
-          fontFamily: 'var(--font-jetbrains-fallback)',
-          cursor: 'pointer'
+          gap: '3px',
+          padding: '3px',
+          borderRadius: '7px',
+          border: '1px solid var(--sov-border)',
+          background: 'var(--sov-card-bg)'
         }}
-        title="Switch between Dark Theme and Publication-Ready Editorial Light theme"
       >
-        {isLight ? <Moon size={12} /> : <Sun size={12} />}
-        <span>{isLight ? 'DARK THEME' : 'EDITORIAL LIGHT'}</span>
-      </button>
+        {THEMES.map((t) => {
+          const active = activeTheme === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => selectTheme(t.id)}
+              title={`Switch to ${t.label} theme`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 7px',
+                borderRadius: '5px',
+                border: active ? '1px solid var(--sov-accent)' : '1px solid transparent',
+                background: active ? 'var(--sov-panel-bg)' : 'transparent',
+                color: active ? 'var(--sov-text)' : 'var(--sov-muted)',
+                fontSize: '10.5px',
+                fontWeight: active ? 700 : 600,
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                cursor: 'pointer'
+              }}
+            >
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: t.dot }} />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <button
         type="button"
@@ -80,17 +98,17 @@ export default function EditorialThemeToggle() {
           display: 'inline-flex',
           alignItems: 'center',
           gap: '5px',
-          padding: '6px 11px',
+          padding: '6px 10px',
           borderRadius: '6px',
-          border: isLight ? '1px solid #94a3b8' : '1px solid rgba(148, 163, 184, 0.35)',
-          background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
-          color: isLight ? '#0f172a' : '#cbd5e1',
-          fontSize: '11px',
+          border: '1px solid var(--sov-border)',
+          background: 'var(--sov-card-bg)',
+          color: 'var(--sov-text)',
+          fontSize: '10.5px',
           fontWeight: 700,
           fontFamily: 'var(--font-jetbrains-fallback)',
           cursor: 'pointer'
         }}
-        title="Print or Export Clean PDF Briefing"
+        title="Print or Save Current Dossier as Clean Academic PDF"
       >
         <Printer size={12} />
         <span>PRINT / PDF</span>
