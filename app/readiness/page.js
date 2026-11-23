@@ -12,7 +12,7 @@ export const metadata = {
   title: 'SAGRI Readiness Index & Epistemic Parity Lens',
   description:
     'Interactive Sovereign AI Governance & Safety Readiness Index (0–100) paired with live empirical Global North vs. Global South epistemic representation and MIT AI Risk Repository analytics.',
-  alternates: { canonical: '/index' }
+  alternates: { canonical: '/readiness' }
 };
 
 export default async function ReadinessIndexPage() {

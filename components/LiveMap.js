@@ -1863,7 +1863,7 @@ export default function LiveMap({
                 {[
                   { href: '/jurisdictions', label: 'ATLAS', color: '#c084fc' },
                   { href: '/compare', label: 'COMPARE', color: '#00f0ff' },
-                  { href: '/index', label: 'INDEX', color: '#34d399' },
+                  { href: '/readiness', label: 'INDEX', color: '#34d399' },
                   { href: '/labs', label: 'LABS', color: '#38bdf8' },
                   { href: '/compute', label: 'COMPUTE', color: '#facc15' },
                   { href: '/methodology', label: 'CODEBOOK', color: '#cbd5e1' }

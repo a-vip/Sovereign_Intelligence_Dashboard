@@ -63,7 +63,7 @@ export default async function MethodologyPage() {
           </Link>
           <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             <Link href="/compare" style={{ color: '#00f0ff', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/index" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
+            <Link href="/readiness" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
             <Link href="/labs" style={{ color: '#10b981', textDecoration: 'none' }}>LAB WATCH</Link>
             <Link href="/jurisdictions" style={{ color: '#c084fc', textDecoration: 'none' }}>
               JURISDICTION ATLAS →

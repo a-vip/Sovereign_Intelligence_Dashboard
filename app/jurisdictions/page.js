@@ -42,7 +42,7 @@ export default async function JurisdictionsAtlasPage() {
           </Link>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             <Link href="/compare" style={{ color: '#00f0ff', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/index" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
+            <Link href="/readiness" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
             <Link href="/labs" style={{ color: '#10b981', textDecoration: 'none' }}>LAB WATCH</Link>
             <Link href="/compute" style={{ color: '#facc15', textDecoration: 'none' }}>COMPUTE</Link>
             <Link href="/methodology" style={{ color: '#38bdf8', textDecoration: 'none' }}>METHODOLOGY →</Link>

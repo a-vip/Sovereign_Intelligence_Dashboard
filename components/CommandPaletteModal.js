@@ -9,7 +9,7 @@ import { FRONTIER_LABS } from '@/lib/frontierLabs';
 const MODULES = [
   { id: 'mod-atlas', title: 'Global AI Jurisdiction Atlas (24 Profiles)', subtitle: 'Statutory frameworks, treaties & domestic compute', href: '/jurisdictions', icon: 'globe' },
   { id: 'mod-compare', title: 'Cross-Jurisdictional AI Law Diff Matrix', subtitle: 'Side-by-side comparison: EU AI Act vs. SB 53 vs. Korea vs. China', href: '/compare', icon: 'scale' },
-  { id: 'mod-index', title: 'SAGRI Readiness Index & Epistemic Parity', subtitle: 'Interactive 0–100 benchmark sliders & Global North/South analytics', href: '/index', icon: 'chart' },
+  { id: 'mod-index', title: 'SAGRI Readiness Index & Epistemic Parity', subtitle: 'Interactive 0–100 benchmark sliders & Global North/South analytics', href: '/readiness', icon: 'chart' },
   { id: 'mod-labs', title: 'Frontier Lab Watch & Safety Matrix', subtitle: 'Anthropic RSP, OpenAI Preparedness, DeepMind FSF, METR & AISI evals', href: '/labs', icon: 'shield' },
   { id: 'mod-compute', title: 'Frontier Compute & Models Observatory', subtitle: 'Epoch AI megaclusters (GW / H100e) vs. binding laws', href: '/compute', icon: 'cpu' },
   { id: 'mod-method', title: 'Methodology, Codebook & Verification Protocol', subtitle: '5-pillar scope, Admiralty matrix & zero-fabrication geocoding', href: '/methodology', icon: 'book' }
