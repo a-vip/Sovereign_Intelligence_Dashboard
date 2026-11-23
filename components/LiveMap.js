@@ -1866,6 +1866,9 @@ export default function LiveMap({
                   { href: '/readiness', label: 'INDEX', color: '#34d399' },
                   { href: '/labs', label: 'LABS', color: '#38bdf8' },
                   { href: '/compute', label: 'COMPUTE', color: '#facc15' },
+                  { href: '/brief', label: 'BRIEF', color: '#f472b6' },
+                  { href: '/watchlists', label: 'ALERTS', color: '#fb923c' },
+                  { href: '/developers', label: 'API', color: '#22d3ee' },
                   { href: '/methodology', label: 'CODEBOOK', color: '#cbd5e1' }
                 ].map((navItem, nIdx) => (
                   <Link

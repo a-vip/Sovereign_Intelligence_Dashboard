@@ -12,6 +12,9 @@ const MODULES = [
   { id: 'mod-index', title: 'SAGRI Readiness Index & Epistemic Parity', subtitle: 'Interactive 0–100 benchmark sliders & Global North/South analytics', href: '/readiness', icon: 'chart' },
   { id: 'mod-labs', title: 'Frontier Lab Watch & Safety Matrix', subtitle: 'Anthropic RSP, OpenAI Preparedness, DeepMind FSF, METR & AISI evals', href: '/labs', icon: 'shield' },
   { id: 'mod-compute', title: 'Frontier Compute & Models Observatory', subtitle: 'Epoch AI megaclusters (GW / H100e) vs. binding laws', href: '/compute', icon: 'cpu' },
+  { id: 'mod-brief', title: 'Executive Intelligence Brief & Research Copilot', subtitle: 'Export Markdown/PDF briefs & query citation-locked AI copilot', href: '/brief', icon: 'book' },
+  { id: 'mod-watchlists', title: 'Jurisdiction & Keyword Watchlists (Alerts)', subtitle: 'Automated Slack, Discord, HTTPS webhook & email signal alerts', href: '/watchlists', icon: 'shield' },
+  { id: 'mod-dev', title: 'Developer REST / GeoJSON API & Embeds', subtitle: '/api/v1 endpoints, Pro API keys & iframe institutional widgets', href: '/developers', icon: 'cpu' },
   { id: 'mod-method', title: 'Methodology, Codebook & Verification Protocol', subtitle: '5-pillar scope, Admiralty matrix & zero-fabrication geocoding', href: '/methodology', icon: 'book' }
 ];
 

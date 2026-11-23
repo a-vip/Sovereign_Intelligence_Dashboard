@@ -3,7 +3,7 @@ export default function robots() {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/methodology', '/jurisdictions', '/jurisdiction/', '/signal/', '/labs', '/compute', '/compare', '/readiness'],
+        allow: ['/', '/methodology', '/jurisdictions', '/jurisdiction/', '/signal/', '/labs', '/compute', '/compare', '/readiness', '/brief', '/watchlists', '/developers', '/embed/'],
         disallow: ['/api/admin/', '/api/auth/', '/api/cron/']
       }
     ],

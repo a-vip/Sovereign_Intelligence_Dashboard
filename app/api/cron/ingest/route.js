@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, saveRssItems, saveAiRegulations, saveFrontierClusters, saveFrontierModels, getArchivedInfo, isEventArchived } from '@/lib/db';
+import { initDb, saveEvents, saveRssItems, saveAiRegulations, saveFrontierClusters, saveFrontierModels, getArchivedInfo, isEventArchived, getWatchlists, markWatchlistTriggered } from '@/lib/db';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
 import { scrapeAllRss, fetchFederalRegisterAiSignals } from '@/lib/rssParser';
 import { fetchEpochFrontierClusters, fetchEpochFrontierModels } from '@/lib/epochSync';
+import { matchEventsAgainstWatchlist, dispatchWatchlistWebhook } from '@/lib/watchlistMatcher';
+import { sendWatchlistAlertEmail } from '@/lib/mail';
 import { verifyLink, findAlternativeLink } from '@/lib/verification';
 import { geocodeText, decodeHtmlEntities } from '@/lib/geocoder';
 import { classifyTechPolicySignal } from '@/lib/policyClassifier';
@@ -281,12 +283,14 @@ export async function GET(request) {
 
     // 5. Machine-Readable Statutory & Compute Ingestion (US Federal Register AI API + Epoch AI)
     let federalRegisterIngested = 0;
+    let newlyIngestedFedDocs = [];
     try {
       const fedDocs = await fetchFederalRegisterAiSignals(15);
       const validFedDocs = fedDocs.filter((d) => !isEventArchived(d, archivedInfo));
       if (validFedDocs.length > 0) {
         await saveEvents(validFedDocs);
         federalRegisterIngested = validFedDocs.length;
+        newlyIngestedFedDocs = validFedDocs;
       }
     } catch (e) {
       console.warn('Federal Register AI sync failed during cron run:', e.message);
@@ -305,6 +309,33 @@ export async function GET(request) {
       console.warn('Epoch AI sync failed during cron run:', e.message);
     }
 
+    // 6. Evaluate Active Watchlists & Dispatch Webhook / Email Alerts
+    let watchlistsTriggered = 0;
+    try {
+      const newlyIngestedEvents = [...verifiedEvents, ...newlyIngestedFedDocs];
+      if (newlyIngestedEvents.length > 0) {
+        const activeWatchlists = (await getWatchlists(null)).filter((w) => w.enabled !== false);
+        for (const wl of activeWatchlists) {
+          const hits = matchEventsAgainstWatchlist(wl, newlyIngestedEvents);
+          if (hits.length === 0) continue;
+          if (wl.webhookUrl) {
+            await dispatchWatchlistWebhook(wl.webhookUrl, wl, hits);
+          }
+          if (wl.emailAlerts && wl.ownerEmail) {
+            await sendWatchlistAlertEmail({
+              toEmail: wl.ownerEmail,
+              watchlistName: wl.name,
+              matchedEvents: hits
+            });
+          }
+          await markWatchlistTriggered(wl.id);
+          watchlistsTriggered++;
+        }
+      }
+    } catch (e) {
+      console.warn('Watchlist evaluation warning during cron run:', e.message);
+    }
+
     return NextResponse.json({ 
       success: true, 
       count: verifiedEvents.length,
@@ -315,6 +346,7 @@ export async function GET(request) {
       federalRegisterIngested,
       frontierClustersSynced,
       frontierModelsSynced,
+      watchlistsTriggered,
       geoConfirmedSynced: 0
     });
   } catch (error) {

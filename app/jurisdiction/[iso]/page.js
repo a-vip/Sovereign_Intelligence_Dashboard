@@ -4,6 +4,7 @@ import { getJurisdictionBySlug, eventMatchesJurisdiction } from '@/lib/jurisdict
 import { getEventsByJurisdiction, getAiRegulations, getFrontierClusters } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeAdmiraltyGrade, normalizeSignalId } from '@/lib/provenance';
+import EmbedCopyCard from '@/components/EmbedCopyCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,22 +109,40 @@ export default async function JurisdictionDossierPage({ params }) {
             <span style={{ color: '#f8fafc', fontWeight: 700 }}>{jurisdiction.iso}</span>
           </div>
 
-          <Link
-            href={`/?country=${encodeURIComponent(jurisdiction.name)}`}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '6px',
-              background: 'rgba(0, 240, 255, 0.12)',
-              border: '1px solid rgba(0, 240, 255, 0.45)',
-              color: '#00f0ff',
-              fontFamily: 'var(--font-jetbrains-fallback)',
-              fontSize: '11px',
-              fontWeight: 700,
-              textDecoration: 'none'
-            }}
-          >
-            OPEN ON 3D GLOBE ↗
-          </Link>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <Link
+              href={`/brief?jurisdiction=${encodeURIComponent(jurisdiction.slug)}`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                background: 'rgba(250, 204, 21, 0.12)',
+                border: '1px solid rgba(250, 204, 21, 0.45)',
+                color: '#facc15',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                fontSize: '11px',
+                fontWeight: 700,
+                textDecoration: 'none'
+              }}
+            >
+              GENERATE BRIEF ↗
+            </Link>
+            <Link
+              href={`/?country=${encodeURIComponent(jurisdiction.name)}`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                background: 'rgba(0, 240, 255, 0.12)',
+                border: '1px solid rgba(0, 240, 255, 0.45)',
+                color: '#00f0ff',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                fontSize: '11px',
+                fontWeight: 700,
+                textDecoration: 'none'
+              }}
+            >
+              OPEN ON 3D GLOBE ↗
+            </Link>
+          </div>
         </nav>
 
         {/* Jurisdiction Header Card */}
@@ -286,6 +305,15 @@ export default async function JurisdictionDossierPage({ params }) {
               ))}
             </div>
           </section>
+        )}
+
+        {/* Embeddable Scorecard Widget */}
+        {curatedJurisdiction && (
+          <EmbedCopyCard
+            embedPath={`/embed/jurisdiction/${jurisdiction.slug}`}
+            title={`Embed ${jurisdiction.name} Live Scorecard Widget`}
+            height={280}
+          />
         )}
       </div>
     </div>
