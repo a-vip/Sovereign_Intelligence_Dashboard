@@ -111,7 +111,7 @@ export default function SourceManagerModal({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(2, 6, 23, 0.84)',
+        background: 'var(--sov-backdrop)',
         backdropFilter: 'blur(10px)',
         zIndex: 10050,
         display: 'flex',
@@ -126,24 +126,24 @@ export default function SourceManagerModal({
           width: '100%',
           maxWidth: '720px',
           maxHeight: '88vh',
-          background: 'linear-gradient(180deg, rgba(10, 16, 32, 0.99) 0%, rgba(6, 10, 22, 0.99) 100%)',
+          background: 'var(--sov-panel-bg)',
           border: '1px solid rgba(0, 240, 255, 0.35)',
           borderRadius: '12px',
           boxShadow: '0 24px 70px rgba(0, 0, 0, 0.9), 0 0 35px rgba(0, 240, 255, 0.14)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          color: '#f8fafc'
+          color: 'var(--sov-text)'
         }}
       >
         {/* Header */}
         <div style={{
           padding: '16px 20px',
-          borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+          borderBottom: '1px solid var(--sov-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(15, 23, 42, 0.6)'
+          background: 'var(--sov-card-bg)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
@@ -155,7 +155,7 @@ export default function SourceManagerModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#00f0ff'
+              color: 'var(--sov-accent)'
             }}>
               <Rss size={17} />
             </div>
@@ -166,12 +166,12 @@ export default function SourceManagerModal({
                 fontWeight: 800,
                 fontFamily: 'var(--font-jetbrains-fallback, monospace)',
                 letterSpacing: '0.06em',
-                color: '#ffffff',
+                color: 'var(--sov-text)',
                 textTransform: 'uppercase'
               }}>
                 OSINT Source & Auto-Pin Engine
               </h2>
-              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--sov-muted)', marginTop: '2px' }}>
                 Ingest live RSS/Atom feeds • Strict AI, Cyber & Tech Policy filter • Auto-geocode pins to Globe
               </div>
             </div>
@@ -180,10 +180,10 @@ export default function SourceManagerModal({
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'var(--sov-card-bg)',
+              border: '1px solid var(--sov-border)',
               borderRadius: '6px',
-              color: '#94a3b8',
+              color: 'var(--sov-muted)',
               width: '30px',
               height: '30px',
               display: 'flex',
@@ -200,8 +200,8 @@ export default function SourceManagerModal({
         {/* Navigation Tabs */}
         <div style={{
           display: 'flex',
-          borderBottom: '1px solid rgba(56, 189, 248, 0.18)',
-          background: 'rgba(8, 12, 24, 0.8)'
+          borderBottom: '1px solid var(--sov-border)',
+          background: 'var(--sov-panel-bg)'
         }}>
           {[
             { id: 'directory', label: '🌐 CURATED TECH POLICY FEEDS' },
@@ -273,18 +273,18 @@ export default function SourceManagerModal({
               gap: '10px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 800, color: '#34d399' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 800, color: 'var(--sov-emerald)' }}>
                   <Check size={15} />
                   <span>SOURCE SYNCED: {ingestReport.source?.name}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', fontFamily: 'monospace', fontSize: '10.5px' }}>
-                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#cbd5e1' }}>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--sov-card-bg)', color: 'var(--sov-text)' }}>
                     Scanned: <strong>{ingestReport.stats?.fetchedCount || 0}</strong>
                   </span>
-                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(56,189,248,0.14)', color: '#38bdf8' }}>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(56,189,248,0.14)', color: 'var(--sov-sky)' }}>
                     Policy Relevant: <strong>{ingestReport.stats?.relevantCount || 0}</strong>
                   </span>
-                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: '#34d399' }}>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: 'var(--sov-emerald)' }}>
                     Globe Pins Added: <strong>{ingestReport.stats?.pinnedCount || 0}</strong>
                   </span>
                 </div>
@@ -302,16 +302,16 @@ export default function SourceManagerModal({
                         gap: '10px',
                         padding: '7px 10px',
                         borderRadius: '6px',
-                        background: 'rgba(8, 12, 24, 0.75)',
-                        border: '1px solid rgba(56, 189, 248, 0.18)',
+                        background: 'var(--sov-panel-bg)',
+                        border: '1px solid var(--sov-border)',
                         fontSize: '11.5px'
                       }}
                     >
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ color: '#f1f5f9', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ color: 'var(--sov-text)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {ev.title}
                         </div>
-                        <div style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'monospace', marginTop: '2px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--sov-sky)', fontFamily: 'monospace', marginTop: '2px' }}>
                           📍 {ev.location} • {ev.details?.domainPillar || ev.category} • S{ev.severity}
                         </div>
                       </div>
@@ -327,7 +327,7 @@ export default function SourceManagerModal({
                             borderRadius: '4px',
                             background: 'rgba(0, 240, 255, 0.14)',
                             border: '1px solid rgba(0, 240, 255, 0.4)',
-                            color: '#00f0ff',
+                            color: 'var(--sov-accent)',
                             fontSize: '10px',
                             fontWeight: 700,
                             fontFamily: 'monospace',
@@ -341,7 +341,7 @@ export default function SourceManagerModal({
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
+                <div style={{ fontSize: '11px', color: 'var(--sov-text)' }}>
                   {ingestReport.stats?.relevantCount > 0
                     ? 'Relevant policy articles were added to the RSS Wire (no specific sovereign/city location was cited in headlines to place a map pin).'
                     : '0 articles in the current XML window matched strict AI, Cyber, or Tech Policy criteria. Non-policy stories were filtered out automatically.'}
@@ -353,7 +353,7 @@ export default function SourceManagerModal({
           {/* TAB 1: CURATED ONE-CLICK DIRECTORY */}
           {activeTab === 'directory' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '11.5px', color: '#94a3b8', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '11.5px', color: 'var(--sov-muted)', lineHeight: 1.5 }}>
                 Add verified international cybersecurity, AI governance, national security law, and Global South digital rights feeds in one click. Every article is automatically filtered for strict tech-policy relevance and geocoded onto the globe.
               </div>
 
@@ -381,26 +381,26 @@ export default function SourceManagerModal({
                     >
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#f8fafc' }}>{item.name}</span>
+                          <span style={{ fontWeight: 700, fontSize: '12.5px', color: 'var(--sov-text)' }}>{item.name}</span>
                           <span style={{
                             fontSize: '9px',
                             fontFamily: 'monospace',
                             padding: '2px 6px',
                             borderRadius: '4px',
                             background: 'rgba(56, 189, 248, 0.12)',
-                            color: '#38bdf8',
-                            border: '1px solid rgba(56, 189, 248, 0.25)'
+                            color: 'var(--sov-sky)',
+                            border: '1px solid var(--sov-border)'
                           }}>
                             {item.region}
                           </span>
                         </div>
-                        <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#94a3b8', lineHeight: 1.45 }}>
+                        <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: 'var(--sov-muted)', lineHeight: 1.45 }}>
                           {item.description}
                         </p>
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '9.5px', fontFamily: 'monospace', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--sov-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </span>
                         <button
@@ -468,16 +468,16 @@ export default function SourceManagerModal({
                 padding: '10px 12px',
                 borderRadius: '8px',
                 background: 'rgba(56, 189, 248, 0.06)',
-                border: '1px solid rgba(56, 189, 248, 0.2)',
+                border: '1px solid var(--sov-border)',
                 fontSize: '11px',
-                color: '#cbd5e1',
+                color: 'var(--sov-text)',
                 lineHeight: 1.5
               }}>
-                <strong style={{ color: '#38bdf8' }}>Automated Governance & Geo-Precision Pipeline:</strong> Paste any valid RSS 2.0 or Atom XML feed URL (think tanks, CERT advisories, ministries, research labs, or tech policy journals). Sovereign automatically filters out off-topic stories and places pins exclusively at verified sovereign/city locations.
+                <strong style={{ color: 'var(--sov-sky)' }}>Automated Governance & Geo-Precision Pipeline:</strong> Paste any valid RSS 2.0 or Atom XML feed URL (think tanks, CERT advisories, ministries, research labs, or tech policy journals). Sovereign automatically filters out off-topic stories and places pins exclusively at verified sovereign/city locations.
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: '#94a3b8', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--sov-muted)', marginBottom: '6px' }}>
                   RSS / ATOM XML FEED URL *
                 </label>
                 <input
@@ -490,9 +490,9 @@ export default function SourceManagerModal({
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '6px',
-                    background: 'rgba(15, 23, 42, 0.8)',
+                    background: 'var(--sov-card-bg)',
                     border: '1px solid rgba(56, 189, 248, 0.3)',
-                    color: '#ffffff',
+                    color: 'var(--sov-text)',
                     fontFamily: 'monospace',
                     fontSize: '12px',
                     outline: 'none'
@@ -502,7 +502,7 @@ export default function SourceManagerModal({
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: '#94a3b8', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--sov-muted)', marginBottom: '6px' }}>
                     DISPLAY NAME (OPTIONAL)
                   </label>
                   <input
@@ -514,9 +514,9 @@ export default function SourceManagerModal({
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '6px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.14)',
-                      color: '#ffffff',
+                      background: 'var(--sov-card-bg)',
+                      border: '1px solid var(--sov-border)',
+                      color: 'var(--sov-text)',
                       fontSize: '12px',
                       outline: 'none'
                     }}
@@ -524,7 +524,7 @@ export default function SourceManagerModal({
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: '#94a3b8', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--sov-muted)', marginBottom: '6px' }}>
                     DEFAULT POLICY CATEGORY
                   </label>
                   <select
@@ -535,8 +535,8 @@ export default function SourceManagerModal({
                       padding: '9px 12px',
                       borderRadius: '6px',
                       background: '#0f172a',
-                      border: '1px solid rgba(255, 255, 255, 0.14)',
-                      color: '#ffffff',
+                      border: '1px solid var(--sov-border)',
+                      color: 'var(--sov-text)',
                       fontSize: '12px',
                       outline: 'none'
                     }}
@@ -551,7 +551,7 @@ export default function SourceManagerModal({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: '#94a3b8', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--sov-muted)', marginBottom: '6px' }}>
                   ADDITIONAL DOMAIN KEYWORDS (OPTIONAL, COMMA-SEPARATED)
                 </label>
                 <input
@@ -563,9 +563,9 @@ export default function SourceManagerModal({
                     width: '100%',
                     padding: '9px 12px',
                     borderRadius: '6px',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.14)',
-                    color: '#ffffff',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
+                    color: 'var(--sov-text)',
                     fontFamily: 'monospace',
                     fontSize: '11.5px',
                     outline: 'none'
@@ -612,14 +612,14 @@ export default function SourceManagerModal({
           {activeTab === 'registry' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {loadingRegistry ? (
-                <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'monospace', color: '#38bdf8', fontSize: '12px' }}>
+                <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'monospace', color: 'var(--sov-sky)', fontSize: '12px' }}>
                   Loading intelligence source registry...
                 </div>
               ) : (
                 <>
                   {customSources.length > 0 && (
                     <div>
-                      <div style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, color: '#00f0ff', marginBottom: '8px', letterSpacing: '0.06em' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--sov-accent)', marginBottom: '8px', letterSpacing: '0.06em' }}>
                         OPERATOR-ADDED SOURCES ({customSources.length})
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -635,7 +635,7 @@ export default function SourceManagerModal({
                                 alignItems: 'center',
                                 padding: '9px 12px',
                                 borderRadius: '7px',
-                                background: 'rgba(15, 23, 42, 0.65)',
+                                background: 'var(--sov-card-bg)',
                                 border: '1px solid rgba(0, 240, 255, 0.22)'
                               }}
                             >
@@ -644,11 +644,11 @@ export default function SourceManagerModal({
                                   type="checkbox"
                                   checked={checked}
                                   onChange={() => onToggleRssSource && onToggleRssSource(sid)}
-                                  style={{ accentColor: '#00f0ff', cursor: 'pointer' }}
+                                  style={{ accentColor: 'var(--sov-accent)', cursor: 'pointer' }}
                                 />
                                 <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#f1f5f9' }}>{src.name}</div>
-                                  <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--sov-text)' }}>{src.name}</div>
+                                  <div style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--sov-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {src.url} • {src.pinCount || 0} globe pins • {src.itemCount || 0} policy items
                                   </div>
                                 </div>
@@ -663,7 +663,7 @@ export default function SourceManagerModal({
                                     borderRadius: '4px',
                                     background: 'rgba(56, 189, 248, 0.12)',
                                     border: '1px solid rgba(56, 189, 248, 0.3)',
-                                    color: '#38bdf8',
+                                    color: 'var(--sov-sky)',
                                     fontSize: '9.5px',
                                     fontFamily: 'monospace',
                                     cursor: 'pointer'
@@ -698,7 +698,7 @@ export default function SourceManagerModal({
                   )}
 
                   <div>
-                    <div style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, color: '#94a3b8', marginBottom: '8px', letterSpacing: '0.06em' }}>
+                    <div style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--sov-muted)', marginBottom: '8px', letterSpacing: '0.06em' }}>
                       CORE INTERNATIONAL AI, CYBER & POLICY FEEDS ({builtInSources.length})
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '6px' }}>
@@ -725,13 +725,13 @@ export default function SourceManagerModal({
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => onToggleRssSource && onToggleRssSource(sid)}
-                                style={{ accentColor: '#00f0ff', cursor: 'pointer' }}
+                                style={{ accentColor: 'var(--sov-accent)', cursor: 'pointer' }}
                               />
                               <span style={{ fontSize: '11.5px', fontWeight: 600, color: checked ? '#f1f5f9' : '#64748b' }}>
                                 {src.name}
                               </span>
                             </div>
-                            <span style={{ fontSize: '9px', fontFamily: 'monospace', color: '#38bdf8' }}>
+                            <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--sov-sky)' }}>
                               {src.region || 'Global'}
                             </span>
                           </label>

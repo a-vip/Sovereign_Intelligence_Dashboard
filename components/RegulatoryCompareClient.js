@@ -51,8 +51,8 @@ export default function RegulatoryCompareClient() {
       <div
         className="no-print editorial-card"
         style={{
-          background: 'rgba(11, 17, 32, 0.9)',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
+          background: 'var(--sov-panel-bg)',
+          border: '1px solid var(--sov-border)',
           borderRadius: '10px',
           padding: '16px',
           display: 'flex',
@@ -62,7 +62,7 @@ export default function RegulatoryCompareClient() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', color: '#94a3b8', fontWeight: 700 }}>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)', fontWeight: 700 }}>
               PRESETS:
             </span>
             {PRESETS.map((pr) => (
@@ -76,7 +76,7 @@ export default function RegulatoryCompareClient() {
                   borderRadius: '5px',
                   border: '1px solid rgba(56, 189, 248, 0.3)',
                   background: 'rgba(56, 189, 248, 0.08)',
-                  color: '#38bdf8',
+                  color: 'var(--sov-sky)',
                   fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer'
@@ -100,7 +100,7 @@ export default function RegulatoryCompareClient() {
                 borderRadius: '6px',
                 border: '1px solid rgba(16, 185, 129, 0.45)',
                 background: copiedMd ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.1)',
-                color: '#34d399',
+                color: 'var(--sov-emerald)',
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-jetbrains-fallback)',
@@ -116,7 +116,7 @@ export default function RegulatoryCompareClient() {
 
         {/* Jurisdiction Pills */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', color: '#94a3b8', fontWeight: 700 }}>
+          <span style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)', fontWeight: 700 }}>
             SELECT 2–4 JURISDICTIONS ({selectedSlugs.length}/4):
           </span>
           {REGULATORY_DIFF_PROFILES.map((j) => {
@@ -150,24 +150,24 @@ export default function RegulatoryCompareClient() {
         className="editorial-card"
         style={{
           overflowX: 'auto',
-          background: 'rgba(11, 17, 32, 0.92)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'var(--sov-panel-bg)',
+          border: '1px solid var(--sov-border)',
           borderRadius: '10px'
         }}
       >
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid rgba(56, 189, 248, 0.25)' }}>
-              <th style={{ padding: '14px 16px', width: '210px', minWidth: '180px', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', color: '#64748b', textTransform: 'uppercase' }}>
+              <th style={{ padding: '14px 16px', width: '210px', minWidth: '180px', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', color: 'var(--sov-muted)', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Scale size={13} style={{ color: '#00f0ff' }} />
+                  <Scale size={13} style={{ color: 'var(--sov-accent)' }} />
                   <span>Legal Dimension</span>
                 </div>
               </th>
               {selectedProfiles.map((p) => (
                 <th key={p.slug} style={{ padding: '14px 16px', minWidth: '220px', verticalAlign: 'top' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <Link href={`/jurisdiction/${p.slug}`} style={{ fontSize: '15px', fontWeight: 800, color: '#ffffff', textDecoration: 'none' }}>
+                    <Link href={`/jurisdiction/${p.slug}`} style={{ fontSize: '15px', fontWeight: 800, color: 'var(--sov-text)', textDecoration: 'none' }}>
                       {p.name} ({p.iso}) ↗
                     </Link>
                     <span
@@ -193,12 +193,12 @@ export default function RegulatoryCompareClient() {
           </thead>
           <tbody>
             {DIFF_DIMENSIONS.map((dim) => (
-              <tr key={dim.key} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <td style={{ padding: '13px 16px', fontWeight: 700, color: '#38bdf8', verticalAlign: 'top' }}>
+              <tr key={dim.key} style={{ borderBottom: '1px solid var(--sov-border)' }}>
+                <td style={{ padding: '13px 16px', fontWeight: 700, color: 'var(--sov-sky)', verticalAlign: 'top' }}>
                   {dim.label}
                 </td>
                 {selectedProfiles.map((p) => (
-                  <td key={p.slug} style={{ padding: '13px 16px', color: '#cbd5e1', lineHeight: 1.55, verticalAlign: 'top' }}>
+                  <td key={p.slug} style={{ padding: '13px 16px', color: 'var(--sov-text)', lineHeight: 1.55, verticalAlign: 'top' }}>
                     {p[dim.key]}
                   </td>
                 ))}

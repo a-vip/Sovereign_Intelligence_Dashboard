@@ -146,21 +146,21 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Top Toolbar */}
-      <div className="editorial-card" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'rgba(11, 17, 32, 0.85)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px' }}>
+      <div className="editorial-card" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', flex: 1, minWidth: '260px' }}>
-          <Mail size={15} style={{ color: '#00f0ff' }} />
+          <Mail size={15} style={{ color: 'var(--sov-accent)' }} />
           <input
             type="email"
             value={ownerEmail}
             onChange={(e) => setOwnerEmail(e.target.value)}
             placeholder="Researcher / institutional email (e.g. analyst@cam.ac.uk)"
-            style={{ flex: 1, minWidth: '220px', maxWidth: '340px', padding: '7px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.35)', background: 'rgba(2, 6, 23, 0.75)', color: '#f8fafc', fontSize: '12.5px' }}
+            style={{ flex: 1, minWidth: '220px', maxWidth: '340px', padding: '7px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.35)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12.5px' }}
           />
           <button
             type="button"
             onClick={() => fetchWatchlists()}
             disabled={!ownerEmail.trim() || loadingList}
-            style={{ padding: '7px 12px', borderRadius: '6px', border: '1px solid rgba(0, 240, 255, 0.45)', background: 'rgba(0, 240, 255, 0.14)', color: '#00f0ff', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '7px 12px', borderRadius: '6px', border: '1px solid rgba(0, 240, 255, 0.45)', background: 'rgba(0, 240, 255, 0.14)', color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
           >
             {loadingList ? 'LOADING...' : 'LOAD WATCHLISTS'}
           </button>
@@ -178,13 +178,13 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
       {/* Main Split Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '18px', alignItems: 'start' }}>
         {/* Create Watchlist Card */}
-        <form onSubmit={handleSave} className="editorial-card" style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleSave} className="editorial-card" style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={16} style={{ color: '#00f0ff' }} />
-            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>Create Jurisdiction or Lab Watchlist</h2>
+            <Plus size={16} style={{ color: 'var(--sov-accent)' }} />
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--sov-text)' }}>Create Jurisdiction or Lab Watchlist</h2>
           </div>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#94a3b8' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--sov-muted)' }}>
             <span>Rule Name *</span>
             <input
               type="text"
@@ -193,14 +193,14 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. EU AI Office & UK AISI Frontier Rules"
-              style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'rgba(2, 6, 23, 0.8)', color: '#f8fafc', fontSize: '13px' }}
+              style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'var(--sov-backdrop)', color: 'var(--sov-text)', fontSize: '13px' }}
             />
           </label>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--sov-muted)' }}>
               <span>Target Jurisdictions (optional; empty = all global)</span>
-              <span style={{ color: '#00f0ff', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px' }}>{selectedJurisdictions.length} selected</span>
+              <span style={{ color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px' }}>{selectedJurisdictions.length} selected</span>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '140px', overflowY: 'auto', padding: '4px 0' }}>
               {jurisdictions.map((j) => {
@@ -230,13 +230,13 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Keywords / Labs / Statutory Terms (comma-separated)</span>
+            <span style={{ fontSize: '12px', color: 'var(--sov-muted)' }}>Keywords / Labs / Statutory Terms (comma-separated)</span>
             <input
               type="text"
               value={keywordsText}
               onChange={(e) => setKeywordsText(e.target.value)}
               placeholder="e.g. EU AI Act, GPAI, frontier, compute"
-              style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'rgba(2, 6, 23, 0.8)', color: '#f8fafc', fontSize: '13px' }}
+              style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'var(--sov-backdrop)', color: 'var(--sov-text)', fontSize: '13px' }}
             />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {KEYWORD_PRESETS.map((preset) => (
@@ -244,7 +244,7 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
                   key={preset.label}
                   type="button"
                   onClick={() => setKeywordsText(preset.keywords)}
-                  style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.25)', background: 'rgba(56, 189, 248, 0.08)', color: '#38bdf8', fontSize: '10.5px', cursor: 'pointer' }}
+                  style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--sov-border)', background: 'rgba(56, 189, 248, 0.08)', color: 'var(--sov-sky)', fontSize: '10.5px', cursor: 'pointer' }}
                 >
                   + {preset.label}
                 </button>
@@ -253,12 +253,12 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#94a3b8' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--sov-muted)' }}>
               <span>Minimum Severity (SEV-1 to SEV-5)</span>
               <select
                 value={minSeverity}
                 onChange={(e) => setMinSeverity(Number(e.target.value))}
-                style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'rgba(2, 6, 23, 0.8)', color: '#f8fafc', fontSize: '13px' }}
+                style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'var(--sov-backdrop)', color: 'var(--sov-text)', fontSize: '13px' }}
               >
                 <option value={1}>SEV-1+ (All Relevant)</option>
                 <option value={2}>SEV-2+ (Notable Policy)</option>
@@ -268,7 +268,7 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
               </select>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: '#cbd5e1', paddingTop: '22px', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--sov-text)', paddingTop: '22px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={emailAlerts}
@@ -278,16 +278,16 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
             </label>
           </div>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#94a3b8' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--sov-muted)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Webhook size={13} style={{ color: '#c084fc' }} /> Slack, Discord, or Custom HTTPS Webhook URL (optional)
+              <Webhook size={13} style={{ color: 'var(--sov-purple)' }} /> Slack, Discord, or Custom HTTPS Webhook URL (optional)
             </span>
             <input
               type="url"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://hooks.slack.com/services/... or https://discord.com/api/webhooks/..."
-              style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'rgba(2, 6, 23, 0.8)', color: '#f8fafc', fontSize: '12.5px' }}
+              style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(148,163,184,0.3)', background: 'var(--sov-backdrop)', color: 'var(--sov-text)', fontSize: '12.5px' }}
             />
           </label>
 
@@ -296,7 +296,7 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
               type="button"
               onClick={handleDryRun}
               disabled={testing}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 14px', borderRadius: '6px', border: '1px solid rgba(250, 204, 21, 0.45)', background: 'rgba(250, 204, 21, 0.12)', color: '#facc15', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 14px', borderRadius: '6px', border: '1px solid rgba(250, 204, 21, 0.45)', background: 'rgba(250, 204, 21, 0.12)', color: 'var(--sov-amber)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
             >
               <Play size={13} />
               <span>{testing ? 'TESTING...' : 'DRY-RUN TEST RULE'}</span>
@@ -305,7 +305,7 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
             <button
               type="submit"
               disabled={saving || !ownerEmail.trim()}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '6px', border: '1px solid rgba(0, 240, 255, 0.55)', background: 'rgba(0, 240, 255, 0.2)', color: '#ffffff', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '6px', border: '1px solid rgba(0, 240, 255, 0.55)', background: 'rgba(0, 240, 255, 0.2)', color: 'var(--sov-text)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
             >
               <Bell size={13} />
               <span>{saving ? 'SAVING...' : 'SAVE & ACTIVATE WATCHLIST'}</span>
@@ -316,19 +316,19 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
         {/* Active Watchlists + Dry-Run Output */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {testResult && (
-            <section className="editorial-card" style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(250, 204, 21, 0.35)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <section className="editorial-card" style={{ background: 'var(--sov-panel-bg)', border: '1px solid rgba(250, 204, 21, 0.35)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#facc15', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--sov-amber)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
                   DRY-RUN PREVIEW: {testResult.matchedCount} SIGNAL MATCH{testResult.matchedCount === 1 ? '' : 'ES'} (90D ARCHIVE)
                 </h3>
               </div>
               {testResult.matches?.length === 0 ? (
-                <p style={{ fontSize: '12.5px', color: '#94a3b8' }}>No signals in the 90-day window matched these exact filters. Broaden keywords or lower minimum severity.</p>
+                <p style={{ fontSize: '12.5px', color: 'var(--sov-muted)' }}>No signals in the 90-day window matched these exact filters. Broaden keywords or lower minimum severity.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {testResult.matches.map((m) => (
-                    <Link key={m.id} href={m.permalink} style={{ padding: '9px 11px', borderRadius: '6px', background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(255,255,255,0.07)', textDecoration: 'none', color: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: '#00f0ff' }}>
+                    <Link key={m.id} href={m.permalink} style={{ padding: '9px 11px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', textDecoration: 'none', color: 'var(--sov-text)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-accent)' }}>
                         SEV-{m.severity} · {m.location} · {m.source}
                       </div>
                       <div style={{ fontSize: '12.5px', fontWeight: 600 }}>{m.title}</div>
@@ -339,33 +339,33 @@ export default function WatchlistsClient({ jurisdictions = [] }) {
             </section>
           )}
 
-          <section className="editorial-card" style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <section className="editorial-card" style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>Active Watchlists ({watchlists.length})</h2>
-              <span style={{ fontSize: '10.5px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)' }}>CRON DISPATCH: DAILY 04:00 UTC</span>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--sov-text)' }}>Active Watchlists ({watchlists.length})</h2>
+              <span style={{ fontSize: '10.5px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)' }}>CRON DISPATCH: DAILY 04:00 UTC</span>
             </div>
 
             {watchlists.length === 0 ? (
-              <div style={{ padding: '22px', borderRadius: '8px', border: '1px dashed rgba(148,163,184,0.25)', color: '#94a3b8', fontSize: '13px', textAlign: 'center' }}>
+              <div style={{ padding: '22px', borderRadius: '8px', border: '1px dashed rgba(148,163,184,0.25)', color: 'var(--sov-muted)', fontSize: '13px', textAlign: 'center' }}>
                 Enter your email above and click <strong>LOAD WATCHLISTS</strong> or create your first monitoring rule on the left.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {watchlists.map((wl) => (
-                  <div key={wl.id} style={{ padding: '12px 14px', borderRadius: '8px', background: 'rgba(15, 23, 42, 0.72)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <div key={wl.id} style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff' }}>{wl.name}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--sov-text)' }}>{wl.name}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)' }}>
-                        <span style={{ color: '#facc15' }}>SEV-{wl.minSeverity}+</span>
-                        <span style={{ color: '#38bdf8' }}>
+                        <span style={{ color: 'var(--sov-amber)' }}>SEV-{wl.minSeverity}+</span>
+                        <span style={{ color: 'var(--sov-sky)' }}>
                           {wl.jurisdictions?.length ? wl.jurisdictions.map((j) => j.toUpperCase()).join(', ') : 'ALL JURISDICTIONS'}
                         </span>
-                        <span style={{ color: '#34d399' }}>TRIGGERS: {wl.triggerCount || 0}</span>
+                        <span style={{ color: 'var(--sov-emerald)' }}>TRIGGERS: {wl.triggerCount || 0}</span>
                       </div>
                       {wl.keywords?.length > 0 && (
-                        <div style={{ fontSize: '12px', color: '#94a3b8' }}>Keywords: {wl.keywords.join(', ')}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--sov-muted)' }}>Keywords: {wl.keywords.join(', ')}</div>
                       )}
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--sov-muted)' }}>
                         {wl.emailAlerts ? 'Email ✓' : 'Email off'} {wl.webhookUrl ? ' · Webhook HTTPS ✓' : ''}
                       </div>
                     </div>

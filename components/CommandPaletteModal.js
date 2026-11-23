@@ -71,12 +71,12 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
   if (!isOpen) return null;
 
   const renderIcon = (kind) => {
-    if (kind === 'scale') return <Scale size={14} style={{ color: '#00f0ff' }} />;
-    if (kind === 'chart') return <BarChart2 size={14} style={{ color: '#10b981' }} />;
-    if (kind === 'shield') return <Shield size={14} style={{ color: '#38bdf8' }} />;
-    if (kind === 'cpu') return <Cpu size={14} style={{ color: '#facc15' }} />;
-    if (kind === 'book') return <BookOpen size={14} style={{ color: '#94a3b8' }} />;
-    return <Globe size={14} style={{ color: '#c084fc' }} />;
+    if (kind === 'scale') return <Scale size={14} style={{ color: 'var(--sov-accent)' }} />;
+    if (kind === 'chart') return <BarChart2 size={14} style={{ color: 'var(--sov-emerald)' }} />;
+    if (kind === 'shield') return <Shield size={14} style={{ color: 'var(--sov-sky)' }} />;
+    if (kind === 'cpu') return <Cpu size={14} style={{ color: 'var(--sov-amber)' }} />;
+    if (kind === 'book') return <BookOpen size={14} style={{ color: 'var(--sov-muted)' }} />;
+    return <Globe size={14} style={{ color: 'var(--sov-purple)' }} />;
   };
 
   return (
@@ -85,7 +85,7 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(2, 6, 23, 0.82)',
+        background: 'var(--sov-backdrop)',
         backdropFilter: 'blur(8px)',
         zIndex: 10080,
         display: 'flex',
@@ -95,12 +95,13 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
       }}
     >
       <div
+        className="sov-modal-shell"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: '660px',
           maxHeight: '78vh',
-          background: 'rgba(10, 16, 32, 0.98)',
+          background: 'var(--sov-panel-bg)',
           border: '1px solid rgba(0, 240, 255, 0.4)',
           borderRadius: '12px',
           boxShadow: '0 24px 60px rgba(0,0,0,0.9), 0 0 32px rgba(0, 240, 255, 0.15)',
@@ -110,8 +111,8 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
         }}
       >
         {/* Search Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderBottom: '1px solid rgba(56, 189, 248, 0.2)' }}>
-          <Search size={16} style={{ color: '#00f0ff' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderBottom: '1px solid var(--sov-border)' }}>
+          <Search size={16} style={{ color: 'var(--sov-accent)' }} />
           <input
             ref={inputRef}
             type="text"
@@ -123,18 +124,18 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#ffffff',
+              color: 'var(--sov-text)',
               fontSize: '14px',
               fontFamily: 'var(--font-inter-fallback)'
             }}
           />
-          <span style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', border: '1px solid rgba(148,163,184,0.25)', padding: '2px 6px', borderRadius: '4px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', border: '1px solid rgba(148,163,184,0.25)', padding: '2px 6px', borderRadius: '4px' }}>
             ESC
           </span>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--sov-muted)', cursor: 'pointer', display: 'flex' }}
           >
             <X size={16} />
           </button>
@@ -144,7 +145,7 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
         <div style={{ overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {filteredModules.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
+              <div style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
                 OBSERVATORY MODULES
               </div>
               {filteredModules.map((m) => (
@@ -161,20 +162,20 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
                     gap: '10px',
                     width: '100%',
                     textAlign: 'left',
-                    background: 'rgba(15, 23, 42, 0.45)',
-                    border: '1px solid rgba(255,255,255,0.05)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '6px',
                     padding: '9px 10px',
                     cursor: 'pointer',
-                    color: '#f8fafc'
+                    color: 'var(--sov-text)'
                   }}
                 >
                   {renderIcon(m.icon)}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '12.5px', fontWeight: 700 }}>{m.title}</div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{m.subtitle}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sov-muted)' }}>{m.subtitle}</div>
                   </div>
-                  <span style={{ fontSize: '10px', color: '#00f0ff', fontFamily: 'var(--font-jetbrains-fallback)' }}>OPEN →</span>
+                  <span style={{ fontSize: '10px', color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)' }}>OPEN →</span>
                 </button>
               ))}
             </div>
@@ -182,7 +183,7 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
 
           {filteredJurisdictions.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
+              <div style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
                 JURISDICTION DOSSIERS
               </div>
               {filteredJurisdictions.map((j) => (
@@ -192,8 +193,8 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    background: 'rgba(15, 23, 42, 0.45)',
-                    border: '1px solid rgba(255,255,255,0.05)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '6px',
                     padding: '8px 10px'
                   }}
@@ -204,10 +205,10 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
                       onClose();
                       router.push(`/jurisdiction/${j.slug}`);
                     }}
-                    style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', color: '#f8fafc', cursor: 'pointer' }}
+                    style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--sov-text)', cursor: 'pointer' }}
                   >
                     <div style={{ fontSize: '12.5px', fontWeight: 700 }}>
-                      {j.name} <span style={{ color: '#64748b', fontSize: '10.5px' }}>({j.iso})</span>
+                      {j.name} <span style={{ color: 'var(--sov-muted)', fontSize: '10.5px' }}>({j.iso})</span>
                     </div>
                     <div style={{ fontSize: '10.5px', color: j.postureColor }}>{j.posture}</div>
                   </button>
@@ -223,7 +224,7 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
                         borderRadius: '4px',
                         border: '1px solid rgba(0, 240, 255, 0.35)',
                         background: 'rgba(0, 240, 255, 0.1)',
-                        color: '#00f0ff',
+                        color: 'var(--sov-accent)',
                         fontSize: '10px',
                         fontFamily: 'var(--font-jetbrains-fallback)',
                         fontWeight: 700,
@@ -240,7 +241,7 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
 
           {filteredLabs.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
+              <div style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
                 FRONTIER AI LABS
               </div>
               {filteredLabs.map((l) => (
@@ -257,19 +258,19 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
                     justifyContent: 'space-between',
                     width: '100%',
                     textAlign: 'left',
-                    background: 'rgba(15, 23, 42, 0.45)',
-                    border: '1px solid rgba(255,255,255,0.05)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '6px',
                     padding: '8px 10px',
                     cursor: 'pointer',
-                    color: '#f8fafc'
+                    color: 'var(--sov-text)'
                   }}
                 >
                   <div>
                     <div style={{ fontSize: '12.5px', fontWeight: 700 }}>{l.name}</div>
-                    <div style={{ fontSize: '10.5px', color: '#38bdf8' }}>{l.safetyFramework.name}</div>
+                    <div style={{ fontSize: '10.5px', color: 'var(--sov-sky)' }}>{l.safetyFramework.name}</div>
                   </div>
-                  <span style={{ fontSize: '10px', color: '#34d399', fontFamily: 'var(--font-jetbrains-fallback)' }}>LAB WATCH →</span>
+                  <span style={{ fontSize: '10px', color: 'var(--sov-emerald)', fontFamily: 'var(--font-jetbrains-fallback)' }}>LAB WATCH →</span>
                 </button>
               ))}
             </div>
@@ -277,7 +278,7 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
 
           {filteredSignals.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
+              <div style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', padding: '0 6px', fontWeight: 700 }}>
                 LIVE GLOBE SIGNALS
               </div>
               {filteredSignals.map((sig, idx) => (
@@ -294,20 +295,20 @@ export default function CommandPaletteModal({ isOpen, onClose, signals = [], onF
                     gap: '10px',
                     width: '100%',
                     textAlign: 'left',
-                    background: 'rgba(15, 23, 42, 0.45)',
-                    border: '1px solid rgba(255,255,255,0.05)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '6px',
                     padding: '8px 10px',
                     cursor: 'pointer',
-                    color: '#f8fafc'
+                    color: 'var(--sov-text)'
                   }}
                 >
-                  <MapPin size={13} style={{ color: '#facc15', flexShrink: 0 }} />
+                  <MapPin size={13} style={{ color: 'var(--sov-amber)', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {sig.title || sig.name}
                     </div>
-                    <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '10.5px', color: 'var(--sov-muted)' }}>
                       {sig.location || 'Global'} • {sig.source || 'OSINT'}
                     </div>
                   </div>

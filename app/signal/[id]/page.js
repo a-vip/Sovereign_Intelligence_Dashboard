@@ -93,7 +93,7 @@ export default async function SignalDossierPage({ params }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#060a12', color: '#e2e8f0', padding: '32px 20px 64px' }}>
+    <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaArticle) }}
@@ -101,25 +101,25 @@ export default async function SignalDossierPage({ params }) {
 
       <div style={{ maxWidth: '940px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Breadcrumb & Globe Deep-Link */}
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', paddingBottom: '16px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', flexWrap: 'wrap' }}>
-            <Link href="/" style={{ color: '#00f0ff', textDecoration: 'none', fontWeight: 700 }}>
+            <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontWeight: 700 }}>
               ← 3D GLOBE
             </Link>
             <span style={{ color: '#334155' }}>/</span>
-            <Link href="/jurisdictions" style={{ color: '#94a3b8', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href="/jurisdictions" style={{ color: 'var(--sov-muted)', textDecoration: 'none', fontWeight: 600 }}>
               JURISDICTIONS
             </Link>
             {jurisdiction && (
               <>
                 <span style={{ color: '#334155' }}>/</span>
-                <Link href={`/jurisdiction/${jurisdiction.slug}`} style={{ color: '#c084fc', textDecoration: 'none', fontWeight: 700 }}>
+                <Link href={`/jurisdiction/${jurisdiction.slug}`} style={{ color: 'var(--sov-purple)', textDecoration: 'none', fontWeight: 700 }}>
                   {jurisdiction.iso}
                 </Link>
               </>
             )}
             <span style={{ color: '#334155' }}>/</span>
-            <span style={{ color: '#cbd5e1' }}>{cleanId.slice(0, 14)}</span>
+            <span style={{ color: 'var(--sov-text)' }}>{cleanId.slice(0, 14)}</span>
           </div>
 
           <Link
@@ -129,7 +129,7 @@ export default async function SignalDossierPage({ params }) {
               borderRadius: '6px',
               background: 'rgba(0, 240, 255, 0.12)',
               border: '1px solid rgba(0, 240, 255, 0.45)',
-              color: '#00f0ff',
+              color: 'var(--sov-accent)',
               fontFamily: 'var(--font-jetbrains-fallback)',
               fontSize: '11px',
               fontWeight: 700,
@@ -141,16 +141,16 @@ export default async function SignalDossierPage({ params }) {
         </nav>
 
         {/* Main Dossier Header */}
-        <article style={{ background: 'rgba(11, 17, 32, 0.92)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '26px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <article style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '12px', padding: '26px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px' }}>
-            <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(0, 240, 255, 0.14)', color: '#00f0ff', fontWeight: 700 }}>
+            <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(0, 240, 255, 0.14)', color: 'var(--sov-accent)', fontWeight: 700 }}>
               {(event.category || 'Political').toUpperCase()}
             </span>
-            <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(250, 204, 21, 0.14)', color: '#facc15', fontWeight: 700 }}>
+            <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(250, 204, 21, 0.14)', color: 'var(--sov-amber)', fontWeight: 700 }}>
               SEV-{event.severity || 2}
             </span>
             {event.details?.domainPillar && (
-              <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.14)', color: '#38bdf8', fontWeight: 700 }}>
+              <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.14)', color: 'var(--sov-sky)', fontWeight: 700 }}>
                 {event.details.domainPillar}
               </span>
             )}
@@ -158,39 +158,39 @@ export default async function SignalDossierPage({ params }) {
               ADMIRALTY {adm.grade}
             </span>
             {event.lifecycle_state === 'archived' && (
-              <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.16)', color: '#c084fc', fontWeight: 700 }}>
+              <span style={{ padding: '4px 9px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.16)', color: 'var(--sov-purple)', fontWeight: 700 }}>
                 PERMANENT ARCHIVE RECORD
               </span>
             )}
           </div>
 
-          <h1 style={{ fontSize: 'clamp(1.5rem, 2.8vw, 2.15rem)', fontWeight: 800, color: '#ffffff', lineHeight: 1.28 }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 2.8vw, 2.15rem)', fontWeight: 800, color: 'var(--sov-text)', lineHeight: 1.28 }}>
             {event.title}
           </h1>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', padding: '12px', borderRadius: '8px', background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', padding: '12px', borderRadius: '8px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', fontSize: '12px' }}>
             <div>
-              <div style={{ color: '#64748b', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>JURISDICTION / LOCATION</div>
-              <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '3px' }}>
+              <div style={{ color: 'var(--sov-muted)', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>JURISDICTION / LOCATION</div>
+              <div style={{ color: 'var(--sov-text)', fontWeight: 600, marginTop: '3px' }}>
                 {event.location || 'Global / Multilateral'}
                 {typeof event.lat === 'number' && typeof event.lon === 'number' && !isNaN(event.lat) && !isNaN(event.lon) && (
-                  <span style={{ color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', marginLeft: '6px' }}>
+                  <span style={{ color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', marginLeft: '6px' }}>
                     ({event.lat.toFixed(3)}, {event.lon.toFixed(3)})
                   </span>
                 )}
               </div>
             </div>
             <div>
-              <div style={{ color: '#64748b', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>PRIMARY SOURCE</div>
-              <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '3px' }}>{event.source || event.details?.source || 'OSINT Wire'}</div>
+              <div style={{ color: 'var(--sov-muted)', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>PRIMARY SOURCE</div>
+              <div style={{ color: 'var(--sov-text)', fontWeight: 600, marginTop: '3px' }}>{event.source || event.details?.source || 'OSINT Wire'}</div>
             </div>
             <div>
-              <div style={{ color: '#64748b', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>TIMESTAMP (UTC)</div>
-              <div style={{ color: '#cbd5e1', fontFamily: 'var(--font-jetbrains-fallback)', marginTop: '3px' }}>{formattedDate}</div>
+              <div style={{ color: 'var(--sov-muted)', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>TIMESTAMP (UTC)</div>
+              <div style={{ color: 'var(--sov-text)', fontFamily: 'var(--font-jetbrains-fallback)', marginTop: '3px' }}>{formattedDate}</div>
             </div>
           </div>
 
-          <div style={{ fontSize: '15px', lineHeight: 1.7, color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
+          <div style={{ fontSize: '15px', lineHeight: 1.7, color: 'var(--sov-text)', whiteSpace: 'pre-wrap' }}>
             {summary}
           </div>
 
@@ -208,7 +208,7 @@ export default async function SignalDossierPage({ params }) {
                   borderRadius: '6px',
                   background: 'rgba(56, 189, 248, 0.14)',
                   border: '1px solid rgba(56, 189, 248, 0.4)',
-                  color: '#38bdf8',
+                  color: 'var(--sov-sky)',
                   fontFamily: 'var(--font-jetbrains-fallback)',
                   fontSize: '12px',
                   fontWeight: 700,
@@ -227,7 +227,7 @@ export default async function SignalDossierPage({ params }) {
         {/* Related Signals */}
         {relatedSignals.length > 0 && (
           <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--sov-text)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
               RELATED OBSERVATORY SIGNALS
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
@@ -238,21 +238,21 @@ export default async function SignalDossierPage({ params }) {
                     key={rid}
                     href={`/signal/${encodeURIComponent(rid)}`}
                     style={{
-                      background: 'rgba(11, 17, 32, 0.8)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'var(--sov-panel-bg)',
+                      border: '1px solid var(--sov-border)',
                       borderRadius: '8px',
                       padding: '12px 14px',
                       textDecoration: 'none',
-                      color: '#e2e8f0',
+                      color: 'var(--sov-text)',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '6px'
                     }}
                   >
-                    <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--sov-sky)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
                       {rel.location || 'Global'} • SEV-{rel.severity || 2}
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', lineHeight: 1.35 }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sov-text)', lineHeight: 1.35 }}>
                       {rel.title}
                     </span>
                   </Link>

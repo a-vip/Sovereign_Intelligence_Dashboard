@@ -8,13 +8,12 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('researcher');
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [isPendingVerification, setIsPendingVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
-  const [isSimulated, setIsSimulated] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,7 +23,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
 
     try {
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const payload = isRegister 
+      const payload = isRegister
         ? { email, password, fullName, role }
         : { email, password };
 
@@ -43,661 +42,343 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
       if (data.pending) {
         setRegisteredEmail(email);
         setIsPendingVerification(true);
-        setIsSimulated(!!data.isSimulated);
         setLoading(false);
         return;
       }
 
       setSuccess(true);
-      
-      // Delay closing modal slightly to show premium success animation
       setTimeout(() => {
         onAuthSuccess(data.user);
         onClose();
-      }, 1500);
-
+      }, 900);
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const inputStyle = {
+    width: '100%',
+    background: 'var(--sov-bg)',
+    border: '1px solid var(--sov-border)',
+    borderRadius: '8px',
+    padding: '10px 12px 10px 36px',
+    color: 'var(--sov-text)',
+    fontSize: '13.5px',
+    outline: 'none'
+  };
+
+  const labelStyle = {
+    fontSize: '11.5px',
+    fontWeight: 600,
+    color: 'var(--sov-muted)',
+    letterSpacing: '0.02em'
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'rgba(2, 6, 23, 0.85)',
-      backdropFilter: 'blur(16px)',
-      animation: 'fadeIn 0.3s ease-out',
-    }}>
-      {/* Background Cyber-Grid Effect */}
-      <div style={{
-        position: 'absolute',
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
         inset: 0,
-        background: 'linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-        pointerEvents: 'none'
-      }} />
-
-      {/* Main Glassmorphic Panel */}
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        maxWidth: '460px',
-        background: 'rgba(8, 12, 24, 0.9)',
-        border: '1px solid rgba(6, 182, 212, 0.25)',
-        borderRadius: '16px',
-        padding: '32px',
-        boxShadow: '0 0 40px rgba(6, 182, 212, 0.15), inset 0 0 20px rgba(6, 182, 212, 0.05)',
-        overflow: 'hidden',
-        animation: 'slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
-      }}>
-        {/* HUD Tactical Corners */}
-        <div style={{ position: 'absolute', top: 12, left: 12, width: 16, height: 16, borderTop: '2px solid #06b6d4', borderLeft: '2px solid #06b6d4', opacity: 0.6 }} />
-        <div style={{ position: 'absolute', top: 12, right: 12, width: 16, height: 16, borderTop: '2px solid #06b6d4', borderRight: '2px solid #06b6d4', opacity: 0.6 }} />
-        <div style={{ position: 'absolute', bottom: 12, left: 12, width: 16, height: 16, borderBottom: '2px solid #06b6d4', borderLeft: '2px solid #06b6d4', opacity: 0.6 }} />
-        <div style={{ position: 'absolute', bottom: 12, right: 12, width: 16, height: 16, borderBottom: '2px solid #06b6d4', borderRight: '2px solid #06b6d4', opacity: 0.6 }} />
-
-        {/* Close Button */}
-        <button 
+        zIndex: 10050,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        background: 'var(--sov-backdrop)',
+        backdropFilter: 'blur(10px)'
+      }}
+    >
+      <div
+        className="sov-modal-shell"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: '420px',
+          background: 'var(--sov-panel-bg)',
+          border: '1px solid var(--sov-border)',
+          borderRadius: '14px',
+          padding: '28px 24px',
+          boxShadow: 'var(--sov-shadow)',
+          color: 'var(--sov-text)'
+        }}
+      >
+        <button
+          type="button"
           onClick={onClose}
+          aria-label="Close Sign In"
           style={{
             position: 'absolute',
-            top: 20,
-            right: 20,
-            background: 'transparent',
-            border: 'none',
-            color: 'rgba(16, 185, 129, 0.6)',
+            top: '14px',
+            right: '14px',
+            width: '28px',
+            height: '28px',
+            borderRadius: '6px',
+            border: '1px solid var(--sov-border)',
+            background: 'var(--sov-card-bg)',
+            color: 'var(--sov-muted)',
             cursor: 'pointer',
-            padding: 4,
-            borderRadius: '50%',
-            transition: 'all 0.2s',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#10b981';
-            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(16, 185, 129, 0.6)';
-            e.currentTarget.style.background = 'transparent';
+            justifyContent: 'center'
           }}
         >
-          <X size={18} />
+          <X size={15} />
         </button>
 
-        {/* Header Icon */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'rgba(6, 182, 212, 0.1)',
-            border: '1px solid rgba(6, 182, 212, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#06b6d4',
-            boxShadow: '0 0 15px rgba(6, 182, 212, 0.1)',
-          }}>
-            <Shield size={32} />
+        {/* Clean Header */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'var(--sov-accent-soft)',
+              border: '1px solid var(--sov-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--sov-accent)',
+              marginBottom: '12px'
+            }}
+          >
+            <Shield size={22} />
           </div>
+          <h2 style={{ margin: '0 0 4px 0', fontSize: '19px', fontWeight: 700, color: 'var(--sov-text)' }}>
+            {isRegister ? 'Create Account' : 'Sign In'}
+          </h2>
+          <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--sov-muted)' }}>
+            Sovereign Global AI Policy Observatory
+          </p>
         </div>
 
-        {/* Title */}
-        <h2 style={{
-          textAlign: 'center',
-          color: '#ffffff',
-          fontSize: '22px',
-          fontWeight: 700,
-          letterSpacing: '1px',
-          textTransform: 'uppercase',
-          margin: '0 0 8px 0'
-        }}>
-          System Access Control
-        </h2>
-        <p style={{
-          textAlign: 'center',
-          color: '#8892a4',
-          fontSize: '13px',
-          margin: '0 0 24px 0',
-          fontFamily: 'Courier New, monospace'
-        }}>
-          [ SOVEREIGN INTELLIGENCE PLATFORM ]
-        </p>
-
-        {/* Switch Tabs */}
-        <div style={{
-          display: 'flex',
-          background: 'rgba(2, 6, 23, 0.5)',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          borderRadius: '8px',
-          padding: '4px',
-          marginBottom: '24px'
-        }}>
+        {/* Clean Sign In / Sign Up Switch */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '4px',
+            background: 'var(--sov-card-bg)',
+            border: '1px solid var(--sov-border)',
+            borderRadius: '8px',
+            padding: '4px',
+            marginBottom: '18px'
+          }}
+        >
           <button
+            type="button"
             onClick={() => { setIsRegister(false); setError(null); }}
             style={{
-              flex: 1,
-              background: !isRegister ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
-              border: 'none',
-              color: !isRegister ? '#ffffff' : '#8892a4',
+              background: !isRegister ? 'var(--sov-panel-bg)' : 'transparent',
+              border: !isRegister ? '1px solid var(--sov-border)' : '1px solid transparent',
+              color: !isRegister ? 'var(--sov-text)' : 'var(--sov-muted)',
               borderRadius: '6px',
-              padding: '8px 0',
-              fontSize: '12px',
+              padding: '7px 0',
+              fontSize: '12.5px',
               fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-              boxShadow: !isRegister ? '0 0 10px rgba(6, 182, 212, 0.1)' : 'none'
+              cursor: 'pointer'
             }}
           >
-            AUTHENTICATE
+            Sign In
           </button>
           <button
+            type="button"
             onClick={() => { setIsRegister(true); setError(null); }}
             style={{
-              flex: 1,
-              background: isRegister ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
-              border: 'none',
-              color: isRegister ? '#ffffff' : '#8892a4',
+              background: isRegister ? 'var(--sov-panel-bg)' : 'transparent',
+              border: isRegister ? '1px solid var(--sov-border)' : '1px solid transparent',
+              color: isRegister ? 'var(--sov-text)' : 'var(--sov-muted)',
               borderRadius: '6px',
-              padding: '8px 0',
-              fontSize: '12px',
+              padding: '7px 0',
+              fontSize: '12.5px',
               fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-              boxShadow: isRegister ? '0 0 10px rgba(6, 182, 212, 0.1)' : 'none'
+              cursor: 'pointer'
             }}
           >
-            ACCESS REGISTRY
+            Sign Up
           </button>
         </div>
 
-        {/* Error Notification */}
         {error && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            padding: '12px',
-            color: '#ef4444',
-            fontSize: '12px',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            animation: 'shake 0.3s'
-          }}>
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              color: 'var(--sov-danger)',
+              fontSize: '12.5px',
+              marginBottom: '14px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px'
+            }}
+          >
             <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Success State */}
         {success ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '30px 0',
-            animation: 'fadeIn 0.3s'
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid #10b981',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#10b981',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
-              marginBottom: '16px',
-              animation: 'scaleIn 0.3s'
-            }}>
-              <Check size={24} />
-            </div>
-            <p style={{
-              color: '#10b981',
-              fontSize: '15px',
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-              margin: '0 0 8px 0',
-              textTransform: 'uppercase'
-            }}>
-              Access Granted
-            </p>
-            <p style={{
-              color: 'rgba(16, 185, 129, 0.6)',
-              fontSize: '12px',
-              fontFamily: 'Courier New, monospace',
-              margin: 0
-            }}>
-              [ INITIALIZING SYSTEM PROFILE ]
-            </p>
-          </div>
-        ) : isPendingVerification ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'stretch',
-            animation: 'fadeIn 0.3s'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0', textAlign: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
                 borderRadius: '50%',
-                background: 'rgba(6, 182, 212, 0.08)',
-                border: '1px solid rgba(6, 182, 212, 0.3)',
+                background: 'rgba(16, 185, 129, 0.16)',
+                border: '1px solid rgba(16, 185, 129, 0.45)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#06b6d4',
-                animation: 'scaleIn 0.3s',
-                position: 'relative'
-              }}>
-                <Mail size={24} />
-                <div style={{
-                  position: 'absolute',
-                  width: '8px',
-                  height: '8px',
+                color: 'var(--sov-emerald)'
+              }}
+            >
+              <Check size={22} />
+            </div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--sov-text)' }}>Signed In</div>
+            <div style={{ fontSize: '12.5px', color: 'var(--sov-muted)' }}>Syncing saved bookmarks and workspace preferences…</div>
+          </div>
+        ) : isPendingVerification ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div
+                style={{
+                  width: '46px',
+                  height: '46px',
                   borderRadius: '50%',
-                  background: '#10b981',
-                  bottom: '2px',
-                  right: '2px',
-                  border: '2px solid #080c18'
-                }} />
-              </div>
-            </div>
-
-            <h3 style={{
-              textAlign: 'center',
-              color: '#ffffff',
-              fontSize: '16px',
-              fontWeight: 600,
-              margin: '0 0 8px 0',
-              letterSpacing: '1px',
-              textTransform: 'uppercase'
-            }}>
-              Authentication Link Sent
-            </h3>
-            
-            <p style={{
-              textAlign: 'center',
-              color: '#8892a4',
-              fontSize: '13px',
-              lineHeight: 1.5,
-              margin: '0 0 20px 0'
-            }}>
-              We have dispatched a time-locked security link to <strong style={{ color: '#ffffff' }}>{registeredEmail}</strong>.
-            </p>
-
-            <div style={{
-              background: 'rgba(2, 6, 23, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.03)',
-              borderRadius: '8px',
-              padding: '16px',
-              fontFamily: 'Courier New, monospace',
-              fontSize: '11px',
-              color: '#8892a4',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>STATUS:</span>
-                <span style={{ color: '#10b981' }}>DISPATCHED // WAITING</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>TIME-LOCK LIMIT:</span>
-                <span style={{ color: '#ef4444' }}>15:00 MINUTES</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>ENVELOPE TYPE:</span>
-                <span>SHA256-OTP</span>
-              </div>
-            </div>
-
-            {/* Conditional Delivery / Simulation Block */}
-            {isSimulated ? (
-              <div style={{
-                marginTop: '20px',
-                padding: '14px',
-                background: 'rgba(6, 182, 212, 0.04)',
-                border: '1px dashed rgba(6, 182, 212, 0.25)',
-                borderRadius: '8px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '10px', color: '#06b6d4', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  🔒 LOCAL DEV CONSOLE SIMULATOR
-                </div>
-                <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
-                  Local SMTP unconfigured. The email was simulated and written to your workspace.
-                </p>
-                <a 
-                  href="/mock-email.html" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-block',
-                    background: 'rgba(6, 182, 212, 0.12)',
-                    border: '1px solid rgba(6, 182, 212, 0.4)',
-                    color: '#ffffff',
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#06b6d4';
-                    e.currentTarget.style.color = '#020617';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)';
-                    e.currentTarget.style.color = '#ffffff';
-                  }}
-                >
-                  OPEN MOCK EMAIL INBOX
-                </a>
-              </div>
-            ) : (
-              <div style={{
-                marginTop: '20px',
-                padding: '16px',
-                background: 'rgba(16, 185, 129, 0.05)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-                borderRadius: '8px',
-                textAlign: 'left'
-              }}>
-                <div style={{ 
-                  fontSize: '11px', 
-                  color: '#10b981', 
-                  fontWeight: 700, 
-                  letterSpacing: '1px', 
-                  textTransform: 'uppercase', 
-                  marginBottom: '6px',
+                  background: 'var(--sov-accent-soft)',
+                  border: '1px solid var(--sov-border)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  🛡️ REAL-TIME SECURE DELIVERY
-                </div>
-                <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '0 0 8px 0', lineHeight: 1.5 }}>
-                  The time-locked verification handshake has been dispatched directly to your inbox.
-                </p>
-                <p style={{ fontSize: '11px', color: '#8892a4', margin: 0, fontStyle: 'italic', lineHeight: 1.4 }}>
-                  Tip: Check your spam or junk folder if the link does not arrive within 1-2 minutes.
-                </p>
+                  justifyContent: 'center',
+                  color: 'var(--sov-accent)'
+                }}
+              >
+                <Mail size={22} />
               </div>
-            )}
-
+            </div>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--sov-text)' }}>Check Your Inbox</h3>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--sov-muted)', lineHeight: 1.55 }}>
+              We sent a verification link (valid for 15 minutes) to <strong style={{ color: 'var(--sov-text)' }}>{registeredEmail}</strong>. Check your spam folder if it does not arrive within two minutes.
+            </p>
             <button
+              type="button"
               onClick={() => {
                 setIsPendingVerification(false);
+                setIsRegister(false);
                 setError(null);
               }}
               style={{
-                marginTop: '20px',
                 width: '100%',
-                background: 'transparent',
-                color: '#8892a4',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
                 padding: '10px 0',
-                fontSize: '12px',
+                borderRadius: '8px',
+                border: '1px solid var(--sov-border)',
+                background: 'var(--sov-card-bg)',
+                color: 'var(--sov-text)',
+                fontSize: '13px',
                 fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                e.currentTarget.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.color = '#8892a4';
+                cursor: 'pointer'
               }}
             >
-              BACK TO SIGN IN
+              Back to Sign In
             </button>
           </div>
         ) : (
-          /* Form Block */
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {isRegister && (
               <>
-                {/* Full Name */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Full Name
-                  </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={labelStyle}>Full Name</label>
                   <div style={{ position: 'relative' }}>
-                    <User size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
+                    <User size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                     <input
                       type="text"
-                      placeholder="e.g. Jane Doe"
+                      placeholder="Jane Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      style={{
-                        width: '100%',
-                        background: 'rgba(2, 6, 23, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '8px',
-                        padding: '10px 12px 10px 36px',
-                        color: '#ffffff',
-                        fontSize: '13px',
-                        outline: 'none',
-                        transition: 'border-color 0.2s',
-                      }}
-                      onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                      onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                      style={inputStyle}
                     />
                   </div>
                 </div>
 
-                {/* Role / Assignment */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Role
-                  </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={labelStyle}>Role</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(2, 6, 23, 0.6)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                      color: '#ffffff',
-                      fontSize: '13px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.2s',
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                    style={{ ...inputStyle, paddingLeft: '12px', cursor: 'pointer' }}
                   >
                     <option value="researcher">Researcher / Academic</option>
-                    <option value="student">Student</option>
-                    <option value="observer">Human Rights Observer</option>
-                    <option value="journalist">Journalist / Media</option>
-                    <option value="government">Government Official</option>
-                    <option value="military">Military Personnel</option>
-                    <option value="advocate">NGO / Civil Society Advocate</option>
-                    <option value="ethicist">Tech Policy Specialist</option>
-                    <option value="civilian">Civilian Observer</option>
-                    <option value="other">Other</option>
+                    <option value="ethicist">AI Policy &amp; Ethics Specialist</option>
+                    <option value="analyst">Policy Analyst</option>
+                    <option value="observer">Human Rights / Civil Society Observer</option>
                   </select>
                 </div>
               </>
             )}
 
-            {/* Email Address */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Email Address
-              </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={labelStyle}>Email</label>
               <div style={{ position: 'relative' }}>
-                <Mail size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
+                <Mail size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                 <input
                   type="email"
-                  placeholder="e.g. jane@example.com"
+                  placeholder="name@institution.edu"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    background: 'rgba(2, 6, 23, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '10px 12px 10px 36px',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                  style={inputStyle}
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: '#8892a4', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                  Password
-                </label>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={labelStyle}>Password</label>
               <div style={{ position: 'relative' }}>
-                <Key size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)' }} />
+                <Key size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                 <input
                   type="password"
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    background: 'rgba(2, 6, 23, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '10px 12px 10px 36px',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                  style={inputStyle}
                 />
               </div>
             </div>
 
-            {/* Verification Checklist */}
-            <div style={{
-              margin: '8px 0',
-              padding: '12px',
-              background: 'rgba(2, 6, 23, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.03)',
-              borderRadius: '8px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: '#10b981', fontFamily: 'Courier New, monospace' }}>
-                <Check size={10} style={{ strokeWidth: 3 }} /> DATABASE CHANNEL... ONLINE
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: '#10b981', fontFamily: 'Courier New, monospace' }}>
-                <Check size={10} style={{ strokeWidth: 3 }} /> CRYPTO COMPATIBILITY... PBKDF2-SHA512
-              </div>
-            </div>
-
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
+              className="keep-light-text"
               style={{
                 width: '100%',
-                background: '#06b6d4',
-                color: '#020617',
+                marginTop: '4px',
+                background: 'var(--sov-accent)',
+                color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
-                padding: '12px 0',
-                fontSize: '13px',
+                padding: '11px 0',
+                fontSize: '13.5px',
                 fontWeight: 700,
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
+                cursor: loading ? 'wait' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 0 15px rgba(6, 182, 212, 0.2)'
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.background = '#22d3ee';
-                  e.currentTarget.style.boxShadow = '0 0 25px rgba(6, 182, 212, 0.35)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.background = '#06b6d4';
-                  e.currentTarget.style.boxShadow = '0 0 15px rgba(6, 182, 212, 0.2)';
-                }
+                gap: '6px'
               }}
             >
-              {loading ? 'PROCESSING...' : isRegister ? 'REGISTER' : 'AUTHENTICATE'}
-              {!loading && <ChevronRight size={16} />}
+              <span>{loading ? 'Signing in…' : isRegister ? 'Create Account' : 'Sign In'}</span>
+              {!loading && <ChevronRight size={15} />}
             </button>
           </form>
         )}
       </div>
-
-      {/* Styled Animations Injected */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { transform: scale(0.9); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
-        }
-      `}</style>
     </div>
   );
 }

@@ -305,13 +305,13 @@ export default function ChangelogBox({ onClose }) {
         maxWidth: 'calc(100vw - 20px)',
         height: '530px',
         maxHeight: 'calc(100vh - 100px)',
-        background: 'rgba(8, 12, 24, 0.96)',
+        background: 'var(--sov-panel-bg)',
         border: '1px solid rgba(6, 182, 212, 0.3)',
         borderRadius: '12px',
         boxShadow: '0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(6, 182, 212, 0.12)',
         zIndex: 1005,
         fontFamily: 'var(--font-jetbrains-fallback), monospace',
-        color: '#e2e8f0',
+        color: 'var(--sov-text)',
         backdropFilter: 'blur(16px)',
         display: 'flex',
         flexDirection: 'column',
@@ -328,7 +328,7 @@ export default function ChangelogBox({ onClose }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 16px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--sov-border)',
           cursor: dragging ? 'grabbing' : 'grab',
           background: 'rgba(6, 182, 212, 0.05)',
           userSelect: 'none',
@@ -338,8 +338,8 @@ export default function ChangelogBox({ onClose }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Terminal size={14} style={{ color: '#06b6d4' }} />
-          <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.12em', color: '#ffffff' }}>
+          <Terminal size={14} style={{ color: 'var(--sov-accent)' }} />
+          <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.12em', color: 'var(--sov-text)' }}>
             DASHBOARD CHANGELOG
           </span>
           <span style={{ fontSize: '9px', color: 'rgba(6, 182, 212, 0.7)', fontWeight: 'bold' }}>
@@ -349,9 +349,9 @@ export default function ChangelogBox({ onClose }) {
         <button
           onClick={onClose}
           style={{
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            color: '#ffffff',
+            background: 'var(--sov-card-bg)',
+            border: '1px solid var(--sov-border)',
+            color: 'var(--sov-text)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -435,7 +435,7 @@ export default function ChangelogBox({ onClose }) {
                   >
                     {item.version}
                   </span>
-                  <span style={{ fontSize: '9px', color: '#8892a4', fontFamily: 'monospace', flexShrink: 0 }}>
+                  <span style={{ fontSize: '9px', color: 'var(--sov-muted)', fontFamily: 'monospace', flexShrink: 0 }}>
                     {item.date}
                   </span>
                   <span style={{ color: 'rgba(255,255,255,0.15)', flexShrink: 0 }}>|</span>
@@ -467,7 +467,7 @@ export default function ChangelogBox({ onClose }) {
                 <div 
                   style={{
                     padding: '12px 14px',
-                    borderTop: '1px solid rgba(255,255,255,0.04)',
+                    borderTop: '1px solid var(--sov-border)',
                     background: 'rgba(0, 0, 0, 0.25)',
                     animation: 'fadeIn 0.15s ease-out'
                   }}
@@ -486,7 +486,7 @@ export default function ChangelogBox({ onClose }) {
                         key={bidx} 
                         style={{ 
                           fontSize: '10px', 
-                          color: '#cbd5e1', 
+                          color: 'var(--sov-text)', 
                           lineHeight: '1.45',
                           listStyleType: 'square'
                         }}
@@ -506,19 +506,19 @@ export default function ChangelogBox({ onClose }) {
       <div
         style={{
           padding: '8px 12px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-          background: 'rgba(2, 6, 23, 0.5)',
+          borderTop: '1px solid var(--sov-border)',
+          background: 'var(--sov-card-bg)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           fontSize: '8px',
-          color: 'rgba(255, 255, 255, 0.35)',
+          color: 'var(--sov-muted)',
           letterSpacing: '0.05em',
           userSelect: 'none'
         }}
       >
         <span>SECURE HANDSHAKE VERIFIED</span>
-        <span style={{ color: '#06b6d4', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.10.0</span>
+        <span style={{ color: 'var(--sov-accent)', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.10.0</span>
       </div>
 
       {/* Styled visible scrollbar injected directly */}

@@ -48,14 +48,15 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
   return (
     <div
       style={{
-        background: 'rgba(11, 17, 32, 0.85)',
-        border: '1px solid rgba(56, 189, 248, 0.25)',
+        background: 'var(--sov-card-bg)',
+        border: '1px solid var(--sov-border)',
         borderRadius: '8px',
         padding: isStandalone ? '18px' : '12px',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        fontFamily: 'var(--font-inter-fallback)'
+        fontFamily: 'var(--font-inter-fallback)',
+        color: 'var(--sov-text)'
       }}
     >
       {/* Top Row: NATO Admiralty Grade + Cryptographic Fingerprint */}
@@ -66,7 +67,7 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '8px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--sov-border)',
           paddingBottom: '10px'
         }}
       >
@@ -109,7 +110,7 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
           >
             MIT {mitRisk.code}: {mitRisk.shortLabel}
           </span>
-          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+          <span style={{ fontSize: '11px', color: 'var(--sov-muted)' }}>
             {admiralty.sourceLabel} • {admiralty.infoLabel}
           </span>
         </div>
@@ -122,11 +123,11 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
             display: 'inline-flex',
             alignItems: 'center',
             gap: '5px',
-            background: 'rgba(15, 23, 42, 0.9)',
-            border: '1px solid rgba(148, 163, 184, 0.25)',
+            background: 'var(--sov-panel-bg)',
+            border: '1px solid var(--sov-border)',
             borderRadius: '4px',
             padding: '3px 8px',
-            color: copiedType === 'hash' ? '#34d399' : '#cbd5e1',
+            color: copiedType === 'hash' ? 'var(--sov-emerald)' : 'var(--sov-text)',
             fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: '10px',
             cursor: 'pointer'
@@ -238,8 +239,8 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
       {/* Academic Citation Generator (OSCOLA / APA / BibTeX) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#cbd5e1', fontSize: '11px', fontWeight: 700 }}>
-            <BookOpen size={12} style={{ color: '#00f0ff' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--sov-text)', fontSize: '11px', fontWeight: 700 }}>
+            <BookOpen size={12} style={{ color: 'var(--sov-accent)' }} />
             <span>SCHOLARLY CITATION GENERATOR</span>
           </div>
           <div style={{ display: 'flex', gap: '4px' }}>
@@ -257,9 +258,9 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
                   style={{
                     padding: '3px 8px',
                     borderRadius: '4px',
-                    border: active ? '1px solid #00f0ff' : '1px solid rgba(148,163,184,0.2)',
-                    background: active ? 'rgba(0, 240, 255, 0.14)' : 'rgba(15, 23, 42, 0.6)',
-                    color: active ? '#00f0ff' : '#94a3b8',
+                    border: active ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+                    background: active ? 'var(--sov-accent-soft)' : 'var(--sov-panel-bg)',
+                    color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
                     fontSize: '10px',
                     fontWeight: 700,
                     fontFamily: 'var(--font-jetbrains-fallback)',
@@ -278,9 +279,9 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
             margin: 0,
             padding: '10px',
             borderRadius: '6px',
-            background: '#050914',
-            border: '1px solid rgba(30, 41, 59, 0.9)',
-            color: '#e2e8f0',
+            background: 'var(--sov-bg)',
+            border: '1px solid var(--sov-border)',
+            color: 'var(--sov-text)',
             fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: '10.5px',
             lineHeight: 1.5,
@@ -301,9 +302,9 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
               gap: '6px',
               padding: '5px 11px',
               borderRadius: '4px',
-              border: '1px solid rgba(0, 240, 255, 0.4)',
-              background: copiedType === 'citation' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 240, 255, 0.1)',
-              color: copiedType === 'citation' ? '#34d399' : '#00f0ff',
+              border: '1px solid var(--sov-accent)',
+              background: copiedType === 'citation' ? 'rgba(16, 185, 129, 0.16)' : 'var(--sov-accent-soft)',
+              color: copiedType === 'citation' ? 'var(--sov-emerald)' : 'var(--sov-accent)',
               fontSize: '10.5px',
               fontWeight: 700,
               fontFamily: 'var(--font-jetbrains-fallback)',

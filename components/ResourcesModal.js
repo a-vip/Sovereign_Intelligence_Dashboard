@@ -131,7 +131,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(3, 7, 18, 0.82)',
+      background: 'var(--sov-backdrop)',
       backdropFilter: 'blur(10px)',
       zIndex: 9999,
       display: 'flex',
@@ -139,8 +139,9 @@ export default function ResourcesModal({ onClose, currentUser }) {
       justifyContent: 'center',
       padding: '20px'
     }}>
-      <div style={{
-        background: '#0a0f1d',
+      <div className="sov-modal-shell"
+        style={{
+        background: 'var(--sov-panel-bg)',
         border: '1px solid rgba(0, 240, 255, 0.3)',
         borderRadius: '8px',
         width: '100%',
@@ -149,25 +150,25 @@ export default function ResourcesModal({ onClose, currentUser }) {
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 0 35px rgba(0, 240, 255, 0.15)',
-        color: '#e2e8f0',
+        color: 'var(--sov-text)',
         fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
         {/* Modal Header */}
         <div style={{
           padding: '16px 20px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--sov-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(15, 23, 42, 0.6)'
+          background: 'var(--sov-card-bg)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <BookOpen size={18} style={{ color: '#00f0ff' }} />
+            <BookOpen size={18} style={{ color: 'var(--sov-accent)' }} />
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 'bold', letterSpacing: '0.05em', color: '#f8fafc', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', letterSpacing: '0.05em', color: 'var(--sov-text)', fontFamily: 'monospace' }}>
                 INTELLIGENCE RESOURCES & REFERENCES VAULT
               </div>
-              <div style={{ fontSize: '9px', color: '#94a3b8', letterSpacing: '0.02em' }}>
+              <div style={{ fontSize: '9px', color: 'var(--sov-muted)', letterSpacing: '0.02em' }}>
                 VERIFIED ARCHIVES, LAWS PROTOCOLS & PUBLIC CONTRIBUTIONS
               </div>
             </div>
@@ -177,7 +178,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#64748b',
+              color: 'var(--sov-muted)',
               cursor: 'pointer',
               padding: '4px',
               display: 'flex',
@@ -195,7 +196,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
         {/* Tab Navigation */}
         <div style={{
           display: 'flex',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--sov-border)',
           background: 'rgba(8, 12, 22, 0.9)'
         }}>
           <button
@@ -264,7 +265,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   position: 'relative',
                   flex: 1
                 }}>
-                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }} />
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--sov-muted)' }} />
                   <input
                     type="text"
                     placeholder="Search verified registries, NGOs & databases..."
@@ -273,10 +274,10 @@ export default function ResourcesModal({ onClose, currentUser }) {
                     style={{
                       width: '100%',
                       padding: '8px 12px 8px 32px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      background: 'var(--sov-card-bg)',
+                      border: '1px solid var(--sov-border)',
                       borderRadius: '4px',
-                      color: '#f8fafc',
+                      color: 'var(--sov-text)',
                       fontSize: '11px',
                       outline: 'none',
                       boxSizing: 'border-box'
@@ -313,8 +314,8 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   <div
                     key={idx}
                     style={{
-                      background: 'rgba(15, 23, 42, 0.45)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      background: 'var(--sov-card-bg)',
+                      border: '1px solid var(--sov-border)',
                       borderRadius: '6px',
                       padding: '12px 14px',
                       display: 'flex',
@@ -328,7 +329,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#f8fafc' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--sov-text)' }}>
                           {repo.name}
                         </span>
                         <span style={{
@@ -337,17 +338,17 @@ export default function ResourcesModal({ onClose, currentUser }) {
                           padding: '1px 5px',
                           borderRadius: '3px',
                           background: 'rgba(0, 240, 255, 0.12)',
-                          color: '#00f0ff',
+                          color: 'var(--sov-accent)',
                           border: '1px solid rgba(0, 240, 255, 0.25)',
                           fontWeight: 'bold'
                         }}>
                           {repo.tag}
                         </span>
                       </div>
-                      <div style={{ fontSize: '10.5px', color: '#94a3b8', lineHeight: '1.45', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '10.5px', color: 'var(--sov-muted)', lineHeight: '1.45', marginBottom: '6px' }}>
                         {repo.description}
                       </div>
-                      <span style={{ fontSize: '8.5px', fontFamily: 'monospace', color: '#64748b' }}>
+                      <span style={{ fontSize: '8.5px', fontFamily: 'monospace', color: 'var(--sov-muted)' }}>
                         CATEGORY: {repo.category}
                       </span>
                     </div>
@@ -359,7 +360,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
                         background: 'rgba(0, 240, 255, 0.1)',
                         border: '1px solid rgba(0, 240, 255, 0.3)',
                         borderRadius: '4px',
-                        color: '#00f0ff',
+                        color: 'var(--sov-accent)',
                         padding: '6px 10px',
                         fontSize: '10px',
                         fontFamily: 'monospace',
@@ -383,7 +384,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
 
           {activeTab === 'submit' && (
             <form onSubmit={handleSubmitResource} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.5' }}>
+              <div style={{ fontSize: '11px', color: 'var(--sov-muted)', lineHeight: '1.5' }}>
                 Submit research whitepapers, investigative news links, NGO legal reports, or verified datasets to expand Sovereign Intelligence coverage.
               </div>
 
@@ -393,7 +394,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   background: 'rgba(34, 197, 94, 0.15)',
                   border: '1px solid #22c55e',
                   borderRadius: '4px',
-                  color: '#22c55e',
+                  color: 'var(--sov-emerald)',
                   fontSize: '11px',
                   fontFamily: 'monospace',
                   display: 'flex',
@@ -419,7 +420,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
               )}
 
               <div>
-                <label style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                <label style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--sov-muted)', display: 'block', marginBottom: '4px' }}>
                   DOCUMENT / REPORT TITLE *
                 </label>
                 <input
@@ -431,10 +432,10 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '4px',
-                    color: '#f8fafc',
+                    color: 'var(--sov-text)',
                     fontSize: '11px',
                     outline: 'none',
                     boxSizing: 'border-box'
@@ -443,7 +444,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
               </div>
 
               <div>
-                <label style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                <label style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--sov-muted)', display: 'block', marginBottom: '4px' }}>
                   SOURCE URL / DOI LINK *
                 </label>
                 <input
@@ -455,10 +456,10 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '4px',
-                    color: '#38bdf8',
+                    color: 'var(--sov-sky)',
                     fontSize: '11px',
                     outline: 'none',
                     boxSizing: 'border-box'
@@ -468,7 +469,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--sov-muted)', display: 'block', marginBottom: '4px' }}>
                     CATEGORY
                   </label>
                   <select
@@ -477,10 +478,10 @@ export default function ResourcesModal({ onClose, currentUser }) {
                     style={{
                       width: '100%',
                       padding: '8px 12px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      background: 'var(--sov-card-bg)',
+                      border: '1px solid var(--sov-border)',
                       borderRadius: '4px',
-                      color: '#f8fafc',
+                      color: 'var(--sov-text)',
                       fontSize: '11px',
                       outline: 'none',
                       boxSizing: 'border-box'
@@ -496,7 +497,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--sov-muted)', display: 'block', marginBottom: '4px' }}>
                     SUBMITTER HANDLE (OPTIONAL)
                   </label>
                   <input
@@ -507,10 +508,10 @@ export default function ResourcesModal({ onClose, currentUser }) {
                     style={{
                       width: '100%',
                       padding: '8px 12px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      background: 'var(--sov-card-bg)',
+                      border: '1px solid var(--sov-border)',
                       borderRadius: '4px',
-                      color: '#f8fafc',
+                      color: 'var(--sov-text)',
                       fontSize: '11px',
                       outline: 'none',
                       boxSizing: 'border-box'
@@ -520,7 +521,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
               </div>
 
               <div>
-                <label style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                <label style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--sov-muted)', display: 'block', marginBottom: '4px' }}>
                   KEY FINDINGS / EXCERPT
                 </label>
                 <textarea
@@ -531,10 +532,10 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
                     borderRadius: '4px',
-                    color: '#f8fafc',
+                    color: 'var(--sov-text)',
                     fontSize: '11px',
                     outline: 'none',
                     resize: 'vertical',
@@ -551,7 +552,7 @@ export default function ResourcesModal({ onClose, currentUser }) {
                   background: isSubmitting ? 'rgba(0, 240, 255, 0.2)' : 'rgba(0, 240, 255, 0.25)',
                   border: '1px solid #00f0ff',
                   borderRadius: '4px',
-                  color: '#00f0ff',
+                  color: 'var(--sov-accent)',
                   fontSize: '11px',
                   fontFamily: 'monospace',
                   fontWeight: 'bold',
@@ -571,24 +572,24 @@ export default function ResourcesModal({ onClose, currentUser }) {
 
           {activeTab === 'cite' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '11px', color: 'var(--sov-muted)' }}>
                 Use the following citation formats when referencing the Sovereign Intelligence tracking telemetry in academic papers or policy briefings:
               </div>
 
               <div style={{
-                background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'var(--sov-card-bg)',
+                border: '1px solid var(--sov-border)',
                 borderRadius: '6px',
                 padding: '12px'
               }}>
-                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: '#00f0ff', marginBottom: '6px' }}>
+                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--sov-accent)', marginBottom: '6px' }}>
                   BIBTEX CITATION:
                 </div>
                 <pre style={{
                   margin: 0,
                   fontSize: '9.5px',
                   fontFamily: 'monospace',
-                  color: '#cbd5e1',
+                  color: 'var(--sov-text)',
                   overflowX: 'auto',
                   lineHeight: '1.5'
                 }}>
@@ -603,15 +604,15 @@ export default function ResourcesModal({ onClose, currentUser }) {
               </div>
 
               <div style={{
-                background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'var(--sov-card-bg)',
+                border: '1px solid var(--sov-border)',
                 borderRadius: '6px',
                 padding: '12px'
               }}>
-                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: '#00f0ff', marginBottom: '6px' }}>
+                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--sov-accent)', marginBottom: '6px' }}>
                   APA CITATION:
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                <div style={{ fontSize: '10.5px', color: 'var(--sov-text)', lineHeight: '1.5' }}>
                   Sovereign Intelligence Unit. (2026). <em>Sovereign Intelligence Dashboard: Global Autonomous Weapons and State Accountability Radar</em>. https://app.sovdash.com/
                 </div>
               </div>

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check, Plus, Rss, Bookmark } from 'lucide-react';
+import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check, Plus, Rss, Bookmark, ChevronLeft } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
 import MarketQuotesBox from './MarketQuotesBox';
 import SatelliteDetailWindow from './SatelliteDetailWindow';
@@ -38,7 +38,24 @@ const DEFAULT_RSS_SOURCE_LIST = [
   { id: 'accessnow', name: 'Access Now (Global South)' },
   { id: 'advox', name: 'Global Voices Advox' },
   { id: 'cipesa', name: 'CIPESA Africa Digital Rights' },
-  { id: 'techcabal', name: 'TechCabal Africa Policy' }
+  { id: 'techcabal', name: 'TechCabal Africa Policy' },
+  { id: 'oii', name: 'Oxford Internet Institute' },
+  { id: 'cset', name: 'Georgetown CSET' },
+  { id: 'ieee-ai', name: 'IEEE Spectrum AI' },
+  { id: 'arxiv-lg', name: 'arXiv Machine Learning (cs.LG)' },
+  { id: 'arxiv-cl', name: 'arXiv Computation & Language (cs.CL)' },
+  { id: 'algorithmwatch', name: 'AlgorithmWatch Europe' },
+  { id: 'fli', name: 'Future of Life Institute' },
+  { id: 'apc', name: 'APC Global South Digital Rights' },
+  { id: 'privacyint', name: 'Privacy International' },
+  { id: 'derechos-latam', name: 'Derechos Digitales LATAM' },
+  { id: 'ncsc-uk', name: 'UK NCSC Threat Advisories' },
+  { id: 'therecord', name: 'The Record (Recorded Future)' },
+  { id: 'krebs', name: 'Krebs on Security' },
+  { id: 'schneier', name: 'Schneier on Security' },
+  { id: 'bleeping', name: 'BleepingComputer Security' },
+  { id: 'arstechnica-policy', name: 'Ars Technica Tech Policy' },
+  { id: 'politico-tech', name: 'Politico Tech' }
 ];
 
 const REGION_VIEWPORTS = [
@@ -1493,9 +1510,9 @@ export default function LiveMap({
         continue;
       }
 
-      // Golden-angle (137.508 deg) land-safe micro-spiral capped at ~10km max radius
+      // Golden-angle (137.508 deg) land-safe micro-spiral separating co-located markers cleanly
       const angle = count * 2.39996323;
-      const radius = Math.min(0.10, 0.024 * Math.sqrt(count));
+      const radius = Math.min(0.14, 0.045 * Math.sqrt(count));
       const dLat = radius * Math.cos(angle);
       const cosLat = Math.max(0.25, Math.cos((latVal * Math.PI) / 180.0));
       const dLon = (radius * Math.sin(angle)) / cosLat;
@@ -1540,7 +1557,7 @@ export default function LiveMap({
         }
       }));
 
-    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|citizen\s*lab|oecd|nist|aisi|metr|epoch|sipri|unesco|african\s*union|cset|stanford|cambridge|brookings|rand|carnegie|hrw|eff|un|eur-lex|aiid|cipesa|access\s*now|advox|sovereign research)/i;
+    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|citizen\s*lab|oxford internet|oii|ieee|algorithmwatch|future of life|fli|oecd|nist|aisi|metr|epoch|sipri|unesco|african\s*union|cset|stanford|cambridge|brookings|rand|carnegie|hrw|eff|un|eur-lex|aiid|cipesa|access\s*now|advox|privacy international|apc|derechos digitales|sovereign research)/i;
     const allCandidateEvents = feedType === 'papers'
       ? [...vaultPapers, ...displayedEvents, ...formattedRssEvents]
       : [...displayedEvents, ...formattedRssEvents];
@@ -1891,34 +1908,33 @@ export default function LiveMap({
             </button>
           )}
           
-          {/* Elegant Collapse Arrow Button inside Feed Header */}
+          {/* High-contrast Collapse Feed Button (all themes) */}
           <button
+            type="button"
             onClick={() => setIsFeedCollapsed(true)}
             style={{
-              background: 'transparent',
+              background: 'var(--sov-card-bg)',
               border: 'none',
-              color: 'rgba(255, 255, 255, 0.3)',
-              padding: '0 12px',
+              color: 'var(--sov-text)',
+              padding: '0 11px',
               cursor: 'pointer',
-              fontSize: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'color 0.2s',
-              borderLeft: '1px solid var(--border-color)',
-              fontWeight: 'bold',
-              fontFamily: 'monospace'
+              transition: 'all 0.2s',
+              borderLeft: '1px solid var(--sov-border)'
             }}
-            title="Collapse Feed Sidebar"
-            onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-            onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.3)'}
+            title="Close Feed Panel"
+            aria-label="Close Feed Panel"
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--sov-accent)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--sov-text)'; }}
           >
-            &lt;
+            <ChevronLeft size={16} />
           </button>
         </div>
         
         {feedType === 'rss' ? (
-          <div style={{ position: 'relative', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 30, borderBottom: '1px solid rgba(56, 189, 248, 0.15)' }}>
+          <div style={{ position: 'relative', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 30, borderBottom: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)' }}>
             
             {/* Custom Multi-select Dropdown Button */}
             <div style={{ position: 'relative', flex: 1 }}>
@@ -1929,45 +1945,39 @@ export default function LiveMap({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  background: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: '4px',
-                  color: '#ffffff',
-                  padding: '6px 12px',
+                  background: 'var(--sov-panel-bg)',
+                  border: '1px solid var(--sov-border)',
+                  borderRadius: '6px',
+                  color: 'var(--sov-text)',
+                  padding: '6px 10px',
                   fontSize: '11px',
-                  fontFamily: 'monospace',
-                  letterSpacing: '0.05em',
+                  fontFamily: 'var(--font-jetbrains-fallback)',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
                   transition: 'all 0.15s ease'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#00f0ff'}
-                onMouseLeave={(e) => e.currentTarget.style.borderColor = isRssDropdownOpen ? '#00f0ff' : 'rgba(56, 189, 248, 0.3)'}
               >
-                <span>📡 SOURCES ({selectedRssSources.length}/{availableRssSources.length})</span>
-                <span style={{ fontSize: '9px', color: '#00f0ff' }}>{isRssDropdownOpen ? '▲' : '▼'}</span>
+                <span>SOURCES ({selectedRssSources.length}/{availableRssSources.length})</span>
+                <span style={{ fontSize: '9px', color: 'var(--sov-accent)' }}>{isRssDropdownOpen ? '▲' : '▼'}</span>
               </button>
 
               {isRssDropdownOpen && (
                 <>
-                  {/* Click outside backdrop */}
                   <div 
                     onClick={() => setIsRssDropdownOpen(false)}
                     style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}
                   />
-                  {/* Floating dropdown overlay */}
-                  <div style={{
+                  <div className="sov-popover-shell" style={{
                     position: 'absolute',
                     top: 'calc(100% + 4px)',
                     left: 0,
                     right: 0,
-                    background: 'rgba(11, 17, 32, 0.98)',
+                    background: 'var(--sov-panel-bg)',
                     backdropFilter: 'blur(10px)',
-                    border: '1px solid #1e293b',
-                    borderRadius: '4px',
+                    border: '1px solid var(--sov-border)',
+                    borderRadius: '8px',
                     padding: '8px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.8), 0 0 15px rgba(0, 240, 255, 0.05)',
+                    boxShadow: 'var(--sov-shadow)',
                     zIndex: 1001,
                     display: 'flex',
                     flexDirection: 'column',
@@ -1975,33 +1985,27 @@ export default function LiveMap({
                     maxHeight: '280px',
                     overflowY: 'auto'
                   }}>
-                    {/* Toggle All Button */}
-                    <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '6px' }}>
                       <button
                         onClick={() => setSelectedRssSources(availableRssSources.map(s => s.id))}
-                        style={{ flex: 1, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', color: '#38bdf8', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)'}
+                        style={{ flex: 1, background: 'var(--sov-accent-soft)', border: '1px solid var(--sov-border)', color: 'var(--sov-accent)', padding: '4px', borderRadius: '4px', fontSize: '9.5px', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-jetbrains-fallback)' }}
                       >
-                        [SELECT ALL]
+                        SELECT ALL
                       </button>
                       <button
                         onClick={() => setSelectedRssSources([])}
-                        style={{ flex: 1, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'}
+                        style={{ flex: 1, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', color: 'var(--sov-danger)', padding: '4px', borderRadius: '4px', fontSize: '9.5px', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-jetbrains-fallback)' }}
                       >
-                        [CLEAR ALL]
+                        CLEAR
                       </button>
                       <button
                         onClick={() => { setIsRssDropdownOpen(false); setShowSourceModal(true); }}
-                        style={{ flex: 1, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#10b981', padding: '3px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'monospace' }}
+                        style={{ flex: 1, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', color: 'var(--sov-emerald)', padding: '4px', borderRadius: '4px', fontSize: '9.5px', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-jetbrains-fallback)' }}
                       >
-                        [+ ADD FEED]
+                        + ADD
                       </button>
                     </div>
 
-                    {/* Sources Map Checkboxes */}
                     {availableRssSources.map(src => {
                       const isChecked = selectedRssSources.includes(src.id);
                       return (
@@ -2011,17 +2015,15 @@ export default function LiveMap({
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            color: isChecked ? '#e2e8f0' : '#64748b',
+                            color: isChecked ? 'var(--sov-text)' : 'var(--sov-muted)',
                             fontSize: '11px',
-                            fontFamily: 'monospace',
-                            padding: '4px 6px',
-                            borderRadius: '3px',
+                            fontFamily: 'var(--font-inter-fallback)',
+                            fontWeight: isChecked ? 600 : 400,
+                            padding: '5px 6px',
+                            borderRadius: '4px',
                             cursor: 'pointer',
-                            background: isChecked ? 'rgba(56, 189, 248, 0.04)' : 'transparent',
-                            transition: 'all 0.1s'
+                            background: isChecked ? 'var(--sov-accent-soft)' : 'transparent'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = isChecked ? 'rgba(56, 189, 248, 0.04)' : 'transparent'}
                         >
                           <input 
                             type="checkbox"
@@ -2033,11 +2035,11 @@ export default function LiveMap({
                                   : [...prev, src.id]
                               );
                             }}
-                            style={{ accentColor: '#00f0ff', cursor: 'pointer' }}
+                            style={{ accentColor: 'var(--sov-accent)', cursor: 'pointer' }}
                           />
                           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{src.name}</span>
                           {src.isCustom && (
-                            <span style={{ fontSize: '8px', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', borderRadius: '3px', padding: '0 4px' }}>CUSTOM</span>
+                            <span style={{ fontSize: '8.5px', color: 'var(--sov-emerald)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: '3px', padding: '0 4px' }}>CUSTOM</span>
                           )}
                         </label>
                       );
@@ -2047,18 +2049,17 @@ export default function LiveMap({
               )}
             </div>
 
-            {/* Add Source Trigger */}
             <button
               onClick={() => setShowSourceModal(true)}
               title="Add custom or curated RSS/Atom source & auto-pin signals"
               style={{
                 background: 'rgba(16, 185, 129, 0.12)',
                 border: '1px solid rgba(16, 185, 129, 0.4)',
-                borderRadius: '4px',
-                color: '#10b981',
+                borderRadius: '6px',
+                color: 'var(--sov-emerald)',
                 cursor: 'pointer',
                 fontSize: '10px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-jetbrains-fallback)',
                 fontWeight: 'bold',
                 padding: '6px 8px',
                 display: 'flex',
@@ -2072,16 +2073,15 @@ export default function LiveMap({
               <span>ADD</span>
             </button>
 
-            {/* Sync Refresh Button */}
             <button 
               onClick={() => fetchRss(true)} 
               disabled={rssLoading}
               title="Force sync live RSS feeds"
               style={{
-                background: 'rgba(15, 23, 42, 0.65)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                borderRadius: '4px',
-                color: rssLoading ? 'rgba(255,255,255,0.2)' : '#00f0ff',
+                background: 'var(--sov-panel-bg)',
+                border: '1px solid var(--sov-border)',
+                borderRadius: '6px',
+                color: rssLoading ? 'var(--sov-muted)' : 'var(--sov-accent)',
                 cursor: 'pointer',
                 fontSize: '11px',
                 padding: '6px 10px',
@@ -2089,12 +2089,8 @@ export default function LiveMap({
                 alignItems: 'center',
                 justifyContent: 'center',
                 outline: 'none',
-                opacity: rssLoading ? 0.5 : 1,
-                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
-                transition: 'all 0.15s ease'
+                opacity: rssLoading ? 0.5 : 1
               }}
-              onMouseEnter={(e) => !rssLoading && (e.currentTarget.style.borderColor = '#00f0ff')}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)'}
             >
               <RefreshCw size={11} className={rssLoading ? 'spinning' : ''} style={{ animation: rssLoading ? 'spin 1.5s linear infinite' : 'none' }} />
             </button>
@@ -2321,42 +2317,66 @@ export default function LiveMap({
                       style={{ 
                         textDecoration: 'none', 
                         display: 'block', 
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        borderBottom: '1px solid var(--sov-border)',
                         padding: '12px 14px',
                         transition: 'all 0.2s ease',
                         cursor: 'pointer'
                       }}
                     >
-                      <div className="feed-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div className="feed-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                         <span className="feed-category" style={{ 
-                          background: `${badgeColor}15`, 
-                          color: badgeColor, 
-                          borderColor: `${badgeColor}30`,
-                          fontSize: '9px',
-                          fontWeight: '800',
-                          padding: '1px 6px',
+                          background: 'var(--sov-accent-soft)', 
+                          color: 'var(--sov-accent)', 
+                          borderColor: 'var(--sov-border)',
+                          fontSize: '9.5px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
                           borderRadius: '4px',
-                          border: `1px solid ${badgeColor}30`,
-                          letterSpacing: '0.05em',
-                          fontFamily: 'monospace'
+                          border: '1px solid var(--sov-border)',
+                          fontFamily: 'var(--font-jetbrains-fallback)',
+                          maxWidth: '190px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
                         }}>
                           {item.source}
                         </span>
-                        <span className="feed-time" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
-                          {formatTime(item.published_at)}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="feed-time" style={{ fontSize: '9.5px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+                            {formatTime(item.published_at)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleBookmark({
+                                id: item.id || `rss-${item.url}`,
+                                title: item.title,
+                                category: item.category || 'Political',
+                                severity: item.severity || 1,
+                                location: item.location || 'Global / Multilateral',
+                                lat: item.latitude ? parseFloat(item.latitude) : null,
+                                lon: item.longitude ? parseFloat(item.longitude) : null,
+                                source: item.source,
+                                url: item.url,
+                                summary: item.summary || '',
+                                timestamp: item.published_at
+                              });
+                            }}
+                            title={isBookmarked({ id: item.id || `rss-${item.url}`, url: item.url }) ? 'Remove Bookmark' : 'Bookmark Feed Item'}
+                            style={{ background: 'transparent', border: 'none', padding: '2px', cursor: 'pointer', color: isBookmarked({ id: item.id || `rss-${item.url}`, url: item.url }) ? '#f59e0b' : 'var(--sov-muted)', display: 'inline-flex' }}
+                          >
+                            <Bookmark size={12} fill={isBookmarked({ id: item.id || `rss-${item.url}`, url: item.url }) ? '#f59e0b' : 'none'} />
+                          </button>
+                        </div>
                       </div>
                       <div className="feed-title" style={{ 
                         fontSize: '12.5px', 
-                        fontWeight: '600', 
-                        lineHeight: '1.45', 
-                        color: '#e2e8f0',
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
-                        transition: 'color 0.15s ease'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = '#00f0ff'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = '#e2e8f0'}
-                      >
+                        fontWeight: 600, 
+                        lineHeight: 1.45, 
+                        color: 'var(--sov-text)',
+                        fontFamily: 'var(--font-inter-fallback)'
+                      }}>
                         {item.title}
                       </div>
                       <div style={{ 
@@ -2364,13 +2384,12 @@ export default function LiveMap({
                         justifyContent: 'space-between', 
                         alignItems: 'center', 
                         marginTop: '8px', 
-                        fontSize: '8.5px', 
-                        fontFamily: 'monospace', 
-                        color: 'rgba(255,255,255,0.25)',
-                        letterSpacing: '0.05em'
+                        fontSize: '9px', 
+                        fontFamily: 'var(--font-jetbrains-fallback)', 
+                        color: 'var(--sov-muted)'
                       }}>
-                        <span>OSINT FEED SYSTEM</span>
-                        <span style={{ color: '#00f0ff', opacity: 0.8 }}>PREVIEW & TRACK ↗</span>
+                        <span>{item.location || 'Global'}</span>
+                        <span style={{ color: 'var(--sov-accent)', fontWeight: 700 }}>OPEN SIGNAL ↗</span>
                       </div>
                     </div>
                   );
@@ -2383,23 +2402,19 @@ export default function LiveMap({
                     }}
                     style={{
                       width: '100%',
-                      padding: '12.5px',
-                      background: 'rgba(15, 23, 42, 0.45)',
+                      padding: '12px',
+                      background: 'var(--sov-card-bg)',
                       border: 'none',
-                      borderTop: '1px solid rgba(56, 189, 248, 0.1)',
-                      color: '#00f0ff',
-                      fontFamily: 'monospace',
+                      borderTop: '1px solid var(--sov-border)',
+                      color: 'var(--sov-accent)',
+                      fontFamily: 'var(--font-jetbrains-fallback)',
                       fontSize: '10.5px',
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'center',
-                      letterSpacing: '0.05em',
-                      outline: 'none',
+                      textAlign: 'center'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.08)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.45)'}
                   >
-                    [ LOAD MORE FEEDS (+30) ]
+                    LOAD MORE FEEDS (+30)
                   </button>
                 )}
               </>
@@ -2480,17 +2495,6 @@ export default function LiveMap({
             ) : (
               <>
                 {filteredEvents.slice(0, visibleEventCount).map((ev, idx) => {
-                  const vStatus = ev.url ? (ev.details?.verificationStatus || 'pending') : 'unverified';
-                  const badgeStyles = vStatus === 'unverified'
-                    ? { bg: 'rgba(234, 179, 8, 0.12)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.25)', label: 'UNVERIFIED' }
-                    : vStatus === 'active' 
-                    ? { bg: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', label: '✓ VERIFIED' }
-                    : vStatus === 'healed'
-                    ? { bg: 'rgba(0, 240, 255, 0.12)', color: '#00f0ff', border: '1px solid rgba(0, 240, 255, 0.25)', label: '⚡ HEALED' }
-                    : vStatus === 'broken'
-                    ? { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', label: '⚠ BROKEN LINK' }
-                    : { bg: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', label: '🔎 PENDING CHECK' };
-
                   return (
                     <div key={ev._displayKey || `${ev.id}-${idx}`} className="feed-item" onClick={() => setSelectedEvent(ev)}>
                       <div className="feed-item-header">
@@ -2498,23 +2502,10 @@ export default function LiveMap({
                           {ev.category}
                         </span>
                         {(ev.details?.isAcademic || String(ev.source || '').toLowerCase().includes('arxiv') || String(ev.source || '').toLowerCase().includes('citizen lab') || String(ev.source || '').toLowerCase().includes('nature')) ? (
-                          <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(168,85,247,0.16)', color: '#a855f7', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.3)', fontWeight: '800' }}>ACADEMIC</span>
+                          <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(168,85,247,0.16)', color: 'var(--sov-purple)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.3)', fontWeight: '800' }}>ACADEMIC</span>
                         ) : ev.details?.isResearch ? (
-                          <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>
+                          <span className="research-badge" style={{ fontSize: '9px', background: 'rgba(56,189,248,0.18)', color: 'var(--sov-sky)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.3)', fontWeight: '800' }}>RESEARCH</span>
                         ) : null}
-                        <span className="feed-verification" style={{ 
-                          fontSize: '8px', 
-                          background: badgeStyles.bg, 
-                          color: badgeStyles.color, 
-                          padding: '2px 6px', 
-                          borderRadius: '4px', 
-                          border: badgeStyles.border, 
-                          fontWeight: '800', 
-                          letterSpacing: '0.05em',
-                          fontFamily: 'monospace'
-                        }}>
-                          {badgeStyles.label}
-                        </span>
                         <span className="feed-severity" style={{ background: `${SEV_COLORS[ev.severity]}25`, color: SEV_COLORS[ev.severity] }}>
                           S{ev.severity}
                         </span>
@@ -2554,23 +2545,19 @@ export default function LiveMap({
                     }}
                     style={{
                       width: '100%',
-                      padding: '12.5px',
-                      background: 'rgba(15, 23, 42, 0.45)',
+                      padding: '12px',
+                      background: 'var(--sov-card-bg)',
                       border: 'none',
-                      borderTop: '1px solid rgba(56, 189, 248, 0.1)',
-                      color: '#00f0ff',
-                      fontFamily: 'monospace',
+                      borderTop: '1px solid var(--sov-border)',
+                      color: 'var(--sov-accent)',
+                      fontFamily: 'var(--font-jetbrains-fallback)',
                       fontSize: '10.5px',
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'center',
-                      letterSpacing: '0.05em',
-                      outline: 'none',
+                      textAlign: 'center'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.08)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.45)'}
                   >
-                    [ LOAD MORE EVENTS (+30) ]
+                    LOAD MORE SIGNALS (+30)
                   </button>
                 )}
               </>
@@ -2582,20 +2569,20 @@ export default function LiveMap({
       {/* 3D Google Tiles Globe Area */}
       <div ref={mapAreaRef} className="sigint-map-area" style={{ position: 'relative' }}>
         {selectedCountry && (
-          <div style={{
+          <div className="sov-popover-shell" style={{
             position: 'absolute',
             top: '20px',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
-            background: 'rgba(2, 6, 23, 0.85)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid #00f0ff',
-            borderRadius: '4px',
+            background: 'var(--sov-panel-bg)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--sov-border)',
+            borderRadius: '8px',
             padding: '8px 16px',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: '11px',
-            color: '#00f0ff',
+            color: 'var(--sov-text)',
             boxShadow: '0 0 15px rgba(0, 240, 255, 0.25)',
             display: 'flex',
             alignItems: 'center',
@@ -3406,351 +3393,243 @@ export default function LiveMap({
 
           {/* Support Dropdown Card Floating Directly Above Support Pill */}
           {showSupportDropdown && (
-            <div 
+            <div
+              className="sov-popover-shell"
               style={{
                 position: 'absolute',
-                bottom: '42px',
+                bottom: '44px',
                 right: '50%',
                 transform: 'translateX(50%)',
-                width: '260px',
-                background: 'rgba(8, 12, 24, 0.98)',
-                border: '1px solid rgba(236, 72, 153, 0.35)',
-                borderRadius: '10px',
+                width: '256px',
+                background: 'var(--sov-panel-bg)',
+                border: '1px solid var(--sov-border)',
+                borderRadius: '12px',
                 padding: '12px',
-                boxShadow: '0 15px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(236, 72, 153, 0.18)',
+                boxShadow: 'var(--sov-shadow)',
+                color: 'var(--sov-text)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
                 zIndex: 1003,
-                backdropFilter: 'blur(16px)',
-                animation: 'fadeIn 0.15s ease-out'
+                backdropFilter: 'blur(16px)'
               }}
             >
-              {/* Header with Close Button */}
+              {/* Centered Minimal Header */}
               <div style={{
+                position: 'relative',
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottom: '1px solid rgba(236, 72, 153, 0.25)',
-                paddingBottom: '8px',
-                marginBottom: '2px',
-                width: '100%'
+                justifyContent: 'center',
+                borderBottom: '1px solid var(--sov-border)',
+                paddingBottom: '8px'
               }}>
-                <span style={{ fontSize: '9.5px', fontWeight: '800', color: '#ec4899', fontFamily: 'monospace', letterSpacing: '0.8px' }}>
-                  SOVDASH COMMONS Hub
+                <span style={{
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  color: 'var(--sov-text)',
+                  fontFamily: 'var(--font-jetbrains-fallback)',
+                  letterSpacing: '0.08em'
+                }}>
+                  SUPPORT
                 </span>
-                <span 
+                <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); setShowSupportDropdown(false); }}
                   style={{
+                    position: 'absolute',
+                    right: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--sov-muted)',
                     cursor: 'pointer',
-                    color: 'rgba(236, 72, 153, 0.65)',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    lineHeight: '1',
-                    padding: '0 4px',
-                    transition: 'color 0.2s ease'
+                    fontSize: '16px',
+                    lineHeight: 1,
+                    padding: '2px 4px'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#ff2d55'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(236, 72, 153, 0.65)'}
-                  title="Close Support Hub"
+                  aria-label="Close Support"
                 >
                   ×
-                </span>
-              </div>
-
-              {/* SECTION 1: Community Channels */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
-                  🌐 COMMUNITY CHANNELS
-                </span>
-                <a 
-                  href="https://sovdash.com/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    textDecoration: 'none',
-                    letterSpacing: '0.8px',
-                    transition: 'all 0.2s',
-                    background: 'rgba(6, 182, 212, 0.08)',
-                    color: '#06b6d4',
-                    border: '1px solid rgba(6, 182, 212, 0.25)',
-                    boxShadow: '0 0 10px rgba(6, 182, 212, 0.05)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#06b6d4';
-                    e.currentTarget.style.color = '#000000';
-                    e.currentTarget.style.boxShadow = '0 0 15px rgba(6, 182, 212, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
-                    e.currentTarget.style.color = '#06b6d4';
-                    e.currentTarget.style.boxShadow = '0 0 10px rgba(6, 182, 212, 0.05)';
-                  }}
-                >
-                  <Globe size={13} />
-                  VISIT SOVDASH.COM
-                </a>
-
-                {/* Horizontal Social Media Icons Grid */}
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', marginTop: '2px' }}>
-                  {/* Twitter/X */}
-                  <a 
-                    href="https://x.com/SovDash"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '7px',
-                      borderRadius: '6px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#cbd5e1',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(29, 161, 242, 0.1)';
-                      e.currentTarget.style.borderColor = '#1da1f2';
-                      e.currentTarget.style.color = '#1da1f2';
-                      e.currentTarget.style.boxShadow = '0 0 10px rgba(29, 161, 242, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.color = '#cbd5e1';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                    title="Follow SovDash on X (Twitter)"
-                  >
-                    <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                  </a>
-                  {/* LinkedIn */}
-                  <a 
-                    href="https://www.linkedin.com/company/sovdash"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '7px',
-                      borderRadius: '6px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#cbd5e1',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(10, 102, 194, 0.1)';
-                      e.currentTarget.style.borderColor = '#0a66c2';
-                      e.currentTarget.style.color = '#0a66c2';
-                      e.currentTarget.style.boxShadow = '0 0 10px rgba(10, 102, 194, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.color = '#cbd5e1';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                    title="Connect on LinkedIn"
-                  >
-                    <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/>
-                    </svg>
-                  </a>
-                  {/* Facebook */}
-                  <a 
-                    href="https://www.facebook.com/sovdash"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '7px',
-                      borderRadius: '6px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#cbd5e1',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(8, 102, 255, 0.1)';
-                      e.currentTarget.style.borderColor = '#0866ff';
-                      e.currentTarget.style.color = '#0866ff';
-                      e.currentTarget.style.boxShadow = '0 0 10px rgba(8, 102, 255, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.color = '#cbd5e1';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                    title="Like us on Facebook"
-                  >
-                    <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                  </a>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '2px 0' }} />
-
-              {/* SECTION 2: Share Platform */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
-                  ⚡ INVITATION LINK
-                </span>
-                <button 
-                  onClick={handleShareDashboard}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer',
-                    background: shareCopied ? 'rgba(34, 197, 94, 0.12)' : 'rgba(168, 85, 247, 0.08)',
-                    color: shareCopied ? '#22c55e' : '#a855f7',
-                    border: shareCopied ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(168, 85, 247, 0.25)',
-                    boxShadow: shareCopied ? '0 0 12px rgba(34, 197, 94, 0.1)' : '0 0 10px rgba(168, 85, 247, 0.05)',
-                    outline: 'none',
-                    width: '100%'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!shareCopied) {
-                      e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)';
-                      e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
-                      e.currentTarget.style.color = '#c084fc';
-                      e.currentTarget.style.boxShadow = '0 0 15px rgba(168, 85, 247, 0.2)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!shareCopied) {
-                      e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
-                      e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.25)';
-                      e.currentTarget.style.color = '#a855f7';
-                      e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.05)';
-                    }
-                  }}
-                >
-                  {shareCopied ? (
-                    <>
-                      <Check size={13} />
-                      LINK COPIED!
-                    </>
-                  ) : (
-                    <>
-                      <Share2 size={13} />
-                      SHARE DASHBOARD
-                    </>
-                  )}
                 </button>
               </div>
 
-              <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '2px 0' }} />
+              <a
+                href="https://sovdash.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '7px',
+                  padding: '8px 12px',
+                  borderRadius: '7px',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  background: 'var(--sov-accent-soft)',
+                  color: 'var(--sov-accent)',
+                  border: '1px solid var(--sov-border)'
+                }}
+              >
+                <Globe size={13} />
+                Visit sovdash.com
+              </a>
 
-              {/* SECTION 3: Creator Support Patronage */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.35)', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.8px', display: 'block', textAlign: 'left' }}>
-                  💎 SOVEREIGN PRO & PATRONAGE
-                </span>
-                <a href="https://sovdash.com/pricing.html" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 10px', borderRadius: '6px', fontSize: '9.5px', fontWeight: 800, textTransform: 'uppercase', textDecoration: 'none', letterSpacing: '0.4px', background: 'rgba(6, 182, 212, 0.16)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.45)', marginBottom: '4px' }}>⚡ UPGRADE TO PRO ($29/MO) →</a>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
-                  {/* Patreon */}
-                  <a 
-                    href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '8px 4px',
-                      borderRadius: '6px',
-                      fontSize: '9.5px',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      textDecoration: 'none',
-                      letterSpacing: '0.2px',
-                      transition: 'all 0.2s',
-                      background: 'rgba(255, 66, 77, 0.08)',
-                      color: '#ff424d',
-                      border: '1px solid rgba(255, 66, 77, 0.2)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#ff424d';
-                      e.currentTarget.style.color = '#ffffff';
-                      e.currentTarget.style.boxShadow = '0 0 12px rgba(255, 66, 77, 0.25)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 66, 77, 0.08)';
-                      e.currentTarget.style.color = '#ff424d';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <span style={{ fontSize: '10px' }}>⚡</span> Patreon
-                  </a>
-                  {/* Buy Coffee */}
-                  <a 
-                    href="https://buymeacoffee.com/avip" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '8px 4px',
-                      borderRadius: '6px',
-                      fontSize: '9.5px',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      textDecoration: 'none',
-                      letterSpacing: '0.2px',
-                      transition: 'all 0.2s',
-                      background: 'rgba(255, 221, 0, 0.08)',
-                      color: '#ffdd00',
-                      border: '1px solid rgba(255, 221, 0, 0.2)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#ffdd00';
-                      e.currentTarget.style.color = '#000000';
-                      e.currentTarget.style.boxShadow = '0 0 12px rgba(255, 221, 0, 0.25)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 221, 0, 0.08)';
-                      e.currentTarget.style.color = '#ffdd00';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <span style={{ fontSize: '10px' }}>☕</span> Coffee
-                  </a>
-                </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <a
+                  href="https://x.com/SovDash"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '7px',
+                    borderRadius: '6px',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
+                    color: 'var(--sov-text)'
+                  }}
+                  title="SovDash on X"
+                >
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                </a>
+                <a
+                  href="https://www.linkedin.com/company/sovdash"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '7px',
+                    borderRadius: '6px',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
+                    color: 'var(--sov-text)'
+                  }}
+                  title="LinkedIn"
+                >
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/>
+                  </svg>
+                </a>
+                <a
+                  href="https://www.facebook.com/sovdash"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '7px',
+                    borderRadius: '6px',
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
+                    color: 'var(--sov-text)'
+                  }}
+                  title="Facebook"
+                >
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleShareDashboard}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '7px',
+                  padding: '8px 12px',
+                  borderRadius: '7px',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: shareCopied ? 'rgba(16, 185, 129, 0.14)' : 'var(--sov-card-bg)',
+                  color: shareCopied ? 'var(--sov-emerald)' : 'var(--sov-purple)',
+                  border: '1px solid var(--sov-border)',
+                  width: '100%'
+                }}
+              >
+                {shareCopied ? <Check size={13} /> : <Share2 size={13} />}
+                <span>{shareCopied ? 'Link Copied' : 'Share Dashboard'}</span>
+              </button>
+
+              <a
+                href="https://sovdash.com/pricing.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="keep-light-text"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '8px 10px',
+                  borderRadius: '7px',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  background: 'var(--sov-accent)',
+                  color: '#ffffff'
+                }}
+              >
+                Upgrade to Pro ($29/mo)
+              </a>
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <a
+                  href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    padding: '7px 4px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: 'var(--sov-danger)',
+                    border: '1px solid rgba(239, 68, 68, 0.28)'
+                  }}
+                >
+                  Patreon
+                </a>
+                <a
+                  href="https://buymeacoffee.com/avip"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    padding: '7px 4px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    color: 'var(--sov-amber)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)'
+                  }}
+                >
+                  Coffee
+                </a>
               </div>
             </div>
           )}
@@ -3806,7 +3685,7 @@ export default function LiveMap({
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#06b6d4',
+            color: 'var(--sov-accent)',
             fontSize: '10px',
             fontWeight: '700',
             fontFamily: 'monospace',
@@ -3819,8 +3698,8 @@ export default function LiveMap({
             letterSpacing: '0.05em',
             outline: 'none'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-          onMouseLeave={(e) => e.currentTarget.style.color = '#06b6d4'}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--sov-text)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--sov-accent)'}
         >
           📋 CHANGELOG
         </button>

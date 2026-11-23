@@ -151,37 +151,71 @@ const createEmojiCanvas = (emoji, size = 32) => {
 
 const createCircleCanvas = (color, size = 16, outlineColor = '#ffffff', outlineWidth = 1.5) => {
   if (typeof document === 'undefined') return null;
-  const cacheKey = `circle-${color}-${size}-${outlineColor}-${outlineWidth}`;
+  const cacheKey = `circle-grounded-${color}-${size}-${outlineColor}-${outlineWidth}`;
   if (canvasCache[cacheKey]) return canvasCache[cacheKey];
 
   const canvas = document.createElement('canvas');
-  // Add padding for outline border and shadow
-  const totalSize = size + outlineWidth * 2 + 4;
+  const totalSize = size + outlineWidth * 2 + 10;
   canvas.width = totalSize;
   canvas.height = totalSize;
   const ctx = canvas.getContext('2d');
-  
+
   const center = totalSize / 2;
   const radius = size / 2;
-  
-  // Shadow/glow styling
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = 4;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 2;
-  
+
+  // Grounding contact halo (anchored visibly on both light and dark Carto tiles)
+  ctx.beginPath();
+  ctx.arc(center, center, radius + outlineWidth + 2, 0, 2 * Math.PI);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.35)';
+  ctx.fill();
+
   ctx.beginPath();
   ctx.arc(center, center, radius, 0, 2 * Math.PI);
   ctx.fillStyle = color;
   ctx.fill();
-  
-  // Outline
-  ctx.shadowColor = 'transparent'; // Turn off shadow for outline
-  ctx.shadowBlur = 0;
+
   ctx.lineWidth = outlineWidth;
   ctx.strokeStyle = outlineColor;
   ctx.stroke();
-  
+
+  canvasCache[cacheKey] = canvas;
+  return canvas;
+};
+
+const createClusterCanvas = (count, color = '#38bdf8') => {
+  if (typeof document === 'undefined') return null;
+  const label = count > 99 ? '99+' : String(count);
+  const cacheKey = `cluster-${label}-${color}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
+  const size = count >= 10 ? 34 : 28;
+  const canvas = document.createElement('canvas');
+  canvas.width = size + 8;
+  canvas.height = size + 8;
+  const ctx = canvas.getContext('2d');
+  const c = (size + 8) / 2;
+  const r = size / 2;
+
+  ctx.beginPath();
+  ctx.arc(c, c, r + 2.5, 0, 2 * Math.PI);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(c, c, r, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0f172a';
+  ctx.fill();
+
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${count >= 100 ? 10 : 12}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, c, c + 0.5);
+
   canvasCache[cacheKey] = canvas;
   return canvas;
 };
@@ -347,6 +381,8 @@ export default function CesiumGlobe({
   const gpsJammingEntitiesRef = useRef([]);
   const dataCenterEntitiesRef = useRef([]);
   const aiRegulationsEntitiesRef = useRef([]);
+  const threatDataSourceRef = useRef(null);
+  const leafletThreatGroupRef = useRef(null);
   const lastPickedFeatureRef = useRef(null);
   const selectionEntityRef = useRef(null);
   const lastRepelledMarkersJsonRef = useRef('');
@@ -383,6 +419,7 @@ export default function CesiumGlobe({
   const is2DActive = mapError || mapMode === '2d';
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
+  const [clusterPicker, setClusterPicker] = useState(null);
   const setHoverTooltipRef = useRef(setHoverTooltip);
   useEffect(() => {
     setHoverTooltipRef.current = setHoverTooltip;
@@ -1093,10 +1130,10 @@ export default function CesiumGlobe({
              p.lon >= -180.0 && p.lon <= 180.0;
     });
 
-    const gravity = 0.28; // Strong anchor to true city coordinate so coastal pins never drift into oceans
-    const repelForce = 0.20; // Gentle micro-separation for nearby pins
-    const thresholdDegrees = 0.24; // ~25km micro-spacing threshold
-    const maxDriftDegrees = 0.28; // Hard clamp so pins never cross borders or coastlines
+    const gravity = 0.14; // Strong anchor to true city coordinate so coastal pins never drift into oceans
+    const repelForce = 0.24; // Crisp separation for nearby city pins
+    const thresholdDegrees = 0.14; // ~15km micro-spacing threshold
+    const maxDriftDegrees = 0.20; // Hard clamp so pins never cross borders or coastlines
     const iterations = 8;
 
     for (let step = 0; step < iterations; step++) {
@@ -1284,65 +1321,124 @@ export default function CesiumGlobe({
     }
   }, [selectedCountry, scriptsLoaded, viewerReady]);
 
-  // 2. Update threat markers on Leaflet map
+  // 2. Update threat markers on Leaflet map with screen-space cluster collapsing
   useEffect(() => {
     if (!scriptsLoaded || !is2DActive || !leafletMapRef.current) return;
 
     const L = window.L;
     const map = leafletMapRef.current;
 
-    // Clear existing markers and paths
+    if (!leafletThreatGroupRef.current) {
+      leafletThreatGroupRef.current = L.layerGroup().addTo(map);
+    }
+    const threatGroup = leafletThreatGroupRef.current;
+
     map.eachLayer(layer => {
       if (layer instanceof L.CircleMarker || layer instanceof L.Polyline) {
         map.removeLayer(layer);
       }
     });
 
-    repelledMarkers.forEach(m => {
-      if (m.repelledLat === undefined || m.repelledLon === undefined) return;
+    const render2DThreatMarkers = () => {
+      threatGroup.clearLayers();
+      const clusters = [];
+      const thresholdPx = 28;
 
-      const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
-
-      const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
-        radius: Math.min(6 + (m.severity || 1) * 2, 16),
-        fillColor: sevColorStr, // Colored strictly by severity!
-        color: '#ffffff',       // CRISP TACTICAL WHITE OUTLINE BORDER!
-        weight: 2.5,            // Faint white outline like the reference image
-        opacity: 1,
-        fillOpacity: 0.9
-      }).addTo(map);
-
-      marker.bindTooltip(`
-        <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(0, 240, 255, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3); backdrop-filter: blur(8px); width: 240px; white-space: normal; word-break: break-word;">
-          <div style="border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-            <span>⚠️</span>
-            <span style="white-space: normal; word-break: break-word;">${String(m.title || m.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 5px;">
-            <div style="display: flex; justify-content: space-between; gap: 16px;">
-              <span style="color: #94a3b8; font-weight: 500; white-space: nowrap;">Severity:</span>
-              <span style="color: ${sevColorStr}; font-weight: bold;">S${m.severity}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 16px;">
-              <span style="color: #94a3b8; font-weight: 500; white-space: nowrap;">Category:</span>
-              <span style="color: #f8fafc; font-weight: bold; word-break: break-word;">${String(m.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-            </div>
-          </div>
-        </div>
-      `, {
-        direction: 'top',
-        className: 'leaflet-tooltip-custom',
-        permanent: false,
-        sticky: true,
-        opacity: 1
-      });
-
-      marker.on('click', () => {
-        if (onPointClickRef.current) {
-          onPointClickRef.current(m);
+      repelledMarkers.forEach(m => {
+        if (m.repelledLat === undefined || m.repelledLon === undefined) return;
+        const pt = map.latLngToContainerPoint([m.repelledLat, m.repelledLon]);
+        let target = null;
+        for (const c of clusters) {
+          const dx = pt.x - c.px;
+          const dy = pt.y - c.py;
+          if (dx * dx + dy * dy <= thresholdPx * thresholdPx) {
+            target = c;
+            break;
+          }
+        }
+        if (target) {
+          target.items.push(m);
+        } else {
+          clusters.push({ px: pt.x, py: pt.y, items: [m] });
         }
       });
-    });
+
+      clusters.forEach(c => {
+        if (c.items.length === 1) {
+          const m = c.items[0];
+          const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
+          const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
+            radius: Math.min(6 + (m.severity || 1) * 1.6, 14),
+            fillColor: sevColorStr,
+            color: '#0f172a',
+            weight: 2,
+            opacity: 0.9,
+            fillOpacity: 0.95
+          }).addTo(threatGroup);
+
+          marker.bindTooltip(`
+            <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(56, 189, 248, 0.65); border-radius: 8px; color: #f8fafc; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); width: 240px; white-space: normal; word-break: break-word;">
+              <div style="border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 6px; margin-bottom: 6px; font-weight: bold; font-size: 12px;">
+                ${String(m.title || m.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; justify-content: space-between; gap: 12px;">
+                  <span style="opacity: 0.72;">Severity:</span>
+                  <span style="color: ${sevColorStr}; font-weight: bold;">S${m.severity}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 12px;">
+                  <span style="opacity: 0.72;">Category:</span>
+                  <span style="font-weight: bold; word-break: break-word;">${String(m.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
+                </div>
+              </div>
+            </div>
+          `, {
+            direction: 'top',
+            className: 'leaflet-tooltip-custom',
+            permanent: false,
+            sticky: true,
+            opacity: 1
+          });
+
+          marker.on('click', () => {
+            setClusterPicker(null);
+            if (onPointClickRef.current) onPointClickRef.current(m);
+          });
+        } else {
+          const maxSev = c.items.reduce((mx, item) => Math.max(mx, item.severity || 1), 1);
+          const badgeColor = SEV_COLORS[maxSev] || '#38bdf8';
+          const avgLat = c.items.reduce((s, item) => s + item.repelledLat, 0) / c.items.length;
+          const avgLon = c.items.reduce((s, item) => s + item.repelledLon, 0) / c.items.length;
+          const size = c.items.length >= 10 ? 30 : 26;
+
+          const clusterIcon = L.divIcon({
+            className: 'sov-leaflet-cluster',
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#0f172a;border:2.5px solid ${badgeColor};color:#ffffff;font-family:monospace;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.45);cursor:pointer;">${c.items.length}</div>`
+          });
+
+          const cMarker = L.marker([avgLat, avgLon], { icon: clusterIcon }).addTo(threatGroup);
+          cMarker.bindTooltip(`
+            <div style="font-family: monospace; font-size: 11px; padding: 8px 12px; background: rgba(11, 19, 43, 0.98); border: 1px solid ${badgeColor}; border-radius: 8px; color: #f8fafc;">
+              <strong>${c.items.length} Stacked Signals</strong><br/><span style="opacity:0.78;">Click to expand or select</span>
+            </div>
+          `, { direction: 'top', className: 'leaflet-tooltip-custom', opacity: 1 });
+
+          cMarker.on('click', (e) => {
+            if (map.getZoom() < 10) {
+              map.flyTo([avgLat, avgLon], Math.min(12, map.getZoom() + 3), { duration: 0.6 });
+            } else {
+              const containerPt = map.latLngToContainerPoint(e.latlng);
+              setClusterPicker({ x: containerPt.x, y: containerPt.y, items: c.items });
+            }
+          });
+        }
+      });
+    };
+
+    render2DThreatMarkers();
+    map.on('zoomend', render2DThreatMarkers);
 
     // Render 2D AI Regulations Fallback
     if (aiRegulationsEnabled && leafletAiRegulations && leafletAiRegulations.length > 0) {
@@ -1494,6 +1590,10 @@ export default function CesiumGlobe({
         opacity: 0.75
       }).addTo(map);
     }
+
+    return () => {
+      map.off('zoomend', render2DThreatMarkers);
+    };
   }, [is2DActive, repelledMarkers, leafletReady, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
@@ -1737,6 +1837,35 @@ export default function CesiumGlobe({
         }
       });
 
+      // Dedicated threat datasource with automatic pixelRange clustering so nodes never stack
+      const threatDS = new Cesium.CustomDataSource('sovereign-threats');
+      threatDS.clustering.enabled = true;
+      threatDS.clustering.pixelRange = 30;
+      threatDS.clustering.minimumClusterSize = 2;
+      threatDS.clustering.clusterBillboards = true;
+      threatDS.clustering.clusterLabels = false;
+      threatDS.clustering.clusterPoints = false;
+      threatDS.clustering.clusterEvent.addEventListener((clusteredEntities, cluster) => {
+        let maxSev = 1;
+        clusteredEntities.forEach((ent) => {
+          const props = ent.properties;
+          let s = 1;
+          try {
+            s = props?.severity?.getValue ? props.severity.getValue(Cesium.JulianDate.now()) : (props?.severity || 1);
+          } catch {}
+          if (s > maxSev) maxSev = s;
+        });
+        cluster.label.show = false;
+        cluster.billboard.show = true;
+        cluster.billboard.image = createClusterCanvas(clusteredEntities.length, SEV_COLORS[maxSev] || '#38bdf8');
+        cluster.billboard.verticalOrigin = Cesium.VerticalOrigin.CENTER;
+        cluster.billboard.horizontalOrigin = Cesium.HorizontalOrigin.CENTER;
+        cluster.billboard.eyeOffset = new Cesium.Cartesian3(0.0, 0.0, -60.0);
+        cluster.billboard.disableDepthTestDistance = 350000.0;
+      });
+      viewer.dataSources.add(threatDS);
+      threatDataSourceRef.current = threatDS;
+
       // Safe utility helpers to retrieve properties from Cesium entities without throwing TypeErrors
       const getIsSatellite = (entity) => {
         if (!entity || !entity.properties) return false;
@@ -1849,6 +1978,24 @@ export default function CesiumGlobe({
           });
           if (typeof setHoverTooltipRef.current === 'function') {
             setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
+          }
+          return;
+        }
+
+        // Handle clustered billboard hover before single-entity inspection
+        if (Cesium.defined(pickedObject) && Array.isArray(pickedObject.id) && pickedObject.id.length > 1) {
+          lastHoveredId = 'cluster';
+          document.body.style.cursor = 'pointer';
+          if (typeof setHoverTooltipRef.current === 'function') {
+            setHoverTooltipRef.current({
+              show: true,
+              x: movement.endPosition.x,
+              y: movement.endPosition.y,
+              content: `${pickedObject.id.length} Clustered Signals`,
+              type: 'event',
+              title: `${pickedObject.id.length} Signals in Cluster`,
+              details: { Action: 'Click to zoom or select signal' }
+            });
           }
           return;
         }
@@ -2138,6 +2285,31 @@ export default function CesiumGlobe({
             selectSkyscraper(closestLM);
             handled = true;
           }
+        }
+
+        // 1b. Handle clicking a clustered group of Cesium threat billboards
+        if (Cesium.defined(pickedObject) && Array.isArray(pickedObject.id) && pickedObject.id.length > 0) {
+          const clusterItems = pickedObject.id.map(ent => resolveProperties(ent)).filter(Boolean);
+          const validCoords = clusterItems.filter(it => isValidCoordinate(it.repelledLat ?? it.lat, it.repelledLon ?? it.lon));
+          const camHeight = viewer.camera.positionCartographic?.height || 15000000;
+          if (validCoords.length > 0) {
+            const avgLat = validCoords.reduce((s, it) => s + parseFloat(it.repelledLat ?? it.lat), 0) / validCoords.length;
+            const avgLon = validCoords.reduce((s, it) => s + parseFloat(it.repelledLon ?? it.lon), 0) / validCoords.length;
+            const latSpan = Math.max(...validCoords.map(it => parseFloat(it.repelledLat ?? it.lat))) - Math.min(...validCoords.map(it => parseFloat(it.repelledLat ?? it.lat)));
+            const lonSpan = Math.max(...validCoords.map(it => parseFloat(it.repelledLon ?? it.lon))) - Math.min(...validCoords.map(it => parseFloat(it.repelledLon ?? it.lon)));
+            if (camHeight > 320000 && (latSpan > 0.02 || lonSpan > 0.02 || camHeight > 600000)) {
+              setClusterPicker(null);
+              viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(avgLon, avgLat, Math.max(95000, Math.min(camHeight * 0.25, 650000))),
+                duration: 0.9
+              });
+            } else {
+              setClusterPicker({ x: movement.position.x, y: movement.position.y, items: clusterItems });
+            }
+            return;
+          }
+        } else {
+          setClusterPicker(null);
         }
 
         // 2. Check if we clicked an existing Cesium Entity (threat marker, satellite, or landmark reticle)
@@ -2462,11 +2634,11 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeight = 0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 1.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
 
     // Skip heavy entity updates if the incoming threat marker dataset and mode hasn't changed
     const repelledJson = JSON.stringify(repelledMarkers);
@@ -2477,24 +2649,32 @@ export default function CesiumGlobe({
     lastRepelledMarkersJsonRef.current = cacheKey;
 
     const viewer = viewerRef.current;
+    const threatDS = threatDataSourceRef.current;
+    const threatEntities = threatDS ? threatDS.entities : viewer.entities;
+    const eyeOffsetGround = new Cesium.Cartesian3(0.0, 0.0, -50.0);
 
     // Create a Set of incoming threat IDs for quick lookup
     const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
 
-    // Surgically remove only threat entities that are no longer in the repelledMarkers list
-    const existingThreats = viewer.entities.values.filter(e => e.id && e.id.startsWith('threat-'));
+    // Remove stale threat markers from clustered CustomDataSource
+    const existingThreats = threatEntities.values.filter(e => e.id && e.id.startsWith('threat-') && !e.id.startsWith('threat-pulse-'));
     existingThreats.forEach(e => {
-      if (e.id.startsWith('threat-pulse-')) {
+      if (!incomingIds.has(e.id)) {
+        threatEntities.remove(e);
+      }
+    });
+
+    // Remove stale pulse rings from viewer.entities
+    viewer.entities.values
+      .filter(e => e.id && e.id.startsWith('threat-pulse-'))
+      .forEach(e => {
         const parentId = e.id.replace('threat-pulse-', 'threat-');
         if (!incomingIds.has(parentId)) {
           viewer.entities.remove(e);
         }
-      } else if (!incomingIds.has(e.id)) {
-        viewer.entities.remove(e);
-      }
-    });
+      });
 
-    // Surgically add new threat markers or update existing ones without recreating them!
+    // Surgically add new threat markers or update existing ones inside clustered datasource
     repelledMarkers.forEach(m => {
       if (m.repelledLat === undefined || m.repelledLon === undefined || !isValidCoordinate(m.repelledLat, m.repelledLon)) return;
 
@@ -2502,15 +2682,12 @@ export default function CesiumGlobe({
       const threatId = `threat-${m.id || m.title}`;
       const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
 
-      const existing = viewer.entities.getById(threatId);
+      const existing = threatEntities.getById(threatId);
       const isManualEvent = String(m.id || '').startsWith('evt-');
       const outlineColor = isManualEvent ? '#00f0ff' : '#ffffff';
-      const outlineWidth = isManualEvent ? 3.0 : 1.5;
+      const outlineWidth = isManualEvent ? 2.5 : 1.5;
 
       if (existing) {
-        // Surgically update properties on the existing persistent entity ONLY if they changed
-        // Constantly re-assigning properties triggers Cesium's event system and WebGL geometry rebuilds
-        
         const currentPos = existing.position.getValue(Cesium.JulianDate.now());
         if (!currentPos || !Cesium.Cartesian3.equalsEpsilon(currentPos, newPos, 0.01)) {
           existing.position = newPos;
@@ -2521,14 +2698,13 @@ export default function CesiumGlobe({
 
         if (needsVisualUpdate) {
           if (existing.billboard) {
-            existing.billboard.image = createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, outlineColor, outlineWidth);
+            existing.billboard.image = createCircleCanvas(sevColorStr, 7 + (m.severity || 1) * 1.4, outlineColor, outlineWidth);
           }
           if (existing.label) {
             existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
           }
         }
 
-        // Only update these if they are strictly missing or incorrect, to prevent dirtying the entity
         if (existing.billboard && existing.billboard.heightReference?.getValue() !== targetHeightRef) {
           existing.billboard.heightReference = targetHeightRef;
           existing.billboard.disableDepthTestDistance = targetDisableDepthTest;
@@ -2539,20 +2715,19 @@ export default function CesiumGlobe({
           existing.label.disableDepthTestDistance = targetDisableDepthTest;
           existing.label.show = false;
         }
-        
-        // Cache the raw object directly so we can compare it next tick
+
         existing.properties = m;
       } else {
-        // Threat circle billboard marker (perfectly clamped to terrain/3D rooftops in 3D, elevated in 2D!)
-        viewer.entities.add({
+        threatEntities.add({
           id: threatId,
           name: m.title || m.name,
           position: newPos,
           billboard: {
-            image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.5, outlineColor, outlineWidth),
+            image: createCircleCanvas(sevColorStr, 7 + (m.severity || 1) * 1.4, outlineColor, outlineWidth),
             heightReference: targetHeightRef,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            eyeOffset: eyeOffsetGround,
             disableDepthTestDistance: targetDisableDepthTest,
           },
           label: {
@@ -3171,7 +3346,7 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeight = 0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
@@ -3422,7 +3597,7 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeight = 0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
@@ -3516,7 +3691,7 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeight = 0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
@@ -3617,7 +3792,7 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = is3DActive ? 0 : 50000;
+    const targetHeight = 0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
@@ -4148,48 +4323,43 @@ export default function CesiumGlobe({
       )}
 
       {hoverTooltip.show && (
-        <div style={{
-          position: 'absolute',
-          left: `${tooltipLeft}px`,
-          top: `${tooltipTop}px`,
-          background: 'rgba(11, 19, 43, 0.98)',
-          border: hoverTooltip.type === 'regulation'
-            ? '1px solid rgba(168, 85, 247, 0.8)'
-            : hoverTooltip.type === 'event'
-            ? '1px solid rgba(251, 146, 60, 0.8)'
-            : '1px solid rgba(0, 240, 255, 0.8)',
-          borderRadius: '8px',
-          padding: '10px 14px',
-          color: '#ffffff',
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          lineHeight: '1.5',
-          pointerEvents: 'none',
-          zIndex: 9999,
-          boxShadow: hoverTooltip.type === 'regulation'
-            ? '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(168, 85, 247, 0.3)'
-            : hoverTooltip.type === 'event'
-            ? '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(251, 146, 60, 0.3)'
-            : '0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3)',
-          backdropFilter: 'blur(8px)',
-          maxWidth: `${tooltipWidth}px`,
-          width: `${tooltipWidth}px`,
-          wordBreak: 'break-word',
-          whiteSpace: 'normal'
-        }}>
+        <div
+          className="cesium-hover-tooltip"
+          style={{
+            position: 'absolute',
+            left: `${tooltipLeft}px`,
+            top: `${tooltipTop}px`,
+            background: 'var(--sov-panel-bg)',
+            border: hoverTooltip.type === 'regulation'
+              ? '1px solid rgba(168, 85, 247, 0.65)'
+              : hoverTooltip.type === 'event'
+              ? '1px solid rgba(251, 146, 60, 0.65)'
+              : '1px solid var(--sov-border)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            color: 'var(--sov-text)',
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            lineHeight: '1.5',
+            pointerEvents: 'none',
+            zIndex: 9999,
+            boxShadow: 'var(--sov-shadow)',
+            backdropFilter: 'blur(8px)',
+            maxWidth: `${tooltipWidth}px`,
+            width: `${tooltipWidth}px`,
+            wordBreak: 'break-word',
+            whiteSpace: 'normal'
+          }}
+        >
           {parsed.details && Object.keys(parsed.details).length > 0 ? (
             <div>
               {/* Header */}
               <div style={{ 
-                borderBottom: hoverTooltip.type === 'regulation'
-                  ? '1px solid rgba(168, 85, 247, 0.3)'
-                  : hoverTooltip.type === 'event'
-                  ? '1px solid rgba(251, 146, 60, 0.3)'
-                  : '1px solid rgba(0, 240, 255, 0.3)',
+                borderBottom: '1px solid var(--sov-border)',
                 paddingBottom: '6px',
                 marginBottom: '6.5px', 
                 fontWeight: 'bold', 
-                color: '#ffffff',
+                color: 'var(--sov-text)',
                 fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
@@ -4204,13 +4374,13 @@ export default function CesiumGlobe({
                   const upperVal = val ? String(val).toUpperCase() : '';
                   return (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
-                      <span style={{ color: '#94a3b8', fontWeight: '500' }}>{label}:</span>
+                      <span style={{ color: 'var(--sov-muted)', fontWeight: '500' }}>{label}:</span>
                       <span style={{ 
-                        color: upperVal === 'IN EFFECT' || upperVal === 'ACTIVE' || upperVal === 'TRUE' ? '#22c55e' : 
-                               upperVal === 'PROPOSED' || upperVal === 'PENDING' ? '#facc15' :
-                               upperVal === 'HIGH' || upperVal === 'CRITICAL' ? '#ef4444' : 
+                        color: upperVal === 'IN EFFECT' || upperVal === 'ACTIVE' || upperVal === 'TRUE' ? 'var(--sov-emerald)' : 
+                               upperVal === 'PROPOSED' || upperVal === 'PENDING' ? 'var(--sov-amber)' :
+                               upperVal === 'HIGH' || upperVal === 'CRITICAL' ? 'var(--sov-danger)' : 
                                /^S[1-5]$/.test(upperVal) ? (SEV_COLORS[parseInt(upperVal[1])] || '#ff2d55') :
-                               '#f8fafc',
+                               'var(--sov-text)',
                         fontWeight: 'bold' 
                       }}>{val}</span>
                     </div>
@@ -4225,6 +4395,83 @@ export default function CesiumGlobe({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Cluster Signal Picker Popover (when zoomed into overlapping city signals) */}
+      {clusterPicker && Array.isArray(clusterPicker.items) && clusterPicker.items.length > 0 && (
+        <div
+          className="sov-popover-shell"
+          style={{
+            position: 'absolute',
+            left: `${Math.max(12, Math.min((containerRef.current?.clientWidth || 600) - 290, clusterPicker.x + 12))}px`,
+            top: `${Math.max(12, Math.min((containerRef.current?.clientHeight || 500) - 260, clusterPicker.y + 12))}px`,
+            width: '276px',
+            maxHeight: '250px',
+            background: 'var(--sov-panel-bg)',
+            border: '1px solid var(--sov-border)',
+            borderRadius: '10px',
+            boxShadow: 'var(--sov-shadow)',
+            color: 'var(--sov-text)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            borderBottom: '1px solid var(--sov-border)',
+            background: 'var(--sov-card-bg)',
+            fontSize: '11px',
+            fontWeight: 700,
+            fontFamily: 'var(--font-jetbrains-fallback)'
+          }}>
+            <span>{clusterPicker.items.length} SIGNALS HERE</span>
+            <button
+              type="button"
+              onClick={() => setClusterPicker(null)}
+              style={{ background: 'transparent', border: 'none', color: 'var(--sov-muted)', cursor: 'pointer', fontSize: '14px', fontWeight: 700, padding: '0 4px' }}
+              aria-label="Close signal picker"
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ overflowY: 'auto', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {clusterPicker.items.map((item, idx) => (
+              <button
+                key={item.id || idx}
+                type="button"
+                onClick={() => {
+                  setClusterPicker(null);
+                  if (onPointClickRef.current) onPointClickRef.current(item);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '7px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid transparent',
+                  background: 'transparent',
+                  color: 'var(--sov-text)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  lineHeight: 1.35
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--sov-card-bg)'; e.currentTarget.style.borderColor = 'var(--sov-border)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+              >
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: SEV_COLORS[item.severity] || '#38bdf8', flexShrink: 0, marginTop: '4px' }} />
+                <span style={{ flex: 1, fontWeight: 600 }}>{item.title || item.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

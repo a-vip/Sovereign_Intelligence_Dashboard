@@ -54,27 +54,27 @@ export default async function ReadinessIndexPage() {
   return (
     <div className="editorial-page" style={{ padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1260px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <nav className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: '#00f0ff', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
+        <nav className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
+          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             ← RETURN TO LIVE 3D GLOBE
           </Link>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/compare" style={{ color: '#00f0ff', textDecoration: 'none' }}>LEGAL DIFF MATRIX</Link>
-            <Link href="/jurisdictions" style={{ color: '#c084fc', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
-            <Link href="/labs" style={{ color: '#38bdf8', textDecoration: 'none' }}>LAB WATCH</Link>
-            <Link href="/compute" style={{ color: '#facc15', textDecoration: 'none' }}>COMPUTE</Link>
-            <Link href="/methodology" style={{ color: '#94a3b8', textDecoration: 'none' }}>METHODOLOGY</Link>
+            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF MATRIX</Link>
+            <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
+            <Link href="/labs" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>LAB WATCH</Link>
+            <Link href="/compute" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>COMPUTE</Link>
+            <Link href="/methodology" style={{ color: 'var(--sov-muted)', textDecoration: 'none' }}>METHODOLOGY</Link>
           </div>
         </nav>
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <span style={{ color: '#10b981', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
+          <span style={{ color: 'var(--sov-emerald)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
             SOVEREIGN OBSERVATORY // PROPRIETARY INDEX &amp; EPISTEMIC PARITY
           </span>
-          <h1 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.45rem)', fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
+          <h1 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.45rem)', fontWeight: 800, color: 'var(--sov-text)', lineHeight: 1.2 }}>
             Sovereign AI Readiness Index &amp; Global Parity Observatory
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '15px', lineHeight: 1.6, maxWidth: '880px' }}>
+          <p style={{ color: 'var(--sov-muted)', fontSize: '15px', lineHeight: 1.6, maxWidth: '880px' }}>
             Composite governance readiness benchmark paired with real-time epistemic representation telemetry—designed for transparent sensitivity testing in institutional policy audits and graduate sociotechnical AI research.
           </p>
         </header>

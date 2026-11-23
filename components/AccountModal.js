@@ -339,7 +339,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'rgba(2, 6, 23, 0.85)',
+      background: 'var(--sov-backdrop)',
       backdropFilter: 'blur(16px)',
       animation: 'fadeIn 0.3s ease-out',
     }}>
@@ -379,16 +379,16 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px 24px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          background: 'rgba(2, 6, 23, 0.4)'
+          borderBottom: '1px solid var(--sov-border)',
+          background: 'var(--sov-card-bg)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Shield size={18} style={{ color: '#06b6d4' }} />
+            <Shield size={18} style={{ color: 'var(--sov-accent)' }} />
             <div>
-              <h2 style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', letterSpacing: '1px', textTransform: 'uppercase', margin: 0 }}>
+              <h2 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--sov-text)', letterSpacing: '1px', textTransform: 'uppercase', margin: 0 }}>
                 OPERATOR PROFILE & SETTINGS
               </h2>
-              <span style={{ fontSize: '9px', fontFamily: 'monospace', color: '#8892a4' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--sov-muted)' }}>
                 ID: {currentUser?.id?.substring(0, 8)} • SECURE CHANNEL ACTIVE
               </span>
             </div>
@@ -398,7 +398,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255, 255, 255, 0.4)',
+              color: 'var(--sov-muted)',
               cursor: 'pointer',
               padding: 4,
               borderRadius: '50%',
@@ -425,7 +425,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
           {/* Navigation Sidebar */}
           <div style={{
             width: '180px',
-            borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRight: '1px solid var(--sov-border)',
             background: 'rgba(2, 6, 23, 0.2)',
             display: 'flex',
             flexDirection: 'column',
@@ -532,7 +532,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                   SAVED
                 </span>
                 {bookmarks.length > 0 && (
-                  <span style={{ fontSize: '9px', background: 'rgba(6,182,212,0.18)', color: '#06b6d4', padding: '1px 5px', borderRadius: '999px' }}>
+                  <span style={{ fontSize: '9px', background: 'rgba(6,182,212,0.18)', color: 'var(--sov-accent)', padding: '1px 5px', borderRadius: '999px' }}>
                     {bookmarks.length}
                   </span>
                 )}
@@ -561,7 +561,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 FEEDBACK
               </button>
               
-              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
+              <div style={{ height: '1px', background: 'var(--sov-card-bg)', margin: '8px 0' }} />
               
               <a
                 href="https://sovdash.com/pricing.html"
@@ -571,7 +571,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                   width: '100%',
                   background: 'rgba(6, 182, 212, 0.05)',
                   border: '1px solid rgba(6, 182, 212, 0.2)',
-                  color: '#06b6d4',
+                  color: 'var(--sov-accent)',
                   borderRadius: '6px',
                   padding: '8px 12px',
                   fontSize: '11px',
@@ -642,11 +642,11 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <button 
                     onClick={() => setWizardType('')}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#8892a4', borderRadius: '4px', padding: '3px 8px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
+                    style={{ background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', color: 'var(--sov-muted)', borderRadius: '4px', padding: '3px 8px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}
                   >
                     ← CANCEL PROTOCOL
                   </button>
-                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#06b6d4', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--sov-accent)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     // ROTATION PROTOCOL: {wizardType}
                   </span>
                 </div>
@@ -668,8 +668,8 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
 
                 {success ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px' }}>
-                    <Check size={28} style={{ color: '#10b981', marginBottom: '8px' }} />
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981', letterSpacing: '0.5px' }}>{successMsg}</span>
+                    <Check size={28} style={{ color: 'var(--sov-emerald)', marginBottom: '8px' }} />
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--sov-emerald)', letterSpacing: '0.5px' }}>{successMsg}</span>
                     <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'rgba(16,185,129,0.6)', marginTop: '4px' }}>[ SYNC SUCCESSFUL ]</span>
                   </div>
                 ) : (
@@ -681,15 +681,15 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                           <h4 style={{ fontSize: '11px', fontWeight: 'bold', color: '#ff6b35', textTransform: 'uppercase', margin: '0 0 6px 0', letterSpacing: '0.5px' }}>
                             🔒 Identity Verification Check Required
                           </h4>
-                          <p style={{ fontSize: '10px', color: '#8892a4', margin: 0, lineHeight: '1.4' }}>
+                          <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0, lineHeight: '1.4' }}>
                             You are about to modify sensitive credentials. To unlock config access, please input your current operator access code password.
                           </p>
                         </div>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Current Password</label>
+                          <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Current Password</label>
                           <div style={{ position: 'relative' }}>
-                            <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                            <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                             <input
                               type="password"
                               placeholder="Enter password to authorize"
@@ -697,7 +697,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                               onChange={(e) => setAuthPassword(e.target.value)}
                               required
                               autoFocus
-                              style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                              style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: 'var(--sov-text)', fontSize: '12px', outline: 'none' }}
                             />
                           </div>
                         </div>
@@ -720,16 +720,16 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         {/* 2A. Name configuration */}
                         {wizardType === 'name' && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Configure New Full Name</label>
+                            <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Configure New Full Name</label>
                             <div style={{ position: 'relative' }}>
-                              <User size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                              <User size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                               <input
                                 type="text"
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 required
                                 autoFocus
-                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                                style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: 'var(--sov-text)', fontSize: '12px', outline: 'none' }}
                               />
                             </div>
                           </div>
@@ -738,16 +738,16 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         {/* 2B. Email configuration */}
                         {wizardType === 'email' && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Configure New Email Address</label>
+                            <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Configure New Email Address</label>
                             <div style={{ position: 'relative' }}>
-                              <Mail size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                              <Mail size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                               <input
                                 type="email"
                                 value={newEmail}
                                 onChange={(e) => setNewEmail(e.target.value)}
                                 required
                                 autoFocus
-                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                                style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: 'var(--sov-text)', fontSize: '12px', outline: 'none' }}
                               />
                             </div>
                           </div>
@@ -757,9 +757,9 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         {wizardType === 'password' && (
                           <>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>New Password</label>
+                              <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>New Password</label>
                               <div style={{ position: 'relative' }}>
-                                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                                 <input
                                   type="password"
                                   placeholder="Minimum 6 characters"
@@ -767,21 +767,21 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                                   onChange={(e) => setNewPassword(e.target.value)}
                                   required
                                   autoFocus
-                                  style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                                  style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: 'var(--sov-text)', fontSize: '12px', outline: 'none' }}
                                 />
                               </div>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Verify New Password</label>
+                              <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Verify New Password</label>
                               <div style={{ position: 'relative' }}>
-                                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                                <Key size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
                                 <input
                                   type="password"
                                   placeholder="Verify new access code"
                                   value={confirmPassword}
                                   onChange={(e) => setConfirmPassword(e.target.value)}
                                   required
-                                  style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: '#ffffff', fontSize: '12px', outline: 'none' }}
+                                  style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px 8px 32px', color: 'var(--sov-text)', fontSize: '12px', outline: 'none' }}
                                 />
                               </div>
                             </div>
@@ -806,25 +806,25 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 {/* 1. Profile Settings Tab */}
                 {activeTab === 'profile' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
-                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                    <div style={{ borderBottom: '1px solid var(--sov-border)', paddingBottom: '10px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--sov-text)', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
                         Operator Information
                       </h3>
-                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                      <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0 }}>
                         Configure secure handle and routing details below.
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {/* Name Card */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '8px' }}>
                         <div>
-                          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '2px' }}>OPERATOR HANDLE</div>
-                          <div style={{ fontSize: '13px', color: '#ffffff', fontWeight: 'bold' }}>{currentUser?.fullName}</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '2px' }}>OPERATOR HANDLE</div>
+                          <div style={{ fontSize: '13px', color: 'var(--sov-text)', fontWeight: 'bold' }}>{currentUser?.fullName}</div>
                         </div>
                         <button
                           onClick={() => startWizard('name')}
-                          style={{ background: 'transparent', border: '1px solid #06b6d4', color: '#06b6d4', borderRadius: '6px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                          style={{ background: 'transparent', border: '1px solid #06b6d4', color: 'var(--sov-accent)', borderRadius: '6px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(6,182,212,0.1)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
@@ -833,14 +833,14 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       </div>
 
                       {/* Email Card */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '8px' }}>
                         <div>
-                          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '2px' }}>REGISTERED EMAIL</div>
-                          <div style={{ fontSize: '13px', color: '#ffffff', fontWeight: 'bold' }}>{currentUser?.email}</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '2px' }}>REGISTERED EMAIL</div>
+                          <div style={{ fontSize: '13px', color: 'var(--sov-text)', fontWeight: 'bold' }}>{currentUser?.email}</div>
                         </div>
                         <button
                           onClick={() => startWizard('email')}
-                          style={{ background: 'transparent', border: '1px solid #06b6d4', color: '#06b6d4', borderRadius: '6px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                          style={{ background: 'transparent', border: '1px solid #06b6d4', color: 'var(--sov-accent)', borderRadius: '6px', padding: '6px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(6,182,212,0.1)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
@@ -852,8 +852,8 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       <div style={{ padding: '14px 16px', background: 'rgba(6, 182, 212, 0.04)', border: '1px solid rgba(6, 182, 212, 0.22)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div>
-                            <div style={{ fontSize: '9px', color: '#06b6d4', fontWeight: 'bold', letterSpacing: '0.6px', fontFamily: 'monospace' }}>INSTITUTIONAL / PRO CLEARANCE TIER</div>
-                            <div style={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold', marginTop: '2px' }}>
+                            <div style={{ fontSize: '9px', color: 'var(--sov-accent)', fontWeight: 'bold', letterSpacing: '0.6px', fontFamily: 'monospace' }}>INSTITUTIONAL / PRO CLEARANCE TIER</div>
+                            <div style={{ fontSize: '12px', color: 'var(--sov-text)', fontWeight: 'bold', marginTop: '2px' }}>
                               {(currentUser?.tier || 'free').toUpperCase()} CLEARANCE {currentUser?.licenseKey ? `(${currentUser.licenseKey})` : ''}
                             </div>
                           </div>
@@ -872,12 +872,12 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                             placeholder="Enter SOV-XXXX-XXXX-XXXX License Key"
                             value={licenseInput}
                             onChange={(e) => setLicenseInput(e.target.value)}
-                            style={{ flex: 1, background: 'rgba(2, 6, 23, 0.7)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', padding: '7px 10px', color: '#22d3ee', fontSize: '11px', fontFamily: 'monospace', outline: 'none' }}
+                            style={{ flex: 1, background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '7px 10px', color: 'var(--sov-accent)', fontSize: '11px', fontFamily: 'monospace', outline: 'none' }}
                           />
                           <button
                             type="submit"
                             disabled={licenseLoading}
-                            style={{ background: 'rgba(6, 182, 212, 0.15)', border: '1px solid #06b6d4', color: '#22d3ee', borderRadius: '6px', padding: '7px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                            style={{ background: 'rgba(6, 182, 212, 0.15)', border: '1px solid #06b6d4', color: 'var(--sov-accent)', borderRadius: '6px', padding: '7px 12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
                             {licenseLoading ? 'VERIFYING...' : 'ACTIVATE'}
                           </button>
@@ -895,19 +895,19 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 {/* 2. Security Tab */}
                 {activeTab === 'security' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
-                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                    <div style={{ borderBottom: '1px solid var(--sov-border)', paddingBottom: '10px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--sov-text)', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
                         Credentials & Access Keys
                       </h3>
-                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                      <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0 }}>
                         Safeguard access codes and verify channel integrity.
                       </p>
                     </div>
 
                     <div style={{ background: 'rgba(6,182,212,0.02)', border: '1px solid rgba(6,182,212,0.12)', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', justifySelf: 'stretch', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#ffffff', marginBottom: '4px' }}>ACCESS PASSWORD</div>
-                        <div style={{ fontSize: '10px', color: '#8892a4', lineHeight: '1.4' }}>Rotate credentials regularly using secure, randomized codes.</div>
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--sov-text)', marginBottom: '4px' }}>ACCESS PASSWORD</div>
+                        <div style={{ fontSize: '10px', color: 'var(--sov-muted)', lineHeight: '1.4' }}>Rotate credentials regularly using secure, randomized codes.</div>
                       </div>
                       <button
                         onClick={() => startWizard('password')}
@@ -920,11 +920,11 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                     </div>
 
                     {/* Cyber Encryption Details Box */}
-                    <div style={{ margin: '8px 0', padding: '12px', background: 'rgba(2, 6, 23, 0.4)', border: '1px solid rgba(255, 255, 255, 0.03)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9px', color: '#10b981', fontFamily: 'Courier New, monospace' }}>
+                    <div style={{ margin: '8px 0', padding: '12px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9px', color: 'var(--sov-emerald)', fontFamily: 'Courier New, monospace' }}>
                         <Check size={9} style={{ strokeWidth: 3 }} /> DATABASE ENCRYPT CHANNEL... COMPLETED
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9px', color: '#10b981', fontFamily: 'Courier New, monospace' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9px', color: 'var(--sov-emerald)', fontFamily: 'Courier New, monospace' }}>
                         <Check size={9} style={{ strokeWidth: 3 }} /> CRYPTO SIGNATURE METHOD... PBKDF2-SHA512
                       </div>
                     </div>
@@ -934,26 +934,26 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                 {/* 3. System Preferences Tab (Our highly customized suggested features!) */}
                 {activeTab === 'system' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                    <div style={{ borderBottom: '1px solid var(--sov-border)', paddingBottom: '8px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--sov-text)', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
                         Tactical View Preferences
                       </h3>
-                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                      <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0 }}>
                         Configure default behaviors to automatically trigger when the link loads.
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="preferences-grid">
                       {/* Map Style Option */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px' }}>
                         <div>
-                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Default Base Map Style</div>
-                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Google Satellite vs CartoDB Dark Matter.</div>
+                          <div style={{ fontSize: '10px', color: 'var(--sov-text)', fontWeight: 'bold' }}>Default Base Map Style</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)' }}>Google Satellite vs CartoDB Dark Matter.</div>
                         </div>
                         <select
                           value={mapStyle}
                           onChange={(e) => handlePreferenceChange('mapStyle', e.target.value)}
-                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                          style={{ background: 'var(--sov-backdrop)', border: '1px solid var(--sov-border)', borderRadius: '4px', padding: '4px 8px', color: 'var(--sov-text)', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value="satellite">Satellite (Hybrid)</option>
                           <option value="dark">Tactical Dark</option>
@@ -961,15 +961,15 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       </div>
 
                       {/* Map Mode Option */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px' }}>
                         <div>
-                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Default Map View Mode</div>
-                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Flat 2D Satellite vs 3D Buildings.</div>
+                          <div style={{ fontSize: '10px', color: 'var(--sov-text)', fontWeight: 'bold' }}>Default Map View Mode</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)' }}>Flat 2D Satellite vs 3D Buildings.</div>
                         </div>
                         <select
                           value={mapMode}
                           onChange={(e) => handlePreferenceChange('mapMode', e.target.value)}
-                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                          style={{ background: 'var(--sov-backdrop)', border: '1px solid var(--sov-border)', borderRadius: '4px', padding: '4px 8px', color: 'var(--sov-text)', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value="2d">2D Satellite Map</option>
                           <option value="3d">3D Google Buildings</option>
@@ -977,15 +977,15 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       </div>
 
                       {/* Auto Rotation Default Option */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px' }}>
                         <div>
-                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Globe Auto-Rotation</div>
-                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Enable earth rotation instantly on load.</div>
+                          <div style={{ fontSize: '10px', color: 'var(--sov-text)', fontWeight: 'bold' }}>Globe Auto-Rotation</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)' }}>Enable earth rotation instantly on load.</div>
                         </div>
                         <select
                           value={autoRotate ? 'true' : 'false'}
                           onChange={(e) => handlePreferenceChange('autoRotate', e.target.value === 'true')}
-                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                          style={{ background: 'var(--sov-backdrop)', border: '1px solid var(--sov-border)', borderRadius: '4px', padding: '4px 8px', color: 'var(--sov-text)', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value="true">Active (ON)</option>
                           <option value="false">Static (OFF)</option>
@@ -993,15 +993,15 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       </div>
 
                       {/* Marquee Speed Option */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px' }}>
                         <div>
-                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Alert Marquee Ticker Speed</div>
-                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Speed configuration for headline ticker.</div>
+                          <div style={{ fontSize: '10px', color: 'var(--sov-text)', fontWeight: 'bold' }}>Alert Marquee Ticker Speed</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)' }}>Speed configuration for headline ticker.</div>
                         </div>
                         <select
                           value={tickerSpeed}
                           onChange={(e) => handlePreferenceChange('tickerSpeed', e.target.value)}
-                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                          style={{ background: 'var(--sov-backdrop)', border: '1px solid var(--sov-border)', borderRadius: '4px', padding: '4px 8px', color: 'var(--sov-text)', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value="slow">Slow (110s) - Recommended</option>
                           <option value="normal">Normal (60s)</option>
@@ -1010,15 +1010,15 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                       </div>
 
                       {/* Severity Threshold Option */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px' }}>
                         <div>
-                          <div style={{ fontSize: '10px', color: '#ffffff', fontWeight: 'bold' }}>Startup Threat Severity filter</div>
-                          <div style={{ fontSize: '9px', color: '#8892a4' }}>Filter out events with severities below limit.</div>
+                          <div style={{ fontSize: '10px', color: 'var(--sov-text)', fontWeight: 'bold' }}>Startup Threat Severity filter</div>
+                          <div style={{ fontSize: '9px', color: 'var(--sov-muted)' }}>Filter out events with severities below limit.</div>
                         </div>
                         <select
                           value={minSeverity}
                           onChange={(e) => handlePreferenceChange('minSeverity', parseInt(e.target.value))}
-                          style={{ background: 'rgba(2, 6, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', padding: '4px 8px', color: '#ffffff', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
+                          style={{ background: 'var(--sov-backdrop)', border: '1px solid var(--sov-border)', borderRadius: '4px', padding: '4px 8px', color: 'var(--sov-text)', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value={1}>Severity 1+ (Show All)</option>
                           <option value={2}>Severity 2+ (Elevated)</option>
@@ -1128,11 +1128,11 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
 
                 {activeTab === 'suggestions' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
+                    <div style={{ borderBottom: '1px solid var(--sov-border)', paddingBottom: '8px' }}>
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--sov-text)', textTransform: 'uppercase', margin: '0 0 4px 0', letterSpacing: '0.5px' }}>
                         FEEDBACK & SUGGESTIONS
                       </h3>
-                      <p style={{ fontSize: '10px', color: '#8892a4', margin: 0 }}>
+                      <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0 }}>
                         Submit suggestions, coordinates errors, or system bug reports directly to the developers.
                       </p>
                     </div>
@@ -1149,12 +1149,12 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         boxShadow: '0 0 15px rgba(6, 182, 212, 0.05)'
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <ShieldAlert size={14} style={{ color: '#06b6d4' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                          <ShieldAlert size={14} style={{ color: 'var(--sov-accent)' }} />
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--sov-text)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                             Anonymous Session Active
                           </span>
                         </div>
-                        <p style={{ fontSize: '10px', color: '#8892a4', margin: 0, lineHeight: '1.4' }}>
+                        <p style={{ fontSize: '10px', color: 'var(--sov-muted)', margin: 0, lineHeight: '1.4' }}>
                           You are currently submitting feedback anonymously. To track operator credentials, receive developer responses, and unlock all advanced features, consider registering a secure account.
                         </p>
                         <button
@@ -1167,7 +1167,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                             alignSelf: 'flex-start',
                             background: 'rgba(6, 182, 212, 0.1)',
                             border: '1px solid #06b6d4',
-                            color: '#06b6d4',
+                            color: 'var(--sov-accent)',
                             borderRadius: '4px',
                             padding: '4px 10px',
                             fontSize: '9px',
@@ -1188,9 +1188,9 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
 
                     {successSuggestions ? (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
-                        <Check size={32} style={{ color: '#10b981', marginBottom: '12px' }} />
-                        <span style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.5px', marginBottom: '8px' }}>Thank you for the feedback!</span>
-                        <p style={{ fontSize: '11px', color: '#8892a4', margin: '0 0 16px 0', maxWidth: '320px', lineHeight: '1.5' }}>
+                        <Check size={32} style={{ color: 'var(--sov-emerald)', marginBottom: '12px' }} />
+                        <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--sov-text)', letterSpacing: '0.5px', marginBottom: '8px' }}>Thank you for the feedback!</span>
+                        <p style={{ fontSize: '11px', color: 'var(--sov-muted)', margin: '0 0 16px 0', maxWidth: '320px', lineHeight: '1.5' }}>
                           Your report has been securely transmitted and logged to the developer console.
                         </p>
                         
@@ -1199,7 +1199,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                             style={{
                               background: 'rgba(16, 185, 129, 0.1)',
                               border: '1px solid rgba(16, 185, 129, 0.3)',
-                              color: '#10b981',
+                              color: 'var(--sov-emerald)',
                               borderRadius: '6px',
                               padding: '8px 16px',
                               fontSize: '10px',
@@ -1220,7 +1220,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                               setGuestName('');
                               setGuestEmail('');
                             }}
-                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '6px', padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
+                            style={{ background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', color: 'var(--sov-text)', borderRadius: '6px', padding: '8px 16px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
                             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
                           >
@@ -1240,23 +1240,23 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                         {!currentUser && (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Your Name (Optional)</label>
+                              <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Your Name (Optional)</label>
                               <input
                                 type="text"
                                 placeholder="Anonymous Operator"
                                 value={guestName}
                                 onChange={(e) => setGuestName(e.target.value)}
-                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                                style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px', color: 'var(--sov-text)', fontSize: '11px', outline: 'none' }}
                               />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Your Email (Optional)</label>
+                              <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Your Email (Optional)</label>
                               <input
                                 type="email"
                                 placeholder="unknown@sovereign.net"
                                 value={guestEmail}
                                 onChange={(e) => setGuestEmail(e.target.value)}
-                                style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                                style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px', color: 'var(--sov-text)', fontSize: '11px', outline: 'none' }}
                               />
                             </div>
                           </div>
@@ -1264,11 +1264,11 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Report Type</label>
+                            <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Report Type</label>
                             <select
                               value={suggestionType}
                               onChange={(e) => setSuggestionType(e.target.value)}
-                              style={{ background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+                              style={{ background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px', color: 'var(--sov-text)', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
                             >
                               <option value="general">💡 General Suggestion</option>
                               <option value="bug">🐛 System Bug Report</option>
@@ -1278,54 +1278,54 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Target Point / Link ID (Optional)</label>
+                            <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Target Point / Link ID (Optional)</label>
                             <input
                               type="text"
                               placeholder="e.g. event-105 or broken URL"
                               value={suggestionTargetId}
                               onChange={(e) => setSuggestionTargetId(e.target.value)}
-                              style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                              style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px', color: 'var(--sov-text)', fontSize: '11px', outline: 'none' }}
                             />
                           </div>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Subject</label>
+                          <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Subject</label>
                           <input
                             type="text"
                             placeholder="Brief summary of suggestion/issue"
                             value={suggestionSubject}
                             onChange={(e) => setSuggestionSubject(e.target.value)}
                             required
-                            style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none' }}
+                            style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px', color: 'var(--sov-text)', fontSize: '11px', outline: 'none' }}
                           />
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Details & Description</label>
+                          <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Details & Description</label>
                           <textarea
                             rows={3}
                             placeholder="Please provide full contextual details..."
                             value={suggestionDetails}
                             onChange={(e) => setSuggestionDetails(e.target.value)}
                             required
-                            style={{ width: '100%', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px 10px', color: '#ffffff', fontSize: '11px', outline: 'none', resize: 'vertical', fontFamily: 'sans-serif' }}
+                            style={{ width: '100%', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '8px 10px', color: 'var(--sov-text)', fontSize: '11px', outline: 'none', resize: 'vertical', fontFamily: 'sans-serif' }}
                           />
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '10px', color: '#8892a4', textTransform: 'uppercase', fontWeight: 600 }}>Attach Screenshot / Image (Optional)</label>
+                          <label style={{ fontSize: '10px', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Attach Screenshot / Image (Optional)</label>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                             <label style={{
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '6px',
-                              background: 'rgba(255, 255, 255, 0.03)',
+                              background: 'var(--sov-card-bg)',
                               border: '1px dashed rgba(6, 182, 212, 0.3)',
                               borderRadius: '6px',
                               padding: '8px 12px',
-                              color: '#06b6d4',
+                              color: 'var(--sov-accent)',
                               fontSize: '11px',
                               fontWeight: 'bold',
                               cursor: 'pointer',
@@ -1344,7 +1344,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                             </label>
                             {suggestionScreenshot && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px', padding: '6px 10px' }}>
-                                <span style={{ color: '#10b981', fontSize: '10px', fontWeight: 'bold', fontFamily: 'monospace' }}>✓ ATTACHED</span>
+                                <span style={{ color: 'var(--sov-emerald)', fontSize: '10px', fontWeight: 'bold', fontFamily: 'monospace' }}>✓ ATTACHED</span>
                                 <button 
                                   type="button" 
                                   onClick={() => setSuggestionScreenshot(null)} 
@@ -1356,7 +1356,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                             )}
                           </div>
                           {suggestionScreenshot && (
-                            <img src={suggestionScreenshot} style={{ maxWidth: '120px', maxHeight: '80px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', marginTop: '6px' }} alt="Preview" />
+                            <img src={suggestionScreenshot} style={{ maxWidth: '120px', maxHeight: '80px', border: '1px solid var(--sov-border)', borderRadius: '4px', marginTop: '6px' }} alt="Preview" />
                           )}
                         </div>
 

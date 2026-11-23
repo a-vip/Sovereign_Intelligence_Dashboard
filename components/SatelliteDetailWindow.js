@@ -418,7 +418,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
         top: 0,
         transform: `translate(${pos.x}px, ${pos.y}px)`,
         width: '290px',
-        background: 'rgba(8, 12, 24, 0.94)',
+        background: 'var(--sov-panel-bg)',
         border: '1px solid rgba(0, 240, 255, 0.7)',
         borderRadius: '12px',
         boxShadow: '0 12px 40px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(0, 240, 255, 0.1)',
@@ -426,7 +426,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
         padding: '12px',
         zIndex: 9999,
         fontFamily: 'Courier New, monospace',
-        color: '#ffffff',
+        color: 'var(--sov-text)',
         transition: 'height 0.2s ease, transform 0.05s linear',
         userSelect: 'none'
       }}
@@ -466,7 +466,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
             style={{
               background: 'none',
               border: 'none',
-              color: 'rgba(255, 255, 255, 0.5)',
+              color: 'var(--sov-muted)',
               cursor: 'pointer',
               fontSize: '15px',
               fontWeight: 'bold',
@@ -483,7 +483,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
             style={{ 
               background: 'none', 
               border: 'none', 
-              color: 'rgba(255, 255, 255, 0.5)', 
+              color: 'var(--sov-muted)', 
               cursor: 'pointer', 
               fontSize: '15px', 
               lineHeight: 1,
@@ -500,16 +500,16 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
       {isCollapsed ? (
         <div style={{ fontSize: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>NAME:</span>
-            <span style={{ color: '#00f0ff', fontWeight: 'bold' }}>{satellite.name}</span>
+            <span style={{ color: 'var(--sov-muted)' }}>NAME:</span>
+            <span style={{ color: 'var(--sov-accent)', fontWeight: 'bold' }}>{satellite.name}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>ALT / VELOCITY:</span>
+            <span style={{ color: 'var(--sov-muted)' }}>ALT / VELOCITY:</span>
             <span>{satellite.altitude}km @ {satellite.velocity}km/s</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>COORDINATES:</span>
-            <span style={{ color: '#facc15' }}>{parseFloat(satellite.latitude).toFixed(2)}°, {parseFloat(satellite.longitude).toFixed(2)}°</span>
+            <span style={{ color: 'var(--sov-muted)' }}>COORDINATES:</span>
+            <span style={{ color: 'var(--sov-amber)' }}>{parseFloat(satellite.latitude).toFixed(2)}°, {parseFloat(satellite.longitude).toFixed(2)}°</span>
           </div>
           <button 
             onClick={onTrackToggle}
@@ -535,7 +535,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
         /* 2. EXPANDED VIEW LAYOUT (Multi-tabbed interactive space sensor feeds!) */
         <>
           {/* Tab Selector Bar */}
-          <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
+          <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '6px' }}>
             <button
               onClick={() => setActiveTab('telemetry')}
               style={{
@@ -612,49 +612,49 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                 textAlign: 'center' 
               }}>
                 <div>
-                  <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1px' }}>SIGNAL</div>
-                  <div style={{ color: '#22c55e', fontWeight: 'bold' }}>{liveSignal}%</div>
+                  <div style={{ color: 'var(--sov-muted)', marginBottom: '1px' }}>SIGNAL</div>
+                  <div style={{ color: 'var(--sov-emerald)', fontWeight: 'bold' }}>{liveSignal}%</div>
                 </div>
                 <div>
-                  <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1px' }}>PING</div>
-                  <div style={{ color: '#00f0ff', fontWeight: 'bold' }}>{liveLatency}ms</div>
+                  <div style={{ color: 'var(--sov-muted)', marginBottom: '1px' }}>PING</div>
+                  <div style={{ color: 'var(--sov-accent)', fontWeight: 'bold' }}>{liveLatency}ms</div>
                 </div>
                 <div>
-                  <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '1px' }}>DOWNLINK</div>
-                  <div style={{ color: '#38bdf8', fontWeight: 'bold' }}>{downlinkRate}G</div>
+                  <div style={{ color: 'var(--sov-muted)', marginBottom: '1px' }}>DOWNLINK</div>
+                  <div style={{ color: 'var(--sov-sky)', fontWeight: 'bold' }}>{downlinkRate}G</div>
                 </div>
               </div>
 
               {/* Stats Readout Grid */}
               <div style={{ fontSize: '9px', display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>NAME:</span>
-                  <span style={{ color: '#00f0ff', fontWeight: 'bold', maxWidth: '185px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>NAME:</span>
+                  <span style={{ color: 'var(--sov-accent)', fontWeight: 'bold', maxWidth: '185px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {satellite.name}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>ALTITUDE:</span>
-                  <span style={{ color: '#facc15', fontWeight: 'bold' }}>{satellite.altitude} km</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>ALTITUDE:</span>
+                  <span style={{ color: 'var(--sov-amber)', fontWeight: 'bold' }}>{satellite.altitude} km</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>VELOCITY:</span>
-                  <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{satellite.velocity} km/s</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>VELOCITY:</span>
+                  <span style={{ color: 'var(--sov-emerald)', fontWeight: 'bold' }}>{satellite.velocity} km/s</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>LATITUDE:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>LATITUDE:</span>
                   <span>{parseFloat(satellite.latitude).toFixed(4)}°</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>LONGITUDE:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>LONGITUDE:</span>
                   <span>{parseFloat(satellite.longitude).toFixed(4)}°</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>INCLINATION:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>INCLINATION:</span>
                   <span>{satellite.inclination}°</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>OPERATOR:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sov-border)', paddingBottom: '1px' }}>
+                  <span style={{ color: 'var(--sov-muted)' }}>OPERATOR:</span>
                   <span style={{ maxWidth: '175px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{satellite.country}</span>
                 </div>
               </div>
@@ -702,8 +702,8 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                       justifyContent: 'space-between',
                       boxSizing: 'border-box'
                     }}>
-                      <div style={{ fontSize: '6.5px', color: '#22c55e', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
-                        <div style={{ color: '#00f0ff', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '3px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                      <div style={{ fontSize: '6.5px', color: 'var(--sov-emerald)', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
+                        <div style={{ color: 'var(--sov-accent)', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '3px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
                           📡 SIGINT INTERCEPT WAVEFORM
                         </div>
                         {sigintLogs.slice(0, 3).map((log, index) => (
@@ -732,7 +732,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                   )}
 
                   {/* Overlay labels */}
-                  <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(0, 240, 255, 0.25)', color: '#00f0ff', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(0, 240, 255, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em', zIndex: 10 }}>
+                  <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(0, 240, 255, 0.25)', color: 'var(--sov-accent)', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(0, 240, 255, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em', zIndex: 10 }}>
                     🔴 ISS FEED [{issSource.toUpperCase()}]
                   </div>
 
@@ -746,7 +746,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                       background: 'rgba(0,0,0,0.7)',
                       border: '1px solid rgba(0, 240, 255, 0.4)',
                       borderRadius: '4px',
-                      color: '#00f0ff',
+                      color: 'var(--sov-accent)',
                       fontSize: '8px',
                       padding: '2px 5px',
                       cursor: 'pointer',
@@ -813,10 +813,10 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                             placeholder="Video ID"
                             style={{
                               flex: 1,
-                              background: '#020617',
+                              background: 'var(--sov-bg)',
                               border: '1px solid rgba(0, 240, 255, 0.4)',
                               borderRadius: '2px',
-                              color: '#00f0ff',
+                              color: 'var(--sov-accent)',
                               fontSize: '6px',
                               padding: '1px 3px',
                               outline: 'none',
@@ -871,7 +871,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
               ) : /* B. SIMULATED HUBBLE DEEP SPACE OBSERVATIONAL VIEWER */
               isHubble ? (
                 <div>
-                  <div style={{ position: 'relative', width: '100%', height: '140px', background: '#020617', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
+                  <div style={{ position: 'relative', width: '100%', height: '140px', background: 'var(--sov-bg)', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
                     {hubbleMode === 'gallery' ? (
                       <img 
                         src={HUBBLE_IMAGES[hubbleIdx].url} 
@@ -888,13 +888,13 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                       /* Scaled down HTML5 Canvas Space Simulator */
                       <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
                         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
-                        <div style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '6px', color: '#facc15', background: 'rgba(0,0,0,0.6)', padding: '1px 3px', borderRadius: '2px', border: '1px solid rgba(250,204,21,0.3)', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '6px', color: 'var(--sov-amber)', background: 'rgba(0,0,0,0.6)', padding: '1px 3px', borderRadius: '2px', border: '1px solid rgba(250,204,21,0.3)', pointerEvents: 'none' }}>
                           CCD: -84°C
                         </div>
-                        <div style={{ position: 'absolute', bottom: '6px', left: '6px', right: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '5.5px', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.7)', padding: '2px 4px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.08)', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', bottom: '6px', left: '6px', right: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '5.5px', color: 'var(--sov-muted)', background: 'rgba(0,0,0,0.7)', padding: '2px 4px', borderRadius: '2px', border: '1px solid var(--sov-border)', pointerEvents: 'none' }}>
                           <span>RA: 05h 35m</span>
                           <span>DEC: -05° 23′</span>
-                          <span style={{ color: '#22c55e' }}>LOCK: 99%</span>
+                          <span style={{ color: 'var(--sov-emerald)' }}>LOCK: 99%</span>
                         </div>
                       </div>
                     )}
@@ -910,7 +910,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                     )}
                     
                     {/* Overlay labels */}
-                    <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(34, 197, 94, 0.25)', color: '#22c55e', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(34, 197, 94, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em', zIndex: 10 }}>
+                    <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(34, 197, 94, 0.25)', color: 'var(--sov-emerald)', fontSize: '6.5px', padding: '2px 4px', borderRadius: '3px', fontWeight: 'bold', border: '1px solid rgba(34, 197, 94, 0.4)', pointerEvents: 'none', letterSpacing: '0.05em', zIndex: 10 }}>
                       🔭 HUBBLE CAM [{hubbleMode.toUpperCase()}]
                     </div>
 
@@ -924,7 +924,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                         background: 'rgba(0,0,0,0.7)',
                         border: '1px solid rgba(34, 197, 94, 0.4)',
                         borderRadius: '4px',
-                        color: '#22c55e',
+                        color: 'var(--sov-emerald)',
                         fontSize: '8px',
                         padding: '2px 5px',
                         cursor: 'pointer',
@@ -1020,22 +1020,22 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                       }}>
                         <button 
                           onClick={(e) => { e.stopPropagation(); handlePrevHubble(); }}
-                          style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '8px', cursor: 'pointer', padding: '0 4px', outline: 'none' }}
+                          style={{ background: 'none', border: 'none', color: 'var(--sov-emerald)', fontSize: '8px', cursor: 'pointer', padding: '0 4px', outline: 'none' }}
                         >
                           ◀
                         </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); setIsAutoplay(!isAutoplay); }}
-                          style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '2px', color: '#22c55e', fontSize: '6px', cursor: 'pointer', padding: '1px 3px', outline: 'none', fontFamily: 'Courier New, monospace' }}
+                          style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '2px', color: 'var(--sov-emerald)', fontSize: '6px', cursor: 'pointer', padding: '1px 3px', outline: 'none', fontFamily: 'Courier New, monospace' }}
                         >
                           {isAutoplay ? '⏸' : '▶'}
                         </button>
-                        <span style={{ fontSize: '5.5px', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '5.5px', color: 'var(--sov-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px', textAlign: 'center' }}>
                           {HUBBLE_IMAGES[hubbleIdx].name.split(' (')[0]}
                         </span>
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleNextHubble(); }}
-                          style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '8px', cursor: 'pointer', padding: '0 4px', outline: 'none' }}
+                          style={{ background: 'none', border: 'none', color: 'var(--sov-emerald)', fontSize: '8px', cursor: 'pointer', padding: '0 4px', outline: 'none' }}
                         >
                           ▶
                         </button>
@@ -1093,8 +1093,8 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                   gap: '4px'
                 }}>
                   {/* Rotating green matrix waterfall logs */}
-                  <div style={{ fontSize: '6.5px', color: '#22c55e', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
-                    <div style={{ color: '#00f0ff', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '3px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                  <div style={{ fontSize: '6.5px', color: 'var(--sov-emerald)', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
+                    <div style={{ color: 'var(--sov-accent)', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '3px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
                       📡 SGP4 ORBITAL EPHEMERIS & NADIR TELEMETRY
                     </div>
                     {sigintLogs.map((log, index) => (
@@ -1191,7 +1191,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
           display: 'flex',
           flexDirection: 'column',
           fontFamily: 'Courier New, monospace',
-          color: '#ffffff',
+          color: 'var(--sov-text)',
           boxSizing: 'border-box',
           padding: '24px',
           userSelect: 'none'
@@ -1207,7 +1207,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ width: '10px', height: '10px', background: '#ff2d55', borderRadius: '50%', animation: 'pulse-dot 1.5s infinite' }} />
-              <strong style={{ color: '#00f0ff', fontSize: '14px', letterSpacing: '0.15em' }}>
+              <strong style={{ color: 'var(--sov-accent)', fontSize: '14px', letterSpacing: '0.15em' }}>
                 TACTICAL MULTI-SPECTRAL VIEWPORT // SATELLITE: {satellite.name.toUpperCase()} [# {satellite.code}]
               </strong>
             </div>
@@ -1273,9 +1273,9 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                     />
                   )}
                   {issSource === 'matrix' && (
-                    <div style={{ width: '100%', height: '100%', background: '#020617', boxSizing: 'border-box', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div style={{ fontSize: '10px', color: '#22c55e', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ color: '#00f0ff', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '8px', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                    <div style={{ width: '100%', height: '100%', background: 'var(--sov-bg)', boxSizing: 'border-box', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--sov-emerald)', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ color: 'var(--sov-accent)', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '8px', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
                           📡 DIGITAL INTELLIGENCE SIGINT SIGNAL SCANNER
                         </div>
                         {sigintLogs.map((log, index) => (
@@ -1341,24 +1341,24 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handlePrevHubble(); }}
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '4px', color: '#22c55e', padding: '3px 8px', fontSize: '9px', cursor: 'pointer', outline: 'none', fontFamily: 'Courier New, monospace' }}
+                            style={{ background: 'var(--sov-card-bg)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '4px', color: 'var(--sov-emerald)', padding: '3px 8px', fontSize: '9px', cursor: 'pointer', outline: 'none', fontFamily: 'Courier New, monospace' }}
                           >
                             ◀ PREV
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); setIsAutoplay(!isAutoplay); }}
-                            style={{ background: isAutoplay ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '4px', color: '#22c55e', padding: '3px 10px', fontSize: '9px', cursor: 'pointer', outline: 'none', fontWeight: 'bold', fontFamily: 'Courier New, monospace' }}
+                            style={{ background: isAutoplay ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '4px', color: 'var(--sov-emerald)', padding: '3px 10px', fontSize: '9px', cursor: 'pointer', outline: 'none', fontWeight: 'bold', fontFamily: 'Courier New, monospace' }}
                           >
                             {isAutoplay ? '⏸ PAUSE' : '▶ PLAY'}
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleNextHubble(); }}
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '4px', color: '#22c55e', padding: '3px 8px', fontSize: '9px', cursor: 'pointer', outline: 'none', fontFamily: 'Courier New, monospace' }}
+                            style={{ background: 'var(--sov-card-bg)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '4px', color: 'var(--sov-emerald)', padding: '3px 8px', fontSize: '9px', cursor: 'pointer', outline: 'none', fontFamily: 'Courier New, monospace' }}
                           >
                             NEXT ▶
                           </button>
                         </div>
-                        <span style={{ color: '#ffffff', fontSize: '9px', letterSpacing: '0.05em', fontWeight: 'bold', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: 'var(--sov-text)', fontSize: '9px', letterSpacing: '0.05em', fontWeight: 'bold', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {HUBBLE_IMAGES[hubbleIdx].name}
                         </span>
                       </div>
@@ -1392,8 +1392,8 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                     <canvas ref={maxCanvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'block', zIndex: 1 }} />
                     <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', padding: '24px', boxSizing: 'border-box' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(34, 197, 94, 0.25)', paddingBottom: '12px', background: 'rgba(0,0,0,0.6)', borderRadius: '4px', padding: '8px' }}>
-                        <div style={{ color: '#22c55e', fontSize: '11px', fontWeight: 'bold' }}>🔭 LIVE TELEMETRY SPACIAL SCANNER</div>
-                        <div style={{ color: '#facc15', fontSize: '10px', fontWeight: 'bold' }}>EXPOSURE: ACTIVE [{(1800 + Math.floor(Date.now() / 100) % 5400)}s / 7200s]</div>
+                        <div style={{ color: 'var(--sov-emerald)', fontSize: '11px', fontWeight: 'bold' }}>🔭 LIVE TELEMETRY SPACIAL SCANNER</div>
+                        <div style={{ color: 'var(--sov-amber)', fontSize: '10px', fontWeight: 'bold' }}>EXPOSURE: ACTIVE [{(1800 + Math.floor(Date.now() / 100) % 5400)}s / 7200s]</div>
                       </div>
                       
                       {/* Empty flex container to allow seeing the canvas particles in the center */}
@@ -1402,15 +1402,15 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                       {/* Readouts */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '9px', borderTop: '1px solid rgba(34,197,94,0.15)', paddingTop: '10px', background: 'rgba(0,0,0,0.6)', borderRadius: '4px', padding: '8px' }}>
                         <div>
-                          <span style={{ color: 'rgba(255,255,255,0.4)' }}>RIGHT ASCENSION:</span><br/>
-                          <span style={{ color: '#22c55e', fontWeight: 'bold' }}>05h 35m 17s</span>
+                          <span style={{ color: 'var(--sov-muted)' }}>RIGHT ASCENSION:</span><br/>
+                          <span style={{ color: 'var(--sov-emerald)', fontWeight: 'bold' }}>05h 35m 17s</span>
                         </div>
                         <div>
-                          <span style={{ color: 'rgba(255,255,255,0.4)' }}>DECLINATION:</span><br/>
-                          <span style={{ color: '#22c55e', fontWeight: 'bold' }}>-05° 23′ 28″</span>
+                          <span style={{ color: 'var(--sov-muted)' }}>DECLINATION:</span><br/>
+                          <span style={{ color: 'var(--sov-emerald)', fontWeight: 'bold' }}>-05° 23′ 28″</span>
                         </div>
                         <div>
-                          <span style={{ color: 'rgba(255,255,255,0.4)' }}>CCD TEMP:</span><br/>
+                          <span style={{ color: 'var(--sov-muted)' }}>CCD TEMP:</span><br/>
                           <span style={{ color: '#ff2d55', fontWeight: 'bold' }}>-84.3°C [NOMINAL]</span>
                         </div>
                       </div>
@@ -1418,7 +1418,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                   </div>
                 )
               ) : (
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>SENSOR NOT INITIALIZED</div>
+                <div style={{ color: 'var(--sov-muted)', fontSize: '12px' }}>SENSOR NOT INITIALIZED</div>
               )}
 
               {/* Viewport HUD Overlays */}
@@ -1471,7 +1471,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
                               background: '#040814',
                               border: '1px solid rgba(0, 240, 255, 0.5)',
                               borderRadius: '4px',
-                              color: '#00f0ff',
+                              color: 'var(--sov-accent)',
                               fontSize: '8px',
                               padding: '3px 8px',
                               width: '130px',
@@ -1575,7 +1575,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
               </div>
 
               {/* Dynamic details overlay at the bottom of the maximized screen */}
-              <div style={{ position: 'absolute', bottom: '12px', left: '12px', right: '12px', background: 'rgba(0,0,0,0.75)', color: '#ffffff', fontSize: '9px', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', bottom: '12px', left: '12px', right: '12px', background: 'rgba(0,0,0,0.75)', color: 'var(--sov-text)', fontSize: '9px', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--sov-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
                 <div>TARGET: {isISS ? 'International Space Station (Low Earth Orbit)' : isHubble ? (hubbleMode === 'gallery' ? HUBBLE_IMAGES[hubbleIdx].name : 'Orion Constellation Nebula [Active Lock]') : 'Global Coordinates Scanner'}</div>
                 <div style={{ color: isISS ? '#00f0ff' : '#22c55e', fontFamily: 'Courier New, monospace', fontWeight: 'bold' }}>SIGNAL STABILITY: 99.8% // DOWNLINK NOMINAL</div>
               </div>
@@ -1583,7 +1583,7 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
 
             {/* Sidebar (Tactical telemetry readouts and logs) */}
             <div style={{
-              background: 'rgba(8, 12, 24, 0.7)',
+              background: 'var(--sov-panel-bg)',
               borderRadius: '8px',
               border: '1px solid rgba(0, 240, 255, 0.2)',
               padding: '16px',
@@ -1595,36 +1595,36 @@ export default function SatelliteDetailWindow({ satellite, onClose, isTracked, o
             }}>
               {/* Telemetry data */}
               <div>
-                <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '6px', marginBottom: '8px' }}>SYSTEM SENSOR DATA</div>
+                <div style={{ color: 'var(--sov-accent)', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '6px', marginBottom: '8px' }}>SYSTEM SENSOR DATA</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>NAME:</span><span style={{ color: '#00f0ff', fontWeight: 'bold' }}>{satellite.name}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>CODE:</span><span>NORAD #{satellite.code}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>ALTITUDE:</span><span style={{ color: '#facc15', fontWeight: 'bold' }}>{satellite.altitude} km</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>VELOCITY:</span><span style={{ color: '#22c55e', fontWeight: 'bold' }}>{satellite.velocity} km/s</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>LAT / LON:</span><span>{parseFloat(satellite.latitude).toFixed(4)}°, {parseFloat(satellite.longitude).toFixed(4)}°</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>INCLINATION:</span><span>{satellite.inclination}°</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.4)' }}>OPERATOR:</span><span>{satellite.country}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>NAME:</span><span style={{ color: 'var(--sov-accent)', fontWeight: 'bold' }}>{satellite.name}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>CODE:</span><span>NORAD #{satellite.code}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>ALTITUDE:</span><span style={{ color: 'var(--sov-amber)', fontWeight: 'bold' }}>{satellite.altitude} km</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>VELOCITY:</span><span style={{ color: 'var(--sov-emerald)', fontWeight: 'bold' }}>{satellite.velocity} km/s</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>LAT / LON:</span><span>{parseFloat(satellite.latitude).toFixed(4)}°, {parseFloat(satellite.longitude).toFixed(4)}°</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>INCLINATION:</span><span>{satellite.inclination}°</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sov-muted)' }}>OPERATOR:</span><span>{satellite.country}</span></div>
                 </div>
               </div>
 
               {/* Signal details */}
               <div style={{ background: 'rgba(0, 240, 255, 0.03)', border: '1px solid rgba(0,240,255,0.1)', borderRadius: '6px', padding: '10px', fontSize: '9px' }}>
-                <div style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 'bold', marginBottom: '6px' }}>REAL-TIME DOWNLINK DATA</div>
+                <div style={{ color: 'var(--sov-muted)', fontWeight: 'bold', marginBottom: '6px' }}>REAL-TIME DOWNLINK DATA</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>PING: <span style={{ color: '#00f0ff', fontWeight: 'bold' }}>{liveLatency} ms</span></div>
-                  <div>SIGNAL: <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{liveSignal}%</span></div>
-                  <div>BANDWIDTH: <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{downlinkRate} Gbps</span></div>
-                  <div>JITTER: <span style={{ color: '#facc15', fontWeight: 'bold' }}>0.04 ms</span></div>
+                  <div>PING: <span style={{ color: 'var(--sov-accent)', fontWeight: 'bold' }}>{liveLatency} ms</span></div>
+                  <div>SIGNAL: <span style={{ color: 'var(--sov-emerald)', fontWeight: 'bold' }}>{liveSignal}%</span></div>
+                  <div>BANDWIDTH: <span style={{ color: 'var(--sov-sky)', fontWeight: 'bold' }}>{downlinkRate} Gbps</span></div>
+                  <div>JITTER: <span style={{ color: 'var(--sov-amber)', fontWeight: 'bold' }}>0.04 ms</span></div>
                 </div>
               </div>
 
               {/* Scrolling intercept logs */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '6px', marginBottom: '8px' }}>SIGINT FREQUENCY DECODER LOGS</div>
-                <div className="details-window-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px', fontSize: '9px', color: '#22c55e', boxSizing: 'border-box' }}>
+                <div style={{ color: 'var(--sov-accent)', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '6px', marginBottom: '8px' }}>SIGINT FREQUENCY DECODER LOGS</div>
+                <div className="details-window-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px', fontSize: '9px', color: 'var(--sov-emerald)', boxSizing: 'border-box' }}>
                   {sigintLogs.map((log, index) => (
-                    <div key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '4px' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>[{new Date().toLocaleTimeString()}]</span> &gt; {log}
+                    <div key={index} style={{ borderBottom: '1px solid var(--sov-border)', paddingBottom: '4px' }}>
+                      <span style={{ color: 'var(--sov-muted)' }}>[{new Date().toLocaleTimeString()}]</span> &gt; {log}
                     </div>
                   ))}
                 </div>

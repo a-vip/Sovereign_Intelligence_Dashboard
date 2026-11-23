@@ -99,8 +99,16 @@ export default function EventDetailsWindow({
     const handleResize = () => {
       const mobile = window.innerWidth < 680;
       setIsMobile(mobile);
-      if (!mobile) {
-        setPos({ x: Math.max(24, Math.min(window.innerWidth - 460, window.innerWidth / 2 - 210)), y: 82 });
+      if (mobile) {
+        setPos({
+          x: 10,
+          y: Math.max(58, Math.round(window.innerHeight * 0.22))
+        });
+      } else {
+        setPos({
+          x: Math.max(24, Math.min(window.innerWidth - 460, Math.round(window.innerWidth / 2 - 210))),
+          y: 82
+        });
       }
     };
     handleResize();
@@ -108,8 +116,9 @@ export default function EventDetailsWindow({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleDragStart = (e) => {
-    if (isMobile || e.button !== 0) return;
+  const handlePointerDown = (e) => {
+    if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+    if (e.target?.closest?.('button, a, input, select, textarea')) return;
     setIsDragging(true);
     dragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
   };
@@ -117,9 +126,12 @@ export default function EventDetailsWindow({
   const handleDragMove = useCallback(
     (e) => {
       if (!isDragging) return;
+      const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+      const panelW = vw < 680 ? Math.min(420, vw - 20) : 420;
       setPos({
-        x: Math.max(8, Math.min(window.innerWidth - 360, dragRef.current.startPosX + (e.clientX - dragRef.current.startX))),
-        y: Math.max(54, Math.min(window.innerHeight - 160, dragRef.current.startPosY + (e.clientY - dragRef.current.startY)))
+        x: Math.max(6, Math.min(Math.max(6, vw - panelW - 6), dragRef.current.startPosX + (e.clientX - dragRef.current.startX))),
+        y: Math.max(50, Math.min(Math.max(50, vh - 88), dragRef.current.startPosY + (e.clientY - dragRef.current.startY)))
       });
     },
     [isDragging]
@@ -129,11 +141,13 @@ export default function EventDetailsWindow({
 
   useEffect(() => {
     if (!isDragging) return;
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleDragEnd);
+    window.addEventListener('pointermove', handleDragMove, { passive: true });
+    window.addEventListener('pointerup', handleDragEnd);
+    window.addEventListener('pointercancel', handleDragEnd);
     return () => {
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('pointermove', handleDragMove);
+      window.removeEventListener('pointerup', handleDragEnd);
+      window.removeEventListener('pointercancel', handleDragEnd);
     };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
@@ -358,61 +372,60 @@ export default function EventDetailsWindow({
   return (
     <div
       className="details-window"
-      style={
-        isMobile
-          ? {
-              position: 'fixed',
-              bottom: '54px',
-              left: '10px',
-              right: '10px',
-              maxHeight: 'calc(100vh - 115px)',
-              background: 'var(--sov-panel-bg)',
-              border: '1px solid var(--sov-border)',
-              borderRadius: '12px',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
-              backdropFilter: 'blur(16px)',
-              zIndex: 9999,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden'
-            }
-          : {
-              position: 'fixed',
-              left: 0,
-              top: 0,
-              transform: `translate(${pos.x}px, ${pos.y}px)`,
-              width: '420px',
-              maxHeight: 'calc(100vh - 110px)',
-              background: 'var(--sov-panel-bg)',
-              border: '1px solid var(--sov-border)',
-              borderRadius: '12px',
-              boxShadow: '0 24px 56px rgba(0,0,0,0.45)',
-              backdropFilter: 'blur(16px)',
-              zIndex: 9999,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden'
-            }
-      }
+      style={{
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
+        width: isMobile ? 'calc(100vw - 20px)' : '420px',
+        maxWidth: '420px',
+        maxHeight: isMobile ? 'calc(100dvh - 100px)' : 'calc(100vh - 110px)',
+        background: 'var(--sov-panel-bg)',
+        border: '1px solid var(--sov-border)',
+        borderRadius: '12px',
+        boxShadow: 'var(--sov-shadow)',
+        backdropFilter: 'blur(16px)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
     >
       {/* Top Category Accent Hairline */}
       <div style={{ height: '3px', width: '100%', backgroundColor: catColor, flexShrink: 0 }} />
 
-      {/* Minimal Header / Drag Handle */}
+      {/* Minimal Header / Universal Pointer Drag Handle (Desktop + Mobile) */}
       <div
-        onMouseDown={handleDragStart}
+        onPointerDown={handlePointerDown}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '8px',
-          padding: '10px 14px',
+          padding: isMobile ? '10px 12px' : '10px 14px',
           borderBottom: '1px solid var(--sov-border)',
           background: 'var(--sov-card-bg)',
-          cursor: isMobile ? 'default' : isDragging ? 'grabbing' : 'grab',
-          userSelect: 'none'
+          cursor: isDragging ? 'grabbing' : 'grab',
+          touchAction: 'none',
+          userSelect: 'none',
+          position: 'relative'
         }}
       >
+        {isMobile && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: '4px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '36px',
+              height: '3px',
+              borderRadius: '99px',
+              background: 'var(--sov-border)'
+            }}
+          />
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: catColor, flexShrink: 0 }} />
           <span
@@ -445,7 +458,7 @@ export default function EventDetailsWindow({
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onMouseDown={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
           {onToggleBookmark && (
             <button
               type="button"
@@ -540,6 +553,26 @@ export default function EventDetailsWindow({
 
             {!isRegulation && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {(() => {
+                  const vStatus = event.url ? (event.details?.verificationStatus || 'active') : 'unverified';
+                  const isVer = vStatus === 'active' || vStatus === 'healed';
+                  return (
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontFamily: 'var(--font-jetbrains-fallback)',
+                        fontWeight: 700,
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        background: isVer ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.14)',
+                        border: `1px solid ${isVer ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+                        color: isVer ? 'var(--sov-emerald)' : 'var(--sov-amber)'
+                      }}
+                    >
+                      {isVer ? '✓ Verified Source' : 'Unverified Link'}
+                    </span>
+                  );
+                })()}
                 <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', color: 'var(--sov-accent)' }}>
                   Admiralty {adm.grade}
                 </span>

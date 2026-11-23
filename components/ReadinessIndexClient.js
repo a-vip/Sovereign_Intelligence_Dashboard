@@ -18,11 +18,11 @@ import EditorialThemeToggle from './EditorialThemeToggle';
 import { DEFAULT_SAGRI_WEIGHTS, computeSagriScores } from '@/lib/governanceIndex';
 
 const WEIGHT_SLIDERS = [
-  { key: 'statutory', label: 'Statutory Enforceability', color: '#10b981' },
-  { key: 'evaluation', label: 'Technical Safety Eval Capacity', color: '#38bdf8' },
-  { key: 'treaty', label: 'Multilateral Treaty Alignment', color: '#a855f7' },
-  { key: 'compute', label: 'Compute & Chip Oversight', color: '#facc15' },
-  { key: 'transparency', label: 'Epistemic & Audit Transparency', color: '#00f0ff' }
+  { key: 'statutory', label: 'Statutory Enforceability', color: 'var(--sov-emerald)' },
+  { key: 'evaluation', label: 'Technical Safety Eval Capacity', color: 'var(--sov-sky)' },
+  { key: 'treaty', label: 'Multilateral Treaty Alignment', color: 'var(--sov-purple)' },
+  { key: 'compute', label: 'Compute & Chip Oversight', color: 'var(--sov-amber)' },
+  { key: 'transparency', label: 'Epistemic & Audit Transparency', color: 'var(--sov-accent)' }
 ];
 
 export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, totalSignals, totalClusters }) {
@@ -88,8 +88,8 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
       <section
         className="editorial-card"
         style={{
-          background: 'rgba(11, 17, 32, 0.9)',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
+          background: 'var(--sov-panel-bg)',
+          border: '1px solid var(--sov-border)',
           borderRadius: '10px',
           padding: '20px',
           display: 'flex',
@@ -99,10 +99,10 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#ffffff' }}>
+            <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--sov-text)' }}>
               Sovereign AI Governance &amp; Safety Readiness Index (SAGRI 0–100)
             </h2>
-            <p style={{ fontSize: '12.5px', color: '#94a3b8', marginTop: '3px' }}>
+            <p style={{ fontSize: '12.5px', color: 'var(--sov-muted)', marginTop: '3px' }}>
               Adjust sub-index weights below to test normative assumptions across {ranked.length} sovereign and multilateral authorities.
             </p>
           </div>
@@ -118,8 +118,8 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
                 padding: '6px 10px',
                 borderRadius: '6px',
                 border: '1px solid rgba(148, 163, 184, 0.35)',
-                background: 'rgba(15, 23, 42, 0.7)',
-                color: '#cbd5e1',
+                background: 'var(--sov-card-bg)',
+                color: 'var(--sov-text)',
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-jetbrains-fallback)',
@@ -141,7 +141,7 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
                 borderRadius: '6px',
                 border: '1px solid rgba(16, 185, 129, 0.45)',
                 background: 'rgba(16, 185, 129, 0.12)',
-                color: '#34d399',
+                color: 'var(--sov-emerald)',
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-jetbrains-fallback)',
@@ -162,8 +162,8 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
               key={s.key}
               className="editorial-subcard"
               style={{
-                background: 'rgba(15, 23, 42, 0.65)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: 'var(--sov-card-bg)',
+                border: '1px solid var(--sov-border)',
                 borderRadius: '8px',
                 padding: '10px 12px',
                 display: 'flex',
@@ -172,7 +172,7 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', fontWeight: 700 }}>
-                <span style={{ color: '#e2e8f0' }}>{s.label}</span>
+                <span style={{ color: 'var(--sov-text)' }}>{s.label}</span>
                 <span style={{ color: s.color, fontFamily: 'var(--font-jetbrains-fallback)' }}>{weights[s.key]}</span>
               </div>
               <input
@@ -191,7 +191,7 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10px', textTransform: 'uppercase' }}>
+              <tr style={{ borderBottom: '1px solid var(--sov-border)', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10px', textTransform: 'uppercase' }}>
                 <th style={{ padding: '10px 10px' }}>#</th>
                 <th style={{ padding: '10px 10px' }}>Jurisdiction</th>
                 <th style={{ padding: '10px 10px' }}>SAGRI Score</th>
@@ -206,15 +206,15 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
             </thead>
             <tbody>
               {ranked.map((row, idx) => (
-                <tr key={row.slug} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)', color: '#64748b' }}>
+                <tr key={row.slug} style={{ borderBottom: '1px solid var(--sov-border)' }}>
+                  <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)' }}>
                     {idx + 1}
                   </td>
                   <td style={{ padding: '9px 10px', fontWeight: 700 }}>
-                    <Link href={`/jurisdiction/${row.slug}`} style={{ color: '#ffffff', textDecoration: 'none' }}>
+                    <Link href={`/jurisdiction/${row.slug}`} style={{ color: 'var(--sov-text)', textDecoration: 'none' }}>
                       {row.name}
                     </Link>
-                    <span style={{ marginLeft: '6px', fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+                    <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
                       {row.region}
                     </span>
                   </td>
@@ -234,7 +234,7 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
                   <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>{row.pillars.treaty}</td>
                   <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>{row.pillars.compute}</td>
                   <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>{row.pillars.transparency}</td>
-                  <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', color: '#94a3b8' }}>
+                  <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', color: 'var(--sov-muted)' }}>
                     {row.live.signalCount} sig • {row.live.regulationCount} law{row.live.powerMw ? ` • ${Math.round(row.live.powerMw)}MW` : ''}
                   </td>
                 </tr>
@@ -247,38 +247,38 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
       {/* Epistemic Parity & Global South Representation Analytics */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--sov-text)' }}>
             Epistemic Parity &amp; Global South Representation Lens
           </h2>
-          <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px', maxWidth: '880px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--sov-muted)', marginTop: '4px', maxWidth: '880px' }}>
             Live empirical audit across {totalSignals} observatory signals and {totalClusters} Epoch AI compute clusters measuring geopolitical skew between rule-making hubs and Global South jurisdictions, primary vs. secondary source grading, and MIT AI Risk Repository harm distribution.
           </p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
           {/* Chart 1: Regional Parity */}
-          <div className="editorial-card" style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#00f0ff' }}>1. Global North vs. Global South Share (%)</div>
+          <div className="editorial-card" style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--sov-accent)' }}>1. Global North vs. Global South Share (%)</div>
             <div style={{ height: '240px', width: '100%' }}>
               {mounted ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={parityData.regionalParity} layout="vertical" margin={{ top: 5, right: 16, left: 10, bottom: 5 }}>
                     <XAxis type="number" domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
                     <YAxis type="category" dataKey="name" width={145} tick={{ fill: '#cbd5e1', fontSize: 10 }} />
-                    <Tooltip contentStyle={{ background: '#0b1120', border: '1px solid #334155', fontSize: '11px' }} />
+                    <Tooltip contentStyle={{ background: 'var(--sov-bg)', border: '1px solid #334155', fontSize: '11px' }} />
                     <Bar dataKey="signalSharePct" name="Signal Share %" fill="#38bdf8" radius={[0, 4, 4, 0]} />
                     <Bar dataKey="computeSharePct" name="Compute GW %" fill="#facc15" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '12px' }}>Loading chart…</div>
+                <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sov-muted)', fontSize: '12px' }}>Loading chart…</div>
               )}
             </div>
           </div>
 
           {/* Chart 2: Admiralty Reliability */}
-          <div className="editorial-card" style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#10b981' }}>2. NATO Admiralty Source Diversity</div>
+          <div className="editorial-card" style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--sov-emerald)' }}>2. NATO Admiralty Source Diversity</div>
             <div style={{ height: '240px', width: '100%' }}>
               {mounted ? (
                 <ResponsiveContainer width="100%" height={240}>
@@ -288,11 +288,11 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ background: '#0b1120', border: '1px solid #334155', fontSize: '11px' }} />
+                    <Tooltip contentStyle={{ background: 'var(--sov-bg)', border: '1px solid #334155', fontSize: '11px' }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '12px' }}>Loading chart…</div>
+                <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sov-muted)', fontSize: '12px' }}>Loading chart…</div>
               )}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '10.5px' }}>
@@ -305,15 +305,15 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
           </div>
 
           {/* Chart 3: MIT AI Risk Distribution */}
-          <div className="editorial-card" style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#c084fc' }}>3. MIT AI Risk Taxonomy (D1–D7)</div>
+          <div className="editorial-card" style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--sov-purple)' }}>3. MIT AI Risk Taxonomy (D1–D7)</div>
             <div style={{ height: '240px', width: '100%' }}>
               {mounted ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={parityData.mitRiskDistribution} layout="vertical" margin={{ top: 5, right: 16, left: 10, bottom: 5 }}>
                     <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} />
                     <YAxis type="category" dataKey="name" width={145} tick={{ fill: '#cbd5e1', fontSize: 10 }} />
-                    <Tooltip contentStyle={{ background: '#0b1120', border: '1px solid #334155', fontSize: '11px' }} />
+                    <Tooltip contentStyle={{ background: 'var(--sov-bg)', border: '1px solid #334155', fontSize: '11px' }} />
                     <Bar dataKey="count" name="Signals" radius={[0, 4, 4, 0]}>
                       {parityData.mitRiskDistribution.map((entry) => (
                         <Cell key={entry.code} fill={entry.color} />
@@ -322,7 +322,7 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '12px' }}>Loading chart…</div>
+                <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sov-muted)', fontSize: '12px' }}>Loading chart…</div>
               )}
             </div>
           </div>

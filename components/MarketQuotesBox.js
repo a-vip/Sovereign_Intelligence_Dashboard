@@ -125,13 +125,13 @@ export default function MarketQuotesBox({ onClose }) {
         left: `${pos.x}px`,
         top: `${pos.y}px`,
         width: '280px',
-        background: 'rgba(8, 12, 24, 0.95)',
-        border: '1px solid rgba(56, 189, 248, 0.25)',
+        background: 'var(--sov-panel-bg)',
+        border: '1px solid var(--sov-border)',
         borderRadius: '12px',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.08)',
         zIndex: 100,
         fontFamily: 'monospace',
-        color: '#e2e8f0',
+        color: 'var(--sov-text)',
         userSelect: 'none',
         backdropFilter: 'blur(12px)',
         transition: dragging ? 'none' : 'transform 0.1s ease',
@@ -146,14 +146,14 @@ export default function MarketQuotesBox({ onClose }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '10px 14px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--sov-border)',
           cursor: dragging ? 'grabbing' : 'grab',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: '#10b981', fontSize: '18px', fontWeight: 'bold' }}>$</span>
-          <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.1em', color: '#ffffff' }}>MARKETS</span>
-          <span style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.35)', marginLeft: '4px' }}>{lastUpdated}</span>
+          <span style={{ color: 'var(--sov-emerald)', fontSize: '18px', fontWeight: 'bold' }}>$</span>
+          <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.1em', color: 'var(--sov-text)' }}>MARKETS</span>
+          <span style={{ fontSize: '9px', color: 'var(--sov-muted)', marginLeft: '4px' }}>{lastUpdated}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
@@ -161,7 +161,7 @@ export default function MarketQuotesBox({ onClose }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255, 255, 255, 0.4)',
+              color: 'var(--sov-muted)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -178,9 +178,9 @@ export default function MarketQuotesBox({ onClose }) {
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#ffffff',
+              background: 'var(--sov-card-bg)',
+              border: '1px solid var(--sov-border)',
+              color: 'var(--sov-text)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -211,9 +211,9 @@ export default function MarketQuotesBox({ onClose }) {
           padding: '6px 12px 4px 12px',
           fontSize: '8.5px',
           fontWeight: 'bold',
-          color: 'rgba(255, 255, 255, 0.3)',
+          color: 'var(--sov-muted)',
           letterSpacing: '0.05em',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+          borderBottom: '1px solid var(--sov-border)',
         }}
       >
         <div style={{ width: '135px' }}>SYMBOL</div>
@@ -245,7 +245,7 @@ export default function MarketQuotesBox({ onClose }) {
               ) : (
                 <TrendingDown size={11} color="#ef4444" style={{ flexShrink: 0 }} />
               )}
-              <span style={{ color: '#e2e8f0', fontWeight: '500', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={q.name}>
+              <span style={{ color: 'var(--sov-text)', fontWeight: '500', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={q.name}>
                 {q.name}
               </span>
               {q.icon && <span style={{ fontSize: '10px', flexShrink: 0 }}>{q.icon}</span>}
@@ -253,8 +253,8 @@ export default function MarketQuotesBox({ onClose }) {
                 <span 
                   style={{ 
                     fontSize: '8px', 
-                    color: '#38bdf8', 
-                    border: '1px solid rgba(56, 189, 248, 0.25)', 
+                    color: 'var(--sov-sky)', 
+                    border: '1px solid var(--sov-border)', 
                     padding: '0px 2.5px', 
                     borderRadius: '3px', 
                     background: 'rgba(56, 189, 248, 0.05)', 
@@ -269,7 +269,7 @@ export default function MarketQuotesBox({ onClose }) {
             </div>
 
             {/* Price */}
-            <div style={{ width: '65px', textAlign: 'right', color: '#f8fafc', fontWeight: 'bold' }}>
+            <div style={{ width: '65px', textAlign: 'right', color: 'var(--sov-text)', fontWeight: 'bold' }}>
               {q.price.toLocaleString(undefined, { minimumFractionDigits: q.price > 1000 ? 0 : 2 })}
             </div>
 

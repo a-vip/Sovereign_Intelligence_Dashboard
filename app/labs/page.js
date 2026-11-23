@@ -66,38 +66,38 @@ export default async function FrontierLabsWatchPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: '#060a12', color: '#e2e8f0', padding: '32px 20px 64px' }}>
+    <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1220px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: '#00f0ff', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
+          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
             ← RETURN TO LIVE 3D GLOBE
           </Link>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/compare" style={{ color: '#00f0ff', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/readiness" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
-            <Link href="/compute" style={{ color: '#facc15', textDecoration: 'none' }}>COMPUTE OBSERVATORY</Link>
-            <Link href="/jurisdictions" style={{ color: '#c084fc', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
-            <Link href="/methodology" style={{ color: '#38bdf8', textDecoration: 'none' }}>METHODOLOGY</Link>
+            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
+            <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>READINESS INDEX</Link>
+            <Link href="/compute" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>COMPUTE OBSERVATORY</Link>
+            <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
+            <Link href="/methodology" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>METHODOLOGY</Link>
           </div>
         </nav>
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <span style={{ color: '#38bdf8', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
+          <span style={{ color: 'var(--sov-sky)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
             SOVEREIGN OBSERVATORY // FRONTIER LAB GOVERNANCE &amp; EVALUATION WATCH
           </span>
-          <h1 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.45rem)', fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
+          <h1 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.45rem)', fontWeight: 800, color: 'var(--sov-text)', lineHeight: 1.2 }}>
             Frontier AI Safety Commitments &amp; External Audit Matrix
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '15px', lineHeight: 1.6, maxWidth: '860px' }}>
+          <p style={{ color: 'var(--sov-muted)', fontSize: '15px', lineHeight: 1.6, maxWidth: '860px' }}>
             Structured comparison of major frontier developers across published safety frameworks (Anthropic RSP, OpenAI Preparedness Framework, Google DeepMind FSF), external capability/safety evaluations (METR, UK AISI, US CAISI), statutory exposure, and live model tracking synced from Epoch AI.
           </p>
         </header>
 
         {/* Executive Matrix Table */}
-        <section style={{ overflowX: 'auto', background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '10px' }}>
+        <section style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', textTransform: 'uppercase' }}>
+              <tr style={{ borderBottom: '1px solid var(--sov-border)', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', textTransform: 'uppercase' }}>
                 <th style={{ padding: '12px 14px' }}>Developer</th>
                 <th style={{ padding: '12px 14px' }}>Safety Framework</th>
                 <th style={{ padding: '12px 14px' }}>Distribution Posture</th>
@@ -108,16 +108,16 @@ export default async function FrontierLabsWatchPage() {
             </thead>
             <tbody>
               {enrichedLabs.map((lab) => (
-                <tr key={lab.slug} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '12px 14px', fontWeight: 700, color: '#ffffff' }}>
+                <tr key={lab.slug} style={{ borderBottom: '1px solid var(--sov-border)' }}>
+                  <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--sov-text)' }}>
                     <div>{lab.name}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>{lab.hqLocation}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sov-muted)', fontWeight: 400 }}>{lab.hqLocation}</div>
                   </td>
                   <td style={{ padding: '12px 14px' }}>
-                    <a href={lab.safetyFramework.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00f0ff', fontWeight: 600, textDecoration: 'none' }}>
+                    <a href={lab.safetyFramework.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--sov-accent)', fontWeight: 600, textDecoration: 'none' }}>
                       {lab.safetyFramework.name} ↗
                     </a>
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{lab.safetyFramework.version}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sov-muted)' }}>{lab.safetyFramework.version}</div>
                   </td>
                   <td style={{ padding: '12px 14px' }}>
                     <span style={{ color: lab.postureColor, fontWeight: 600, fontSize: '11.5px' }}>{lab.openWeightsPosture}</span>
@@ -141,7 +141,7 @@ export default async function FrontierLabsWatchPage() {
                             borderRadius: '4px',
                             background: 'rgba(168, 85, 247, 0.12)',
                             border: '1px solid rgba(168, 85, 247, 0.35)',
-                            color: '#c084fc',
+                            color: 'var(--sov-purple)',
                             textDecoration: 'none'
                           }}
                         >
@@ -150,7 +150,7 @@ export default async function FrontierLabsWatchPage() {
                       ))}
                     </div>
                   </td>
-                  <td style={{ padding: '12px 14px', fontFamily: 'var(--font-jetbrains-fallback)', color: '#38bdf8', fontWeight: 700 }}>
+                  <td style={{ padding: '12px 14px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-sky)', fontWeight: 700 }}>
                     {lab.trackedModelsCount}
                   </td>
                 </tr>
@@ -162,21 +162,21 @@ export default async function FrontierLabsWatchPage() {
         {/* Detailed Lab Dossier Cards */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
           {enrichedLabs.map((lab) => (
-            <article key={lab.slug} style={{ background: 'rgba(11, 17, 32, 0.9)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <article key={lab.slug} style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                 <div>
-                  <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#ffffff' }}>{lab.name}</h2>
-                  <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>{lab.safetyFramework.name} • {lab.safetyFramework.lastUpdated}</div>
+                  <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--sov-text)' }}>{lab.name}</h2>
+                  <div style={{ fontSize: '11.5px', color: 'var(--sov-muted)' }}>{lab.safetyFramework.name} • {lab.safetyFramework.lastUpdated}</div>
                 </div>
                 <Link
                   href={`/jurisdiction/${lab.jurisdictionSlug}`}
-                  style={{ fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '4px', padding: '3px 7px', textDecoration: 'none' }}
+                  style={{ fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-purple)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: '4px', padding: '3px 7px', textDecoration: 'none' }}
                 >
                   HQ DOSSIER →
                 </Link>
               </div>
 
-              <p style={{ fontSize: '12.5px', color: '#cbd5e1', lineHeight: 1.55 }}>
+              <p style={{ fontSize: '12.5px', color: 'var(--sov-text)', lineHeight: 1.55 }}>
                 {lab.externalEvaluations.summary}
               </p>
 
@@ -188,29 +188,29 @@ export default async function FrontierLabsWatchPage() {
               </div>
 
               {/* Commitment Change Log */}
-              <div style={{ background: 'rgba(15, 23, 42, 0.6)', borderRadius: '6px', padding: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, marginBottom: '6px' }}>
+              <div style={{ background: 'var(--sov-card-bg)', borderRadius: '6px', padding: '10px', border: '1px solid var(--sov-border)' }}>
+                <div style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, marginBottom: '6px' }}>
                   GOVERNANCE &amp; SAFETY MILESTONES
                 </div>
                 {lab.commitmentChangelog.map((c, idx) => (
-                  <div key={idx} style={{ fontSize: '11.5px', color: '#cbd5e1', marginBottom: '4px', lineHeight: 1.45 }}>
-                    <strong style={{ color: '#00f0ff', fontFamily: 'var(--font-jetbrains-fallback)' }}>{c.date}:</strong> {c.note}
+                  <div key={idx} style={{ fontSize: '11.5px', color: 'var(--sov-text)', marginBottom: '4px', lineHeight: 1.45 }}>
+                    <strong style={{ color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)' }}>{c.date}:</strong> {c.note}
                   </div>
                 ))}
               </div>
 
               {/* Live Epoch AI Models */}
               {lab.latestModels.length > 0 && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <div style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700 }}>
+                <div style={{ borderTop: '1px solid var(--sov-border)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--sov-sky)', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700 }}>
                     RECENT EPOCH AI TRACKED MODELS ({lab.trackedModelsCount})
                   </div>
                   {lab.latestModels.map((m) => (
                     <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', gap: '8px' }}>
-                      <a href={m.link || 'https://epoch.ai/data/ai-models'} target="_blank" rel="noopener noreferrer" style={{ color: '#e2e8f0', textDecoration: 'none', fontWeight: 600 }}>
+                      <a href={m.link || 'https://epoch.ai/data/ai-models'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--sov-text)', textDecoration: 'none', fontWeight: 600 }}>
                         {m.model}
                       </a>
-                      <span style={{ color: '#64748b', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                         {m.publicationDate} • {formatFlop(m.trainingComputeFlop)} FLOP
                       </span>
                     </div>
