@@ -31,6 +31,13 @@ const ENDPOINTS = [
     desc: 'Serves synced Epoch AI frontier megaclusters (MW, H100e, CapEx) and notable AI models alongside Compute–Governance Coverage metrics.',
     curl: 'curl -s "https://app.sovdash.com/api/v1/compute?format=geojson" | jq .',
     proCurl: null
+  },
+  {
+    path: '/api/v1/export/dataset?format=datapackage',
+    title: 'GET /api/v1/export/dataset',
+    desc: 'CC-BY-4.0 open archival export for academic replication and Zenodo DOI snapshots. Supports ?format=jsonl, ?format=csv, and ?format=datapackage.',
+    curl: 'curl -s "https://app.sovdash.com/api/v1/export/dataset?format=datapackage" | jq .',
+    proCurl: null
   }
 ];
 
@@ -46,6 +53,7 @@ export default function DevelopersPage() {
             <Link href="/brief" style={{ color: '#facc15', textDecoration: 'none' }}>BRIEF EXPORTER</Link>
             <Link href="/watchlists" style={{ color: '#c084fc', textDecoration: 'none' }}>WATCHLISTS</Link>
             <Link href="/readiness" style={{ color: '#34d399', textDecoration: 'none' }}>SAGRI INDEX</Link>
+            <Link href="/whitepaper" style={{ color: '#38bdf8', textDecoration: 'none' }}>WHITEPAPER</Link>
             <Link href="/methodology" style={{ color: '#94a3b8', textDecoration: 'none' }}>METHODOLOGY</Link>
           </div>
         </nav>

@@ -228,11 +228,22 @@ const createPowerCanvas = (color, size = 32) => {
   return canvas;
 };
 
-const CARTO_API_KEY = 'cb1_2lpu_1_f2c6edda75611222b49c9464';
-const CARTO_DARK_MATTER_URL = `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
+const CARTO_DARK_MATTER_URL = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
+const CARTO_DARK_MINIMAL_URL = 'https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png';
+const CARTO_LIGHT_URL = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 
 const getLeafletTileUrl = (style) => {
-  if (style === 'tactical' || style === 'dark') {
+  if (style === 'light') {
+    return {
+      url: CARTO_LIGHT_URL,
+      credit: 'CartoDB Positron'
+    };
+  } else if (style === 'minimal') {
+    return {
+      url: CARTO_DARK_MINIMAL_URL,
+      credit: 'CartoDB Dark Minimal'
+    };
+  } else if (style === 'tactical' || style === 'dark') {
     return {
       url: CARTO_DARK_MATTER_URL,
       credit: 'CartoDB Dark Matter'
@@ -345,28 +356,30 @@ export default function CesiumGlobe({
   const selectedCountryEntitiesRef = useRef([]);
   const leafletSelectedLayerRef = useRef(null);
 
-  // Pre-fetch world borders GeoJSON into memory ref on startup (under 1ms, 0MB WebGL overhead!)
-  useEffect(() => {
+  const ensureCountriesGeoJson = async () => {
+    if (countriesGeoJsonRef.current) return countriesGeoJsonRef.current;
     if (GLOBE_LAYER_CACHE.countries) {
       countriesGeoJsonRef.current = GLOBE_LAYER_CACHE.countries;
-      return;
+      return countriesGeoJsonRef.current;
     }
-    fetch('/data/countries.geo.json')
-      .then(res => res.json())
-      .then(data => {
-        GLOBE_LAYER_CACHE.countries = data;
-        countriesGeoJsonRef.current = data;
-        console.log("Sovereign country borders loaded into memory ref successfully.");
-      })
-      .catch(err => {
-        console.warn("Failed to pre-fetch countries GeoJSON:", err);
-      });
-  }, []);
+    try {
+      const res = await fetch('/data/countries.geo.json');
+      if (!res.ok) return null;
+      const data = await res.json();
+      GLOBE_LAYER_CACHE.countries = data;
+      countriesGeoJsonRef.current = data;
+      return data;
+    } catch (err) {
+      console.warn("Failed to lazy-fetch countries GeoJSON:", err);
+      return null;
+    }
+  };
 
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [leafletReady, setLeafletReady] = useState(false);
 
-  const is2DActive = mapError;
+  const is2DActive = mapError || mapMode === '2d';
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
@@ -449,81 +462,81 @@ export default function CesiumGlobe({
   
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
-    // Direct check if both scripts are already initialized globally
-    if (window.Cesium && window.L) {
+    if (window.Cesium) {
       setScriptsLoaded(true);
       return;
     }
 
     let isMounted = true;
+    if (!document.getElementById('cesium-css-pkg')) {
+      const link = document.createElement('link');
+      link.id = 'cesium-css-pkg';
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+    }
 
-    const loadStyles = () => {
-      const styles = [
-        { id: 'leaflet-css-pkg', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' },
-        { id: 'cesium-css-pkg', href: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css' }
-      ];
-      styles.forEach(s => {
-        if (!document.getElementById(s.id)) {
-          const link = document.createElement('link');
-          link.id = s.id;
-          link.rel = 'stylesheet';
-          link.href = s.href;
-          link.crossOrigin = '';
-          document.head.appendChild(link);
-        }
-      });
+    const script = document.getElementById('cesium-js-pkg') || document.createElement('script');
+    if (!script.id) {
+      script.id = 'cesium-js-pkg';
+      script.src = 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js';
+      script.async = true;
+      script.crossOrigin = '';
+      document.head.appendChild(script);
+    }
+    const onLoad = () => { if (isMounted) setScriptsLoaded(true); };
+    const onErr = (err) => {
+      console.error("Cesium load failed, switching to 2D Leaflet:", err);
+      if (isMounted) setMapError(true);
     };
-
-    const loadScripts = async () => {
-      loadStyles();
-
-      const loadScript = (src, id) => {
-        return new Promise((resolve, reject) => {
-          if (document.getElementById(id)) {
-            resolve();
-            return;
-          }
-          const script = document.createElement('script');
-          script.id = id;
-          script.src = src;
-          script.async = true;
-          script.crossOrigin = '';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error(`Script load failed: ${src}`));
-          document.head.appendChild(script);
-        });
-      };
-
-      try {
-        // Load Leaflet first (sequential to prevent overlaps)
-        await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'leaflet-js-pkg');
-        // Load Cesium next
-        await loadScript('https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js', 'cesium-js-pkg');
-
-        if (isMounted) {
-          setScriptsLoaded(true);
-        }
-      } catch (err) {
-        console.error("External mapping assets failed to load:", err);
-        if (isMounted) {
-          setMapError(true);
-        }
-      }
-    };
-
-    loadScripts();
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onErr);
 
     return () => {
       isMounted = false;
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onErr);
     };
   }, []);
+
+  // Lazy-load Leaflet ONLY when 2D view is requested or WebGL falls back
+  useEffect(() => {
+    if (typeof window === 'undefined' || !is2DActive) return;
+    if (window.L) {
+      setLeafletReady(true);
+      return;
+    }
+    let isMounted = true;
+    if (!document.getElementById('leaflet-css-pkg')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css-pkg';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+    }
+    const script = document.getElementById('leaflet-js-pkg') || document.createElement('script');
+    if (!script.id) {
+      script.id = 'leaflet-js-pkg';
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.async = true;
+      script.crossOrigin = '';
+      document.head.appendChild(script);
+    }
+    const onLoad = () => { if (isMounted) setLeafletReady(true); };
+    script.addEventListener('load', onLoad);
+    return () => {
+      isMounted = false;
+      script.removeEventListener('load', onLoad);
+    };
+  }, [is2DActive]);
 
   const [viewerReady, setViewerReady] = useState(false);
   const [cameraAltitude, setCameraAltitude] = useState(10000000);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
-  const [showLegend, setShowLegend] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const [selectedSkyscraper, setSelectedSkyscraper] = useState(null);
@@ -746,9 +759,9 @@ export default function CesiumGlobe({
     };
   }, [mapMode, mapStyle, scriptsLoaded, mapError, viewerReady]);
 
-  // 4c. Proximity scanner: detects when camera is looking close to a famous landmark in screen-space
+  // 4c. Proximity scanner: detects when camera is looking close to a famous landmark in screen-space (buildings mode only)
   useEffect(() => {
-    if (!scriptsLoaded || mapError || !viewerRef.current || !viewerReady) {
+    if (!scriptsLoaded || mapError || !viewerRef.current || !viewerReady || mapStyle !== 'buildings') {
       setNearbyLandmark(null);
       return;
     }
@@ -807,14 +820,12 @@ export default function CesiumGlobe({
     };
 
     const removeListener = viewer.camera.changed.addEventListener(checkProximity);
-    const interval = setInterval(checkProximity, 1000);
 
     return () => {
       active = false;
       if (removeListener) removeListener();
-      clearInterval(interval);
     };
-  }, [viewerReady, scriptsLoaded, mapError]);
+  }, [viewerReady, scriptsLoaded, mapError, mapStyle]);
 
   const handleUserInteraction = () => {
     if (isOrbitingRef.current) {
@@ -1131,7 +1142,7 @@ export default function CesiumGlobe({
 
   // 1. Initialize Leaflet when 2D is explicitly active or as robust fallback
   useEffect(() => {
-    if (!scriptsLoaded || !is2DActive || !leafletContainerRef.current) return;
+    if (!leafletReady || !is2DActive || !leafletContainerRef.current) return;
     if (leafletMapRef.current) return;
 
     const L = window.L;
@@ -1158,25 +1169,22 @@ export default function CesiumGlobe({
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       console.log("Leaflet 2D tactical map initialized.");
 
-      // Clean, memory-resident map-level country click picker
-      map.on('click', (e) => {
+      // Lazy country border click picker
+      map.on('click', async (e) => {
         const { lat, lng } = e.latlng;
-        if (countriesGeoJsonRef.current) {
-          const matchedFeature = countriesGeoJsonRef.current.features.find(feature => {
-            return isPointInCountry(lat, lng, feature);
-          });
+        const geo = await ensureCountriesGeoJson();
+        if (geo?.features) {
+          const matchedFeature = geo.features.find(feature => isPointInCountry(lat, lng, feature));
           if (matchedFeature) {
             const countryName = matchedFeature.properties.name || "Unknown Sector";
-            if (onCountrySelect) {
-              onCountrySelect(countryName);
-            }
+            if (onCountrySelect) onCountrySelect(countryName);
           }
         }
       });
     } catch (e) {
       console.error("Leaflet initialization failed:", e);
     }
-  }, [is2DActive, scriptsLoaded]);
+  }, [is2DActive, leafletReady]);
 
   // Synchronize country selection highlights reactively (In-Memory PIP Dynamic Render)
   useEffect(() => {
@@ -1485,7 +1493,7 @@ export default function CesiumGlobe({
         opacity: 0.75
       }).addTo(map);
     }
-  }, [is2DActive, repelledMarkers, scriptsLoaded, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
+  }, [is2DActive, repelledMarkers, leafletReady, showSatellites, satellites, selectedSatellite, aiRegulationsEnabled, leafletAiRegulations]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
@@ -1609,7 +1617,13 @@ export default function CesiumGlobe({
       let mapUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
       let creditStr = 'Google Maps';
 
-      if (mapStyle === 'tactical' || mapStyle === 'dark') {
+      if (mapStyle === 'light') {
+        mapUrl = CARTO_LIGHT_URL;
+        creditStr = 'CartoDB Positron';
+      } else if (mapStyle === 'minimal') {
+        mapUrl = CARTO_DARK_MINIMAL_URL;
+        creditStr = 'CartoDB Dark Minimal';
+      } else if (mapStyle === 'tactical' || mapStyle === 'dark') {
         mapUrl = CARTO_DARK_MATTER_URL;
         creditStr = 'CartoDB Dark Matter';
       } else if (mapStyle === 'lights') {
@@ -1645,8 +1659,8 @@ export default function CesiumGlobe({
         navigationHelpButton: false,
         navigationInstructionsInitiallyVisible: false,
         animation: false,
-        requestRenderMode: true, // GPU usage goes to 0% when globe is idle!
-        maximumRenderTimeChange: 0.0, // Ensures smooth animations during clock updates
+        requestRenderMode: true, // True 0% idle GPU
+        maximumRenderTimeChange: Infinity,
         fullscreenButton: false,
         vrButton: false,
         creditContainer: typeof document !== 'undefined' ? document.createElement('div') : undefined, // Off-screen credit container to avoid crawlable SEO warnings!
@@ -1662,9 +1676,8 @@ export default function CesiumGlobe({
       // Initialize clean premium satellite globe
       viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
 
-      // Force Retina-quality crisp resolution scaling on desktop, while capping at 1.0 on mobile to save GPU/battery
-      const maxScale = (typeof window !== 'undefined' && window.innerWidth <= 900) ? 1.0 : 1.25;
-      viewer.resolutionScale = Math.min(maxScale, window.devicePixelRatio || 1.0);
+      viewer.clock.shouldAnimate = false;
+      viewer.resolutionScale = 1.0;
       viewer.useBrowserRecommendedResolution = false;
 
       // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
@@ -1706,29 +1719,12 @@ export default function CesiumGlobe({
       viewer.scene.globe.show = true;
       // Start as false to prevent any curvature/terrain clipping visual bugs on initial tactical dark load!
       viewer.scene.globe.depthTestAgainstTerrain = false;
-      viewer.scene.globe.tileCacheSize = 35; // Dramatically reduces memory usage by limiting cached terrain/imagery tiles!
-      viewer.scene.globe.maximumScreenSpaceError = 4.5; // Optimized to reduce memory overhead and GPU footprint, saving up to ~250MB!
+      viewer.scene.globe.tileCacheSize = 20;
+      viewer.scene.globe.maximumScreenSpaceError = 4.5;
 
-      // Suppress Cesium's default error panel — auto-recover from transient render loop errors instead of blocking UI
       viewer.scene.renderError.addEventListener((scene, error) => {
         console.warn('[Cesium Render Loop] Suppressed render error:', error?.message || error);
       });
-      // Hide the default Cesium error panel overlay if it appears
-      const errorPanel = containerRef.current?.querySelector('.cesium-widget-errorPanel');
-      if (errorPanel) errorPanel.style.display = 'none';
-      // Watch for the error panel being dynamically injected
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          for (const node of mutation.addedNodes) {
-            if (node.classList?.contains('cesium-widget-errorPanel')) {
-              node.style.display = 'none';
-            }
-          }
-        }
-      });
-      if (containerRef.current) {
-        observer.observe(containerRef.current, { childList: true, subtree: true });
-      }
 
       // Set camera to premium global view
       viewer.camera.setView({
@@ -1791,9 +1787,22 @@ export default function CesiumGlobe({
 
       // Screen space event handler for selection and navigation
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      let isPointerDown = false;
+      let lastPickTime = 0;
+      let lastHoveredId = null;
 
-      // Hover pick handler to show threat labels, toggle cursor pointer, and maintain satellite labels safely
+      handler.setInputAction(() => { isPointerDown = true; }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+      handler.setInputAction(() => { isPointerDown = false; }, Cesium.ScreenSpaceEventType.LEFT_UP);
+      handler.setInputAction(() => { isPointerDown = true; }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
+      handler.setInputAction(() => { isPointerDown = false; }, Cesium.ScreenSpaceEventType.RIGHT_UP);
+
+      // Throttled hover pick handler (max ~11 Hz, pauses while orbiting) to eliminate WebGL readPixels stalls
       handler.setInputAction((movement) => {
+        if (isPointerDown) return;
+        const now = performance.now();
+        if (now - lastPickTime < 90) return;
+        lastPickTime = now;
+
         const pickedObject = viewer.scene.pick(movement.endPosition);
         
         // 1. Proximity-based famous landmark hover check (works for 3D building mesh or billboard!)
@@ -1849,6 +1858,7 @@ export default function CesiumGlobe({
         }
 
         if (hoveredEntity) {
+          lastHoveredId = hoveredEntity.id || 'entity';
           const props = hoveredEntity.properties;
 
           const isCable = getPropValue(props, 'isCable', false);
@@ -2079,8 +2089,8 @@ export default function CesiumGlobe({
               }
             });
           }
-        } else {
-          // Hovered over background, oceans, space, or 3D buildings (Google Tiles feature)
+        } else if (lastHoveredId !== null) {
+          lastHoveredId = null;
           document.body.style.cursor = 'default';
           if (typeof setHoverTooltipRef.current === 'function') {
             setHoverTooltipRef.current({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
@@ -2312,7 +2322,6 @@ export default function CesiumGlobe({
 
       // Clean up on unmount
       return () => {
-        observer.disconnect();
         handler.destroy();
         try {
           if (viewer && viewer.camera) {
@@ -2597,6 +2606,7 @@ export default function CesiumGlobe({
         }
       }
     });
+    try { viewer.scene.requestRender(); } catch {}
   }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin]);
 
   // 6. Update dynamic orbiting satellites and flight paths
@@ -2889,7 +2899,13 @@ export default function CesiumGlobe({
       let tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
       let attribStr = 'Google';
 
-      if (mapStyle === 'tactical' || mapStyle === 'dark') {
+      if (mapStyle === 'light') {
+        tileUrl = CARTO_LIGHT_URL;
+        attribStr = 'CartoDB Positron';
+      } else if (mapStyle === 'minimal') {
+        tileUrl = CARTO_DARK_MINIMAL_URL;
+        attribStr = 'CartoDB Dark Minimal';
+      } else if (mapStyle === 'tactical' || mapStyle === 'dark') {
         tileUrl = CARTO_DARK_MATTER_URL;
         attribStr = 'CartoDB';
       } else if (mapStyle === 'lights') {
@@ -2905,7 +2921,7 @@ export default function CesiumGlobe({
     } catch (e) {
       console.error("Failed to swap Leaflet base map style:", e);
     }
-  }, [mapError, mapStyle, scriptsLoaded]);
+  }, [is2DActive, mapStyle, leafletReady]);
 
   // 8. Capture and normalize wheel zoom for perfect laptop trackpad and mouse scroll zoom!
   useEffect(() => {
@@ -2990,7 +3006,13 @@ export default function CesiumGlobe({
     let url = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'; // Satellite hybrid default
     let credit = 'Google Maps';
 
-    if (mapStyle === 'tactical' || mapStyle === 'dark') {
+    if (mapStyle === 'light') {
+      url = CARTO_LIGHT_URL;
+      credit = 'CartoDB Positron';
+    } else if (mapStyle === 'minimal') {
+      url = CARTO_DARK_MINIMAL_URL;
+      credit = 'CartoDB Dark Minimal';
+    } else if (mapStyle === 'tactical' || mapStyle === 'dark') {
       url = CARTO_DARK_MATTER_URL;
       credit = 'CartoDB Dark Matter';
     } else if (mapStyle === 'lights') {
@@ -3015,7 +3037,8 @@ export default function CesiumGlobe({
       } else {
         layers.add(newLayer);
       }
-      console.log(`Cesium base map style swapped dynamically to: ${mapStyle}`);
+      viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(mapStyle === 'light' ? '#dbeafe' : '#020617');
+      viewer.scene.requestRender();
     } catch (err) {
       console.warn("Dynamic imagery layer swap failed:", err);
     }
@@ -3043,10 +3066,11 @@ export default function CesiumGlobe({
     viewer.scene.globe.enableLighting = dayNightEnabled;
     viewer.scene.globe.dynamicAtmosphereColor = dayNightEnabled;
     
+    viewer.clock.shouldAnimate = Boolean(dayNightEnabled);
     if (dayNightEnabled) {
-      viewer.clock.shouldAnimate = true;
       viewer.clock.multiplier = 1.0;
     }
+    viewer.scene.requestRender();
   }, [dayNightEnabled, scriptsLoaded, mapError, viewerReady]);
 
   // D. RainViewer Weather Radar Tiles & Rain Post-Processing Particle Effects
@@ -3848,7 +3872,7 @@ export default function CesiumGlobe({
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#020617' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: mapStyle === 'light' ? '#dbeafe' : '#020617' }}>
       
       {/* 2D Leaflet Map Container (Active strictly as a robust fallback only) */}
       <div 

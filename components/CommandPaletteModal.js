@@ -15,6 +15,7 @@ const MODULES = [
   { id: 'mod-brief', title: 'Executive Intelligence Brief & Research Copilot', subtitle: 'Export Markdown/PDF briefs & query citation-locked AI copilot', href: '/brief', icon: 'book' },
   { id: 'mod-watchlists', title: 'Jurisdiction & Keyword Watchlists (Alerts)', subtitle: 'Automated Slack, Discord, HTTPS webhook & email signal alerts', href: '/watchlists', icon: 'shield' },
   { id: 'mod-dev', title: 'Developer REST / GeoJSON API & Embeds', subtitle: '/api/v1 endpoints, Pro API keys & iframe institutional widgets', href: '/developers', icon: 'cpu' },
+  { id: 'mod-whitepaper', title: 'Whitepaper #1: Observing the Compute–Governance Gap', subtitle: 'Peer-review paper, 200-item benchmark metrics & CC-BY-4.0 exports', href: '/whitepaper', icon: 'book' },
   { id: 'mod-method', title: 'Methodology, Codebook & Verification Protocol', subtitle: '5-pillar scope, Admiralty matrix & zero-fabrication geocoding', href: '/methodology', icon: 'book' }
 ];
 

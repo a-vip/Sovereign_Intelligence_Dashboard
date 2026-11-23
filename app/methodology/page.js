@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import Link from 'next/link';
 import { getObservatoryMetrics } from '@/lib/db';
 
@@ -52,6 +54,11 @@ const ADMIRALTY_SOURCES = [
 
 export default async function MethodologyPage() {
   const metrics = await getObservatoryMetrics();
+  let benchmark = null;
+  try {
+    const bp = path.join(process.cwd(), 'benchmarks', 'latest-results.json');
+    if (fs.existsSync(bp)) benchmark = JSON.parse(fs.readFileSync(bp, 'utf8'));
+  } catch {}
 
   return (
     <div style={{ minHeight: '100vh', background: '#060a12', color: '#e2e8f0', padding: '32px 20px 64px' }}>
@@ -65,6 +72,7 @@ export default async function MethodologyPage() {
             <Link href="/compare" style={{ color: '#00f0ff', textDecoration: 'none' }}>LEGAL DIFF</Link>
             <Link href="/readiness" style={{ color: '#34d399', textDecoration: 'none' }}>READINESS INDEX</Link>
             <Link href="/labs" style={{ color: '#10b981', textDecoration: 'none' }}>LAB WATCH</Link>
+            <Link href="/whitepaper" style={{ color: '#facc15', textDecoration: 'none' }}>WHITEPAPER</Link>
             <Link href="/jurisdictions" style={{ color: '#c084fc', textDecoration: 'none' }}>
               JURISDICTION ATLAS →
             </Link>
@@ -160,8 +168,51 @@ export default async function MethodologyPage() {
             Active signals age off the real-time tactical map after 21 days by transitioning to <code>lifecycle_state = &apos;archived&apos;</code> rather than deletion, preserving longitudinal continuity for policy diffusion research. Pinned treaty dossiers remain visible continuously.
           </p>
           <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.65 }}>
-            <strong>Epistemic Caveat:</strong> Current live wire feeds skew toward English-language policy disclosures, North American/European statutory filings, and anglophone civil-society monitors. Forthcoming Phase 2 ingestion pipelines expand direct machine-readable coverage across CSET AGORA, Epoch AI compute telemetry, the AI Incident Database (AIID), and multilingual non-Western regulatory feeds.
+            <strong>Epistemic Caveat:</strong> Current live wire feeds skew toward English-language policy disclosures, North American/European statutory filings, and anglophone civil-society monitors. Direct machine-readable coverage spans CISA, US Federal Register, EUR-Lex, Epoch AI compute clusters, AIID incidents, and multilingual community RSS submissions.
           </p>
+        </section>
+
+        {/* 5. Reproducible 200-Item Benchmark & Open Dataset Releases */}
+        <section style={{ background: 'rgba(10, 16, 30, 0.85)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '10px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>5. Reproducible 200-Item Evaluation Benchmark &amp; CC-BY-4.0 Releases</h2>
+            <Link href="/whitepaper" style={{ fontSize: '12px', color: '#00f0ff', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}>
+              READ WHITEPAPER #1 ↗
+            </Link>
+          </div>
+          {benchmark ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+              {[
+                { label: 'Precision', value: `${(benchmark.metrics.precision * 100).toFixed(1)}%` },
+                { label: 'Recall', value: `${(benchmark.metrics.recall * 100).toFixed(1)}%` },
+                { label: 'F1 Score', value: `${(benchmark.metrics.f1 * 100).toFixed(1)}%` },
+                { label: 'Noise Rejection (TNR)', value: `${(benchmark.metrics.trueNegativeRate * 100).toFixed(1)}%` },
+                { label: 'Geocoding (<=200km)', value: `${(benchmark.metrics.geocodingAccuracy * 100).toFixed(1)}%` },
+                { label: 'Zero-Fabrication', value: `${(benchmark.metrics.zeroFabricationRate * 100).toFixed(1)}%` }
+              ].map((stat) => (
+                <div key={stat.label} style={{ background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>{stat.label}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#34d399', fontFamily: 'var(--font-jetbrains-fallback)' }}>{stat.value}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+            <a
+              href="/api/v1/export/dataset?format=datapackage"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ padding: '7px 12px', borderRadius: '6px', background: 'rgba(0, 240, 255, 0.14)', border: '1px solid rgba(0, 240, 255, 0.4)', color: '#00f0ff', fontSize: '11.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}
+            >
+              DATAPACKAGE.JSON (CC-BY-4.0) ↗
+            </a>
+            <a
+              href="/api/v1/export/dataset?format=csv"
+              style={{ padding: '7px 12px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.14)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#34d399', fontSize: '11.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}
+            >
+              DOWNLOAD CSV SNAPSHOT
+            </a>
+          </div>
         </section>
       </div>
     </div>

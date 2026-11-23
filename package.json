@@ -7,7 +7,10 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\""
+    "desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "benchmark": "node scripts/run-benchmark.mjs",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "export:zenodo": "node scripts/generate-zenodo-bundle.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

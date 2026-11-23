@@ -51,3 +51,4 @@ next-env.d.ts
 /scratch
 scratch/
 public/mock-email.html
+exports/

@@ -1,0 +1,159 @@
+{
+  "benchmarkVersion": "1.0.0",
+  "generatedAt": "2026-11-23T20:39:13.373Z",
+  "totalItems": 200,
+  "positiveItems": 120,
+  "negativeItems": 80,
+  "confusionMatrix": {
+    "tp": 116,
+    "fp": 0,
+    "tn": 80,
+    "fn": 4
+  },
+  "metrics": {
+    "precision": 1,
+    "recall": 0.9667,
+    "f1": 0.9831,
+    "trueNegativeRate": 1,
+    "pillarAccuracy": 0.9138,
+    "geocodingAccuracy": 0.981,
+    "zeroFabricationRate": 1
+  },
+  "counts": {
+    "pillarCorrect": 106,
+    "pillarTotal": 116,
+    "geoLocatedCorrect": 103,
+    "geoLocatedTotal": 105,
+    "zeroFabCorrect": 15,
+    "zeroFabTotal": 15
+  },
+  "perPillar": {
+    "AI Governance & Policy": {
+      "total": 24,
+      "correct": 24,
+      "accuracy": 1
+    },
+    "Autonomous & Defense": {
+      "total": 24,
+      "correct": 24,
+      "accuracy": 1
+    },
+    "Cyber & Espionage": {
+      "total": 24,
+      "correct": 22,
+      "accuracy": 0.9167
+    },
+    "Digital Rights & Surveillance": {
+      "total": 23,
+      "correct": 17,
+      "accuracy": 0.7391
+    },
+    "Compute & Semiconductors": {
+      "total": 21,
+      "correct": 19,
+      "accuracy": 0.9048
+    }
+  },
+  "failures": [
+    {
+      "id": "cyb-09",
+      "issue": "pillar_mismatch",
+      "expected": "Cyber & Espionage",
+      "got": "Critical Infra Cyber",
+      "title": "Ukraine SSU blames Sandworm cyberattack for Kyivstar telecom outage in Kyiv"
+    },
+    {
+      "id": "cyb-11",
+      "issue": "geo_distance_exceeded",
+      "distKm": 526,
+      "title": "Nigeria banking sector counters coordinated phishing and supply chain malware in Lagos"
+    },
+    {
+      "id": "cyb-14",
+      "issue": "pillar_mismatch",
+      "expected": "Cyber & Espionage",
+      "got": "Critical Infra Cyber",
+      "title": "CERT-In issues critical ransomware advisory for Indian power grid utilities in New Delhi"
+    },
+    {
+      "id": "sur-02",
+      "issue": "pillar_mismatch",
+      "expected": "Digital Rights & Surveillance",
+      "got": "Cyber & Espionage",
+      "title": "European Parliament rejects client-side scanning Chat Control backdoor proposal in Brussels"
+    },
+    {
+      "id": "sur-06",
+      "issue": "pillar_mismatch",
+      "expected": "Digital Rights & Surveillance",
+      "got": "Cyber & Espionage",
+      "title": "Citizen Lab verifies Predator commercial spyware infections targeting journalists in Athens"
+    },
+    {
+      "id": "sur-07",
+      "issue": "pillar_mismatch",
+      "expected": "Digital Rights & Surveillance",
+      "got": "Cyber & Espionage",
+      "title": "Mexican rights defenders targeted with Pegasus spyware audit in Mexico City"
+    },
+    {
+      "id": "sur-17",
+      "issue": "pillar_mismatch",
+      "expected": "Digital Rights & Surveillance",
+      "got": "Cyber & Espionage",
+      "title": "Egypt authorities block independent news domains and deploy mobile spyware in Cairo"
+    },
+    {
+      "id": "sur-19",
+      "issue": "false_negative",
+      "reason": "No AI, cyber, or tech policy nexus",
+      "title": "Vietnam enforces strict social media user ID verification mandates in Hanoi"
+    },
+    {
+      "id": "sur-23",
+      "issue": "pillar_mismatch",
+      "expected": "Digital Rights & Surveillance",
+      "got": "Cyber & Espionage",
+      "title": "Global civil society urges moratorium on commercial Pegasus-style spyware exports"
+    },
+    {
+      "id": "sur-24",
+      "issue": "pillar_mismatch",
+      "expected": "Digital Rights & Surveillance",
+      "got": "Cyber & Espionage",
+      "title": "Citizen Lab publishes global forensic indicators for mercenary spyware in Toronto"
+    },
+    {
+      "id": "cmp-05",
+      "issue": "pillar_mismatch",
+      "expected": "Compute & Semiconductors",
+      "got": "Subsea & Compute Infra",
+      "title": "Baltic authorities investigate suspected submarine cable sabotage off Estonia"
+    },
+    {
+      "id": "cmp-06",
+      "issue": "pillar_mismatch",
+      "expected": "Compute & Semiconductors",
+      "got": "Subsea & Compute Infra",
+      "title": "Taiwan investigates anchor drag subsea cable cut disruption near Taipei"
+    },
+    {
+      "id": "cmp-10",
+      "issue": "geo_distance_exceeded",
+      "distKm": 651,
+      "title": "EU approves European Chips Act foundry subsidies in Germany"
+    },
+    {
+      "id": "cmp-12",
+      "issue": "false_negative",
+      "reason": "No AI, cyber, or tech policy nexus",
+      "title": "Abu Dhabi sovereign compute fund partners on multi-gigawatt AI cluster in UAE"
+    },
+    {
+      "id": "cmp-17",
+      "issue": "false_negative",
+      "reason": "No AI, cyber, or tech policy nexus",
+      "title": "London unveils UK AI Compute Strategy targeting national exascale clusters"
+    }
+  ]
+}

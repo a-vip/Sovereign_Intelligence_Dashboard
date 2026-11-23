@@ -10,6 +10,7 @@ import ResourcesModal from './ResourcesModal';
 import Link from 'next/link';
 import SourceManagerModal from './SourceManagerModal';
 import CommandPaletteModal from './CommandPaletteModal';
+import DashboardTopMenus from './DashboardTopMenus';
 import { getJurisdictionBySlug, resolveJurisdictionForLocation } from '@/lib/jurisdictions';
 import { normalizeSignalId } from '@/lib/provenance';
 
@@ -530,7 +531,7 @@ export default function LiveMap({
   const [searchQuery, setSearchQuery] = useState('');
   const [showMarkets, setShowMarkets] = useState(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
-  const [isFeedCollapsed, setIsFeedCollapsed] = useState(false);
+  const [isFeedCollapsed, setIsFeedCollapsed] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 900 : false));
   const [refreshing, setRefreshing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [showSupportDropdown, setShowSupportDropdown] = useState(false);
@@ -559,8 +560,10 @@ export default function LiveMap({
   const [timeRange, setTimeRange] = useState('recent'); 
   const [isVisible, setIsVisible] = useState(true);
   const [isPulsing, setIsPulsing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [feedType, setFeedType] = useState('live'); // 'live' or 'reports'
+  const [isMinimized, setIsMinimized] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 900 : false));
+  const [feedType, setFeedType] = useState('live'); // 'live' | 'papers' | 'rss' | 'satellites'
+  const [vaultPapers, setVaultPapers] = useState([]);
+  const [uiTheme, setUiTheme] = useState('obsidian');
   const [rssItems, setRssItems] = useState([]);
   const [onlineCount, setOnlineCount] = useState(null);
   const [rssStatus, setRssStatus] = useState('loading');
@@ -584,12 +587,10 @@ export default function LiveMap({
   });
   const [autoRotate, setAutoRotate] = useState(() => {
     if (typeof window !== 'undefined') {
-      const hasSeenTour = localStorage.getItem('sovereign_tour_seen');
-      if (!hasSeenTour) return false;
       const stored = localStorage.getItem('operator_pref_autoRotate');
-      return stored !== null ? stored === 'true' : true;
+      return stored === 'true';
     }
-    return true;
+    return false;
   });
   const [tickerSpeed, setTickerSpeed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -601,11 +602,32 @@ export default function LiveMap({
   const [isMobile, setIsMobile] = useState(false);
   const mapAreaRef = useRef(null);
 
-  // Satellite Tracking & Observation States (disabled by default on mobile to conserve battery & bandwidth)
-  const [showSatellites, setShowSatellites] = useState(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 900) return false;
-    return true;
-  });
+  // Opt-in Satellite Tracking Layer (off by default to keep initial GPU/network overhead near zero)
+  const [showSatellites, setShowSatellites] = useState(false);
+
+  // Hydrate & apply global UI color theme
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem('sovdash_ui_theme') || 'obsidian';
+      setUiTheme(savedTheme);
+      document.documentElement.setAttribute('data-ui-theme', savedTheme);
+    } catch {}
+  }, []);
+
+  const handleSelectUiTheme = useCallback((nextTheme) => {
+    setUiTheme(nextTheme);
+    try {
+      localStorage.setItem('sovdash_ui_theme', nextTheme);
+      document.documentElement.setAttribute('data-ui-theme', nextTheme);
+    } catch {}
+    if (nextTheme === 'light') {
+      setMapStyle('light');
+      try { localStorage.setItem('operator_pref_mapStyle', 'light'); } catch {}
+    } else if (mapStyle === 'light') {
+      setMapStyle('tactical');
+      try { localStorage.setItem('operator_pref_mapStyle', 'tactical'); } catch {}
+    }
+  }, [mapStyle]);
   const [satellites, setSatellites] = useState([]);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [isTracked, setIsTracked] = useState(false);
@@ -677,23 +699,25 @@ export default function LiveMap({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showCommandPalette, showSourceModal, showResourcesModal, showChangelog, selectedEvent, selectedCountry]);
 
-  // Historical Timeline Playback Scrubber (12 chronological steps)
+  // Historical Timeline Playback Scrubber (12 chronological steps scoped to timeWindowDays)
   useEffect(() => {
     if (!isTimelinePlaying) return;
+    const now = Date.now();
+    const windowFloor = timeWindowDays < 365 ? now - timeWindowDays * 86400000 : 0;
     const times = [...markers, ...allFetchedEvents]
       .map((ev) => parseDateSafe(ev.original_post_time || ev.timestamp).getTime())
-      .filter((t) => t > 0)
+      .filter((t) => t > 0 && t >= windowFloor)
       .sort((a, b) => a - b);
     if (times.length < 2) {
       setIsTimelinePlaying(false);
       return;
     }
     const minTs = times[0];
-    const maxTs = times[times.length - 1];
-    const span = Math.max(86400000, maxTs - minTs);
-    let step = 0;
+    const maxTs = Math.max(times[times.length - 1], minTs + 86400000);
+    const span = maxTs - minTs;
+    let step = 1;
     const totalSteps = 12;
-    setTimelineCutoffMs(minTs);
+    setTimelineCutoffMs(minTs + Math.round(span / totalSteps));
     const id = setInterval(() => {
       step += 1;
       if (step > totalSteps) {
@@ -705,7 +729,7 @@ export default function LiveMap({
       setTimelineCutoffMs(minTs + Math.round((span * step) / totalSteps));
     }, 750);
     return () => clearInterval(id);
-  }, [isTimelinePlaying]);
+  }, [isTimelinePlaying, timeWindowDays]);
 
   // Dynamic 15-second visibility-gated telemetry polling interval for space satellites
   useEffect(() => {
@@ -770,9 +794,8 @@ export default function LiveMap({
         // New user: do not auto-rotate initially
         setAutoRotate(false);
       } else {
-        // Returning user: auto-rotate as normal
         const rotate = localStorage.getItem('operator_pref_autoRotate');
-        setAutoRotate(rotate !== null ? rotate === 'true' : true);
+        setAutoRotate(rotate === 'true');
       }
     }
   }, []);
@@ -847,56 +870,45 @@ export default function LiveMap({
 
   const [activeUsersList, setActiveUsersList] = useState([]);
 
-  // Unified visibility-gated 45-second heartbeat & active session counter (replaces dual 12s loops)
+  // Send login audit once for authenticated operators only (no anonymous polling overhead)
   useEffect(() => {
-    let emailStr = '';
-    let nameStr = '';
-    let isVisitor = false;
+    if (!currentUser?.email) return;
+    fetch('/api/admin/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.id || '' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        name: currentUser.fullName || currentUser.full_name || 'Operator',
+        isLogin: true
+      })
+    }).catch(() => {});
+  }, [currentUser?.email, currentUser?.id]);
 
-    let visitorId = sessionStorage.getItem('sovereign_visitor_id');
-    if (!visitorId) {
-      visitorId = 'visitor-' + Math.random().toString(36).substring(2, 11);
-      sessionStorage.setItem('sovereign_visitor_id', visitorId);
-    }
-
-    if (currentUser && currentUser.email) {
-      emailStr = `${currentUser.email}|${visitorId}`;
-      nameStr = currentUser.fullName || currentUser.full_name || 'Operator';
-    } else {
-      isVisitor = true;
-      emailStr = visitorId;
-      nameStr = 'Anonymous Visitor';
-    }
-
-    const sendHeartbeat = async (isLogin = false) => {
-      if (!isLogin && typeof document !== 'undefined' && document.hidden) return;
-      try {
-        const res = await fetch('/api/admin/heartbeat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': currentUser?.id || ''
-          },
-          body: JSON.stringify({
-            email: emailStr,
-            name: nameStr,
-            isLogin: isLogin && !isVisitor
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (typeof data.count === 'number') setOnlineCount(data.count);
-          if (Array.isArray(data.activeUsers)) setActiveUsersList(data.activeUsers);
-        }
-      } catch (err) {
-        console.warn('Operator heartbeat registration failed:', err);
-      }
-    };
-
-    sendHeartbeat(true);
-    const interval = setInterval(() => sendHeartbeat(false), 45000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
+  // Lazy-fetch peer-reviewed / institutional vault papers when PAPERS tab is selected
+  useEffect(() => {
+    if (feedType !== 'papers' || vaultPapers.length > 0) return;
+    fetch('/api/vault')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((docs) => {
+        if (!Array.isArray(docs)) return;
+        setVaultPapers(
+          docs.map((d, idx) => ({
+            id: d.id || `vault-${idx}`,
+            title: d.title || d.filename || 'Sovereign Research Dossier',
+            category: 'Political',
+            severity: 3,
+            location: 'Cambridge / Global Research',
+            timestamp: d.lastModified || d.createdAt || new Date().toISOString(),
+            original_post_time: d.lastModified || d.createdAt || new Date().toISOString(),
+            url: 'https://app.sovdash.com/whitepaper',
+            source: 'Sovereign Research Archive',
+            curated: true,
+            details: { summary: d.preview || d.content?.slice(0, 260) || '', isResearch: true, source: 'Sovereign Research Archive' }
+          }))
+        );
+      })
+      .catch(() => {});
+  }, [feedType, vaultPapers.length]);
 
   const fetchEvents = useCallback(async (refresh = false) => {
     if (!isVisible) return; // Don't fetch if tab is hidden
@@ -1292,13 +1304,13 @@ export default function LiveMap({
       }
     });
 
-    // Filter combined list by checkbox categories, minSeverity & optional Timeline Scrubber cutoff
+    // Filter combined list by categories, minSeverity, active timeWindowDays & playback scrubber
+    const windowMinMs = timeWindowDays < 365 ? Date.now() - timeWindowDays * 86400000 : 0;
     let filtered = deduplicated.filter(m => {
       if (!categories[m.category] || m.severity < minSeverity) return false;
-      if (timelineCutoffMs !== null) {
-        const tMs = parseDateSafe(m.original_post_time || m.timestamp).getTime();
-        if (tMs > 0 && tMs > timelineCutoffMs) return false;
-      }
+      const tMs = parseDateSafe(m.original_post_time || m.timestamp).getTime();
+      if (windowMinMs > 0 && !m.isPinned && tMs > 0 && tMs < windowMinMs) return false;
+      if (timelineCutoffMs !== null && tMs > 0 && tMs > timelineCutoffMs) return false;
       return true;
     });
 
@@ -1345,7 +1357,7 @@ export default function LiveMap({
     }
 
     return dispersed;
-  }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources, timelineCutoffMs]);
+  }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources, timeWindowDays, timelineCutoffMs]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -1375,16 +1387,15 @@ export default function LiveMap({
         }
       }));
 
-    // Combine database-persisted events and real-time incoming RSS intelligence
-    const allCandidateEvents = [...displayedEvents, ...formattedRssEvents];
+    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|oecd|nist|aisi|metr|epoch|sipri|cset|stanford|cambridge|brookings|rand|carnegie|hrw|eff|un|eur-lex|aiid|sovereign research)/i;
+    const allCandidateEvents = feedType === 'papers'
+      ? [...vaultPapers, ...displayedEvents, ...formattedRssEvents]
+      : [...displayedEvents, ...formattedRssEvents];
 
     let filtered = allCandidateEvents.filter(e => {
-      if (feedType === 'live') {
-        // In LIVE SIGNALS, show all real-time intelligence events and incoming signals
-        return true;
-      }
-      // In INTEL REPORTS, show curated dossiers, research papers, high severity, or investigative wires
-      return e.curated || e.details?.isResearch || e.severity >= 3 || e.source?.includes('Reuters') || e.source?.includes('Guardian') || e.source?.includes('HRW') || e.source?.includes('UN');
+      if (feedType === 'live') return true;
+      const srcHay = `${e.source || ''} ${e.details?.source || ''} ${e.details?.sid || ''}`;
+      return Boolean(e.curated || e.details?.isResearch || RESEARCH_SOURCE_RE.test(srcHay));
     });
     
     if (activeCategories.length > 0) {
@@ -1445,7 +1456,7 @@ export default function LiveMap({
     }
 
     return deduplicated.sort((a, b) => parseDateSafe(b.original_post_time || b.timestamp) - parseDateSafe(a.original_post_time || a.timestamp));
-  }, [displayedEvents, rssItems, selectedRssSources, categories, feedType, searchQuery, timeRange]);
+  }, [displayedEvents, vaultPapers, rssItems, selectedRssSources, categories, feedType, searchQuery, timeRange]);
 
   const filteredRssItems = useMemo(() => {
     let items = rssItems.filter(item => selectedRssSources.includes(item.sid));
@@ -1535,554 +1546,140 @@ export default function LiveMap({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: '#020617', overflow: 'hidden' }}>
-      {/* Sleek, MTS-style Clean Header Bar */}
+      {/* Clean Unified Header Bar */}
       <header style={{
-        height: isMobile ? '46px' : '52px',
-        background: 'rgba(8, 12, 24, 0.95)',
-        borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+        height: isMobile ? '48px' : '52px',
+        background: 'var(--sov-header-bg)',
+        borderBottom: '1px solid var(--sov-border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: isMobile ? '0 12px' : '0 20px',
+        padding: isMobile ? '0 12px' : '0 18px',
+        gap: '12px',
         boxSizing: 'border-box',
         zIndex: 1001,
-        backdropFilter: 'blur(10px)',
-        position: 'relative'
+        backdropFilter: 'blur(12px)',
+        position: 'relative',
+        flexShrink: 0
       }}>
-        {/* Left: Shield Logo & Compact Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img 
-            src="/icon.svg" 
-            alt="Sovereign Logo" 
-            style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '5px',
-              boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
-              transition: 'all 0.2s ease-in-out',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.boxShadow = '0 0 12px rgba(59, 130, 246, 0.8)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 0 8px rgba(59, 130, 246, 0.5)';
-            }}
+        {/* Left Brand (Single non-wrapping row) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, minWidth: 0 }}>
+          <img
+            src="/icon.svg"
+            alt="Sovereign"
+            style={{ width: '24px', height: '24px', borderRadius: '6px', flexShrink: 0 }}
           />
-          <div>
-            <h1 style={{
-              fontSize: isMobile ? '12px' : '14px',
-              fontWeight: '800',
-              color: '#ffffff',
-              margin: 0,
-              fontFamily: 'monospace',
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-              textShadow: '0 0 10px rgba(255,255,255,0.1)'
-            }}>
-              {isMobile ? 'SOVEREIGN' : 'SOVEREIGN INTELLIGENCE'}
-            </h1>
-            {!isMobile && (
-              <div style={{
-                fontSize: '9px',
-                color: 'rgba(255,255,255,0.45)',
-                fontWeight: '500',
-                letterSpacing: '0.5px',
-                marginTop: '1px'
-              }}>
-                International AI Governance • Cyber Operations • Tech Policy
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Section: Compact Status indicators & Access Control */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
-          {/* Pulsing Signal Count (MTS style) */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: isMobile ? '4px' : '6px',
-            background: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            borderRadius: '4px',
-            padding: isMobile ? '3px 6px' : '4px 8px',
+          <h1 style={{
+            fontSize: isMobile ? '13px' : '14px',
+            fontWeight: 800,
+            color: 'var(--sov-text)',
+            margin: 0,
             fontFamily: 'var(--font-jetbrains-fallback)',
-            fontSize: isMobile ? '9px' : '10px',
-            color: '#10b981',
-            fontWeight: 'bold',
-            position: 'relative'
-          }}
-          className="live-badge-container"
-          >
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#10b981',
-              boxShadow: '0 0 6px #10b981',
-              animation: 'pulse 2s infinite'
-            }} />
-            <span>LIVE</span>
-          </div>
-
-          {onlineCount !== null && currentUser?.role === 'admin' && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'rgba(56, 189, 248, 0.08)',
-              border: '1px solid rgba(56, 189, 248, 0.2)',
-              borderRadius: '4px',
-              padding: isMobile ? '3px 6px' : '4px 8px',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap'
+          }}>
+            SOVEREIGN
+          </h1>
+          {!isMobile && (
+            <span style={{
+              fontSize: '10px',
               fontFamily: 'var(--font-jetbrains-fallback)',
-              fontSize: isMobile ? '9px' : '10px',
-              color: '#38bdf8',
-              fontWeight: 'bold',
-              position: 'relative'
-            }}
-            title="Active operators & visitors online currently"
-            className="online-count-container"
-            >
-              <span style={{ fontSize: '11px' }}>👥</span>
-              <span>{onlineCount} ONLINE</span>
-
-              {/* Tooltip on Hover */}
-              {activeUsersList && activeUsersList.length > 0 && (
-                <div className="active-users-tooltip" style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 12px)',
-                  left: '0',
-                  width: 'max-content',
-                  maxWidth: '300px',
-                  background: 'rgba(11, 19, 43, 0.98)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: '6px',
-                  padding: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  zIndex: 10005,
-                  opacity: 0,
-                  visibility: 'hidden',
-                  transition: 'opacity 0.2s, visibility 0.2s',
-                  pointerEvents: 'none'
-                }}>
-                  <style>{`
-                    .online-count-container:hover .active-users-tooltip {
-                      opacity: 1 !important;
-                      visibility: visible !important;
-                    }
-                  `}</style>
-                  <div style={{ fontSize: '9px', color: '#38bdf8', textTransform: 'uppercase', marginBottom: '2px' }}>
-                    ACTIVE SESSIONS
-                  </div>
-                  {activeUsersList.map(u => (
-                    <div key={u.email} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '12px' }}>{extractFlag(u.location)}</span>
-                      <span style={{ color: u.name === 'Anonymous Visitor' ? 'rgba(255,255,255,0.5)' : '#38bdf8' }}>{u.name}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px' }}>— {cleanLocationString(u.location)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              color: 'var(--sov-muted)',
+              borderLeft: '1px solid var(--sov-border)',
+              paddingLeft: '10px',
+              whiteSpace: 'nowrap'
+            }}>
+              GLOBAL AI POLICY OBSERVATORY
+            </span>
           )}
-
-          {/* Compact Refresh Button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={handleRefresh}
-              className={`tour-refresh-button ${refreshing ? 'spinning' : ''}`}
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: 'rgba(255, 255, 255, 0.6)',
-                borderRadius: '50%',
-                width: '26px',
-                height: '26px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                outline: 'none',
-                transition: 'all 0.2s'
-              }}
-              title="Refresh Signals & Map"
-              onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
-            >
-              <RefreshCw size={12} />
-            </button>
-          </div>
-
-          {/* Profile User avatar (Access Control trigger) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {currentUser && currentUser.role === 'admin' && (
-              <button
-                onClick={onOpenCms}
-                style={{
-                  background: 'rgba(168, 85, 247, 0.08)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
-                  color: '#a855f7',
-                  borderRadius: '4px',
-                  padding: isMobile ? '3px 6px' : '4px 8px',
-                  fontSize: isMobile ? '9px' : '10px',
-                  fontWeight: 'bold',
-                  fontFamily: 'var(--font-jetbrains-fallback)',
-                  cursor: 'pointer',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: isMobile ? '4px' : '6px',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 0 10px rgba(168, 85, 247, 0.05)',
-                  outline: 'none'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)';
-                  e.currentTarget.style.boxShadow = '0 0 12px rgba(168, 85, 247, 0.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
-                  e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.05)';
-                }}
-                title="Open Content Management System"
-              >
-                <span>⚙️</span>
-                <span>CMS</span>
-              </button>
-            )}
-
-            {/* Submit Feedback / Report Bug Button - ALWAYS VISIBLE */}
-            <button
-              className="tour-feedback-button"
-              onClick={() => onAvatarClick('suggestions')}
-              style={{
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                color: '#f59e0b',
-                borderRadius: '4px',
-                padding: isMobile ? '3px 6px' : '4px 8px',
-                fontSize: isMobile ? '9px' : '10px',
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-jetbrains-fallback)',
-                cursor: 'pointer',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                transition: 'all 0.2s',
-                boxShadow: '0 0 10px rgba(245, 158, 11, 0.05)',
-                outline: 'none'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.18)';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.05)';
-              }}
-              title="Submit Suggestions & Report System Issues"
-            >
-              <span>💡</span>
-              <span>FEEDBACK</span>
-            </button>
-
-            <button
-              onClick={() => setShowSourceModal(true)}
-              style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: '#10b981',
-                borderRadius: '4px',
-                padding: isMobile ? '3px 6px' : '4px 8px',
-                fontSize: isMobile ? '9px' : '10px',
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-jetbrains-fallback)',
-                cursor: 'pointer',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: isMobile ? '3px' : '5px',
-                transition: 'all 0.2s',
-                boxShadow: '0 0 10px rgba(16, 185, 129, 0.08)',
-                outline: 'none'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.25)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.08)';
-              }}
-              title="Add Intelligence Feed / Auto-Pin Relevant Signals to Globe"
-            >
-              <Plus size={11} />
-              <span>{isMobile ? 'SOURCE' : 'ADD SOURCE'}</span>
-            </button>
-
-            <button
-              onClick={() => setShowCommandPalette(true)}
-              style={{
-                background: 'rgba(15, 23, 42, 0.75)',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
-                color: '#cbd5e1',
-                borderRadius: '4px',
-                padding: isMobile ? '3px 6px' : '4px 8px',
-                fontSize: isMobile ? '9px' : '10px',
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-jetbrains-fallback)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              title="Open Quick Command Palette (Ctrl/Cmd + K)"
-            >
-              <span>⌘K</span>
-            </button>
-
-            {!isMobile ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'rgba(15, 23, 42, 0.75)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
-                  borderRadius: '5px',
-                  overflow: 'hidden'
-                }}
-              >
-                {[
-                  { href: '/jurisdictions', label: 'ATLAS', color: '#c084fc' },
-                  { href: '/compare', label: 'COMPARE', color: '#00f0ff' },
-                  { href: '/readiness', label: 'INDEX', color: '#34d399' },
-                  { href: '/labs', label: 'LABS', color: '#38bdf8' },
-                  { href: '/compute', label: 'COMPUTE', color: '#facc15' },
-                  { href: '/brief', label: 'BRIEF', color: '#f472b6' },
-                  { href: '/watchlists', label: 'ALERTS', color: '#fb923c' },
-                  { href: '/developers', label: 'API', color: '#22d3ee' },
-                  { href: '/methodology', label: 'CODEBOOK', color: '#cbd5e1' }
-                ].map((navItem, nIdx) => (
-                  <Link
-                    key={navItem.href}
-                    href={navItem.href}
-                    style={{
-                      padding: '4px 7px',
-                      fontSize: '9.5px',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-jetbrains-fallback)',
-                      color: navItem.color,
-                      textDecoration: 'none',
-                      borderLeft: nIdx === 0 ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                      letterSpacing: '0.4px'
-                    }}
-                  >
-                    {navItem.label}
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <Link
-                href="/jurisdictions"
-                style={{
-                  background: 'rgba(168, 85, 247, 0.1)',
-                  border: '1px solid rgba(168, 85, 247, 0.35)',
-                  color: '#c084fc',
-                  borderRadius: '4px',
-                  padding: '3px 6px',
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  fontFamily: 'var(--font-jetbrains-fallback)',
-                  textDecoration: 'none'
-                }}
-              >
-                ATLAS
-              </Link>
-            )}
-
-            <button
-              onClick={() => setShowResourcesModal(true)}
-              style={{
-                background: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                color: '#38bdf8',
-                borderRadius: '4px',
-                padding: isMobile ? '3px 6px' : '4px 8px',
-                fontSize: isMobile ? '9px' : '10px',
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-jetbrains-fallback)',
-                cursor: 'pointer',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                transition: 'all 0.2s',
-                boxShadow: '0 0 10px rgba(56, 189, 248, 0.05)',
-                outline: 'none'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.18)';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(56, 189, 248, 0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.05)';
-              }}
-              title="Knowledge Repositories, Research Treaties & Verification Resources"
-            >
-              <span>📚</span>
-              <span>RESOURCES</span>
-            </button>
-
-            {currentUser ? (
-              <>
-                <div 
-                  className="tour-login-button"
-                  onClick={() => onAvatarClick('profile')}
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid #10b981',
-                    borderRadius: '50%',
-                    width: '26px',
-                    height: '26px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    color: '#10b981',
-                    fontFamily: 'monospace',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  title={`Configure Settings for Operator: ${currentUser.fullName}`}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
-                    e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  {currentUser.fullName.charAt(0).toUpperCase()}
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'rgba(239, 68, 68, 0.6)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '2px 4px',
-                    transition: 'all 0.2s'
-                  }}
-                  title="Logout Operator Session"
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.6)'}
-                >
-                  <LogOut size={12} />
-                </button>
-              </>
-            ) : (
-              <button 
-                className="tour-login-button"
-                onClick={() => setShowAuthModal(true)}
-                style={{
-                  background: 'rgba(6, 182, 212, 0.08)',
-                  border: '1px solid rgba(6, 182, 212, 0.25)',
-                  color: '#06b6d4',
-                  borderRadius: '50%',
-                  width: '26px',
-                  height: '26px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.15)';
-                  e.currentTarget.style.borderColor = '#06b6d4';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)';
-                }}
-                title="Operator Authenticate"
-              >
-                <User size={12} />
-              </button>
-            )}
-          </div>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '2px 7px',
+            borderRadius: '999px',
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            color: '#10b981',
+            fontSize: '9.5px',
+            fontWeight: 700,
+            fontFamily: 'var(--font-jetbrains-fallback)',
+            whiteSpace: 'nowrap'
+          }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10b981' }} />
+            LIVE
+          </span>
         </div>
+
+        {/* Right Compact Menu Bar */}
+        <DashboardTopMenus
+          isMobile={isMobile}
+          uiTheme={uiTheme}
+          onSelectUiTheme={handleSelectUiTheme}
+          mapStyle={mapStyle}
+          setMapStyle={setMapStyle}
+          mapMode={mapMode}
+          setMapMode={setMapMode}
+          autoRotate={autoRotate}
+          setAutoRotate={setAutoRotate}
+          tickerSpeed={tickerSpeed}
+          setTickerSpeed={setTickerSpeed}
+          refreshing={refreshing}
+          handleRefresh={handleRefresh}
+          currentUser={currentUser}
+          onOpenCms={onOpenCms}
+          onAvatarClick={onAvatarClick}
+          setShowAuthModal={setShowAuthModal}
+          handleLogout={handleLogout}
+          setShowSourceModal={setShowSourceModal}
+          setShowResourcesModal={setShowResourcesModal}
+          setShowCommandPalette={setShowCommandPalette}
+        />
       </header>
 
-      {/* Cyber News Ticker Bar */}
-      <div style={{
-        background: '#040810',
-        borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
-        height: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        overflow: 'hidden',
-        width: '100%',
-        position: 'relative'
-      }}>
+      {/* Slim Intelligence Wire Ticker (optional via Settings) */}
+      {tickerSpeed !== 'off' && (
         <div style={{
-          display: 'inline-block',
-          whiteSpace: 'nowrap',
-          animation: `ticker-marquee ${tickerSpeed === 'fast' ? '30s' : tickerSpeed === 'normal' ? '60s' : '110s'} linear infinite`,
-          fontFamily: 'var(--font-jetbrains-fallback)',
-          fontSize: '10px',
-          color: '#00f0ff',
-          fontWeight: 'bold',
-          letterSpacing: '0.05em'
+          background: uiTheme === 'light' ? '#f1f5f9' : '#040810',
+          borderBottom: '1px solid var(--sov-border)',
+          height: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          overflow: 'hidden',
+          width: '100%',
+          position: 'relative',
+          flexShrink: 0
         }}>
-          {tickerItems.map((item, idx) => (
-            <span 
-              key={idx} 
-              onClick={() => {
-                if (item.event) {
-                  setSelectedEvent(item.event);
-                }
-              }}
-              style={{
-                cursor: item.event ? 'pointer' : 'default',
-                marginRight: '24px',
-                transition: 'all 0.15s ease',
-                display: 'inline-block'
-              }}
-              onMouseEnter={(e) => {
-                if (item.event) {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.textShadow = '0 0 8px rgba(0, 240, 255, 0.8)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (item.event) {
-                  e.currentTarget.style.color = '#00f0ff';
-                  e.currentTarget.style.textShadow = 'none';
-                }
-              }}
-            >
-              {item.text}
-              {idx < tickerItems.length - 1 && <span style={{ color: 'rgba(255,255,255,0.15)', marginLeft: '24px', pointerEvents: 'none' }}>•</span>}
-            </span>
-          ))}
+          <div style={{
+            display: 'inline-block',
+            whiteSpace: 'nowrap',
+            animation: `ticker-marquee ${tickerSpeed === 'fast' ? '30s' : tickerSpeed === 'normal' ? '60s' : '110s'} linear infinite`,
+            fontFamily: 'var(--font-jetbrains-fallback)',
+            fontSize: '10px',
+            color: 'var(--sov-accent)',
+            fontWeight: 'bold',
+            letterSpacing: '0.05em'
+          }}>
+            {tickerItems.map((item, idx) => (
+              <span
+                key={idx}
+                onClick={() => {
+                  if (item.event) setSelectedEvent(item.event);
+                }}
+                style={{
+                  cursor: item.event ? 'pointer' : 'default',
+                  marginRight: '24px',
+                  display: 'inline-block'
+                }}
+              >
+                {item.text}
+                {idx < tickerItems.length - 1 && <span style={{ opacity: 0.25, marginLeft: '24px', pointerEvents: 'none' }}>•</span>}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Map Layout Container */}
       <div 
@@ -2122,18 +1719,20 @@ export default function LiveMap({
           }}
         >
         <div className="feed-type-tabs" style={{ display: 'flex', alignItems: 'stretch' }}>
-          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px' }} onClick={() => setFeedType('live')}>
-            LIVE SIGNALS
+          <button className={`feed-type-tab ${feedType === 'live' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '6px 4px' : '8px', fontSize: isMobile ? '9px' : '9.5px' }} onClick={() => setFeedType('live')}>
+            SIGNALS
           </button>
-          <button className={`feed-type-tab ${feedType === 'reports' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px' }} onClick={() => setFeedType('reports')}>
-            INTEL REPORTS
+          <button className={`feed-type-tab ${feedType === 'papers' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '6px 4px' : '8px', fontSize: isMobile ? '9px' : '9.5px' }} onClick={() => setFeedType('papers')}>
+            PAPERS
           </button>
-          <button className={`feed-type-tab ${feedType === 'rss' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px' }} onClick={() => setFeedType('rss')}>
-            RSS FEEDS
+          <button className={`feed-type-tab ${feedType === 'rss' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '6px 4px' : '8px', fontSize: isMobile ? '9px' : '9.5px' }} onClick={() => setFeedType('rss')}>
+            FEEDS
           </button>
-          <button className={`feed-type-tab ${feedType === 'satellites' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '4px' : '8px', fontSize: isMobile ? '8px' : '9.5px', color: '#00f0ff' }} onClick={() => setFeedType('satellites')}>
-            SPACE RADAR
-          </button>
+          {showSatellites && (
+            <button className={`feed-type-tab ${feedType === 'satellites' ? 'active' : ''}`} style={{ flex: 1, padding: isMobile ? '6px 4px' : '8px', fontSize: isMobile ? '9px' : '9.5px', color: '#00f0ff' }} onClick={() => setFeedType('satellites')}>
+              ORBIT
+            </button>
+          )}
           
           {/* Elegant Collapse Arrow Button inside Feed Header */}
           <button
@@ -2897,89 +2496,6 @@ export default function LiveMap({
             </button>
           </div>
         )}
-        {/* Historical Time-Window & Playback Control Pill */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: isMobile ? '44px' : '42px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 25,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(6, 10, 20, 0.88)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            borderRadius: '20px',
-            padding: '4px 10px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-            pointerEvents: 'auto'
-          }}
-        >
-          {[
-            { days: 7, label: '7D' },
-            { days: 21, label: '21D' },
-            { days: 90, label: '90D' },
-            { days: 365, label: 'ALL' }
-          ].map((opt) => {
-            const active = timeWindowDays === opt.days;
-            return (
-              <button
-                key={opt.label}
-                onClick={() => {
-                  setTimelineCutoffMs(null);
-                  setIsTimelinePlaying(false);
-                  setTimeWindowDays(opt.days);
-                }}
-                style={{
-                  background: active ? 'rgba(0, 240, 255, 0.18)' : 'transparent',
-                  border: active ? '1px solid rgba(0, 240, 255, 0.45)' : '1px solid transparent',
-                  color: active ? '#00f0ff' : '#94a3b8',
-                  borderRadius: '12px',
-                  padding: '2px 7px',
-                  fontSize: '9.5px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-jetbrains-fallback)',
-                  cursor: 'pointer'
-                }}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-          <span style={{ color: "rgba(255,255,255,0.15)" }}>|</span>
-          <button
-            onClick={() => {
-              if (isTimelinePlaying) {
-                setIsTimelinePlaying(false);
-                setTimelineCutoffMs(null);
-              } else {
-                setIsTimelinePlaying(true);
-              }
-            }}
-            style={{
-              background: isTimelinePlaying ? 'rgba(239, 68, 68, 0.18)' : 'rgba(16, 185, 129, 0.14)',
-              border: isTimelinePlaying ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)',
-              color: isTimelinePlaying ? '#f87171' : '#34d399',
-              borderRadius: '12px',
-              padding: '2px 8px',
-              fontSize: '9.5px',
-              fontWeight: 700,
-              fontFamily: 'var(--font-jetbrains-fallback)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {isTimelinePlaying ? '⏹ STOP' : '▶ PLAY'}
-          </button>
-          {timelineCutoffMs && (
-            <span style={{ fontSize: "9.5px", color: "#facc15", fontFamily: "var(--font-jetbrains-fallback)", whiteSpace: "nowrap" }}>
-              {new Date(timelineCutoffMs).toISOString().slice(0, 10)}
-            </span>
-          )}
-        </div>
-
         <CesiumGlobe
           displayedMarkers={displayedMarkers}
           focusCoordinate={focusCoordinate}
@@ -3117,7 +2633,7 @@ export default function LiveMap({
                   </label>
                 ))}
 
-                <div className="overlay-title" style={{ marginTop: '16px', marginBottom: '12px' }}>MIN. SEVERITY</div>
+                <div className="overlay-title" style={{ marginTop: '14px', marginBottom: '10px' }}>MIN. SEVERITY</div>
                 <div className="severity-buttons">
                   {[1, 2, 3, 4, 5].map(s => (
                     <button key={s} className={`sev-btn${minSeverity <= s ? ' active' : ''}`}
@@ -3126,6 +2642,73 @@ export default function LiveMap({
                       S{s}
                     </button>
                   ))}
+                </div>
+
+                <div className="overlay-title" style={{ marginTop: '14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>TIME HORIZON</span>
+                  {timelineCutoffMs && (
+                    <span style={{ fontSize: '9px', color: '#facc15' }}>{new Date(timelineCutoffMs).toISOString().slice(0, 10)}</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  {[
+                    { days: 7, label: '7D' },
+                    { days: 21, label: '21D' },
+                    { days: 90, label: '90D' },
+                    { days: 365, label: 'ALL' }
+                  ].map((opt) => {
+                    const active = timeWindowDays === opt.days;
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          setTimelineCutoffMs(null);
+                          setIsTimelinePlaying(false);
+                          setTimeWindowDays(opt.days);
+                        }}
+                        style={{
+                          flex: 1,
+                          background: active ? 'var(--sov-accent-soft)' : 'transparent',
+                          border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
+                          color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
+                          borderRadius: '4px',
+                          padding: '4px 0',
+                          fontSize: '9.5px',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-jetbrains-fallback)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isTimelinePlaying) {
+                        setIsTimelinePlaying(false);
+                        setTimelineCutoffMs(null);
+                      } else {
+                        setIsTimelinePlaying(true);
+                      }
+                    }}
+                    style={{
+                      background: isTimelinePlaying ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.14)',
+                      border: `1px solid ${isTimelinePlaying ? '#ef4444' : '#10b981'}`,
+                      color: isTimelinePlaying ? '#f87171' : '#34d399',
+                      borderRadius: '4px',
+                      padding: '4px 7px',
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-jetbrains-fallback)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {isTimelinePlaying ? '⏹ STOP' : '▶ PLAY'}
+                  </button>
                 </div>
               </div>
             )}
@@ -3166,6 +2749,8 @@ export default function LiveMap({
                     }}
                   >
                     <option value="tactical">🛰️ TACTICAL DARK</option>
+                    <option value="minimal">🌑 CLEAN DARK (MINIMAL)</option>
+                    <option value="light">☀️ EDITORIAL LIGHT</option>
                     <option value="satellite">🌍 HIGH-RES ORBITAL</option>
                     <option value="buildings">🏢 3D URBAN BUILDINGS</option>
                     <option value="lights">🌃 EARTH AT NIGHT</option>
@@ -3360,53 +2945,7 @@ export default function LiveMap({
                     }} />
                   </div>
 
-                  {/* Military Bases - Grayed out */}
-                  <div 
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '3px 4px',
-                      opacity: 0.35,
-                      cursor: 'not-allowed',
-                      userSelect: 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
-                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>🛡️</span>
-                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Military Bases</span>
-                    </div>
-                    <div style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: '#334155'
-                    }} />
-                  </div>
 
-                  {/* Power & Minerals - Grayed out */}
-                  <div 
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '3px 4px',
-                      opacity: 0.35,
-                      cursor: 'not-allowed',
-                      userSelect: 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
-                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>⚡</span>
-                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Power & Minerals</span>
-                    </div>
-                    <div style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: '#334155'
-                    }} />
-                  </div>
 
                   {/* Oil & Gas Option */}
                   <div 
@@ -3468,29 +3007,7 @@ export default function LiveMap({
                     }} />
                   </div>
 
-                  {/* Active Fires - Grayed out */}
-                  <div 
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '3px 4px',
-                      opacity: 0.35,
-                      cursor: 'not-allowed',
-                      userSelect: 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: '#64748b' }}>
-                      <span style={{ width: '14px', textAlign: 'center', fontSize: '11px' }}>🔥</span>
-                      <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>Active Fires</span>
-                    </div>
-                    <div style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: '#334155'
-                    }} />
-                  </div>
+
 
                   {/* Satellite Tracking Option */}
                   <div 

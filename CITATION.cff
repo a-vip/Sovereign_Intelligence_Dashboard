@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: "Sovereign Global AI Safety & Policy Observatory"
+message: "If you use Sovereign Observatory software, datasets, or the SAGRI Readiness Index in your research, please cite it using this metadata."
+type: dataset
+authors:
+  - family-names: Perera
+    given-names: Avi
+repository-code: "https://github.com/a-vip/Sovereign_Intelligence_Dashboard"
+url: "https://app.sovdash.com"
+abstract: "Auditable global AI safety, statutory governance, frontier compute, and cyber-policy observatory featuring SHA-256 provenance, NATO Admiralty grading, MIT AI Risk 7-domain mapping, SAGRI readiness scoring, and CC-BY-4.0 longitudinal exports."
+keywords:
+  - ai-governance
+  - ai-safety
+  - cyber-policy
+  - compute-governance
+  - lethal-autonomous-weapons
+  - sagri
+license: CC-BY-4.0
+version: "2026.11"
+date-released: "2026-11-24"

@@ -19,6 +19,7 @@ export default async function sitemap() {
     { url: `${baseUrl}/brief`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: `${baseUrl}/watchlists`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 },
     { url: `${baseUrl}/developers`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 },
+    { url: `${baseUrl}/whitepaper`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${baseUrl}/methodology`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 }
   ];
 
