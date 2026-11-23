@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { getJurisdictionBySlug, eventMatchesJurisdiction } from '@/lib/jurisdictions';
 import { getEvents, getEventsByJurisdiction, getFrontierClusters, getAiRegulations } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
-import { computeSagriScores } from '@/lib/governanceIndex';
+import { computeSagriScores, buildLiveMetricsBySlug, DEFAULT_SAGRI_WEIGHTS } from '@/lib/governanceIndex';
 import { normalizeSignalId } from '@/lib/provenance';
 
 export const dynamic = 'force-dynamic';
@@ -40,11 +40,9 @@ export default async function EmbedJurisdictionWidget({ params, searchParams }) 
   });
   const totalMw = Math.round(domesticClusters.reduce((acc, c) => acc + (Number(c.powerMw) || 0), 0));
 
-  const sagriList = computeSagriScores({
-    events: [...(getStopKillerRobotsSignals() || []), ...(allEvents || [])],
-    clusters,
-    regulations
-  });
+  const combinedSagriEvents = [...(getStopKillerRobotsSignals() || []), ...(allEvents || [])];
+  const liveMetrics = buildLiveMetricsBySlug({ events: combinedSagriEvents, clusters, regulations });
+  const sagriList = computeSagriScores(DEFAULT_SAGRI_WEIGHTS, liveMetrics);
   const sagri = sagriList.find((s) => s.slug === jurisdiction.slug);
   const flagship = jurisdiction.flagshipInstruments?.[0] || null;
 
@@ -78,7 +76,7 @@ export default async function EmbedJurisdictionWidget({ params, searchParams }) 
           <div style={{ background: cardBg, border: `1px solid ${borderCol}`, borderRadius: '6px', padding: '8px 10px' }}>
             <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: textMuted, fontWeight: 700 }}>SAGRI SCORE</div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: isLight ? '#047857' : '#34d399' }}>
-              {sagri?.totalScore ?? 0}<span style={{ fontSize: '11px', color: textMuted }}>/100</span>
+              {sagri?.score ?? 0}<span style={{ fontSize: '11px', color: textMuted }}>/100</span>
             </div>
           </div>
           <div style={{ background: cardBg, border: `1px solid ${borderCol}`, borderRadius: '6px', padding: '8px 10px' }}>

@@ -1,6 +1,6 @@
 import { getEvents, getFrontierClusters, getAiRegulations } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
-import { computeSagriScores } from '@/lib/governanceIndex';
+import { computeSagriScores, buildLiveMetricsBySlug, DEFAULT_SAGRI_WEIGHTS } from '@/lib/governanceIndex';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +15,9 @@ export default async function EmbedReadinessWidget({ searchParams }) {
     getAiRegulations().catch(() => [])
   ]);
 
-  const ranked = computeSagriScores({
-    events: [...(getStopKillerRobotsSignals() || []), ...(events || [])],
-    clusters,
-    regulations
-  }).slice(0, limit);
+  const combinedSagriEvents = [...(getStopKillerRobotsSignals() || []), ...(events || [])];
+  const liveMetrics = buildLiveMetricsBySlug({ events: combinedSagriEvents, clusters, regulations });
+  const ranked = computeSagriScores(DEFAULT_SAGRI_WEIGHTS, liveMetrics).slice(0, limit);
 
   const bg = isLight ? '#ffffff' : '#080e1a';
   const rowBg = isLight ? '#f8fafc' : 'rgba(15, 23, 42, 0.72)';
@@ -73,10 +71,10 @@ export default async function EmbedReadinessWidget({ searchParams }) {
                 <div style={{ fontSize: '10px', color: textMuted }}>{row.posture}</div>
               </div>
               <div style={{ height: '6px', borderRadius: '999px', background: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, row.totalScore)}%`, height: '100%', background: isLight ? '#047857' : '#34d399' }} />
+                <div style={{ width: `${Math.min(100, row.score)}%`, height: '100%', background: isLight ? '#047857' : '#34d399' }} />
               </div>
               <span style={{ fontSize: '12.5px', fontWeight: 800, textAlign: 'right', fontFamily: 'var(--font-jetbrains-fallback)', color: isLight ? '#047857' : '#34d399' }}>
-                {row.totalScore}
+                {row.score}
               </span>
             </a>
           ))}

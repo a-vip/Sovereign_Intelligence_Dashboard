@@ -98,7 +98,7 @@ export default function BriefGeneratorClient({
     const parityPct = total > 0 ? Math.round((highRel / total) * 100) : 0;
     const totalMw = Math.round(filteredClusters.reduce((acc, c) => acc + (Number(c.powerMw) || 0), 0));
     const avgSagri = relevantSagri.length
-      ? Math.round(relevantSagri.reduce((acc, s) => acc + (Number(s.totalScore) || 0), 0) / relevantSagri.length)
+      ? Math.round(relevantSagri.reduce((acc, s) => acc + (Number(s.score ?? s.totalScore) || 0), 0) / relevantSagri.length)
       : 0;
     return { total, highSev, parityPct, totalMw, avgSagri };
   }, [filteredSignals, filteredClusters, relevantSagri]);
@@ -162,7 +162,7 @@ export default function BriefGeneratorClient({
     } else {
       lines.push(`## 2. Top Sovereign AI Governance Readiness (SAGRI) Leaders`);
       for (const s of relevantSagri) {
-        lines.push(`- **${s.name}** (${s.iso}): **${s.totalScore}/100** (${s.posture})`);
+        lines.push(`- **${s.name}** (${s.iso}): **${s.score ?? s.totalScore ?? 0}/100** (${s.posture})`);
       }
       lines.push('');
     }
@@ -492,7 +492,7 @@ export default function BriefGeneratorClient({
                     <div style={{ fontSize: '13px', fontWeight: 700 }}>{s.name}</div>
                     <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>{s.posture}</div>
                   </div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#34d399', fontFamily: 'var(--font-jetbrains-fallback)' }}>{s.totalScore}</div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#34d399', fontFamily: 'var(--font-jetbrains-fallback)' }}>{s.score ?? s.totalScore ?? 0}</div>
                 </Link>
               ))}
             </div>

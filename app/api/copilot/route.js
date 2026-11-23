@@ -49,17 +49,18 @@ function buildEvidencePool({ events = [], clusters = [] }) {
   }
 
   for (const lab of FRONTIER_LABS) {
-    const evals = (lab.externalEvaluations || []).join(', ');
+    const evals = lab.externalEvaluations?.summary || 'Tracked';
+    const exposure = (lab.statutoryExposure || []).map((s) => s.label).join(', ');
     pool.push({
       id: `lab-${lab.slug}`,
       kind: 'lab',
-      title: `${lab.name} — ${lab.safetyFramework.name}`,
-      location: lab.headquarters,
+      title: `${lab.name} — ${lab.safetyFramework?.name || 'Safety Framework'}`,
+      location: lab.hqLocation || 'Global',
       admiraltyGrade: 'A1',
       permalink: 'https://app.sovdash.com/labs',
-      url: lab.safetyFramework.url,
-      snippet: `Flagship model: ${lab.flagshipModel}. Redlines: ${lab.safetyFramework.redlines}. Evaluations: ${evals}. Treaties: ${lab.treatyCommitments}.`,
-      jurisdictionSlug: null,
+      url: lab.safetyFramework?.url || 'https://app.sovdash.com/labs',
+      snippet: `Posture: ${lab.openWeightsPosture || 'Tracked'}. Threshold: ${lab.safetyFramework?.thresholdMechanism || 'Capability-gated'}. Evaluations: ${evals}. Statutory exposure: ${exposure || 'Tracked'}.`,
+      jurisdictionSlug: lab.jurisdictionSlug || null,
       baseScore: 2.0
     });
   }

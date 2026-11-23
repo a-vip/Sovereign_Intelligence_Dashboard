@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getEvents, getFrontierClusters, getAiRegulations } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { JURISDICTIONS } from '@/lib/jurisdictions';
-import { computeSagriScores } from '@/lib/governanceIndex';
+import { computeSagriScores, buildLiveMetricsBySlug, DEFAULT_SAGRI_WEIGHTS } from '@/lib/governanceIndex';
 import { computeAdmiraltyGrade, computeContentHash, normalizeSignalId } from '@/lib/provenance';
 import { classifyMitRiskDomain } from '@/lib/mitRiskTaxonomy';
 import BriefGeneratorClient from '@/components/BriefGeneratorClient';
@@ -56,11 +56,13 @@ export default async function BriefPage({ searchParams }) {
 
   serialSignals.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
-  const sagriList = computeSagriScores({
-    events: [...(curatedEvents || []), ...(dbEvents || [])],
+  const combinedForSagri = [...(curatedEvents || []), ...(dbEvents || [])];
+  const liveMetrics = buildLiveMetricsBySlug({
+    events: combinedForSagri,
     clusters,
     regulations
   });
+  const sagriList = computeSagriScores(DEFAULT_SAGRI_WEIGHTS, liveMetrics);
 
   const serialClusters = (clusters || []).map((c) => ({
     id: c.id,

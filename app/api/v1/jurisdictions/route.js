@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { resolveApiAccess } from '@/lib/apiAuth';
 import { JURISDICTIONS, getJurisdictionBySlug } from '@/lib/jurisdictions';
 import { getEvents, getFrontierClusters, getAiRegulations } from '@/lib/db';
-import { computeSagriScores, REGULATORY_DIFF_PROFILES } from '@/lib/governanceIndex';
+import { computeSagriScores, buildLiveMetricsBySlug, DEFAULT_SAGRI_WEIGHTS, REGULATORY_DIFF_PROFILES } from '@/lib/governanceIndex';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,8 @@ export async function GET(request) {
       getAiRegulations().catch(() => [])
     ]);
 
-    const sagriList = computeSagriScores({ events, clusters, regulations });
+    const liveMetrics = buildLiveMetricsBySlug({ events, clusters, regulations });
+    const sagriList = computeSagriScores(DEFAULT_SAGRI_WEIGHTS, liveMetrics);
     const sagriBySlug = new Map(sagriList.map((s) => [s.slug, s]));
     const diffBySlug = new Map(REGULATORY_DIFF_PROFILES.map((d) => [d.slug, d]));
 
