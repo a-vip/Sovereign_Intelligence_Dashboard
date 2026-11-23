@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { initDb, saveEvents, saveRssItems, saveAiRegulations, getArchivedInfo, isEventArchived } from '@/lib/db';
+import { initDb, saveEvents, saveRssItems, saveAiRegulations, saveFrontierClusters, saveFrontierModels, getArchivedInfo, isEventArchived } from '@/lib/db';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fetchResearch, logToVault } from '@/lib/researchFunnel';
-import { scrapeAllRss } from '@/lib/rssParser';
+import { scrapeAllRss, fetchFederalRegisterAiSignals } from '@/lib/rssParser';
+import { fetchEpochFrontierClusters, fetchEpochFrontierModels } from '@/lib/epochSync';
 import { verifyLink, findAlternativeLink } from '@/lib/verification';
 import { geocodeText, decodeHtmlEntities } from '@/lib/geocoder';
 import { classifyTechPolicySignal } from '@/lib/policyClassifier';
@@ -278,6 +279,32 @@ export async function GET(request) {
       console.warn('AI Regulations live sync failed during cron run:', e.message);
     }
 
+    // 5. Machine-Readable Statutory & Compute Ingestion (US Federal Register AI API + Epoch AI)
+    let federalRegisterIngested = 0;
+    try {
+      const fedDocs = await fetchFederalRegisterAiSignals(15);
+      const validFedDocs = fedDocs.filter((d) => !isEventArchived(d, archivedInfo));
+      if (validFedDocs.length > 0) {
+        await saveEvents(validFedDocs);
+        federalRegisterIngested = validFedDocs.length;
+      }
+    } catch (e) {
+      console.warn('Federal Register AI sync failed during cron run:', e.message);
+    }
+
+    let frontierClustersSynced = 0;
+    let frontierModelsSynced = 0;
+    try {
+      const [clusters, models] = await Promise.all([
+        fetchEpochFrontierClusters(160),
+        fetchEpochFrontierModels(140)
+      ]);
+      if (clusters.length > 0) frontierClustersSynced = await saveFrontierClusters(clusters);
+      if (models.length > 0) frontierModelsSynced = await saveFrontierModels(models);
+    } catch (e) {
+      console.warn('Epoch AI sync failed during cron run:', e.message);
+    }
+
     return NextResponse.json({ 
       success: true, 
       count: verifiedEvents.length,
@@ -285,6 +312,9 @@ export async function GET(request) {
       research: researchEvents.length,
       rssIngested: newRssCount,
       aiRegulationsSynced: regSyncedCount,
+      federalRegisterIngested,
+      frontierClustersSynced,
+      frontierModelsSynced,
       geoConfirmedSynced: 0
     });
   } catch (error) {

@@ -11,6 +11,7 @@ import {
   normalizeSignalId
 } from '@/lib/provenance';
 import { resolveJurisdictionForLocation } from '@/lib/jurisdictions';
+import { classifyMitRiskDomain } from '@/lib/mitRiskTaxonomy';
 
 export default function CitationProvenanceCard({ event, isStandalone = false }) {
   const [citeFormat, setCiteFormat] = useState('oscola');
@@ -21,6 +22,13 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
   const contentHash = useMemo(() => computeContentHash(event || {}), [event]);
   const citations = useMemo(() => generateCitations(event || {}), [event]);
   const wayback = useMemo(() => getWaybackUrls(event?.url), [event?.url]);
+  const mitRisk = useMemo(
+    () =>
+      event?.details?.mitRisk ||
+      event?.mitRisk ||
+      classifyMitRiskDomain(event?.title || event?.name || '', event?.details?.summary || event?.summary || '', event?.details?.domainPillar || ''),
+    [event]
+  );
   const matchedJurisdiction = useMemo(
     () => resolveJurisdictionForLocation(event?.location || event?.title || ''),
     [event?.location, event?.title]
@@ -82,6 +90,24 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
           >
             <Shield size={11} />
             ADMIRALTY {admiralty.grade}
+          </span>
+          <span
+            title={`MIT AI Risk Repository Domain: ${mitRisk.label} (${mitRisk.causalIntent} • ${mitRisk.timing})`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              background: `${mitRisk.color}18`,
+              border: `1px solid ${mitRisk.color}55`,
+              color: mitRisk.color,
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              fontSize: '10.5px',
+              fontWeight: 700
+            }}
+          >
+            MIT {mitRisk.code}: {mitRisk.shortLabel}
           </span>
           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
             {admiralty.sourceLabel} • {admiralty.infoLabel}

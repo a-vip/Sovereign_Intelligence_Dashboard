@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getJurisdictionBySlug, eventMatchesJurisdiction } from '@/lib/jurisdictions';
-import { getEventsByJurisdiction, getAiRegulations } from '@/lib/db';
+import { getEventsByJurisdiction, getAiRegulations, getFrontierClusters } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeAdmiraltyGrade, normalizeSignalId } from '@/lib/provenance';
 
@@ -71,6 +71,15 @@ export default async function JurisdictionDossierPage({ params }) {
     seenIds.add(cid);
     combinedSignals.push(s);
   }
+
+  const allClusters = await getFrontierClusters(200).catch(() => []);
+  const domesticClusters = (allClusters || []).filter((c) => {
+    if (c.jurisdictionSlug && c.jurisdictionSlug === jurisdiction.slug) return true;
+    const hay = `${c.country || ''} ${c.address || ''}`.toLowerCase();
+    return jurisdiction.matchPatterns?.some((pat) =>
+      new RegExp(`\\b${pat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(hay)
+    );
+  });
 
   const matchedRegulations = (allRegulations || []).filter((r) => {
     const hay = `${r.jurisdiction || ''} ${r.title || ''}`.toLowerCase();
@@ -226,6 +235,33 @@ export default async function JurisdictionDossierPage({ params }) {
             </div>
           )}
         </section>
+
+        {/* Domestic Frontier Compute Clusters (Epoch AI) */}
+        {domesticClusters.length > 0 && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
+                Domestic Frontier AI Compute Clusters ({domesticClusters.length})
+              </h2>
+              <Link href="/compute" style={{ fontSize: '11px', color: '#facc15', fontFamily: 'var(--font-jetbrains-fallback)', textDecoration: 'none', fontWeight: 700 }}>
+                VIEW GLOBAL COMPUTE OBSERVATORY →
+              </Link>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
+              {domesticClusters.slice(0, 12).map((cl) => (
+                <div key={cl.id} style={{ background: 'rgba(15, 23, 42, 0.72)', border: '1px solid rgba(250, 204, 21, 0.25)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#ffffff' }}>{cl.name}</div>
+                  <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>{cl.owner || 'Undisclosed'} • {cl.address || cl.country}</div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', marginTop: '2px' }}>
+                    {cl.powerMw ? <span style={{ color: '#facc15', fontWeight: 700 }}>{cl.powerMw} MW</span> : null}
+                    {cl.h100Equivalents ? <span style={{ color: '#00f0ff' }}>{cl.h100Equivalents.toLocaleString()} H100e</span> : null}
+                    {cl.capexBillions ? <span style={{ color: '#34d399' }}>${cl.capexBillions}B CapEx</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Tracked Regulatory Database Entries */}
         {matchedRegulations.length > 0 && (

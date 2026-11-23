@@ -27,7 +27,9 @@ const DEFAULT_RSS_SOURCE_LIST = [
   { id: 'nature', name: 'Nature Machine Intel' },
   { id: 'hrw', name: 'HRW Tech & Rights' },
   { id: 'aje', name: 'Al Jazeera Tech Wire' },
-  { id: 'un', name: 'UN Global Tech & Peace' }
+  { id: 'un', name: 'UN Global Tech & Peace' },
+  { id: 'aiid', name: 'AI Incident Database (AIID)' },
+  { id: 'eurlex', name: 'EUR-Lex EU Official Journal' }
 ];
 
 const REGION_VIEWPORTS = [
@@ -1799,6 +1801,52 @@ export default function LiveMap({
               <Globe size={11} />
               <span>ATLAS</span>
             </Link>
+
+            {!isMobile && (
+              <Link
+                href="/labs"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#34d399',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  fontFamily: 'var(--font-jetbrains-fallback)',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none'
+                }}
+                title="Frontier AI Safety Frameworks, METR & AISI Evaluations"
+              >
+                <span>LABS</span>
+              </Link>
+            )}
+
+            {!isMobile && (
+              <Link
+                href="/compute"
+                style={{
+                  background: 'rgba(250, 204, 21, 0.08)',
+                  border: '1px solid rgba(250, 204, 21, 0.3)',
+                  color: '#facc15',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  fontFamily: 'var(--font-jetbrains-fallback)',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  textDecoration: 'none'
+                }}
+                title="Epoch AI Global Compute Clusters & Governance Coverage"
+              >
+                <span>COMPUTE</span>
+              </Link>
+            )}
 
             {!isMobile && (
               <Link

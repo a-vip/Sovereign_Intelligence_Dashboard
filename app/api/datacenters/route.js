@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { saveDataCenters, getDataCenters, initDb } from '@/lib/db';
+import { saveDataCenters, getDataCenters, getFrontierClusters, initDb } from '@/lib/db';
 import { verifyAdmin } from '@/lib/adminAuth';
 
 const OPERATORS_LIST = [
@@ -26,17 +26,44 @@ function deduceOperator(name, company) {
 export async function GET() {
   try {
     await initDb();
-    const dataCenters = await getDataCenters();
-    
+    const [dataCenters, frontierClusters] = await Promise.all([
+      getDataCenters(),
+      getFrontierClusters(200).catch(() => [])
+    ]);
+
+    const mappedClusters = (frontierClusters || [])
+      .filter((c) => typeof c.lat === 'number' && typeof c.lon === 'number' && !isNaN(c.lat) && !isNaN(c.lon))
+      .map((c) => ({
+        id: c.id,
+        name: `${c.name}${c.powerMw ? ` (${c.powerMw} MW)` : ''}`,
+        city: c.address || c.country || 'Undisclosed',
+        country: c.country || 'Global',
+        lat: c.lat,
+        lon: c.lon,
+        operator: c.owner || 'Undisclosed',
+        status: 'planned',
+        isFrontierCluster: true,
+        powerMw: c.powerMw,
+        h100Equivalents: c.h100Equivalents,
+        capexBillions: c.capexBillions,
+        chipTypes: c.chipTypes,
+        jurisdictionSlug: c.jurisdictionSlug,
+        website: c.sourceUrl || 'https://epoch.ai/data/data-centers'
+      }));
+
+    const combined = [...mappedClusters, ...(dataCenters || [])];
+
     return NextResponse.json({
       metadata: {
-        total: dataCenters.length,
+        total: combined.length,
+        frontierClusters: mappedClusters.length,
+        colocationFacilities: (dataCenters || []).length,
         timestamp: new Date().toISOString()
       },
-      dataCenters
+      dataCenters: combined
     }, {
       headers: {
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600'
+        'Cache-Control': 'public, max-age=1800, s-maxage=1800, stale-while-revalidate=300'
       }
     });
   } catch (err) {
