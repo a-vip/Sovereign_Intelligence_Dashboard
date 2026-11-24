@@ -231,27 +231,27 @@ const MISSION_COLORS = {
 
 const createSatelliteGlyphCanvas = (color = '#38bdf8', isSelected = false) => {
   if (typeof document === 'undefined') return null;
-  const cacheKey = `sat-icon-ring-${color}-${isSelected ? '1' : '0'}`;
+  const cacheKey = `sat-backlight-${color}-${isSelected ? '1' : '0'}`;
   if (canvasCache[cacheKey]) return canvasCache[cacheKey];
 
-  const size = isSelected ? 40 : 28;
+  const size = isSelected ? 52 : 38;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   const c = size / 2;
-  const r = size * 0.42;
 
-  // Sleek translucent category-colored halo behind iconic satellite emblem
-  ctx.beginPath();
-  ctx.arc(c, c, r, 0, Math.PI * 2);
-  ctx.fillStyle = isSelected ? `${color}38` : 'rgba(15, 23, 42, 0.35)';
-  ctx.fill();
-  ctx.lineWidth = isSelected ? 2 : 1.3;
-  ctx.strokeStyle = color;
-  ctx.stroke();
+  // Soft category-colored backlight glow only (no opaque circle or border ring)
+  const grad = ctx.createRadialGradient(c, c, 2, c, c, size * 0.48);
+  grad.addColorStop(0, `${color}b8`);
+  grad.addColorStop(0.45, `${color}44`);
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
 
-  const iconPx = isSelected ? 22 : 15;
+  const iconPx = isSelected ? 26 : 19;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = isSelected ? 12 : 8;
   ctx.font = `${iconPx}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -1504,9 +1504,9 @@ export default function CesiumGlobe({
         const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
         
         const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
-        const satSize = isSelected ? 30 : 22;
+        const satSize = isSelected ? 28 : 22;
         const satIcon = L.divIcon({
-          html: `<div style="width:${satSize}px;height:${satSize}px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${isSelected ? `${satColor}33` : 'rgba(15,23,42,0.32)'};border:1.5px solid ${satColor};font-size:${isSelected ? 17 : 13}px;line-height:1;">🛰️</div>`,
+          html: `<div style="width:${satSize}px;height:${satSize}px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:${isSelected ? 22 : 16}px;line-height:1;filter:drop-shadow(0 0 ${isSelected ? 10 : 7}px ${satColor});">🛰️</div>`,
           className: 'leaflet-sat-vector-icon',
           iconSize: [satSize, satSize],
           iconAnchor: [satSize / 2, satSize / 2]
@@ -1909,34 +1909,65 @@ export default function CesiumGlobe({
     }
   }, [resetKey, is2DActive]);
 
-  // Handle focusing camera on specific coordinates (e.g. when an admin changes location)
+  // Handle focusing camera straight down onto specific coordinates + transient target reticle
   useEffect(() => {
-    if (focusCoordinate && focusCoordinate.lat !== undefined && focusCoordinate.lon !== undefined) {
-      const { lat, lon } = focusCoordinate;
-      
-      // 1. Focus 3D Cesium camera
-      if (viewerRef.current) {
-        const viewer = viewerRef.current;
-        const Cesium = window.Cesium;
-        if (Cesium) {
-          viewer.trackedEntity = undefined;
-          viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1200000.0), // 1200km focus height (country/wider view)
-            orientation: {
-              heading: viewer.camera.heading, // Maintain current heading/rotation
-              pitch: Cesium.Math.toRadians(-45.0), // Tilt 45 degrees for premium depth look
-              roll: 0.0
-            },
-            duration: 2.0
-          });
-        }
-      }
+    if (!focusCoordinate || focusCoordinate.lat === undefined || focusCoordinate.lon === undefined) return;
+    const latNum = Number(focusCoordinate.lat);
+    const lonNum = Number(focusCoordinate.lon);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return;
 
-      // 2. Focus 2D Leaflet map
-      if (is2DActive && leafletMapRef.current) {
-        leafletMapRef.current.setView([lat, lon], 5, { animate: true }); // Zoom level 5 for country view
-      }
+    let timer = null;
+    const viewer = viewerRef.current;
+    const Cesium = typeof window !== 'undefined' ? window.Cesium : null;
+
+    if (viewer && !viewer.isDestroyed() && Cesium) {
+      viewer.trackedEntity = undefined;
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lonNum, latNum, 2400000.0),
+        orientation: {
+          heading: 0.0,
+          pitch: Cesium.Math.toRadians(-90.0),
+          roll: 0.0
+        },
+        duration: 1.4
+      });
+
+      try {
+        const oldRing = viewer.entities.getById('focus-target-ring');
+        if (oldRing) viewer.entities.remove(oldRing);
+        viewer.entities.add({
+          id: 'focus-target-ring',
+          position: Cesium.Cartesian3.fromDegrees(lonNum, latNum, 0),
+          ellipse: {
+            semiMajorAxis: 135000.0,
+            semiMinorAxis: 135000.0,
+            material: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.14),
+            outline: true,
+            outlineColor: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.95),
+            outlineWidth: 2,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+          }
+        });
+        viewer.scene.requestRender();
+        timer = setTimeout(() => {
+          try {
+            if (!viewer.isDestroyed()) {
+              const ring = viewer.entities.getById('focus-target-ring');
+              if (ring) viewer.entities.remove(ring);
+              viewer.scene.requestRender();
+            }
+          } catch {}
+        }, 6000);
+      } catch {}
     }
+
+    if (is2DActive && leafletMapRef.current) {
+      leafletMapRef.current.setView([latNum, lonNum], 6, { animate: true });
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [focusCoordinate, is2DActive]);
 
   // 2b. Sync Leaflet theme to mapStyle selection
@@ -3073,13 +3104,8 @@ export default function CesiumGlobe({
     });
 
     // Render 3D Orbiting Satellites in Space dynamically or update existing persistent ones
-    const isLightTheme = uiTheme === 'light';
-    const labelBgColor = isLightTheme
-      ? Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.88)
-      : uiTheme === 'emerald'
-        ? Cesium.Color.fromCssColorString('#06281e').withAlpha(0.76)
-        : Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.72);
-    const labelOutlineColor = Cesium.Color.fromCssColorString(isLightTheme ? '#f8fafc' : '#020617');
+    const labelBgColor = Cesium.Color.fromCssColorString('#0b132b').withAlpha(0.76);
+    const labelOutlineColor = Cesium.Color.fromCssColorString('#020617');
 
     if (showSatellites && satellites && satellites.length > 0) {
       satellites.forEach(sat => {
@@ -3089,7 +3115,7 @@ export default function CesiumGlobe({
         const newPos = Cesium.Cartesian3.fromDegrees(sat.longitude, sat.latitude, altInMeters);
 
         const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
-        const labelFillColor = Cesium.Color.fromCssColorString(isLightTheme ? '#0f172a' : satColor);
+        const labelFillColor = Cesium.Color.fromCssColorString('#f8fafc');
         const existingSat = viewer.entities.getById(satId);
         if (existingSat) {
           existingSat.position = newPos;
@@ -3123,12 +3149,12 @@ export default function CesiumGlobe({
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
               fillColor: labelFillColor,
               outlineColor: labelOutlineColor,
-              outlineWidth: isLightTheme ? 1.5 : 2,
+              outlineWidth: 1.5,
               showBackground: true,
               backgroundColor: labelBgColor,
-              backgroundPadding: new Cesium.Cartesian2(9, 4),
+              backgroundPadding: new Cesium.Cartesian2(8, 4),
               verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              pixelOffset: new Cesium.Cartesian2(0, -20),
+              pixelOffset: new Cesium.Cartesian2(0, -22),
               heightReference: Cesium.HeightReference.NONE,
               show: isSelected,
               disableDepthTestDistance: 100000.0

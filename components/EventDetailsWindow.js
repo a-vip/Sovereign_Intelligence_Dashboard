@@ -478,6 +478,9 @@ export default function EventDetailsWindow({
   const dcWebsite = dcResolved?.website || event.website || null;
   const dcPurpose = dcResolved?.facilityPurpose || event.facilityPurpose || `Operated by ${dcOperator} for regional compute and fiber interconnection.`;
   const dcProfile = dcResolved?.dataProfile || event.dataProfile || 'Enterprise cloud workloads, network peering, and distributed storage.';
+  const rawLat = event.lat ?? event.latitude;
+  const rawLon = event.lon ?? event.longitude;
+  const hasLocateCoords = rawLat != null && rawLon != null && !isNaN(Number(rawLat)) && !isNaN(Number(rawLon));
 
   return (
     <div
@@ -834,10 +837,10 @@ export default function EventDetailsWindow({
                       Atlas ↗
                     </Link>
                   )}
-                  {onFocusLocation && event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && (
+                  {onFocusLocation && hasLocateCoords && (
                     <button
                       type="button"
-                      onClick={() => onFocusLocation(Number(event.lat), Number(event.lon))}
+                      onClick={() => onFocusLocation(Number(rawLat), Number(rawLon))}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -930,10 +933,10 @@ export default function EventDetailsWindow({
                     </Link>
                   )}
 
-                  {onFocusLocation && event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && (
+                  {onFocusLocation && hasLocateCoords && (
                     <button
                       type="button"
-                      onClick={() => onFocusLocation(Number(event.lat), Number(event.lon))}
+                      onClick={() => onFocusLocation(Number(rawLat), Number(rawLon))}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1060,10 +1063,10 @@ export default function EventDetailsWindow({
                       IODA Outages ↗
                     </a>
                   )}
-                  {onFocusLocation && event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && (
+                  {onFocusLocation && hasLocateCoords && (
                     <button
                       type="button"
-                      onClick={() => onFocusLocation(Number(event.lat), Number(event.lon))}
+                      onClick={() => onFocusLocation(Number(rawLat), Number(rawLon))}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1175,10 +1178,10 @@ export default function EventDetailsWindow({
                     </Link>
                   )}
 
-                  {onFocusLocation && event.lat != null && event.lon != null && !isNaN(Number(event.lat)) && (
+                  {onFocusLocation && hasLocateCoords && (
                     <button
                       type="button"
-                      onClick={() => onFocusLocation(Number(event.lat), Number(event.lon))}
+                      onClick={() => onFocusLocation(Number(rawLat), Number(rawLon))}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1220,7 +1223,7 @@ export default function EventDetailsWindow({
                       padding: '2px 0'
                     }}
                   >
-                    <span>CITATIONS, HASH &amp; REFERENCES</span>
+                    <span>CITATIONS &amp; REFERENCES</span>
                     {showProvenance ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
 

@@ -4,6 +4,18 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 
 const CHANGELOG_DATA = [
   {
+    version: 'v2.7.0',
+    date: '2026-11-24',
+    title: 'Tactical Widgets, Locate & Source Light-Theme Fix, Satellites',
+    isMajor: true,
+    bullets: [
+      'Added three lazy-loaded Tactical Widgets: Enforcement Tracker (statutory AI deadlines), Shutdown & OONI Pulse (live OONI + IODA outages), and Compute & Safety Hub (Epoch AI load + MIT Risk / Labs).',
+      'Restored clear category-backlit satellite icons with dark frosted-glass name tags against space.',
+      'Removed SHA-256 hashes from citations and event popups (retained only on full archival `/signal/[id]` pages), fixed Source Manager Editorial Light contrast, and auto-enabled all 55+ feeds by default.',
+      'Fixed Locate straight-down camera centering with transient target reticle and guaranteed inspected/auto-pinned signals render on the globe.'
+    ]
+  },
+  {
     version: 'v2.6.0',
     date: '2026-11-24',
     title: 'Data-Rich Ethics Overlays, Facility & Statute Inspectors',
@@ -109,7 +121,7 @@ const CHANGELOG_DATA = [
 ];
 
 export default function ChangelogBox({ onClose }) {
-  const [expandedVersions, setExpandedVersions] = useState({ 'v2.6.0': true });
+  const [expandedVersions, setExpandedVersions] = useState({ 'v2.7.0': true });
   const [pos, setPos] = useState({ x: 100, y: 120 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
@@ -216,7 +228,7 @@ export default function ChangelogBox({ onClose }) {
             CHANGELOG
           </span>
           <span style={{ fontSize: '10px', color: 'var(--sov-accent)', fontWeight: 700, fontFamily: 'var(--font-jetbrains-fallback)' }}>
-            v2.6.0
+            v2.7.0
           </span>
         </div>
         <button
@@ -348,7 +360,7 @@ export default function ChangelogBox({ onClose }) {
         }}
       >
         <span>VERIFIED RELEASE HISTORY</span>
-        <span style={{ color: 'var(--sov-accent)', fontWeight: 700 }}>SOVEREIGN OBSERVATORY v2.6.0</span>
+        <span style={{ color: 'var(--sov-accent)', fontWeight: 700 }}>SOVEREIGN OBSERVATORY v2.7.0</span>
       </div>
     </div>
   );

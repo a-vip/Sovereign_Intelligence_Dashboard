@@ -115,27 +115,29 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => handleCopy(contentHash, 'hash')}
-          title={`Click to copy full SHA-256 fingerprint: ${contentHash}`}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            background: 'var(--sov-panel-bg)',
-            border: '1px solid var(--sov-border)',
-            borderRadius: '4px',
-            padding: '3px 8px',
-            color: copiedType === 'hash' ? 'var(--sov-emerald)' : 'var(--sov-text)',
-            fontFamily: 'var(--font-jetbrains-fallback)',
-            fontSize: '10px',
-            cursor: 'pointer'
-          }}
-        >
-          {copiedType === 'hash' ? <Check size={10} /> : <Copy size={10} />}
-          <span>SHA-256: {contentHash.slice(0, 14)}…</span>
-        </button>
+        {isStandalone && (
+          <button
+            type="button"
+            onClick={() => handleCopy(contentHash, 'hash')}
+            title={`Click to copy full SHA-256 fingerprint: ${contentHash}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: 'var(--sov-panel-bg)',
+              border: '1px solid var(--sov-border)',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              color: copiedType === 'hash' ? 'var(--sov-emerald)' : 'var(--sov-text)',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              fontSize: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            {copiedType === 'hash' ? <Check size={10} /> : <Copy size={10} />}
+            <span>SHA-256: {contentHash.slice(0, 14)}…</span>
+          </button>
+        )}
       </div>
 
       {/* Provenance Action Links */}
@@ -149,9 +151,9 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
               gap: '5px',
               padding: '4px 9px',
               borderRadius: '4px',
-              background: 'rgba(0, 240, 255, 0.1)',
-              border: '1px solid rgba(0, 240, 255, 0.35)',
-              color: '#00f0ff',
+              background: 'var(--sov-accent-soft)',
+              border: '1px solid var(--sov-accent)',
+              color: 'var(--sov-accent)',
               fontSize: '10.5px',
               fontWeight: 700,
               fontFamily: 'var(--font-jetbrains-fallback)',
@@ -173,8 +175,8 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
               padding: '4px 9px',
               borderRadius: '4px',
               background: 'rgba(168, 85, 247, 0.12)',
-              border: '1px solid rgba(168, 85, 247, 0.35)',
-              color: '#c084fc',
+              border: '1px solid rgba(168, 85, 247, 0.38)',
+              color: 'var(--sov-purple)',
               fontSize: '10.5px',
               fontWeight: 700,
               fontFamily: 'var(--font-jetbrains-fallback)',
@@ -197,9 +199,9 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
               gap: '5px',
               padding: '4px 9px',
               borderRadius: '4px',
-              background: 'rgba(56, 189, 248, 0.08)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              color: '#38bdf8',
+              background: 'rgba(56, 189, 248, 0.1)',
+              border: '1px solid rgba(56, 189, 248, 0.32)',
+              color: 'var(--sov-sky)',
               fontSize: '10.5px',
               fontWeight: 600,
               fontFamily: 'var(--font-jetbrains-fallback)',
@@ -222,9 +224,9 @@ export default function CitationProvenanceCard({ event, isStandalone = false }) 
               gap: '4px',
               padding: '4px 8px',
               borderRadius: '4px',
-              background: 'rgba(16, 185, 129, 0.08)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              color: '#34d399',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.32)',
+              color: 'var(--sov-emerald)',
               fontSize: '10px',
               fontFamily: 'var(--font-jetbrains-fallback)',
               textDecoration: 'none'

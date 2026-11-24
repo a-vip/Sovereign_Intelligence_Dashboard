@@ -17,6 +17,9 @@ const ResourcesModal = dynamic(() => import('./ResourcesModal'), { ssr: false })
 const SourceManagerModal = dynamic(() => import('./SourceManagerModal'), { ssr: false });
 const CommandPaletteModal = dynamic(() => import('./CommandPaletteModal'), { ssr: false });
 const TemporalReplayBar = dynamic(() => import('./TemporalReplayBar'), { ssr: false });
+const LegislativeCountdownWidget = dynamic(() => import('./LegislativeCountdownWidget'), { ssr: false });
+const CensorshipPulseWidget = dynamic(() => import('./CensorshipPulseWidget'), { ssr: false });
+const ComputeSafetyWidget = dynamic(() => import('./ComputeSafetyWidget'), { ssr: false });
 
 const EMPTY_MILESTONES = [];
 
@@ -563,6 +566,10 @@ export default function LiveMap({
     return () => clearTimeout(t);
   }, [searchQuery]);
   const [showMarkets, setShowMarkets] = useState(false);
+  const [showLegislativeTracker, setShowLegislativeTracker] = useState(false);
+  const [showCensorshipPulse, setShowCensorshipPulse] = useState(false);
+  const [showComputeSafety, setShowComputeSafety] = useState(false);
+  const hasSyncedBuiltInRef = useRef(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 900 : false));
   const [refreshing, setRefreshing] = useState(false);
@@ -855,7 +862,11 @@ export default function LiveMap({
       setAvailableRssSources(mergedList);
       setSelectedRssSources(prev => {
         const next = new Set(prev);
-        custom.forEach(c => next.add(c.id));
+        if (!hasSyncedBuiltInRef.current) {
+          hasSyncedBuiltInRef.current = true;
+          builtIn.forEach(s => { if (s.id) next.add(s.id); });
+        }
+        custom.forEach(c => { if (c.id) next.add(c.id); });
         return Array.from(next);
       });
     } catch (e) {
@@ -1551,8 +1562,32 @@ export default function LiveMap({
       });
     }
 
+    // Guarantee the actively inspected/located event or RSS wire signal always renders on the globe
+    if (selectedEvent) {
+      const selLat = parseFloat(selectedEvent.lat ?? selectedEvent.latitude);
+      const selLon = parseFloat(selectedEvent.lon ?? selectedEvent.longitude);
+      if (Number.isFinite(selLat) && Number.isFinite(selLon)) {
+        const selId = String(selectedEvent.id || '');
+        const selNorm = getNormTitle(selectedEvent.title || selectedEvent.name);
+        const alreadyPresent = dispersed.some(
+          d => (selId && String(d.id || '') === selId) || (selNorm && getNormTitle(d.title || d.name) === selNorm)
+        );
+        if (!alreadyPresent) {
+          dispersed.push({
+            ...selectedEvent,
+            name: selectedEvent.title || selectedEvent.name,
+            title: selectedEvent.title || selectedEvent.name,
+            category: selectedEvent.category || 'Political',
+            severity: selectedEvent.severity || 2,
+            lat: selLat,
+            lon: selLon
+          });
+        }
+      }
+    }
+
     return dispersed;
-  }, [markers, rssItems, categories, minSeverity, debouncedSearchQuery, selectedRssSources, timeWindowDays, timelineCutoffMs]);
+  }, [markers, rssItems, categories, minSeverity, debouncedSearchQuery, selectedRssSources, timeWindowDays, timelineCutoffMs, selectedEvent]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -3359,31 +3394,46 @@ export default function LiveMap({
                 </div>
 
                 {/* Tactical Widgets */}
-                <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(56, 189, 248, 0.15)' }}>
+                <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid var(--sov-border)' }}>
                   <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--sov-muted)', marginBottom: '5px', letterSpacing: '0.05em' }}>TACTICAL WIDGETS</div>
-                  <button
-                    className={`sev-btn${showMarkets ? ' active' : ''}`}
-                    style={{
-                      background: showMarkets ? '#10b981' : 'transparent',
-                      color: showMarkets ? '#020617' : '#8892a4',
-                      borderColor: '#10b981',
-                      width: '100%',
-                      fontSize: '9px',
-                      padding: '5px 0',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      border: '1px solid #10b981',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
-                    }}
-                    onClick={() => setShowMarkets(!showMarkets)}
-                  >
-                    📊 {showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {[
+                      { label: showMarkets ? 'DISABLE MARKETS' : 'MONITOR MARKETS', icon: '📊', on: showMarkets, toggle: () => setShowMarkets(!showMarkets), color: '#10b981' },
+                      { label: 'ENFORCEMENT TRACKER', icon: '⚖️', on: showLegislativeTracker, toggle: () => setShowLegislativeTracker(!showLegislativeTracker), color: '#a855f7' },
+                      { label: 'SHUTDOWN & OONI PULSE', icon: '🔒', on: showCensorshipPulse, toggle: () => setShowCensorshipPulse(!showCensorshipPulse), color: '#f43f5e' },
+                      { label: 'COMPUTE & SAFETY HUB', icon: '⚡', on: showComputeSafety, toggle: () => setShowComputeSafety(!showComputeSafety), color: '#f59e0b' }
+                    ].map((w) => (
+                      <button
+                        key={w.label}
+                        type="button"
+                        onClick={w.toggle}
+                        style={{
+                          background: w.on ? `${w.color}22` : 'var(--sov-card-bg)',
+                          color: w.on ? w.color : 'var(--sov-text)',
+                          borderColor: w.on ? w.color : 'var(--sov-border)',
+                          width: '100%',
+                          fontSize: '9px',
+                          padding: '5px 8px',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-jetbrains-fallback)',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '6px'
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <span>{w.icon}</span>
+                          <span>{w.label}</span>
+                        </span>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: w.on ? w.color : '#64748b' }} />
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
               </div>
@@ -3837,9 +3887,39 @@ export default function LiveMap({
         </div>
       </div>
 
-      {/* Live Market Quotes Box */}
+      {/* Live Market Quotes & Tactical Widgets */}
       {showMarkets && (
         <MarketQuotesBox onClose={() => setShowMarkets(false)} />
+      )}
+      {showLegislativeTracker && (
+        <LegislativeCountdownWidget
+          onClose={() => setShowLegislativeTracker(false)}
+          onFocusLocation={(lat, lon) => {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }}
+        />
+      )}
+      {showCensorshipPulse && (
+        <CensorshipPulseWidget
+          onClose={() => setShowCensorshipPulse(false)}
+          censorshipEnabled={censorshipEnabled}
+          onToggleCensorshipLayer={() => setCensorshipEnabled(prev => !prev)}
+          onFocusLocation={(lat, lon) => {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }}
+        />
+      )}
+      {showComputeSafety && (
+        <ComputeSafetyWidget
+          onClose={() => setShowComputeSafety(false)}
+          signals={allFetchedEvents}
+          onFocusLocation={(lat, lon) => {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }}
+        />
       )}
 
       {/* Interactive System Changelog Box */}
@@ -3858,7 +3938,10 @@ export default function LiveMap({
           SEV_COLORS={SEV_COLORS}
           CAT_COLORS={CAT_COLORS}
           formatTime={formatTime}
-          onFocusLocation={(lat, lon) => setFocusCoordinate({ lat, lon })}
+          onFocusLocation={(lat, lon) => {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }}
           isBookmarked={isBookmarked(selectedEvent)}
           onToggleBookmark={toggleBookmark}
         />
@@ -3870,6 +3953,7 @@ export default function LiveMap({
         onClose={() => setShowCommandPalette(false)}
         signals={allFetchedEvents}
         onFlyToLocation={(lat, lon, countryName) => {
+          setAutoRotate(false);
           if (countryName) setSelectedCountry(countryName);
           if (lat != null && lon != null) {
             setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
@@ -3877,8 +3961,11 @@ export default function LiveMap({
         }}
         onSelectSignal={(ev) => {
           setSelectedEvent(ev);
-          if (ev?.lat != null && ev?.lon != null) {
-            setFocusCoordinate({ lat: Number(ev.lat), lon: Number(ev.lon), timestamp: Date.now() });
+          const targetLat = ev?.lat ?? ev?.latitude;
+          const targetLon = ev?.lon ?? ev?.longitude;
+          if (targetLat != null && targetLon != null) {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(targetLat), lon: Number(targetLon), timestamp: Date.now() });
           }
         }}
       />
@@ -3902,6 +3989,7 @@ export default function LiveMap({
               prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]
             );
           }}
+          onSelectAllSources={(ids) => setSelectedRssSources(Array.isArray(ids) ? ids : [])}
           onSourcesIngested={(data) => {
             if (data?.source?.sid) {
               const newSid = data.source.sid;
@@ -3925,7 +4013,9 @@ export default function LiveMap({
             if (Array.isArray(data?.pinnedEvents) && data.pinnedEvents.length > 0) {
               const mergeUnique = (prev) => {
                 const seen = new Set(prev.map(e => e.id || e.url));
-                const fresh = data.pinnedEvents.filter(e => !seen.has(e.id) && !seen.has(e.url));
+                const fresh = data.pinnedEvents
+                  .filter(e => !seen.has(e.id) && !seen.has(e.url))
+                  .map(e => ({ ...e, isPinned: true }));
                 return [...fresh, ...prev];
               };
               setMarkers(mergeUnique);
@@ -3938,8 +4028,11 @@ export default function LiveMap({
           onFlyToEvent={(ev) => {
             setShowSourceModal(false);
             setSelectedEvent(ev);
-            if (ev?.lat != null && ev?.lon != null) {
-              setFocusCoordinate({ lat: Number(ev.lat), lon: Number(ev.lon), timestamp: Date.now() });
+            const targetLat = ev?.lat ?? ev?.latitude;
+            const targetLon = ev?.lon ?? ev?.longitude;
+            if (targetLat != null && targetLon != null) {
+              setAutoRotate(false);
+              setFocusCoordinate({ lat: Number(targetLat), lon: Number(targetLon), timestamp: Date.now() });
             }
           }}
         />

@@ -8,6 +8,7 @@ export default function SourceManagerModal({
   currentUser,
   selectedRssSources = [],
   onToggleRssSource,
+  onSelectAllSources,
   onSourcesIngested,
   onFlyToEvent
 }) {
@@ -219,10 +220,10 @@ export default function SourceManagerModal({
                 style={{
                   flex: 1,
                   padding: '11px 10px',
-                  background: active ? 'rgba(0, 240, 255, 0.09)' : 'transparent',
+                  background: active ? 'var(--sov-accent-soft)' : 'transparent',
                   border: 'none',
-                  borderBottom: active ? '2px solid #00f0ff' : '2px solid transparent',
-                  color: active ? '#00f0ff' : '#94a3b8',
+                  borderBottom: active ? '2px solid var(--sov-accent)' : '2px solid transparent',
+                  color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
                   fontSize: '10.5px',
                   fontWeight: 800,
                   fontFamily: 'var(--font-jetbrains-fallback, monospace)',
@@ -253,7 +254,7 @@ export default function SourceManagerModal({
               borderRadius: '8px',
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#fca5a5',
+              color: 'var(--sov-danger, #ef4444)',
               fontSize: '11.5px',
               fontFamily: 'monospace'
             }}>
@@ -371,8 +372,8 @@ export default function SourceManagerModal({
                       style={{
                         padding: '12px 14px',
                         borderRadius: '8px',
-                        background: isAdded ? 'rgba(0, 240, 255, 0.04)' : 'rgba(15, 23, 42, 0.55)',
-                        border: isAdded ? '1px solid rgba(0, 240, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                        background: isAdded ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                        border: isAdded ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
@@ -413,9 +414,9 @@ export default function SourceManagerModal({
                             flexShrink: 0,
                             padding: '5px 10px',
                             borderRadius: '5px',
-                            background: isAdded ? 'rgba(16, 185, 129, 0.14)' : 'rgba(0, 240, 255, 0.14)',
-                            border: isAdded ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(0, 240, 255, 0.4)',
-                            color: isAdded ? '#34d399' : '#00f0ff',
+                            background: isAdded ? 'rgba(16, 185, 129, 0.14)' : 'var(--sov-accent-soft)',
+                            border: isAdded ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--sov-accent)',
+                            color: isAdded ? 'var(--sov-emerald)' : 'var(--sov-accent)',
                             fontSize: '10px',
                             fontWeight: 800,
                             fontFamily: 'monospace',
@@ -534,7 +535,7 @@ export default function SourceManagerModal({
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '6px',
-                      background: '#0f172a',
+                      background: 'var(--sov-card-bg)',
                       border: '1px solid var(--sov-border)',
                       color: 'var(--sov-text)',
                       fontSize: '12px',
@@ -698,8 +699,28 @@ export default function SourceManagerModal({
                   )}
 
                   <div>
-                    <div style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--sov-muted)', marginBottom: '8px', letterSpacing: '0.06em' }}>
-                      CORE INTERNATIONAL AI, CYBER & POLICY FEEDS ({builtInSources.length})
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--sov-muted)', letterSpacing: '0.06em' }}>
+                        CORE INTERNATIONAL AI, CYBER &amp; POLICY FEEDS ({builtInSources.length})
+                      </div>
+                      {onSelectAllSources && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => onSelectAllSources([...builtInSources, ...customSources].map(s => s.id || s.sid).filter(Boolean))}
+                            style={{ padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--sov-accent)', background: 'var(--sov-accent-soft)', color: 'var(--sov-accent)', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSelectAllSources([])}
+                            style={{ padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-muted)', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '6px' }}>
                       {builtInSources.map(src => {
@@ -715,8 +736,8 @@ export default function SourceManagerModal({
                               gap: '8px',
                               padding: '8px 10px',
                               borderRadius: '6px',
-                              background: checked ? 'rgba(56, 189, 248, 0.06)' : 'rgba(15, 23, 42, 0.4)',
-                              border: checked ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                              background: checked ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                              border: checked ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
                               cursor: 'pointer'
                             }}
                           >
@@ -727,11 +748,11 @@ export default function SourceManagerModal({
                                 onChange={() => onToggleRssSource && onToggleRssSource(sid)}
                                 style={{ accentColor: 'var(--sov-accent)', cursor: 'pointer' }}
                               />
-                              <span style={{ fontSize: '11.5px', fontWeight: 600, color: checked ? '#f1f5f9' : '#64748b' }}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 600, color: checked ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
                                 {src.name}
                               </span>
                             </div>
-                            <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--sov-sky)' }}>
+                            <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--sov-sky)', flexShrink: 0 }}>
                               {src.region || 'Global'}
                             </span>
                           </label>
