@@ -16,7 +16,7 @@ async function main() {
     JSON.stringify(syncRes.byType)
   );
 
-  console.log('[eval:ai] Executing 16-case Hallucination & Groundedness Benchmark Suite...');
+  console.log('[eval:ai] Executing 23-case Hallucination & Groundedness Benchmark Suite...');
   const useDeterministic = process.argv.includes('--deterministic');
   const summary = await executeHallucinationEvalSuite({
     triggeredBy: useDeterministic ? 'cli-deterministic' : 'cli-eval-script',

@@ -820,7 +820,23 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
                               {c.title}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', color: 'var(--sov-muted)', fontSize: '10.5px' }}>
-                              <span>{[c.location, c.dateStr].filter(Boolean).join(' · ')}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                <span
+                                  style={{
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    fontSize: '9.5px',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.02em',
+                                    background: c.isExternalWeb ? 'rgba(56,189,248,0.12)' : 'var(--sov-accent-soft)',
+                                    color: c.isExternalWeb ? '#38bdf8' : 'var(--sov-accent)',
+                                    border: `1px solid ${c.isExternalWeb ? 'rgba(56,189,248,0.3)' : 'var(--sov-border)'}`
+                                  }}
+                                >
+                                  {c.isExternalWeb ? (c.sourceLabel || 'Web Verification') : 'SovDash'}
+                                </span>
+                                <span>{[c.location, c.dateStr].filter(Boolean).join(' · ')}</span>
+                              </span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {hasCoords && onFocusLocation && (
                                   <button
@@ -877,7 +893,14 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
                 }}
               >
                 <Loader2 size={13} className="animate-spin" />
-                <span>Searching feeds &amp; statutes · {elapsedSec.toFixed(1)}s</span>
+                <span>
+                  {elapsedSec < 1.2
+                    ? 'Scanning SovDash archive & live feeds'
+                    : elapsedSec < 2.8
+                      ? 'Cross-verifying global & web sources'
+                      : 'Deliberating & formulating response'}{' '}
+                  · {elapsedSec.toFixed(1)}s
+                </span>
               </div>
             )}
 

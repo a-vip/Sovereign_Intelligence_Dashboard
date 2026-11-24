@@ -25,5 +25,12 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_3uxKY2mv3ILuhlbGf3DpIzKN
           VERCEL_PROJECT_ID: prj_xGYqht8rsyN5ZpQkuEzUproiya4a
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          vercel deploy --prod --token=$VERCEL_TOKEN --yes
+          EXTRA_ENV=()
+          if [ -n "$GEMINI_API_KEY" ]; then EXTRA_ENV+=(-e "GEMINI_API_KEY=$GEMINI_API_KEY"); fi
+          if [ -n "$GROQ_API_KEY" ]; then EXTRA_ENV+=(-e "GROQ_API_KEY=$GROQ_API_KEY"); fi
+          if [ -n "$OPENROUTER_API_KEY" ]; then EXTRA_ENV+=(-e "OPENROUTER_API_KEY=$OPENROUTER_API_KEY"); fi
+          vercel deploy --prod --token="$VERCEL_TOKEN" --yes "${EXTRA_ENV[@]}"
