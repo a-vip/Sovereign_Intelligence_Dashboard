@@ -220,6 +220,66 @@ const createDiamondCanvas = (color = '#f59e0b', size = 12, outlineColor = '#0f17
   return canvas;
 };
 
+const MISSION_COLORS = {
+  station: '#00f0ff',
+  earth_obs: '#10b981',
+  navigation: '#f59e0b',
+  comms: '#38bdf8',
+  weather_geo: '#a855f7',
+  science: '#ec4899'
+};
+
+const createSatelliteGlyphCanvas = (color = '#38bdf8', isSelected = false) => {
+  if (typeof document === 'undefined') return null;
+  const cacheKey = `sat-glyph-${color}-${isSelected ? '1' : '0'}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
+  const size = isSelected ? 34 : 22;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const c = size / 2;
+
+  ctx.save();
+  ctx.translate(c, c);
+  ctx.rotate(-0.55);
+
+  if (isSelected) {
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.44, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+
+  // Solar arrays
+  const wingW = isSelected ? 8.5 : 5.6;
+  const wingH = isSelected ? 4.4 : 3.0;
+  const gap = isSelected ? 4.2 : 2.8;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1;
+  ctx.fillRect(-gap - wingW, -wingH / 2, wingW, wingH);
+  ctx.strokeRect(-gap - wingW, -wingH / 2, wingW, wingH);
+  ctx.fillRect(gap, -wingH / 2, wingW, wingH);
+  ctx.strokeRect(gap, -wingH / 2, wingW, wingH);
+
+  // Satellite core bus
+  const coreR = isSelected ? 3.8 : 2.6;
+  ctx.beginPath();
+  ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+
+  ctx.restore();
+  canvasCache[cacheKey] = canvas;
+  return canvas;
+};
+
 const createClusterCanvas = (count, color = '#38bdf8') => {
   if (typeof document === 'undefined') return null;
   const label = count > 99 ? '99+' : String(count);
@@ -377,6 +437,11 @@ const GLOBE_LAYER_CACHE = {
   aiRegulations: null,
   oilGas: null,
   gpsJamming: null,
+  censorship: null,
+  environmental: null,
+  supplyChain: null,
+  biometricWelfare: null,
+  aiLabor: null,
 };
 
 export default function CesiumGlobe({ 
@@ -405,6 +470,13 @@ export default function CesiumGlobe({
   gpsJammingEnabled = false,
   dataCentersEnabled = false,
   aiRegulationsEnabled = false,
+  censorshipEnabled = false,
+  envJusticeEnabled = false,
+  supplyChainEnabled = false,
+  biometricWelfareEnabled = false,
+  aiLaborEnabled = false,
+  temporalReplayActive = false,
+  temporalMilestones = [],
   selectedCountry = null,
   onCountrySelect = null,
   isAdmin = false
@@ -416,6 +488,8 @@ export default function CesiumGlobe({
   const powerLayerRef = useRef(null);
   const cableEntitiesRef = useRef([]);
   const oilGasEntitiesRef = useRef([]);
+  const ethicsEntitiesRef = useRef([]);
+  const temporalEntitiesRef = useRef([]);
   const gpsJammingEntitiesRef = useRef([]);
   const dataCenterEntitiesRef = useRef([]);
   const aiRegulationsEntitiesRef = useRef([]);
@@ -1447,11 +1521,13 @@ export default function CesiumGlobe({
       satellites.forEach(sat => {
         const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
         
+        const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
+        const satSize = isSelected ? 18 : 12;
         const satIcon = L.divIcon({
-          html: `<div style="font-size: ${isSelected ? '24px' : '16px'}; line-height: 1; text-shadow: 0 0 8px rgba(0, 240, 255, 0.9); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">🛰️</div>`,
-          className: 'leaflet-sat-emoji-icon',
-          iconSize: isSelected ? [24, 24] : [16, 16],
-          iconAnchor: isSelected ? [12, 12] : [8, 8]
+          html: `<div style="width:${satSize}px;height:${satSize}px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="display:block;width:${Math.round(satSize*0.65)}px;height:${Math.round(satSize*0.65)}px;transform:rotate(45deg);border-radius:2px;background:#ffffff;border:2px solid ${satColor};box-shadow:0 0 8px ${satColor};"></span></div>`,
+          className: 'leaflet-sat-vector-icon',
+          iconSize: [satSize, satSize],
+          iconAnchor: [satSize / 2, satSize / 2]
         });
 
         const marker = L.marker([sat.latitude, sat.longitude], {
@@ -1727,8 +1803,81 @@ export default function CesiumGlobe({
         .catch(() => {});
     }
 
+    if (censorshipEnabled) {
+      loadJsonCached('censorship', '/api/censorship').then((data) => {
+        if (cancelled || !data?.items) return;
+        data.items.forEach(item => {
+          if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
+          L.circleMarker([item.lat, item.lon], {
+            radius: 5 + Math.min(4, item.severity || 2),
+            fillColor: item.color || '#f43f5e',
+            color: '#0f172a',
+            weight: 1.5,
+            fillOpacity: 0.9
+          })
+            .bindTooltip(`<b>🔒 ${esc(item.country)}</b><br/>${esc(item.confirmedBlocks?.toLocaleString?.() || 0)} OONI blocks · ${item.blockRatePct || 0}% disruption`, { sticky: true })
+            .on('click', () => { if (onPointClickRef.current) onPointClickRef.current({ ...item, isEthicsOverlay: true }); })
+            .addTo(overlayGroup);
+        });
+      }).catch(() => {});
+    }
+
+    const ethicsLayers2d = [
+      { on: envJusticeEnabled, key: 'environmental', url: '/api/ethics-layers?layer=environmental', icon: '💧' },
+      { on: supplyChainEnabled, key: 'supplyChain', url: '/api/ethics-layers?layer=supply_chain', icon: '🪨' },
+      { on: biometricWelfareEnabled, key: 'biometricWelfare', url: '/api/ethics-layers?layer=biometric_welfare', icon: '👁️' },
+      { on: aiLaborEnabled, key: 'aiLabor', url: '/api/ethics-layers?layer=ai_labor', icon: '⚖️' }
+    ];
+    ethicsLayers2d.forEach(({ on, key, url, icon }) => {
+      if (!on) return;
+      loadJsonCached(key, url).then((data) => {
+        if (cancelled || !data) return;
+        (data.arcs || []).forEach(arc => {
+          if (Array.isArray(arc.from) && Array.isArray(arc.to)) {
+            L.polyline([arc.from, arc.to], { color: arc.color || '#38bdf8', weight: 1.5, opacity: 0.55, dashArray: '4 4' })
+              .bindTooltip(esc(arc.name || 'Supply Chain Link'), { sticky: true })
+              .addTo(overlayGroup);
+          }
+        });
+        (data.items || []).forEach(pt => {
+          if (typeof pt.lat !== 'number' || typeof pt.lon !== 'number') return;
+          L.circleMarker([pt.lat, pt.lon], {
+            radius: 6.5,
+            fillColor: pt.color || '#a855f7',
+            color: '#0f172a',
+            weight: 1.5,
+            fillOpacity: 0.92
+          })
+            .bindTooltip(`<b>${icon} ${esc(pt.name)}</b><br/>${esc(pt.country || '')}`, { sticky: true })
+            .on('click', () => {
+              if (onPointClickRef.current) {
+                onPointClickRef.current({ ...pt, title: pt.name, location: pt.country, category: key === 'environmental' ? 'Disaster' : key === 'supplyChain' ? 'Economic' : 'Humanitarian', isEthicsOverlay: true });
+              }
+            })
+            .addTo(overlayGroup);
+        });
+      }).catch(() => {});
+    });
+
+    if (temporalReplayActive && Array.isArray(temporalMilestones)) {
+      temporalMilestones.forEach(m => {
+        if (typeof m.lat !== 'number' || typeof m.lon !== 'number') return;
+        const tColor = m.track === 'law' ? '#10b981' : m.track === 'institute' ? '#a855f7' : '#f59e0b';
+        L.circleMarker([m.lat, m.lon], {
+          radius: m.powerMw ? Math.min(11, 5 + Math.sqrt(m.powerMw) * 0.18) : 6.5,
+          fillColor: tColor,
+          color: m.isPostBaseline ? '#00f0ff' : '#0f172a',
+          weight: m.isPostBaseline ? 2.5 : 1.5,
+          fillOpacity: 0.92
+        })
+          .bindTooltip(`<b>[${esc(m.date)}] ${esc(m.title)}</b><br/>${esc(m.location)}${m.powerMw ? ` · ${m.powerMw} MW` : ''}`, { sticky: true })
+          .on('click', () => { if (onPointClickRef.current) onPointClickRef.current(m); })
+          .addTo(overlayGroup);
+      });
+    }
+
     return () => { cancelled = true; };
-  }, [is2DActive, leafletReady, aiRegulationsEnabled, dataCentersEnabled, gpsJammingEnabled, oilGasEnabled, internetCablesEnabled, weatherEnabled]);
+  }, [is2DActive, leafletReady, aiRegulationsEnabled, dataCentersEnabled, gpsJammingEnabled, oilGasEnabled, internetCablesEnabled, weatherEnabled, censorshipEnabled, envJusticeEnabled, supplyChainEnabled, biometricWelfareEnabled, aiLaborEnabled, temporalReplayActive, temporalMilestones]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
@@ -2109,9 +2258,11 @@ export default function CesiumGlobe({
           const isDataCenter = getPropValue(props, 'isDataCenter', false);
           const isAiRegulation = getPropValue(props, 'isAiRegulation', false);
           const isWeatherStorm = getPropValue(props, 'isWeatherStorm', false);
+          const isEthicsOverlay = getPropValue(props, 'isEthicsOverlay', false);
+          const isTemporalMilestone = getPropValue(props, 'isTemporalMilestone', false);
           const title = getPropValue(props, 'title', hoveredEntity.name || '');
 
-          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation || isWeatherStorm) {
+          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation || isWeatherStorm || isEthicsOverlay || isTemporalMilestone) {
             if (isAiRegulation) {
               document.body.style.cursor = 'pointer';
               const status = getPropValue(props, 'status', 'Proposed');
@@ -2204,6 +2355,24 @@ export default function CesiumGlobe({
                 titlePrefix = '🔌 ';
                 tooltipContent = `🔌 Cable Landing Station\nName: ${title}`;
                 details = { 'Type': 'Cable Landing Station' };
+              } else if (isTemporalMilestone) {
+                const tmDate = getPropValue(props, 'date', '');
+                const tmTrack = getPropValue(props, 'track', 'law');
+                const tmLoc = getPropValue(props, 'location', 'Global');
+                const tmMw = getPropValue(props, 'powerMw', null);
+                type = 'regulation';
+                titlePrefix = tmTrack === 'compute' ? '⚡ ' : tmTrack === 'institute' ? '🛡️ ' : '⚖️ ';
+                tooltipContent = `${titlePrefix}[${tmDate}] ${title}\nTrack: ${tmTrack.toUpperCase()}\nLocation: ${tmLoc}`;
+                details = { 'Milestone Date': tmDate, 'Track': tmTrack.toUpperCase(), 'Location': tmLoc, ...(tmMw ? { 'Compute Load': `${tmMw} MW` } : {}) };
+              } else if (isEthicsOverlay) {
+                const country = getPropValue(props, 'country', 'Global');
+                const metricA = getPropValue(props, 'metricLabel', 'Detail');
+                const metricVal = getPropValue(props, 'metricValue', 'Verified');
+                const src = getPropValue(props, 'source', 'Observatory');
+                type = 'regulation';
+                titlePrefix = '🔬 ';
+                tooltipContent = `🔬 ${title}\nJurisdiction: ${country}\n${metricA}: ${metricVal}\nSource: ${src}`;
+                details = { 'Country': country, [metricA]: metricVal, 'Source': src };
               } else if (isWeatherStorm) {
                 const stormDate = getPropValue(props, 'date', 'Active');
                 type = 'generic';
@@ -2280,18 +2449,29 @@ export default function CesiumGlobe({
           const isSat = getIsSatellite(hoveredEntity);
           
           if (isSat) {
-            // Hovered over a satellite: show pointer cursor and ensure its label remains visible
             document.body.style.cursor = 'pointer';
-            
-            // Hide all threat event labels (hover reset) while keeping satellite labels visible
-            viewer.entities.values.forEach(entity => {
-              if (entity.label) {
-                const entIsSat = getIsSatellite(entity);
-                if (!entIsSat) {
-                  entity.label.show = false;
+            const satName = getPropValue(props, 'name', hoveredEntity.name || 'Orbital Node');
+            const satCode = getPropValue(props, 'code', '');
+            const satAlt = getPropValue(props, 'altitude', 550);
+            const satVel = getPropValue(props, 'velocity', '7.6');
+            const satOp = getPropValue(props, 'operator', getPropValue(props, 'country', 'Space Agency'));
+            const satRegime = getPropValue(props, 'orbitRegime', 'LEO');
+            if (typeof setHoverTooltipRef.current === 'function') {
+              setHoverTooltipRef.current({
+                show: true,
+                x: movement.endPosition.x,
+                y: movement.endPosition.y,
+                content: `🛰️ ${satName}\nNORAD #${satCode} (${satRegime})\nAltitude: ${satAlt} km · ${satVel} km/s`,
+                type: 'generic',
+                title: `🛰️ ${satName}`,
+                details: {
+                  'Operator': satOp,
+                  'Orbit / NORAD': `${satRegime} · #${satCode}`,
+                  'Altitude': `${satAlt} km`,
+                  'Velocity': `${satVel} km/s`
                 }
-              }
-            });
+              });
+            }
           } else if (hoveredEntity.label) {
             // Hovered over a threat feed event: show premium stacked React overlay tooltip
             document.body.style.cursor = 'pointer';
@@ -2405,11 +2585,13 @@ export default function CesiumGlobe({
           const isGpsJamming = props && getPropValue(props, 'isGpsJamming', false);
           const isDataCenter = props && getPropValue(props, 'isDataCenter', false);
           const isAiRegulation = props && getPropValue(props, 'isAiRegulation', false);
+          const isEthicsOverlay = props && getPropValue(props, 'isEthicsOverlay', false);
+          const isTemporalMilestone = props && getPropValue(props, 'isTemporalMilestone', false);
           const isSat = getIsSatellite(entity);
           const isThreat = entity.id && entity.id.startsWith('threat-');
           const isLandmark = props && getPropValue(props, 'isLandmark', false);
 
-          if (isThreat || isSat || isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation) {
+          if (isThreat || isSat || isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation || isEthicsOverlay || isTemporalMilestone) {
             if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
               try { lastPickedFeatureRef.current.color = Cesium.Color.WHITE; } catch (e) {}
             }
@@ -2722,9 +2904,9 @@ export default function CesiumGlobe({
       : Cesium.HeightReference.NONE;
     const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
 
-    // Skip heavy entity updates if the incoming threat marker dataset and mode hasn't changed
-    const repelledJson = JSON.stringify(repelledMarkers);
-    const cacheKey = `${is3DActive}_${repelledJson}`;
+    // Lightweight structural signature so Cesium never JSON-stringifies full payloads every render
+    const repelledSig = repelledMarkers.map(m => `${m.id || m.title}:${m.repelledLat}:${m.repelledLon}:${m.severity}:${m.category}`).join('|');
+    const cacheKey = `${is3DActive}_${repelledSig}`;
     if (lastRepelledMarkersJsonRef.current === cacheKey) {
       return;
     }
@@ -2734,6 +2916,8 @@ export default function CesiumGlobe({
     const threatDS = threatDataSourceRef.current;
     const threatEntities = threatDS ? threatDS.entities : viewer.entities;
     const eyeOffsetGround = new Cesium.Cartesian3(0.0, 0.0, -50.0);
+    try { threatEntities.suspendEvents(); } catch {}
+    try { viewer.entities.suspendEvents(); } catch {}
 
     // Create a Set of incoming threat IDs for quick lookup
     const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
@@ -2833,7 +3017,7 @@ export default function CesiumGlobe({
         });
       }
 
-      // Expandable rippling radar waves (strictly pulse at severity 5, conforming beautifully to terrain/ellipsoid!)
+      // Crisp static critical-tier halo ring (zero idle GPU wakeups)
       if (m.severity >= 5) {
         const pulseId = `threat-pulse-${m.id || m.title}`;
         const existingPulse = viewer.entities.getById(pulseId);
@@ -2843,28 +3027,23 @@ export default function CesiumGlobe({
             existingPulse.ellipse.heightReference = targetHeightRef;
           }
         } else {
-          let currentRadius = 15000.0;
           viewer.entities.add({
             id: pulseId,
             position: newPos,
             ellipse: {
-              semiMajorAxis: new Cesium.CallbackProperty(() => {
-                currentRadius += 3000.0;
-                if (currentRadius > 180000.0) currentRadius = 15000.0;
-                return currentRadius;
-              }, false),
-              semiMinorAxis: new Cesium.CallbackProperty(() => {
-                return currentRadius;
-              }, false),
-              material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.18),
+              semiMajorAxis: 115000.0,
+              semiMinorAxis: 115000.0,
+              material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.14),
               outline: true,
-              outlineColor: Cesium.Color.fromCssColorString(sevColorStr),
-              heightReference: targetHeightRef,
+              outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.85),
+              heightReference: targetHeightRef
             }
           });
         }
       }
     });
+    try { threatEntities.resumeEvents(); } catch {}
+    try { viewer.entities.resumeEvents(); } catch {}
     try { viewer.scene.requestRender(); } catch {}
   }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin]);
 
@@ -2896,51 +3075,46 @@ export default function CesiumGlobe({
         const satId = `sat-${sat.code}`;
         const newPos = Cesium.Cartesian3.fromDegrees(sat.longitude, sat.latitude, altInMeters);
 
+        const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
         const existingSat = viewer.entities.getById(satId);
         if (existingSat) {
-          // Surgically update positions and billboard scales to prevent any flicker!
           existingSat.position = newPos;
           if (existingSat.label) {
-            existingSat.label.text = isSelected 
-              ? `${sat.name}\nAlt: ${sat.altitude} km  |  V: ${sat.velocity} km/s`
-              : sat.name;
-            existingSat.label.font = isSelected ? 'bold 9pt monospace' : '8pt monospace';
-            existingSat.label.fillColor = Cesium.Color.fromCssColorString('#00f0ff');
-            existingSat.label.backgroundColor = Cesium.Color.fromCssColorString('#020d1a').withAlpha(0.92);
+            existingSat.label.text = `${sat.name} · ${sat.altitude} km`;
+            existingSat.label.show = isSelected;
+            existingSat.label.fillColor = Cesium.Color.fromCssColorString(satColor);
           }
           if (existingSat.billboard) {
-            existingSat.billboard.image = createEmojiCanvas('🛰️', isSelected ? 36 : 24);
+            existingSat.billboard.image = createSatelliteGlyphCanvas(satColor, isSelected);
           }
           existingSat.properties = { ...sat, isSatellite: true };
         } else {
-          // Add new satellite marker if not present
           viewer.entities.add({
             id: satId,
             name: sat.name,
             position: newPos,
             billboard: {
-              image: createEmojiCanvas('🛰️', isSelected ? 36 : 24),
-              heightReference: Cesium.HeightReference.NONE, // Floating in space!
+              image: createSatelliteGlyphCanvas(satColor, isSelected),
+              scaleByDistance: new Cesium.NearFarScalar(2.0e6, 1.1, 2.5e7, 0.72),
+              heightReference: Cesium.HeightReference.NONE,
               disableDepthTestDistance: 100000.0,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               verticalOrigin: Cesium.VerticalOrigin.CENTER
             },
             label: {
-              text: isSelected 
-                ? `${sat.name}\nAlt: ${sat.altitude} km  |  V: ${sat.velocity} km/s`
-                : sat.name,
-              font: isSelected ? 'bold 9pt monospace' : '8pt monospace',
+              text: `${sat.name} · ${sat.altitude} km`,
+              font: '600 8.5pt system-ui, -apple-system, sans-serif',
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-              fillColor: Cesium.Color.fromCssColorString('#00f0ff'),
-              outlineColor: Cesium.Color.fromCssColorString('#001830'),
-              outlineWidth: 3,
+              fillColor: Cesium.Color.fromCssColorString(satColor),
+              outlineColor: Cesium.Color.fromCssColorString('#020617'),
+              outlineWidth: 2,
               showBackground: true,
-              backgroundColor: Cesium.Color.fromCssColorString('#020d1a').withAlpha(0.92),
-              backgroundPadding: new Cesium.Cartesian2(8, 5),
+              backgroundColor: Cesium.Color.fromCssColorString('#0b132b').withAlpha(0.84),
+              backgroundPadding: new Cesium.Cartesian2(8, 4),
               verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              pixelOffset: new Cesium.Cartesian2(0, -22),
+              pixelOffset: new Cesium.Cartesian2(0, -18),
               heightReference: Cesium.HeightReference.NONE,
-              show: true,
+              show: isSelected,
               disableDepthTestDistance: 100000.0
             },
             properties: { ...sat, isSatellite: true }
@@ -3073,27 +3247,25 @@ export default function CesiumGlobe({
         });
       }
 
-      // Update 4. Ground-Conforming Expanding Footprint Radar Footprint *in-place*
+      // Update 4. Accurate Ground Swath Footprint (static ring — zero continuous frame burn)
+      const swathMeters = Math.max(180000.0, Math.min(2200000.0, (Number(selectedSatellite.swathRadiusKm) || 450) * 1000.0));
       const footprintEntity = viewer.entities.getById('sat-nadir-footprint');
       if (footprintEntity) {
         footprintEntity.position = groundPos;
+        if (footprintEntity.ellipse) {
+          footprintEntity.ellipse.semiMajorAxis = swathMeters;
+          footprintEntity.ellipse.semiMinorAxis = swathMeters;
+        }
       } else {
-        let scanningRadius = 300000.0;
         viewer.entities.add({
           id: 'sat-nadir-footprint',
           position: groundPos,
           ellipse: {
-            semiMajorAxis: new Cesium.CallbackProperty(() => {
-              scanningRadius += 4000.0;
-              if (scanningRadius > 600000.0) scanningRadius = 300000.0;
-              return scanningRadius;
-            }, false),
-            semiMinorAxis: new Cesium.CallbackProperty(() => {
-              return scanningRadius;
-            }, false),
-            material: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.08),
+            semiMajorAxis: swathMeters,
+            semiMinorAxis: swathMeters,
+            material: Cesium.Color.fromCssColorString(MISSION_COLORS[selectedSatellite.missionType] || '#00f0ff').withAlpha(0.09),
             outline: true,
-            outlineColor: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.55),
+            outlineColor: Cesium.Color.fromCssColorString(MISSION_COLORS[selectedSatellite.missionType] || '#00f0ff').withAlpha(0.65),
             outlineWidth: 1.5,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
           }
@@ -4114,6 +4286,218 @@ export default function CesiumGlobe({
       }
     }
   }, [powerMineralsEnabled, scriptsLoaded, mapError, viewerReady]);
+
+  // H. Five AI Ethics & Society Layers (OONI/IODA Censorship, Env Justice, AI Supply Chain, Biometric Welfare, AI Labor)
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const clearEthics = () => {
+      if (ethicsEntitiesRef.current.length > 0) {
+        try { viewer.entities.suspendEvents(); } catch {}
+        ethicsEntitiesRef.current.forEach(e => {
+          try { if (!viewer.isDestroyed()) viewer.entities.remove(e); } catch {}
+        });
+        ethicsEntitiesRef.current = [];
+        try { viewer.entities.resumeEvents(); } catch {}
+        try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+      }
+    };
+
+    const anyEnabled = censorshipEnabled || envJusticeEnabled || supplyChainEnabled || biometricWelfareEnabled || aiLaborEnabled;
+    if (!anyEnabled) {
+      clearEthics();
+      return;
+    }
+
+    let cancelled = false;
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeightRef = is3DActive
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const eyeOffsetEthics = new Cesium.Cartesian3(0.0, 0.0, -45.0);
+
+    const fetchCached = async (key, url) => {
+      if (GLOBE_LAYER_CACHE[key]) return GLOBE_LAYER_CACHE[key];
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const d = await r.json();
+      GLOBE_LAYER_CACHE[key] = d;
+      return d;
+    };
+
+    const jobs = [];
+    if (censorshipEnabled) jobs.push(fetchCached('censorship', '/api/censorship').then(d => ({ kind: 'censorship', data: d })));
+    if (envJusticeEnabled) jobs.push(fetchCached('environmental', '/api/ethics-layers?layer=environmental').then(d => ({ kind: 'environmental', data: d })));
+    if (supplyChainEnabled) jobs.push(fetchCached('supplyChain', '/api/ethics-layers?layer=supply_chain').then(d => ({ kind: 'supplyChain', data: d })));
+    if (biometricWelfareEnabled) jobs.push(fetchCached('biometricWelfare', '/api/ethics-layers?layer=biometric_welfare').then(d => ({ kind: 'biometricWelfare', data: d })));
+    if (aiLaborEnabled) jobs.push(fetchCached('aiLabor', '/api/ethics-layers?layer=ai_labor').then(d => ({ kind: 'aiLabor', data: d })));
+
+    Promise.all(jobs).then(results => {
+      if (cancelled || !viewerRef.current || viewer.isDestroyed()) return;
+      clearEthics();
+      const added = [];
+      try { viewer.entities.suspendEvents(); } catch {}
+
+      results.forEach(({ kind, data }) => {
+        if (!data) return;
+        (data.arcs || []).forEach((arc, aIdx) => {
+          if (!Array.isArray(arc.from) || !Array.isArray(arc.to)) return;
+          try {
+            const ent = viewer.entities.add({
+              id: `ethics-arc-${kind}-${aIdx}`,
+              name: arc.name,
+              polyline: {
+                positions: Cesium.Cartesian3.fromDegreesArray([arc.from[1], arc.from[0], arc.to[1], arc.to[0]]),
+                width: 1.7,
+                arcType: Cesium.ArcType.GEODESIC,
+                material: Cesium.Color.fromCssColorString(arc.color || '#38bdf8').withAlpha(0.75)
+              },
+              properties: {
+                isEthicsOverlay: true,
+                title: arc.name,
+                country: 'Global Supply Chain',
+                metricLabel: 'Corridor',
+                metricValue: 'Extractive / Semiconductor Flow',
+                source: 'USGS / ASML / CSET'
+              }
+            });
+            added.push(ent);
+          } catch {}
+        });
+
+        (data.items || []).forEach(item => {
+          if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
+          const color = item.color || '#a855f7';
+          const metricLabel =
+            kind === 'censorship' ? 'OONI Blocks'
+              : kind === 'environmental' ? 'Water / Carbon'
+              : kind === 'supplyChain' ? 'Mineral / Stage'
+              : kind === 'biometricWelfare' ? 'Legal Status'
+              : 'Hourly Wage';
+          const metricValue =
+            kind === 'censorship' ? `${(item.confirmedBlocks || 0).toLocaleString()} (${item.blockRatePct || 0}%)`
+              : kind === 'environmental' ? `${item.waterStress} · ${item.carbonIntensity}g/kWh`
+              : kind === 'supplyChain' ? `${item.stage?.toUpperCase()} · ${item.mineral}`
+              : kind === 'biometricWelfare' ? (item.status || 'Active')
+              : (item.typicalHourlyUsd || 'Verified');
+
+          try {
+            const ent = viewer.entities.add({
+              id: `ethics-${kind}-${item.id}`,
+              name: item.name,
+              position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, 0),
+              billboard: {
+                image: kind === 'supplyChain' || kind === 'environmental'
+                  ? createDiamondCanvas(color, 10, '#0f172a', 1.3)
+                  : createCircleCanvas(color, 8.5, '#0f172a', 1.3),
+                scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.8e7, 0.65),
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                eyeOffset: eyeOffsetEthics,
+                heightReference: targetHeightRef,
+                disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
+              },
+              properties: {
+                ...item,
+                isEthicsOverlay: true,
+                title: item.title || item.name,
+                location: item.country || 'Global',
+                metricLabel,
+                metricValue,
+                category: kind === 'environmental' ? 'Disaster' : kind === 'supplyChain' ? 'Economic' : kind === 'censorship' ? 'Surveillance' : 'Humanitarian',
+                severity: item.severity || 3
+              }
+            });
+            added.push(ent);
+          } catch {}
+        });
+      });
+
+      ethicsEntitiesRef.current = added;
+      try { viewer.entities.resumeEvents(); } catch {}
+      try { viewer.scene.requestRender(); } catch {}
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      clearEthics();
+    };
+  }, [censorshipEnabled, envJusticeEnabled, supplyChainEnabled, biometricWelfareEnabled, aiLaborEnabled, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);
+
+  // I. Longitudinal Temporal Replay & Before/After Compute-Regulation Globe Layer
+  useEffect(() => {
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    const viewer = viewerRef.current;
+    const Cesium = window.Cesium;
+    if (!Cesium) return;
+
+    const clearTemporal = () => {
+      if (temporalEntitiesRef.current.length > 0) {
+        try { viewer.entities.suspendEvents(); } catch {}
+        temporalEntitiesRef.current.forEach(e => {
+          try { if (!viewer.isDestroyed()) viewer.entities.remove(e); } catch {}
+        });
+        temporalEntitiesRef.current = [];
+        try { viewer.entities.resumeEvents(); } catch {}
+        try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+      }
+    };
+
+    if (!temporalReplayActive || !Array.isArray(temporalMilestones)) {
+      clearTemporal();
+      return;
+    }
+
+    clearTemporal();
+    const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
+    const targetHeightRef = is3DActive
+      ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
+      : Cesium.HeightReference.NONE;
+    const added = [];
+    try { viewer.entities.suspendEvents(); } catch {}
+
+    temporalMilestones.forEach((m, idx) => {
+      if (typeof m.lat !== 'number' || typeof m.lon !== 'number') return;
+      const color = m.track === 'law' ? '#10b981' : m.track === 'institute' ? '#a855f7' : '#f59e0b';
+      const dotSize = m.powerMw ? Math.min(16, 7 + Math.sqrt(m.powerMw) * 0.22) : 9.5;
+      // Slight deterministic offset when two milestones sit on the same capital
+      const a = (idx % 7) * 2.39996323;
+      const r = idx % 7 === 0 ? 0 : 0.25;
+      const pLat = m.lat + r * Math.cos(a);
+      const pLon = m.lon + r * Math.sin(a);
+      try {
+        const ent = viewer.entities.add({
+          id: `temporal-${m.id}`,
+          name: m.title,
+          position: Cesium.Cartesian3.fromDegrees(pLon, pLat, 0),
+          billboard: {
+            image: createCircleCanvas(color, dotSize, m.isPostBaseline ? '#00f0ff' : '#ffffff', m.isPostBaseline ? 2.2 : 1.3),
+            scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.1, 1.8e7, 0.7),
+            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -55.0),
+            heightReference: targetHeightRef,
+            disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
+          },
+          properties: {
+            ...m,
+            isTemporalMilestone: true,
+            category: m.track === 'compute' ? 'Economic' : 'Political'
+          }
+        });
+        added.push(ent);
+      } catch {}
+    });
+
+    temporalEntitiesRef.current = added;
+    try { viewer.entities.resumeEvents(); } catch {}
+    try { viewer.scene.requestRender(); } catch {}
+
+    return () => clearTemporal();
+  }, [temporalReplayActive, temporalMilestones, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);
 
   // Safe utility to parse any tooltip string content (e.g. collapsed cached single-line formats)
   // into a beautifully structured, premium tactical key-value dossier layout.

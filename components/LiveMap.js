@@ -11,6 +11,8 @@ import Link from 'next/link';
 import SourceManagerModal from './SourceManagerModal';
 import CommandPaletteModal from './CommandPaletteModal';
 import DashboardTopMenus from './DashboardTopMenus';
+import TemporalReplayBar from './TemporalReplayBar';
+import { MONTHS_2020_2026, computeTemporalSnapshot } from '@/lib/temporalMilestones';
 import { getJurisdictionBySlug, resolveJurisdictionForLocation } from '@/lib/jurisdictions';
 import { normalizeSignalId } from '@/lib/provenance';
 
@@ -553,6 +555,11 @@ export default function LiveMap({
   const [focusCoordinate, setFocusCoordinate] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchQuery(searchQuery), 150);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [showMarkets, setShowMarkets] = useState(false);
   const [isMapOptionsExpanded, setIsMapOptionsExpanded] = useState(false);
   const [isFeedCollapsed, setIsFeedCollapsed] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 900 : false));
@@ -809,6 +816,21 @@ export default function LiveMap({
   const [gpsJammingEnabled, setGpsJammingEnabled] = useState(false);
   const [dataCentersEnabled, setDataCentersEnabled] = useState(false);
   const [aiRegulationsEnabled, setAiRegulationsEnabled] = useState(false);
+  const [censorshipEnabled, setCensorshipEnabled] = useState(false);
+  const [envJusticeEnabled, setEnvJusticeEnabled] = useState(false);
+  const [supplyChainEnabled, setSupplyChainEnabled] = useState(false);
+  const [biometricWelfareEnabled, setBiometricWelfareEnabled] = useState(false);
+  const [aiLaborEnabled, setAiLaborEnabled] = useState(false);
+  const [isEthicsLayersExpanded, setIsEthicsLayersExpanded] = useState(true);
+
+  const [temporalReplayActive, setTemporalReplayActive] = useState(false);
+  const [temporalMonthIdx, setTemporalMonthIdx] = useState(MONTHS_2020_2026.length - 2);
+  const [temporalBaselineYm, setTemporalBaselineYm] = useState('2022-10');
+  const [temporalTracks, setTemporalTracks] = useState({ law: true, institute: true, compute: true });
+  const temporalSnapshot = useMemo(() => {
+    const ym = MONTHS_2020_2026[temporalMonthIdx] || '2026-11';
+    return computeTemporalSnapshot(ym, temporalBaselineYm, temporalTracks);
+  }, [temporalMonthIdx, temporalBaselineYm, temporalTracks]);
 
 
 
@@ -1482,8 +1504,8 @@ export default function LiveMap({
       return true;
     });
 
-    if (searchQuery.trim() !== '') {
-      filtered = filtered.filter(m => matchAdvancedQuery(m, searchQuery));
+    if (debouncedSearchQuery.trim() !== '') {
+      filtered = filtered.filter(m => matchAdvancedQuery(m, debouncedSearchQuery));
     }
 
     // Cap per-hub pin density & apply deterministic golden-angle micro-offsets so pins never stack or drift into oceans
@@ -1525,7 +1547,7 @@ export default function LiveMap({
     }
 
     return dispersed;
-  }, [markers, rssItems, categories, minSeverity, searchQuery, selectedRssSources, timeWindowDays, timelineCutoffMs]);
+  }, [markers, rssItems, categories, minSeverity, debouncedSearchQuery, selectedRssSources, timeWindowDays, timelineCutoffMs]);
 
   const filteredEvents = useMemo(() => {
     let activeCategories = Object.keys(categories).filter(c => categories[c]);
@@ -1572,8 +1594,8 @@ export default function LiveMap({
       filtered = filtered.filter(e => activeCategories.includes(e.category));
     }
 
-    if (searchQuery.trim() !== '') {
-      filtered = filtered.filter(e => matchAdvancedQuery(e, searchQuery));
+    if (debouncedSearchQuery.trim() !== '') {
+      filtered = filtered.filter(e => matchAdvancedQuery(e, debouncedSearchQuery));
     }
 
     // Deduplicate feed events by normalized title and URL, prioritizing manually edited ones
@@ -1626,17 +1648,17 @@ export default function LiveMap({
     }
 
     return deduplicated.sort((a, b) => parseDateSafe(b.original_post_time || b.timestamp) - parseDateSafe(a.original_post_time || a.timestamp));
-  }, [displayedEvents, vaultPapers, rssItems, selectedRssSources, categories, feedType, searchQuery, timeRange]);
+  }, [displayedEvents, vaultPapers, rssItems, selectedRssSources, categories, feedType, debouncedSearchQuery, timeRange]);
 
   const filteredRssItems = useMemo(() => {
     let items = rssItems.filter(item => selectedRssSources.includes(item.sid));
     
-    if (searchQuery.trim() !== '') {
-      items = items.filter(item => matchAdvancedQuery(item, searchQuery));
+    if (debouncedSearchQuery.trim() !== '') {
+      items = items.filter(item => matchAdvancedQuery(item, debouncedSearchQuery));
     }
     
     return items;
-  }, [rssItems, selectedRssSources, searchQuery]);
+  }, [rssItems, selectedRssSources, debouncedSearchQuery]);
 
   const filteredSatellites = useMemo(() => {
     if (!showSatellites || !satellites) return [];
@@ -2734,6 +2756,13 @@ export default function LiveMap({
           gpsJammingEnabled={gpsJammingEnabled}
           dataCentersEnabled={dataCentersEnabled}
           aiRegulationsEnabled={aiRegulationsEnabled}
+          censorshipEnabled={censorshipEnabled}
+          envJusticeEnabled={envJusticeEnabled}
+          supplyChainEnabled={supplyChainEnabled}
+          biometricWelfareEnabled={biometricWelfareEnabled}
+          aiLaborEnabled={aiLaborEnabled}
+          temporalReplayActive={temporalReplayActive}
+          temporalMilestones={temporalSnapshot.milestones}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite
@@ -2883,6 +2912,30 @@ export default function LiveMap({
                     {isTimelinePlaying ? '⏹ STOP' : '▶ PLAY'}
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setTemporalReplayActive(prev => !prev)}
+                  style={{
+                    marginTop: '7px',
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '5px',
+                    border: `1px solid ${temporalReplayActive ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
+                    background: temporalReplayActive ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                    color: temporalReplayActive ? 'var(--sov-accent)' : 'var(--sov-sky)',
+                    fontSize: '9.5px',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-jetbrains-fallback)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>⏱ 2020–2026 REPLAY &amp; GAP LENS</span>
+                  <span>{temporalReplayActive ? 'ACTIVE' : 'OPEN'}</span>
+                </button>
               </div>
             )}
           </div>
@@ -3248,6 +3301,55 @@ export default function LiveMap({
                     }} />
                   </div>
 
+                </div>
+
+                {/* AI Ethics & Society Layers */}
+                <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid var(--sov-border)' }}>
+                  <div
+                    onClick={() => setIsEthicsLayersExpanded(!isEthicsLayersExpanded)}
+                    style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', fontWeight: 'bold', color: 'var(--sov-muted)', marginBottom: '4px', letterSpacing: '0.05em' }}
+                  >
+                    <span>AI ETHICS &amp; SOCIETY</span>
+                    <span style={{ color: 'var(--sov-accent)' }}>{isEthicsLayersExpanded ? '▼' : '▶'}</span>
+                  </div>
+
+                  {isEthicsLayersExpanded && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      {[
+                        { label: 'Censorship (OONI/IODA)', icon: '🔒', on: censorshipEnabled, toggle: () => setCensorshipEnabled(!censorshipEnabled), color: '#f43f5e' },
+                        { label: 'Env. Justice (Water/CO2)', icon: '💧', on: envJusticeEnabled, toggle: () => setEnvJusticeEnabled(!envJusticeEnabled), color: '#38bdf8' },
+                        { label: 'AI Supply Chain', icon: '🪨', on: supplyChainEnabled, toggle: () => setSupplyChainEnabled(!supplyChainEnabled), color: '#f59e0b' },
+                        { label: 'Biometrics & Welfare', icon: '👁️', on: biometricWelfareEnabled, toggle: () => setBiometricWelfareEnabled(!biometricWelfareEnabled), color: '#10b981' },
+                        { label: 'AI Labor & RLHF Hubs', icon: '⚖️', on: aiLaborEnabled, toggle: () => setAiLaborEnabled(!aiLaborEnabled), color: '#ec4899' }
+                      ].map((row) => (
+                        <div
+                          key={row.label}
+                          onClick={row.toggle}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '3px 4px',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            userSelect: 'none'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', color: row.on ? 'var(--sov-text)' : 'var(--sov-muted)' }}>
+                            <span style={{ width: '14px', textAlign: 'center', fontSize: '11px', opacity: row.on ? 1 : 0.45 }}>{row.icon}</span>
+                            <span style={{ fontWeight: '500', fontFamily: 'var(--font-main)' }}>{row.label}</span>
+                          </div>
+                          <div style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: row.on ? row.color : '#334155',
+                            boxShadow: row.on ? `0 0 6px ${row.color}` : 'none'
+                          }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Tactical Widgets */}
@@ -3837,7 +3939,7 @@ export default function LiveMap({
         />
       )}
 
-      {/* Dynamic Satellite Telemetry Sci-Fi Console */}
+      {/* Orbital Intelligence Inspector */}
       {showSatellites && selectedSatellite && (
         <SatelliteDetailWindow
           satellite={selectedSatellite}
@@ -3847,6 +3949,28 @@ export default function LiveMap({
           }}
           isTracked={isTracked}
           onTrackToggle={() => setIsTracked(!isTracked)}
+          onFocusLocation={(coord) => {
+            if (coord) setFocusCoordinate(coord);
+          }}
+        />
+      )}
+
+      {/* Longitudinal 2020-2026 Compute-Regulation Replay Scrubber */}
+      {temporalReplayActive && (
+        <TemporalReplayBar
+          monthIdx={temporalMonthIdx}
+          setMonthIdx={setTemporalMonthIdx}
+          baselineYm={temporalBaselineYm}
+          setBaselineYm={setTemporalBaselineYm}
+          activeTracks={temporalTracks}
+          setActiveTracks={setTemporalTracks}
+          onSelectMilestone={(m) => {
+            setSelectedEvent(m);
+            if (m?.lat != null && m?.lon != null) {
+              setFocusCoordinate({ lat: Number(m.lat), lon: Number(m.lon), timestamp: Date.now() });
+            }
+          }}
+          onClose={() => setTemporalReplayActive(false)}
         />
       )}
 
