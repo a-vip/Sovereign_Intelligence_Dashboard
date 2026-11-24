@@ -22,7 +22,7 @@ export default function CompareRegulationsPage() {
             Cross-Jurisdictional AI Law &amp; Compliance Diff Matrix
           </h1>
           <p style={{ color: 'var(--sov-muted)', fontSize: '15px', lineHeight: 1.6, maxWidth: '880px' }}>
-            Side-by-side statutory comparison across 9 compliance and enforcement dimensions—built for policy researchers, general counsel, and international governance scholars. Toggle Editorial Light mode or export directly to Markdown/PDF.
+            Side-by-side statutory comparison across 10 compliance and enforcement dimensions—built for policy researchers, general counsel, and international governance scholars. Toggle Editorial Light mode or export directly to Markdown/PDF.
           </p>
         </header>
 

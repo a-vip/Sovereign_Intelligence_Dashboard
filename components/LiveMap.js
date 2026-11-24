@@ -20,6 +20,7 @@ const TemporalReplayBar = dynamic(() => import('./TemporalReplayBar'), { ssr: fa
 const LegislativeCountdownWidget = dynamic(() => import('./LegislativeCountdownWidget'), { ssr: false });
 const CensorshipPulseWidget = dynamic(() => import('./CensorshipPulseWidget'), { ssr: false });
 const ComputeSafetyWidget = dynamic(() => import('./ComputeSafetyWidget'), { ssr: false });
+const SovDashAiDrawer = dynamic(() => import('./SovDashAiDrawer'), { ssr: false });
 
 const EMPTY_MILESTONES = [];
 
@@ -579,6 +580,7 @@ export default function LiveMap({
   const [showResourcesModal, setShowResourcesModal] = useState(false);
   const [showSourceModal, setShowSourceModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showSovDashAi, setShowSovDashAi] = useState(false);
   const [timeWindowDays, setTimeWindowDays] = useState(21);
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
   const [timelineCutoffMs, setTimelineCutoffMs] = useState(null);
@@ -893,7 +895,8 @@ export default function LiveMap({
         setIsFeedCollapsed(false);
         searchInputRef.current?.focus();
       } else if (e.key === 'Escape') {
-        if (showCommandPalette) setShowCommandPalette(false);
+        if (showSovDashAi) setShowSovDashAi(false);
+        else if (showCommandPalette) setShowCommandPalette(false);
         else if (showSourceModal) setShowSourceModal(false);
         else if (showResourcesModal) setShowResourcesModal(false);
         else if (showChangelog) setShowChangelog(false);
@@ -903,7 +906,7 @@ export default function LiveMap({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showCommandPalette, showSourceModal, showResourcesModal, showChangelog, selectedEvent, selectedCountry]);
+  }, [showSovDashAi, showCommandPalette, showSourceModal, showResourcesModal, showChangelog, selectedEvent, selectedCountry]);
 
   // Historical Timeline Playback Scrubber (12 chronological steps scoped to timeWindowDays)
   useEffect(() => {
@@ -1871,6 +1874,7 @@ export default function LiveMap({
           setShowSourceModal={setShowSourceModal}
           setShowResourcesModal={setShowResourcesModal}
           setShowCommandPalette={setShowCommandPalette}
+          onOpenAiCopilot={() => setShowSovDashAi(true)}
         />
       </header>
 
@@ -3514,6 +3518,33 @@ export default function LiveMap({
           <span>📋</span> {isMobile ? 'FEED' : 'LIVE FEED'}
         </button>
 
+        {/* Ask SovDash AI Pill Button */}
+        <button
+          type="button"
+          className={`tour-ai-button bottom-dock-pill${showSovDashAi ? ' active' : ''}`}
+          onClick={() => setShowSovDashAi(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: isMobile ? '6px 12px' : '8px 16px',
+            borderRadius: '24px',
+            background: showSovDashAi ? 'var(--sov-accent-soft)' : 'var(--sov-panel-bg)',
+            border: '1px solid var(--sov-accent)',
+            color: 'var(--sov-accent)',
+            fontSize: isMobile ? '10px' : '11px',
+            fontWeight: '800',
+            cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 240, 255, 0.16)',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontFamily: 'monospace'
+          }}
+        >
+          <span>✨</span> {isMobile ? 'ASK AI' : 'ASK SOVDASH'}
+        </button>
+
         {/* Support Pill Button */}
         <div style={{ position: 'relative' }}>
           <button 
@@ -3975,6 +4006,16 @@ export default function LiveMap({
         <ResourcesModal
           onClose={() => setShowResourcesModal(false)}
           currentUser={currentUser}
+        />
+      )}
+
+      {/* Ask SovDash Citation-Locked Research Copilot Drawer */}
+      {showSovDashAi && (
+        <SovDashAiDrawer
+          isOpen={showSovDashAi}
+          onClose={() => setShowSovDashAi(false)}
+          currentUser={currentUser}
+          onRequestAuth={() => setShowAuthModal(true)}
         />
       )}
 

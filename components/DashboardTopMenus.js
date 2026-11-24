@@ -15,7 +15,8 @@ import {
   MessageSquare,
   Shield,
   Sun,
-  Moon
+  Moon,
+  Sparkles
 } from 'lucide-react';
 
 const UI_THEMES = [
@@ -42,6 +43,7 @@ const OBSERVATORY_GROUPS = [
       { href: '/brief', label: 'Executive Brief & Copilot', color: '#f472b6' },
       { href: '/watchlists', label: 'Watchlists & Alerts', color: '#fb923c' },
       { href: '/whitepaper', label: 'Whitepaper #1 (Academic)', color: '#e2e8f0' },
+      { href: '/ai-report', label: 'SovDash AI Hallucination Audit', color: '#10b981' },
       { href: '/developers', label: 'REST / GeoJSON API & Embeds', color: '#22d3ee' },
       { href: '/methodology', label: 'Methodology & Codebook', color: '#94a3b8' }
     ]
@@ -78,7 +80,8 @@ export default function DashboardTopMenus({
   handleLogout,
   setShowSourceModal,
   setShowResourcesModal,
-  setShowCommandPalette
+  setShowCommandPalette,
+  onOpenAiCopilot
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const rootRef = useRef(null);
@@ -140,7 +143,28 @@ export default function DashboardTopMenus({
         scrollbarWidth: 'none'
       }}
     >
-      {/* 1. Command Search */}
+      {/* 1. Ask SovDash Copilot */}
+      {onOpenAiCopilot && (
+        <button
+          type="button"
+          onClick={() => {
+            setOpenMenu(null);
+            onOpenAiCopilot();
+          }}
+          style={{
+            ...pillBtnStyle(false, isMobile),
+            borderColor: 'var(--sov-accent)',
+            background: 'var(--sov-accent-soft)',
+            color: 'var(--sov-accent)'
+          }}
+          title="Ask SovDash AI (Citation-Locked RAG)"
+        >
+          <Sparkles size={13} />
+          {!isMobile && <span>Ask SovDash</span>}
+        </button>
+      )}
+
+      {/* 2. Command Search */}
       <button
         type="button"
         onClick={() => {

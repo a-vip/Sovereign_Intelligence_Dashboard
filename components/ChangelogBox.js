@@ -4,6 +4,17 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 
 const CHANGELOG_DATA = [
   {
+    version: 'v2.8.0',
+    date: '2026-11-24',
+    title: 'SovDash AI (Ask SovDash), Neon pgvector RAG & Hallucination Audit',
+    isMajor: true,
+    bullets: [
+      'Launched Ask SovDash conversational research copilot powered by Neon pgvector hybrid RRF retrieval across all 38 jurisdictions, 472 statutes, Frontier Labs, Epoch clusters, PeeringDB facilities, ethics layers, and live OSINT wires.',
+      'Defaulted to free open-source reasoning cascades (Groq GPT-OSS 120B / Qwen3 / Llama 3.3 & OpenRouter :free) with live model switching, audit logging, and pgvector sync inside Admin CMS.',
+      'Added deterministic sentence-level citation verification, 16-case adversarial hallucination benchmarks, and public technical audit report at `/ai-report`.'
+    ]
+  },
+  {
     version: 'v2.7.0',
     date: '2026-11-24',
     title: 'Tactical Widgets, Locate & Source Light-Theme Fix, Satellites',
@@ -121,7 +132,7 @@ const CHANGELOG_DATA = [
 ];
 
 export default function ChangelogBox({ onClose }) {
-  const [expandedVersions, setExpandedVersions] = useState({ 'v2.7.0': true });
+  const [expandedVersions, setExpandedVersions] = useState({ 'v2.8.0': true });
   const [pos, setPos] = useState({ x: 100, y: 120 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
@@ -228,7 +239,7 @@ export default function ChangelogBox({ onClose }) {
             CHANGELOG
           </span>
           <span style={{ fontSize: '10px', color: 'var(--sov-accent)', fontWeight: 700, fontFamily: 'var(--font-jetbrains-fallback)' }}>
-            v2.7.0
+            v2.8.0
           </span>
         </div>
         <button

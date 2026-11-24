@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { key: 'brief', label: 'Briefs', href: '/brief' },
   { key: 'watchlists', label: 'Watchlists', href: '/watchlists' },
   { key: 'developers', label: 'API', href: '/developers' },
+  { key: 'ai-report', label: 'AI Audit', href: '/ai-report' },
   { key: 'methodology', label: 'Methods', href: '/methodology' },
   { key: 'whitepaper', label: 'Whitepaper', href: '/whitepaper' }
 ];

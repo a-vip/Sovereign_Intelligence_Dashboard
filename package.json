@@ -10,6 +10,7 @@
     "desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "benchmark": "node scripts/run-benchmark.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
+    "eval:ai": "node scripts/eval-sovdash-ai.mjs",
     "export:zenodo": "node scripts/generate-zenodo-bundle.mjs"
   },
   "dependencies": {

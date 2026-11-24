@@ -35,6 +35,7 @@ async function run() {
     '/brief',
     '/watchlists',
     '/developers',
+    '/ai-report',
     '/methodology',
     '/whitepaper'
   ];
@@ -122,6 +123,24 @@ async function run() {
       throw new Error(`Invalid /api/ai-regulations payload: total=${regs.length}`);
     }
   });
+
+  await assertOk('/api/ai-report', (_, text) => {
+    const data = JSON.parse(text);
+    if (!data?.success || !data?.latestEval) {
+      throw new Error('Invalid /api/ai-report payload');
+    }
+  });
+
+  // Verify SovDash AI auth gate rejects unauthenticated callers
+  const unauthAiRes = await fetch(`${BASE_URL}/api/sovdash-ai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'Compare EU AI Act and SB 53' })
+  });
+  if (unauthAiRes.status !== 401) {
+    throw new Error(`Expected 401 auth gate on /api/sovdash-ai, got ${unauthAiRes.status}`);
+  }
+  console.log('PASS POST /api/sovdash-ai auth gate (401)');
 
   // Copilot POST
   const copRes = await fetch(`${BASE_URL}/api/copilot`, {

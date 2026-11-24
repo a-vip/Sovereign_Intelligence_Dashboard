@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
+import AdminAiConsole from './AdminAiConsole';
 
 const CATEGORIES = ['Conflict', 'Humanitarian', 'Disaster', 'Economic', 'Surveillance', 'Political'];
 const SEVERITIES = [1, 2, 3, 4, 5];
@@ -30,7 +31,8 @@ const TABS = [
   { id: 'diagnostics', label: 'Diagnostics' },
   { id: 'archive', label: 'Archive' },
   { id: 'feedback', label: 'Feedback' },
-  { id: 'accounts', label: 'Users' }
+  { id: 'accounts', label: 'Users' },
+  { id: 'ai', label: 'SovDash AI' }
 ];
 
 export default function AdminCMS({ currentUser, onClose }) {
@@ -103,6 +105,7 @@ export default function AdminCMS({ currentUser, onClose }) {
   }, [activeTab]);
 
   const fetchData = useCallback(async () => {
+    if (activeTab === 'ai') return;
     setLoading(true);
     try {
       let url;
@@ -814,7 +817,9 @@ export default function AdminCMS({ currentUser, onClose }) {
 
         {/* Scrollable Content List */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {loading ? (
+          {activeTab === 'ai' ? (
+            <AdminAiConsole currentUser={currentUser} onToast={showToast} />
+          ) : loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '48px', color: 'var(--sov-muted)', fontSize: '13px' }}>
               <Loader2 size={16} className="animate-spin" />
               <span>Loading registry records...</span>
