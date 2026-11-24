@@ -1094,8 +1094,22 @@ export default function EventDetailsWindow({
               <>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {(() => {
-                    const vStatus = event.url ? (event.details?.verificationStatus || 'active') : 'unverified';
-                    const isVer = vStatus === 'active' || vStatus === 'healed';
+                    let isDirectArticle = false;
+                    if (event.url) {
+                      try {
+                        const u = new URL(event.url);
+                        const p = u.pathname.replace(/\/+$/, '').toLowerCase();
+                        isDirectArticle =
+                          Boolean(p) &&
+                          p !== '/en' &&
+                          p !== '/eng' &&
+                          p !== '/pt-br' &&
+                          !u.hostname.includes('news.google.com') &&
+                          !event.url.includes('?ref=');
+                      } catch {}
+                    }
+                    const vStatus = isDirectArticle ? (event.details?.verificationStatus || 'active') : 'portal';
+                    const isVer = isDirectArticle && (vStatus === 'active' || vStatus === 'healed');
                     return (
                       <span
                         style={{
@@ -1104,12 +1118,12 @@ export default function EventDetailsWindow({
                           fontWeight: 700,
                           padding: '2px 7px',
                           borderRadius: '4px',
-                          background: isVer ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.14)',
-                          border: `1px solid ${isVer ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
-                          color: isVer ? 'var(--sov-emerald)' : 'var(--sov-amber)'
+                          background: isVer ? 'rgba(16, 185, 129, 0.14)' : 'rgba(56, 189, 248, 0.12)',
+                          border: `1px solid ${isVer ? 'rgba(16, 185, 129, 0.35)' : 'rgba(56, 189, 248, 0.35)'}`,
+                          color: isVer ? 'var(--sov-emerald)' : 'var(--sov-sky)'
                         }}
                       >
-                        {isVer ? '✓ Verified Source' : 'Unverified Link'}
+                        {isVer ? '✓ Verified Source' : 'Agency Portal'}
                       </span>
                     );
                   })()}

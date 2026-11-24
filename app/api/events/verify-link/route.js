@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import fs from 'fs';
 import path from 'path';
-import { verifyLink, findAlternativeLink } from '@/lib/verification';
+import { verifyLink, findAlternativeLink, isGenericHomepageUrl } from '@/lib/verification';
 
 const LOCAL_EVENTS_FILE = path.resolve('events-local.json');
 
@@ -103,24 +103,30 @@ export async function GET(request) {
         const dbRes = await sql`SELECT url, details FROM sigint_events WHERE id = ${id}`;
         if (dbRes.rows && dbRes.rows.length > 0) {
           const row = dbRes.rows[0];
-          cachedStatus = row.details?.verificationStatus;
-          cachedUrl = row.url;
+          const origUrl = row.details?.originalUrl || null;
+          if (row.url === url || (row.details?.verificationStatus === 'healed' && origUrl === url)) {
+            cachedStatus = row.details?.verificationStatus;
+            cachedUrl = row.url;
+          }
         }
       } else {
         const localEvents = readJsonFile(LOCAL_EVENTS_FILE);
         const ev = localEvents.find(e => e.id === id);
         if (ev) {
-          cachedStatus = ev.details?.verificationStatus;
-          cachedUrl = ev.url;
+          const origUrl = ev.details?.originalUrl || null;
+          if (ev.url === url || (ev.details?.verificationStatus === 'healed' && origUrl === url)) {
+            cachedStatus = ev.details?.verificationStatus;
+            cachedUrl = ev.url;
+          }
         }
       }
     }
 
-    if (cachedStatus && cachedStatus !== 'pending') {
+    if (cachedStatus && cachedStatus !== 'pending' && cachedUrl && !isGenericHomepageUrl(cachedUrl)) {
       console.log(`[Cache Hit] Serving pre-verified link status: ${cachedStatus} for id: ${id}`);
       return NextResponse.json({
         status: cachedStatus,
-        url: cachedUrl || url,
+        url: cachedUrl,
         message: 'Link verification served directly from persistent secure database cache.'
       });
     }

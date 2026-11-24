@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import EqualEarthMap2D from './EqualEarthMap2D';
 
 const SEV_COLORS = { 1: '#38bdf8', 2: '#22c55e', 3: '#facc15', 4: '#ff6b35', 5: '#ff2d55' };
 const GOOGLE_API_KEY = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '').replace(/['"]/g, '');
@@ -510,9 +511,38 @@ export default function CesiumGlobe({
 
   const [mapError, setMapError] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
-  const [leafletReady, setLeafletReady] = useState(false);
+  const [cesiumRetryNonce, setCesiumRetryNonce] = useState(0);
+  const prevMapModeRef = useRef(mapMode);
+
+  // Automatically clear any previous WebGL/CDN fallback state whenever the user selects 3D Globe
+  useEffect(() => {
+    if (mapMode === '3d' && prevMapModeRef.current !== '3d') {
+      setMapError(false);
+      setCesiumRetryNonce(n => n + 1);
+    }
+    prevMapModeRef.current = mapMode;
+  }, [mapMode]);
 
   const is2DActive = mapError || mapMode === '2d';
+
+  const triggerSwitchTo3D = useCallback(() => {
+    if (viewerRef.current) {
+      try {
+        if (!viewerRef.current.isDestroyed?.()) {
+          viewerRef.current.destroy();
+        }
+      } catch {}
+      viewerRef.current = null;
+      setViewerReady(false);
+    }
+    setMapError(false);
+    setCesiumRetryNonce(n => n + 1);
+    try {
+      localStorage.setItem('operator_pref_mapMode', '3d');
+      window.dispatchEvent(new Event('operator_pref_changed'));
+    } catch {}
+    if (onMapModeChange) onMapModeChange('3d');
+  }, [onMapModeChange]);
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
@@ -520,7 +550,11 @@ export default function CesiumGlobe({
     setHoverTooltipRef.current = setHoverTooltip;
   }, [setHoverTooltip]);
 
-  const [leafletAiRegulations, setLeafletAiRegulations] = useState([]);
+  const onCountrySelectRef = useRef(onCountrySelect);
+  useEffect(() => {
+    onCountrySelectRef.current = onCountrySelect;
+  }, [onCountrySelect]);
+
   const [regulationsUpdateTrigger, setRegulationsUpdateTrigger] = useState(0);
 
   useEffect(() => {
@@ -533,32 +567,6 @@ export default function CesiumGlobe({
       window.removeEventListener('event_updated', handleUpdate);
     };
   }, []);
-
-  // Fetch AI regulations for Leaflet fallback when 3D is error/disabled
-  useEffect(() => {
-    if (!mapError || !aiRegulationsEnabled || !scriptsLoaded) {
-      setLeafletAiRegulations([]);
-      return;
-    }
-    if (GLOBE_LAYER_CACHE.aiRegulations && regulationsUpdateTrigger === 0) {
-      setLeafletAiRegulations(GLOBE_LAYER_CACHE.aiRegulations.aiRegulations);
-      return;
-    }
-    fetch('/api/ai-regulations')
-      .then(res => {
-        if (!res.ok) throw new Error("AI Regulations data request failed");
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.aiRegulations) {
-          GLOBE_LAYER_CACHE.aiRegulations = data;
-          setLeafletAiRegulations(data.aiRegulations);
-        }
-      })
-      .catch(err => {
-        console.warn("Failed to load Leaflet AI regulations:", err);
-      });
-  }, [aiRegulationsEnabled, mapError, scriptsLoaded, regulationsUpdateTrigger]);
 
   // Track physical keyboard state to differentiate keyboard-scroll shortcuts from trackpad pinch-to-zoom!
   const keysPressedRef = useRef({ ctrl: false, shift: false, alt: false });
@@ -592,78 +600,106 @@ export default function CesiumGlobe({
       window.removeEventListener('blur', handleBlur);
     };
   }, []);
-  
+
+  // Multi-CDN resilient Cesium loader — deferred when in 2D Equal Earth mode for zero unused JS/GPU overhead
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.Cesium) {
       setScriptsLoaded(true);
       return;
     }
+    if (is2DActive) return;
 
     let isMounted = true;
-    if (!document.getElementById('cesium-css-pkg')) {
-      const link = document.createElement('link');
-      link.id = 'cesium-css-pkg';
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css';
-      link.crossOrigin = '';
-      document.head.appendChild(link);
-    }
+    const CESIUM_CDNS = [
+      {
+        js: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js',
+        css: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css',
+        base: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/'
+      },
+      {
+        js: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/Cesium.js',
+        css: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/Widgets/widgets.css',
+        base: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/'
+      },
+      {
+        js: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/Cesium.js',
+        css: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/Widgets/widgets.css',
+        base: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/'
+      }
+    ];
 
-    const script = document.getElementById('cesium-js-pkg') || document.createElement('script');
-    if (!script.id) {
+    const loadFromCdn = (idx) => {
+      if (!isMounted) return;
+      if (window.Cesium) {
+        setScriptsLoaded(true);
+        return;
+      }
+      if (idx >= CESIUM_CDNS.length) {
+        console.error('All Cesium CDNs failed; engaging Equal Earth 2D fallback.');
+        if (isMounted) setMapError(true);
+        return;
+      }
+
+      const cdn = CESIUM_CDNS[idx];
+      window.CESIUM_BASE_URL = cdn.base;
+
+      let link = document.getElementById('cesium-css-pkg');
+      if (!link) {
+        link = document.createElement('link');
+        link.id = 'cesium-css-pkg';
+        link.rel = 'stylesheet';
+        link.crossOrigin = '';
+        document.head.appendChild(link);
+      }
+      if (link.href !== cdn.css) {
+        link.href = cdn.css;
+      }
+
+      const existing = document.getElementById('cesium-js-pkg');
+      if (existing) {
+        existing.remove();
+      }
+
+      const script = document.createElement('script');
       script.id = 'cesium-js-pkg';
-      script.src = 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js';
+      script.src = cdn.js;
       script.async = true;
       script.crossOrigin = '';
+
+      const timeoutId = setTimeout(() => {
+        if (!window.Cesium && isMounted) {
+          console.warn(`Cesium CDN timed out (${cdn.js}), trying next mirror...`);
+          script.remove();
+          loadFromCdn(idx + 1);
+        }
+      }, 12000);
+
+      script.onload = () => {
+        clearTimeout(timeoutId);
+        if (window.Cesium) {
+          if (isMounted) setScriptsLoaded(true);
+        } else {
+          loadFromCdn(idx + 1);
+        }
+      };
+
+      script.onerror = () => {
+        clearTimeout(timeoutId);
+        console.warn(`Cesium CDN failed (${cdn.js}), trying fallback mirror...`);
+        script.remove();
+        loadFromCdn(idx + 1);
+      };
+
       document.head.appendChild(script);
-    }
-    const onLoad = () => { if (isMounted) setScriptsLoaded(true); };
-    const onErr = (err) => {
-      console.error("Cesium load failed, switching to 2D Leaflet:", err);
-      if (isMounted) setMapError(true);
     };
-    script.addEventListener('load', onLoad);
-    script.addEventListener('error', onErr);
+
+    loadFromCdn(0);
 
     return () => {
       isMounted = false;
-      script.removeEventListener('load', onLoad);
-      script.removeEventListener('error', onErr);
     };
-  }, []);
-
-  // Lazy-load Leaflet ONLY when 2D view is requested or WebGL falls back
-  useEffect(() => {
-    if (typeof window === 'undefined' || !is2DActive) return;
-    if (window.L) {
-      setLeafletReady(true);
-      return;
-    }
-    let isMounted = true;
-    if (!document.getElementById('leaflet-css-pkg')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css-pkg';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      link.crossOrigin = '';
-      document.head.appendChild(link);
-    }
-    const script = document.getElementById('leaflet-js-pkg') || document.createElement('script');
-    if (!script.id) {
-      script.id = 'leaflet-js-pkg';
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.async = true;
-      script.crossOrigin = '';
-      document.head.appendChild(script);
-    }
-    const onLoad = () => { if (isMounted) setLeafletReady(true); };
-    script.addEventListener('load', onLoad);
-    return () => {
-      isMounted = false;
-      script.removeEventListener('load', onLoad);
-    };
-  }, [is2DActive]);
+  }, [is2DActive, cesiumRetryNonce]);
 
   const [viewerReady, setViewerReady] = useState(false);
   const [cameraAltitude, setCameraAltitude] = useState(10000000);
@@ -761,60 +797,77 @@ export default function CesiumGlobe({
     selectedSatelliteRef.current = selectedSatellite;
   }, [selectedSatellite]);
 
-  // 4. Buttery smooth auto rotation of the globe / cinematic skyscraper orbit
+  // 4. Buttery smooth auto rotation of the globe / cinematic skyscraper orbit (strictly paused in 2D mode & when idle)
   useEffect(() => {
-    if (!scriptsLoaded || !viewerRef.current || mapError || !viewerReady) return;
+    if (!scriptsLoaded || !viewerRef.current || is2DActive || !viewerReady || (!autoRotate && !isOrbiting)) return;
 
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
-    if (!Cesium) return;
+    if (!Cesium || viewer.isDestroyed?.()) return;
 
     let lastTime = performance.now();
-    let listener;
+    let rafId = null;
     let wasOrbiting = false;
 
-    const postRenderHandler = (scene, time) => {
-      const currentTime = performance.now();
-      const delta = (currentTime - lastTime) / 1000.0;
+    const stepFrame = (currentTime) => {
+      if (!viewerRef.current || viewer.isDestroyed?.()) return;
+      const delta = Math.min(0.1, (currentTime - lastTime) / 1000.0);
       lastTime = currentTime;
 
       if (isOrbitingRef.current && selectedSkyscraperRef.current) {
         wasOrbiting = true;
         const landmark = selectedSkyscraperRef.current;
         const centerPosition = Cesium.Cartesian3.fromDegrees(landmark.lon, landmark.lat, landmark.height / 2);
-        
         orbitAngleRef.current += 0.25 * delta;
         const range = Math.max(landmark.height * 1.6, 350);
-        const heading = orbitAngleRef.current;
-        const pitch = Cesium.Math.toRadians(-28.0);
-        
-        const hpr = new Cesium.HeadingPitchRange(heading, pitch, range);
+        const hpr = new Cesium.HeadingPitchRange(orbitAngleRef.current, Cesium.Math.toRadians(-28.0), range);
         viewer.camera.lookAt(centerPosition, hpr);
+        viewer.scene.requestRender();
       } else {
         if (wasOrbiting) {
-          try {
-            viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-          } catch (e) {}
+          try { viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); } catch {}
           wasOrbiting = false;
         }
         if (autoRotate) {
-          const rotationSpeed = 0.035; 
-          viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, rotationSpeed * delta);
+          viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.035 * delta);
+          viewer.scene.requestRender();
         }
       }
+      rafId = requestAnimationFrame(stepFrame);
     };
 
-    listener = viewer.scene.postRender.addEventListener(postRenderHandler);
+    rafId = requestAnimationFrame(stepFrame);
 
     return () => {
-      if (listener && viewer && viewer.scene && !viewer.isDestroyed()) {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (viewer && viewer.scene && !viewer.isDestroyed?.()) {
         try {
           viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-          viewer.scene.postRender.removeEventListener(postRenderHandler);
-        } catch (e) {}
+          viewer.scene.requestRender();
+        } catch {}
       }
     };
-  }, [autoRotate, mapError, viewerReady, scriptsLoaded]);
+  }, [autoRotate, isOrbiting, is2DActive, viewerReady, scriptsLoaded]);
+
+  // Wake & resize Cesium WebGL canvas cleanly whenever returning from 2D Equal Earth to 3D Globe
+  useEffect(() => {
+    if (!is2DActive && viewerReady && viewerRef.current && !viewerRef.current.isDestroyed?.()) {
+      const v = viewerRef.current;
+      try {
+        v.resize();
+        v.scene.requestRender();
+      } catch {}
+      const t = setTimeout(() => {
+        try {
+          if (!v.isDestroyed?.()) {
+            v.resize();
+            v.scene.requestRender();
+          }
+        } catch {}
+      }, 120);
+      return () => clearTimeout(t);
+    }
+  }, [is2DActive, viewerReady]);
 
   // 4b. Dynamic loading of Predefined Landmark Reticles in 3D Mode
   const landmarkEntitiesRef = useRef([]);
@@ -1290,606 +1343,85 @@ export default function CesiumGlobe({
     }));
   }, [displayedMarkers, eventsEnabled]);
 
-  // 1. Initialize Leaflet when 2D is explicitly active or as robust fallback
+  // Synchronize 3D country selection highlights reactively (lazy-loads countries.geo.json if needed)
   useEffect(() => {
-    if (!leafletReady || !is2DActive || !leafletContainerRef.current) return;
-    if (leafletMapRef.current) return;
+    if (!viewerReady || !viewerRef.current) return;
+    let cancelled = false;
 
-    const L = window.L;
-    if (!L) return;
-
-    try {
-      const map = L.map(leafletContainerRef.current, {
-        zoomControl: false,
-        attributionControl: false,
-        scrollWheelZoom: true,
-        renderer: L.canvas({ padding: 0.5 }) // Highly optimized canvas vector rendering to prevent SVG clipping & minimize DOM nodes memory!
-      }).setView([20.0, 12.0], 2);
-
-      leafletMapRef.current = map;
-
-      // Premium theme-aligned imagery layer
-      const tileUrl = getLeafletTileUrl(mapStyle);
-      const tileLayer = L.tileLayer(tileUrl.url, {
-        maxZoom: 19,
-        attribution: tileUrl.credit
-      }).addTo(map);
-      leafletTileLayerRef.current = tileLayer;
-
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-      console.log("Leaflet 2D tactical map initialized.");
-
-      // Lazy country border click picker
-      map.on('click', async (e) => {
-        const { lat, lng } = e.latlng;
-        const geo = await ensureCountriesGeoJson();
-        if (geo?.features) {
-          const matchedFeature = geo.features.find(feature => isPointInCountry(lat, lng, feature));
-          if (matchedFeature) {
-            const countryName = matchedFeature.properties.name || "Unknown Sector";
-            if (onCountrySelect) onCountrySelect(countryName);
-          }
-        }
-      });
-    } catch (e) {
-      console.error("Leaflet initialization failed:", e);
-    }
-  }, [is2DActive, leafletReady]);
-
-  // Synchronize country selection highlights reactively (In-Memory PIP Dynamic Render)
-  useEffect(() => {
-    // 1. Sync 3D Cesium highlights
-    if (viewerReady && viewerRef.current) {
+    const applyCountryHighlight = async () => {
       const viewer = viewerRef.current;
       const Cesium = window.Cesium;
-      if (Cesium) {
-        // Revert previous selected country entities completely
-        selectedCountryEntitiesRef.current.forEach(entity => {
-          try { viewer.entities.remove(entity); } catch (e) {}
-        });
-        selectedCountryEntitiesRef.current = [];
+      if (!viewer || viewer.isDestroyed?.() || !Cesium) return;
 
-        if (selectedCountry && countriesGeoJsonRef.current) {
-          const normalizedSearch = selectedCountry.toLowerCase().trim();
-          const matchedFeature = countriesGeoJsonRef.current.features.find(feature => {
-            const name = (feature.properties?.name || '').toLowerCase().trim();
-            return name === normalizedSearch;
+      selectedCountryEntitiesRef.current.forEach(entity => {
+        try { viewer.entities.remove(entity); } catch {}
+      });
+      selectedCountryEntitiesRef.current = [];
+
+      if (!selectedCountry) {
+        try { viewer.scene.requestRender(); } catch {}
+        return;
+      }
+
+      const geo = await ensureCountriesGeoJson();
+      if (cancelled || !geo?.features || !viewerRef.current || viewer.isDestroyed?.()) return;
+
+      const normalizedSearch = selectedCountry.toLowerCase().trim();
+      const matchedFeature = geo.features.find(feature =>
+        (feature.properties?.name || '').toLowerCase().trim() === normalizedSearch
+      );
+
+      if (matchedFeature?.geometry) {
+        const geom = matchedFeature.geometry;
+        const createPolygonEntity = (coords) => {
+          const degrees = [];
+          coords.forEach(coord => {
+            degrees.push(coord[0], coord[1]);
           });
-
-          if (matchedFeature && matchedFeature.geometry) {
-            const geom = matchedFeature.geometry;
-            const createPolygonEntity = (coords) => {
-              const degrees = [];
-              coords.forEach(coord => {
-                degrees.push(coord[0]); // lon
-                degrees.push(coord[1]); // lat
-              });
-              return viewer.entities.add({
-                name: selectedCountry,
-                polygon: {
-                  hierarchy: Cesium.Cartesian3.fromDegreesArray(degrees),
-                  material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.22)'),
-                  outline: true,
-                  outlineColor: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)'),
-                  outlineWidth: 2.0
-                }
-              });
-            };
-
-            try {
-              if (geom.type === 'Polygon') {
-                const exterior = geom.coordinates[0];
-                const entity = createPolygonEntity(exterior);
-                selectedCountryEntitiesRef.current.push(entity);
-              } else if (geom.type === 'MultiPolygon') {
-                geom.coordinates.forEach(poly => {
-                  const exterior = poly[0];
-                  const entity = createPolygonEntity(exterior);
-                  selectedCountryEntitiesRef.current.push(entity);
-                });
-              }
-            } catch (err) {
-              console.warn("Failed to create dynamic country polygon entity:", err);
+          return viewer.entities.add({
+            name: selectedCountry,
+            polygon: {
+              hierarchy: Cesium.Cartesian3.fromDegreesArray(degrees),
+              material: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.20)'),
+              outline: true,
+              outlineColor: Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.88)'),
+              outlineWidth: 2.0
             }
-          }
-        }
-      }
-    }
+          });
+        };
 
-    // 2. Sync 2D Leaflet highlights
-    if (leafletMapRef.current && window.L) {
-      const L = window.L;
-      // Revert previous leaflet selection style/layer
-      if (leafletSelectedLayerRef.current) {
         try {
-          leafletMapRef.current.removeLayer(leafletSelectedLayerRef.current);
-        } catch (e) {}
-        leafletSelectedLayerRef.current = null;
-      }
-
-      if (selectedCountry && countriesGeoJsonRef.current) {
-        const normalizedSearch = selectedCountry.toLowerCase().trim();
-        const matchedFeature = countriesGeoJsonRef.current.features.find(feature => {
-          const name = (feature.properties?.name || '').toLowerCase().trim();
-          return name === normalizedSearch;
-        });
-
-        if (matchedFeature) {
-          try {
-            const layer = L.geoJSON(matchedFeature, {
-              style: {
-                color: 'rgba(0, 240, 255, 0.85)',
-                weight: 2,
-                fillColor: 'rgba(0, 240, 255, 0.22)',
-                fillOpacity: 0.22
-              }
-            }).addTo(leafletMapRef.current);
-            leafletSelectedLayerRef.current = layer;
-          } catch (err) {
-            console.warn("Failed to render Leaflet dynamic country overlay:", err);
+          if (geom.type === 'Polygon') {
+            selectedCountryEntitiesRef.current.push(createPolygonEntity(geom.coordinates[0]));
+          } else if (geom.type === 'MultiPolygon') {
+            geom.coordinates.forEach(poly => {
+              selectedCountryEntitiesRef.current.push(createPolygonEntity(poly[0]));
+            });
           }
+        } catch (err) {
+          console.warn('Failed to create dynamic country polygon entity:', err);
         }
       }
-    }
-  }, [selectedCountry, scriptsLoaded, viewerReady]);
 
-  // 2. Update individual spaced threat markers on Leaflet map (no numbered consolidation circles)
-  useEffect(() => {
-    if (!scriptsLoaded || !is2DActive || !leafletMapRef.current) return;
-
-    const L = window.L;
-    const map = leafletMapRef.current;
-
-    if (!leafletThreatGroupRef.current) {
-      leafletThreatGroupRef.current = L.layerGroup().addTo(map);
-    }
-    const threatGroup = leafletThreatGroupRef.current;
-    threatGroup.clearLayers();
-
-    // Clear transient satellite markers/paths from base map
-    map.eachLayer(layer => {
-      if ((layer instanceof L.CircleMarker || layer instanceof L.Polyline) && !threatGroup.hasLayer(layer) && !(leafletOverlayGroupRef.current && leafletOverlayGroupRef.current.hasLayer(layer))) {
-        map.removeLayer(layer);
-      }
-    });
-
-    repelledMarkers.forEach(m => {
-      if (m.repelledLat === undefined || m.repelledLon === undefined) return;
-      const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
-      const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
-        radius: Math.min(4.5 + (m.severity || 1) * 0.95, 9.5),
-        fillColor: sevColorStr,
-        color: '#0f172a',
-        weight: 2,
-        opacity: 0.9,
-        fillOpacity: 0.95
-      }).addTo(threatGroup);
-
-      marker.bindTooltip(`
-        <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(56, 189, 248, 0.65); border-radius: 8px; color: #f8fafc; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); width: 240px; white-space: normal; word-break: break-word;">
-          <div style="border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 6px; margin-bottom: 6px; font-weight: bold; font-size: 12px;">
-            ${String(m.title || m.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; justify-content: space-between; gap: 12px;">
-              <span style="opacity: 0.72;">Location:</span>
-              <span style="font-weight: bold; word-break: break-word;">${String(m.location || 'Global').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 12px;">
-              <span style="opacity: 0.72;">Severity:</span>
-              <span style="color: ${sevColorStr}; font-weight: bold;">S${m.severity}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 12px;">
-              <span style="opacity: 0.72;">Category:</span>
-              <span style="font-weight: bold; word-break: break-word;">${String(m.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-            </div>
-          </div>
-        </div>
-      `, {
-        direction: 'top',
-        className: 'leaflet-tooltip-custom',
-        permanent: false,
-        sticky: true,
-        opacity: 1
-      });
-
-      marker.on('click', () => {
-        if (onPointClickRef.current) onPointClickRef.current(m);
-      });
-    });
-
-    // Render 2D Satellites Fallback
-    if (showSatellites && satellites) {
-      satellites.forEach(sat => {
-        const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
-        
-        const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
-        const satSize = isSelected ? 28 : 22;
-        const satIcon = L.divIcon({
-          html: `<div style="width:${satSize}px;height:${satSize}px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:${isSelected ? 22 : 16}px;line-height:1;filter:drop-shadow(0 0 ${isSelected ? 10 : 7}px ${satColor});">🛰️</div>`,
-          className: 'leaflet-sat-vector-icon',
-          iconSize: [satSize, satSize],
-          iconAnchor: [satSize / 2, satSize / 2]
-        });
-
-        const marker = L.marker([sat.latitude, sat.longitude], {
-          icon: satIcon
-        }).addTo(map);
-
-        marker.bindTooltip(`
-          <div style="font-family: monospace; font-size: 11px; padding: 10px 14px; background: rgba(11, 19, 43, 0.98); border: 1px solid rgba(0, 240, 255, 0.8); border-radius: 8px; color: #ffffff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 240, 255, 0.3); backdrop-filter: blur(8px); width: 220px; white-space: normal; word-break: break-word;">
-            <div style="border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 6px; margin-bottom: 6.5px; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-              <span>📡</span>
-              <span style="white-space: normal; word-break: break-word;">${String(sat.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 5px;">
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">NORAD:</span>
-                <span style="color: #f8fafc; font-weight: bold;">${sat.code}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Altitude:</span>
-                <span style="color: #00ffff; font-weight: bold;">${sat.altitude} km</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 12px;">
-                <span style="color: #94a3b8; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Velocity:</span>
-                <span style="color: #00ffff; font-weight: bold;">${sat.velocity} km/s</span>
-              </div>
-            </div>
-          </div>
-        `, {
-          direction: 'top',
-          className: 'leaflet-tooltip-custom',
-          permanent: isSelected,
-          sticky: !isSelected,
-          opacity: 1
-        });
-
-        marker.on('click', () => {
-          if (onSatelliteClickRef.current) {
-            onSatelliteClickRef.current(sat);
-          }
-        });
-      });
-    }
-
-    // Render 2D Orbit Ground-Track Path Fallback
-    if (showSatellites && selectedSatellite) {
-      const latlngs = [];
-      const inclinationRad = (selectedSatellite.inclination * Math.PI) / 180;
-      const nowMin = Date.now() / 1000 / 60;
-      const EarthRotationSpeed = 360 / 1440;
-      const earthRotationDrift = (nowMin * EarthRotationSpeed) % 360;
-
-      for (let i = 0; i <= 360; i += 5) {
-        const theta = (i * Math.PI) / 180;
-        const sinLat = Math.sin(inclinationRad) * Math.sin(theta);
-        const lat = (Math.asin(sinLat) * 180) / Math.PI;
-        
-        const yPrime = Math.cos(inclinationRad) * Math.sin(theta);
-        const xPrime = Math.cos(theta);
-        let lonOrbit = Math.atan2(yPrime, xPrime);
-        
-        let lon = (lonOrbit * 180) / Math.PI + (selectedSatellite.raan || 45.0) - earthRotationDrift;
-        lon = ((lon + 180) % 360) - 180;
-        if (lon < -180) lon += 360;
-
-        latlngs.push([lat, lon]);
-      }
-
-      L.polyline(latlngs, {
-        color: '#00ffff',
-        dashArray: '5, 8',
-        weight: 2,
-        opacity: 0.75
-      }).addTo(map);
-    }
-
-  }, [is2DActive, repelledMarkers, leafletReady, showSatellites, satellites, selectedSatellite]);
-
-  // 2e. Full 2D Leaflet Overlay Parity (Data Centers, AI Regulations, GPS Jamming, Oil & Gas, Cables, Weather)
-  useEffect(() => {
-    if (!scriptsLoaded || !is2DActive || !leafletMapRef.current) return;
-    const L = window.L;
-    const map = leafletMapRef.current;
-
-    if (!leafletOverlayGroupRef.current) {
-      leafletOverlayGroupRef.current = L.layerGroup().addTo(map);
-    }
-    const overlayGroup = leafletOverlayGroupRef.current;
-    overlayGroup.clearLayers();
-
-    if (leafletWeatherLayerRef.current) {
-      try { map.removeLayer(leafletWeatherLayerRef.current); } catch {}
-      leafletWeatherLayerRef.current = null;
-    }
-
-    let cancelled = false;
-    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    const loadJsonCached = async (key, url) => {
-      if (GLOBE_LAYER_CACHE[key]) return GLOBE_LAYER_CACHE[key];
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const d = await res.json();
-      GLOBE_LAYER_CACHE[key] = d;
-      return d;
+      try { viewer.scene.requestRender(); } catch {}
     };
 
-    if (internetCablesEnabled) {
-      Promise.all([
-        loadJsonCached('submarineCables', '/api/cables'),
-        loadJsonCached('landingStations', '/api/landing-stations')
-      ]).then(([cablesGeo, landingGeo]) => {
-        if (cancelled) return;
-        (cablesGeo?.features || []).forEach(f => {
-          const g = f.geometry;
-          const color = f.properties?.color || '#ec4899';
-          const drawCoords = (coords) => {
-            L.polyline(coords.map(c => [c[1], c[0]]), { color, weight: 1.4, opacity: 0.55 }).bindTooltip(esc(f.properties?.name || 'Undersea Cable'), { sticky: true, className: 'leaflet-tooltip-custom' }).addTo(overlayGroup);
-          };
-          if (g?.type === 'LineString') drawCoords(g.coordinates);
-          else if (g?.type === 'MultiLineString') g.coordinates.forEach(drawCoords);
-        });
-        (landingGeo?.features || []).forEach(f => {
-          const c = f.geometry?.coordinates;
-          if (Array.isArray(c) && c.length >= 2) {
-            L.circleMarker([c[1], c[0]], { radius: 3, fillColor: '#a855f7', color: '#0f172a', weight: 1, fillOpacity: 0.85 })
-              .bindTooltip(esc(f.properties?.name || 'Landing Station'), { sticky: true })
-              .addTo(overlayGroup);
-          }
-        });
-      }).catch(() => {});
-    }
-
-    if (oilGasEnabled) {
-      loadJsonCached('oilGas', '/api/oil-gas').then((data) => {
-        if (cancelled || !data) return;
-        (data.lines || []).forEach(line => {
-          const metaLine = [line.type?.replace(/_/g, ' '), line.capacity, line.countries].filter(Boolean).join(' · ');
-          L.polyline(line.coordinates.map(c => [c[1], c[0]]), { color: line.color || '#f97316', weight: 1.6, opacity: 0.68 })
-            .bindTooltip(`<b>${esc(line.project || 'Pipeline')}</b>${metaLine ? '<br/>' + esc(metaLine) : ''}`, { sticky: true })
-            .addTo(overlayGroup);
-        });
-        (data.points || []).forEach(pt => {
-          if (!Array.isArray(pt.coordinate)) return;
-          const isLng = pt.facilityType === 'lng_terminal';
-          const metaPt = [pt.operator, pt.capacity, pt.country].filter(Boolean).join(' · ');
-          L.circleMarker([pt.coordinate[1], pt.coordinate[0]], {
-            radius: isLng ? 4.5 : 5.2,
-            fillColor: pt.color || (isLng ? '#38bdf8' : '#f59e0b'),
-            color: '#0f172a',
-            weight: 1.2,
-            fillOpacity: 0.92
-          })
-            .bindTooltip(`<b>${isLng ? '⚓ ' : '🏭 '}${esc(pt.name || 'Energy Facility')}</b>${metaPt ? '<br/>' + esc(metaPt) : ''}`, { sticky: true })
-            .addTo(overlayGroup);
-        });
-      }).catch(() => {});
-    }
-
-    if (gpsJammingEnabled) {
-      loadJsonCached('gpsJamming', '/api/gps-jamming').then((data) => {
-        if (cancelled || !data?.cells) return;
-        data.cells.filter(c => c.category && c.category !== 'none' && c.intensity > 0).forEach(cell => {
-          const kmPerDeg = 111.32;
-          const dLat = cell.radiusKm / kmPerDeg;
-          const dLon = cell.radiusKm / (kmPerDeg * Math.max(0.25, Math.cos(cell.lat * Math.PI / 180)));
-          const ring = [];
-          for (let i = 0; i < 6; i++) {
-            const a = (i * 60) * Math.PI / 180;
-            ring.push([cell.lat + dLat * Math.sin(a), cell.lon + dLon * Math.cos(a)]);
-          }
-          const fillOp = cell.category === 'high' ? 0.52 : cell.category === 'medium' ? 0.36 : 0.22;
-          L.polygon(ring, { color: cell.color || '#ef4444', weight: 1, fillColor: cell.color || '#ef4444', fillOpacity: fillOp })
-            .bindTooltip(`GPS Interference (${esc(cell.category.toUpperCase())}) • ${Math.round((cell.intensity || 0) * 100)}%`, { sticky: true })
-            .addTo(overlayGroup);
-        });
-      }).catch(() => {});
-    }
-
-    if (dataCentersEnabled) {
-      loadJsonCached('dataCenters', '/api/datacenters').then((data) => {
-        if (cancelled || !data?.dataCenters) return;
-        const gridCounts = {};
-        const selected = [];
-        for (const dc of data.dataCenters) {
-          if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') continue;
-          if (dc.isFrontierCluster) {
-            selected.push(dc);
-            continue;
-          }
-          const gk = `${Math.round(dc.lat / 0.65)},${Math.round(dc.lon / 0.65)}`;
-          if ((gridCounts[gk] || 0) < 2 && selected.length < 750) {
-            gridCounts[gk] = (gridCounts[gk] || 0) + 1;
-            selected.push(dc);
-          }
-        }
-        selected.forEach(dc => {
-          const isFrontier = Boolean(dc.isFrontierCluster || dc.status === 'planned');
-          const cleanLoc = [dc.city && !/^unknown$/i.test(dc.city) ? dc.city : '', dc.country || ''].filter(Boolean).join(', ');
-          L.circleMarker([dc.lat, dc.lon], {
-            radius: isFrontier ? 6.5 : 4,
-            fillColor: isFrontier ? '#f59e0b' : '#0ea5e9',
-            color: '#0f172a',
-            weight: isFrontier ? 1.8 : 1,
-            fillOpacity: 0.9
-          }).bindTooltip(`${esc(dc.name)} (${esc(dc.operator || 'Independent')} · ${esc(cleanLoc || 'Global')})`, { sticky: true })
-            .on('click', () => {
-              if (onPointClickRef.current) {
-                onPointClickRef.current({
-                  ...dc,
-                  isDataCenter: true,
-                  title: dc.name,
-                  location: cleanLoc || dc.country || 'Global'
-                });
-              }
-            })
-            .addTo(overlayGroup);
-        });
-      }).catch(() => {});
-    }
-
-    if (aiRegulationsEnabled) {
-      loadJsonCached('aiRegulations', '/api/ai-regulations').then((data) => {
-        if (cancelled || !data?.aiRegulations) return;
-        const REG_COLORS = { 'In effect': '#10b981', 'Passed': '#0ea5e9', 'Proposed': '#f59e0b', 'Policy': '#8b5cf6' };
-        const regBuckets = {};
-        data.aiRegulations.forEach(item => {
-          if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
-          const bk = `${item.lat.toFixed(1)},${item.lon.toFixed(1)}`;
-          const idx = regBuckets[bk] || 0;
-          regBuckets[bk] = idx + 1;
-          const angle = idx * 2.39996323;
-          const r = idx === 0 ? 0 : Math.min(0.32, 0.12 * Math.sqrt(idx));
-          const pLat = item.lat + r * Math.cos(angle);
-          const pLon = item.lon + (r * Math.sin(angle)) / Math.max(0.3, Math.cos(item.lat * Math.PI / 180));
-          const color = REG_COLORS[item.status] || '#8b5cf6';
-          L.circleMarker([pLat, pLon], { radius: 6, fillColor: color, color: '#0f172a', weight: 1.6, fillOpacity: 0.92 })
-            .bindTooltip(`<b>${esc(item.title)}</b><br/>${esc(item.jurisdiction)} · ${esc(item.status)}`, { sticky: true })
-            .on('click', () => { if (onPointClickRef.current) onPointClickRef.current({ ...item, isAiRegulation: true }); })
-            .addTo(overlayGroup);
-        });
-      }).catch(() => {});
-    }
-
-    if (weatherEnabled) {
-      const weatherGroup = L.layerGroup().addTo(map);
-      leafletWeatherLayerRef.current = weatherGroup;
-
-      L.tileLayer(
-        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30min/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png',
-        { opacity: 0.65, maxNativeZoom: 6 }
-      ).addTo(weatherGroup);
-
-      fetch('https://api.rainviewer.com/public/weather-maps.json')
-        .then(r => (r.ok ? r.json() : null))
-        .then(data => {
-          if (cancelled || !data?.radar?.past?.length) return;
-          const latest = data.radar.past[data.radar.past.length - 1];
-          L.tileLayer(`${data.host || 'https://tilecache.rainviewer.com'}${latest.path}/256/{z}/{x}/{y}/6/1_1.png`, {
-            opacity: 0.78,
-            maxNativeZoom: 7
-          }).addTo(weatherGroup);
-        })
-        .catch(() => {});
-
-      fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&category=severeStorms')
-        .then(r => (r.ok ? r.json() : null))
-        .then(eonet => {
-          if (cancelled || !eonet?.events) return;
-          eonet.events.forEach(ev => {
-            const latestGeo = Array.isArray(ev.geometry) ? ev.geometry[ev.geometry.length - 1] : null;
-            const coords = latestGeo?.coordinates;
-            if (!Array.isArray(coords) || coords.length < 2) return;
-            L.circleMarker([coords[1], coords[0]], {
-              radius: 7,
-              fillColor: '#06b6d4',
-              color: '#ffffff',
-              weight: 2,
-              fillOpacity: 0.92
-            })
-              .bindTooltip(`<b>🌀 ${esc(ev.title)}</b><br/>Active Storm · ${esc((latestGeo.date || '').slice(0, 10))}`, { sticky: true })
-              .addTo(weatherGroup);
-          });
-        })
-        .catch(() => {});
-    }
-
-    if (censorshipEnabled) {
-      loadJsonCached('censorship', '/api/censorship').then((data) => {
-        if (cancelled || !data?.items) return;
-        data.items.forEach(item => {
-          if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
-          L.circleMarker([item.lat, item.lon], {
-            radius: 5 + Math.min(4, item.severity || 2),
-            fillColor: item.color || '#f43f5e',
-            color: '#0f172a',
-            weight: 1.5,
-            fillOpacity: 0.9
-          })
-            .bindTooltip(`<b>🔒 ${esc(item.country)}</b><br/>${esc(item.confirmedBlocks?.toLocaleString?.() || 0)} OONI blocks · ${item.blockRatePct || 0}% disruption`, { sticky: true })
-            .on('click', () => { if (onPointClickRef.current) onPointClickRef.current({ ...item, isEthicsOverlay: true }); })
-            .addTo(overlayGroup);
-        });
-      }).catch(() => {});
-    }
-
-    const ethicsLayers2d = [
-      { on: envJusticeEnabled, key: 'environmental', url: '/api/ethics-layers?layer=environmental', icon: '💧' },
-      { on: supplyChainEnabled, key: 'supplyChain', url: '/api/ethics-layers?layer=supply_chain', icon: '🪨' },
-      { on: biometricWelfareEnabled, key: 'biometricWelfare', url: '/api/ethics-layers?layer=biometric_welfare', icon: '👁️' },
-      { on: aiLaborEnabled, key: 'aiLabor', url: '/api/ethics-layers?layer=ai_labor', icon: '⚖️' }
-    ];
-    ethicsLayers2d.forEach(({ on, key, url, icon }) => {
-      if (!on) return;
-      loadJsonCached(key, url).then((data) => {
-        if (cancelled || !data) return;
-        (data.arcs || []).forEach(arc => {
-          if (Array.isArray(arc.from) && Array.isArray(arc.to)) {
-            L.polyline([arc.from, arc.to], { color: arc.color || '#38bdf8', weight: 1.5, opacity: 0.55, dashArray: '4 4' })
-              .bindTooltip(esc(arc.name || 'Supply Chain Link'), { sticky: true })
-              .addTo(overlayGroup);
-          }
-        });
-        (data.items || []).forEach(pt => {
-          if (typeof pt.lat !== 'number' || typeof pt.lon !== 'number') return;
-          L.circleMarker([pt.lat, pt.lon], {
-            radius: 6.5,
-            fillColor: pt.color || '#a855f7',
-            color: '#0f172a',
-            weight: 1.5,
-            fillOpacity: 0.92
-          })
-            .bindTooltip(`<b>${icon} ${esc(pt.name)}</b><br/>${esc(pt.country || '')}`, { sticky: true })
-            .on('click', () => {
-              if (onPointClickRef.current) {
-                onPointClickRef.current({ ...pt, title: pt.name, location: pt.country, category: key === 'environmental' ? 'Disaster' : key === 'supplyChain' ? 'Economic' : 'Humanitarian', isEthicsOverlay: true });
-              }
-            })
-            .addTo(overlayGroup);
-        });
-      }).catch(() => {});
-    });
-
-    if (temporalReplayActive && Array.isArray(temporalMilestones)) {
-      temporalMilestones.forEach(m => {
-        if (typeof m.lat !== 'number' || typeof m.lon !== 'number') return;
-        const tColor = m.track === 'law' ? '#10b981' : m.track === 'institute' ? '#a855f7' : '#f59e0b';
-        L.circleMarker([m.lat, m.lon], {
-          radius: m.powerMw ? Math.min(11, 5 + Math.sqrt(m.powerMw) * 0.18) : 6.5,
-          fillColor: tColor,
-          color: m.isPostBaseline ? '#00f0ff' : '#0f172a',
-          weight: m.isPostBaseline ? 2.5 : 1.5,
-          fillOpacity: 0.92
-        })
-          .bindTooltip(`<b>[${esc(m.date)}] ${esc(m.title)}</b><br/>${esc(m.location)}${m.powerMw ? ` · ${m.powerMw} MW` : ''}`, { sticky: true })
-          .on('click', () => { if (onPointClickRef.current) onPointClickRef.current(m); })
-          .addTo(overlayGroup);
-      });
-    }
-
+    applyCountryHighlight();
     return () => { cancelled = true; };
-  }, [is2DActive, leafletReady, aiRegulationsEnabled, dataCentersEnabled, gpsJammingEnabled, oilGasEnabled, internetCablesEnabled, weatherEnabled, censorshipEnabled, envJusticeEnabled, supplyChainEnabled, biometricWelfareEnabled, aiLaborEnabled, temporalReplayActive, temporalMilestones]);
+  }, [selectedCountry, scriptsLoaded, viewerReady]);
 
   // Handle Map and View Reset trigger upon clicking the Refresh icon in LiveMap
   useEffect(() => {
     if (resetKey > 0) {
       clearSkyscraperSelection();
-      
-      // Reset memoization cache references
       lastRepelledMarkersJsonRef.current = '';
       lastSelectedSatJsonRef.current = '';
 
-      // 1. Reset 3D Cesium Globe View
-      if (viewerRef.current) {
+      if (viewerRef.current && !viewerRef.current.isDestroyed?.()) {
         const viewer = viewerRef.current;
         const Cesium = window.Cesium;
         if (Cesium) {
-          // Release any tracked entity locking camera focus
           viewer.trackedEntity = undefined;
-
-          // Fly camera back to default viewpoint looking down from space nadir
           viewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(12.0, 20.0, 15000000.0),
             orientation: {
@@ -1897,19 +1429,15 @@ export default function CesiumGlobe({
               pitch: Cesium.Math.toRadians(-90.0),
               roll: 0.0
             },
-            duration: 2.0
+            duration: 1.6
           });
+          try { viewer.scene.requestRender(); } catch {}
         }
       }
-
-      // 2. Reset 2D Leaflet map position
-      if (is2DActive && leafletMapRef.current) {
-        leafletMapRef.current.setView([20.0, 12.0], 2);
-      }
     }
-  }, [resetKey, is2DActive]);
+  }, [resetKey]);
 
-  // Handle focusing camera straight down onto specific coordinates + transient target reticle
+  // Handle focusing 3D camera straight down onto specific coordinates + transient target reticle
   useEffect(() => {
     if (!focusCoordinate || focusCoordinate.lat === undefined || focusCoordinate.lon === undefined) return;
     const latNum = Number(focusCoordinate.lat);
@@ -1920,7 +1448,7 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     const Cesium = typeof window !== 'undefined' ? window.Cesium : null;
 
-    if (viewer && !viewer.isDestroyed() && Cesium) {
+    if (viewer && !viewer.isDestroyed?.() && Cesium) {
       viewer.trackedEntity = undefined;
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lonNum, latNum, 2400000.0),
@@ -1951,7 +1479,7 @@ export default function CesiumGlobe({
         viewer.scene.requestRender();
         timer = setTimeout(() => {
           try {
-            if (!viewer.isDestroyed()) {
+            if (!viewer.isDestroyed?.()) {
               const ring = viewer.entities.getById('focus-target-ring');
               if (ring) viewer.entities.remove(ring);
               viewer.scene.requestRender();
@@ -1961,67 +1489,56 @@ export default function CesiumGlobe({
       } catch {}
     }
 
-    if (is2DActive && leafletMapRef.current) {
-      leafletMapRef.current.setView([latNum, lonNum], 6, { animate: true });
-    }
-
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [focusCoordinate, is2DActive]);
+  }, [focusCoordinate]);
 
-  // 2b. Sync Leaflet theme to mapStyle selection
-  useEffect(() => {
-    if (leafletMapRef.current && leafletTileLayerRef.current) {
-      const tileUrl = getLeafletTileUrl(mapStyle);
-      leafletTileLayerRef.current.setUrl(tileUrl.url);
-    }
-  }, [mapStyle]);
-
-  // 2c. Force Leaflet to recalculate container dimensions when transition settles (prevents clipping)
-  useEffect(() => {
-    if (is2DActive && leafletMapRef.current) {
-      const timer = setTimeout(() => {
-        if (leafletMapRef.current) {
-          leafletMapRef.current.invalidateSize();
-        }
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [is2DActive]);
-
-  // 2d. Listen to map container DOM element resizes (like when details window drawer slides open/closes)
+  // Listen to 3D map container DOM element resizes
   useEffect(() => {
     if (typeof window === 'undefined' || !('ResizeObserver' in window)) return;
     if (!containerRef.current) return;
 
     const observer = new ResizeObserver(() => {
-      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-        viewerRef.current.resize();
-      }
-      if (leafletMapRef.current) {
-        leafletMapRef.current.invalidateSize();
+      if (viewerRef.current && !viewerRef.current.isDestroyed?.()) {
+        try {
+          viewerRef.current.resize();
+          viewerRef.current.scene.requestRender();
+        } catch {}
       }
     });
 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [scriptsLoaded]);
+  }, [scriptsLoaded, viewerReady]);
 
-  // 3. Initialize Cesium Globe cleanly on mount with Google satellite base layer (safe for 2D/3D modes)
+  // Cleanup Cesium resources strictly on component unmount
+  const viewerCleanupRef = useRef(null);
   useEffect(() => {
-    if (!scriptsLoaded || mapError || typeof window === 'undefined' || !containerRef.current || viewerRef.current) return;
+    return () => {
+      if (typeof viewerCleanupRef.current === 'function') {
+        viewerCleanupRef.current();
+        viewerCleanupRef.current = null;
+      }
+    };
+  }, []);
+
+  // 3. Initialize Cesium Globe cleanly when 3D mode is active (with 2-stage WebGL context fallback)
+  useEffect(() => {
+    if (!scriptsLoaded || is2DActive || typeof window === 'undefined' || !containerRef.current || viewerRef.current) return;
 
     const Cesium = window.Cesium;
     if (!Cesium) {
-      console.warn("CesiumJS not available in window. Falling back to Leaflet.");
+      console.warn('CesiumJS not available in window. Falling back to Equal Earth 2D.');
       setMapError(true);
       return;
     }
 
     let viewer;
     try {
-      // Premium imagery provider url based on user style selection (Google Hybrid, Tactical Dark, or Earth at Night)
+      // Ensure container has no stale DOM children from any prior aborted initialization
+      containerRef.current.innerHTML = '';
+
       let mapUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
       let creditStr = 'Google Maps';
 
@@ -2047,45 +1564,62 @@ export default function CesiumGlobe({
       const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth < 1024));
       const isLowMem = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 
-      const viewerOptions = {
-        contextOptions: {
-          webgl: {
-            alpha: true,
-            depth: true,
-            stencil: false,
-            antialias: !(isMobileDevice || isLowMem),
-            premultipliedAlpha: true,
-            preserveDrawingBuffer: false,
-            failIfMajorPerformanceCaveat: false,
-            powerPreference: isMobileDevice ? 'default' : 'high-performance'
-          }
-        },
-        baseLayerPicker: false,
-        geocoder: false,
-        homeButton: false,
-        infoBox: false,
-        sceneModePicker: false,
-        selectionIndicator: false,
-        timeline: false,
-        navigationHelpButton: false,
-        navigationInstructionsInitiallyVisible: false,
-        animation: false,
-        requestRenderMode: true, // True 0% idle GPU
-        maximumRenderTimeChange: Infinity,
-        fullscreenButton: false,
-        vrButton: false,
-        creditContainer: typeof document !== 'undefined' ? document.createElement('div') : undefined, // Off-screen credit container to avoid crawlable SEO warnings!
+      const buildViewerOpts = (compatFallback = false) => {
+        const opts = {
+          contextOptions: {
+            webgl: compatFallback
+              ? {
+                  alpha: false,
+                  depth: true,
+                  stencil: false,
+                  antialias: false,
+                  premultipliedAlpha: true,
+                  preserveDrawingBuffer: false,
+                  failIfMajorPerformanceCaveat: false,
+                  powerPreference: 'low-power'
+                }
+              : {
+                  alpha: true,
+                  depth: true,
+                  stencil: false,
+                  antialias: !(isMobileDevice || isLowMem),
+                  premultipliedAlpha: true,
+                  preserveDrawingBuffer: false,
+                  failIfMajorPerformanceCaveat: false,
+                  powerPreference: 'default'
+                }
+          },
+          baseLayerPicker: false,
+          geocoder: false,
+          homeButton: false,
+          infoBox: false,
+          sceneModePicker: false,
+          selectionIndicator: false,
+          timeline: false,
+          navigationHelpButton: false,
+          navigationInstructionsInitiallyVisible: false,
+          animation: false,
+          requestRenderMode: true,
+          maximumRenderTimeChange: Infinity,
+          fullscreenButton: false,
+          vrButton: false,
+          creditContainer: typeof document !== 'undefined' ? document.createElement('div') : undefined
+        };
+        if (Cesium.ImageryLayer) {
+          opts.baseLayer = new Cesium.ImageryLayer(satelliteProvider);
+        } else {
+          opts.imageryProvider = satelliteProvider;
+        }
+        return opts;
       };
 
-      // Set premium satellite map as baseLayer in modern Cesium, or imageryProvider in older versions
-      if (Cesium.ImageryLayer) {
-        viewerOptions.baseLayer = new Cesium.ImageryLayer(satelliteProvider);
-      } else {
-        viewerOptions.imageryProvider = satelliteProvider;
+      try {
+        viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts(false));
+      } catch (primaryErr) {
+        console.warn('Primary WebGL context failed, retrying with compatibility WebGL profile:', primaryErr);
+        containerRef.current.innerHTML = '';
+        viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts(true));
       }
-
-      // Initialize clean premium satellite globe
-      viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
 
       viewer.clock.shouldAnimate = false;
       viewer.resolutionScale = (isMobileDevice || isLowMem) ? 0.9 : Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 1.25);
@@ -2643,14 +2177,15 @@ export default function CesiumGlobe({
           }
         }
 
-        // 2. If it's a general click on 3D building mesh, terrain, or backdrop, process it
-        if (!handled && is3DActive) {
-          let cartesian = viewer.scene.pickPosition(movement.position);
+        // 2. General globe surface / 3D building click -> select country in ALL 3D map styles (and skyscrapers in buildings mode)
+        if (!handled) {
+          let cartesian = is3DActive ? viewer.scene.pickPosition(movement.position) : undefined;
           if (!Cesium.defined(cartesian)) {
+            cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+          }
+          if (!Cesium.defined(cartesian) && is3DActive) {
             const ray = viewer.camera.getPickRay(movement.position);
-            if (ray) {
-              cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-            }
+            if (ray) cartesian = viewer.scene.globe.pick(ray, viewer.scene);
           }
 
           if (Cesium.defined(cartesian)) {
@@ -2659,79 +2194,30 @@ export default function CesiumGlobe({
             const pickedLat = Cesium.Math.toDegrees(pickedCartographic.latitude);
             const pickedHeight = pickedCartographic.height;
 
-            let closestLandmark = null;
-            let minDistance = Infinity;
-
-            FAMOUS_LANDMARKS.forEach(landmark => {
-              // Flat-earth horizontal degrees-to-meters approximation to bypass altitude variations
-              const latDiff = (pickedLat - landmark.lat) * 111000;
-              const lonDiff = (pickedLon - landmark.lon) * 111000 * Math.cos(Cesium.Math.toRadians(landmark.lat));
-              const horizontalDist = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
-              
-              if (horizontalDist < minDistance) {
-                minDistance = horizontalDist;
-                closestLandmark = landmark;
+            ensureCountriesGeoJson().then((geo) => {
+              if (!geo?.features) return;
+              const matchedFeature = geo.features.find((feature) => isPointInCountry(pickedLat, pickedLon, feature));
+              if (matchedFeature?.properties?.name && onCountrySelectRef.current) {
+                onCountrySelectRef.current(matchedFeature.properties.name);
               }
             });
 
-            // Clean, memory-resident point-in-polygon country click picker
-            let matchedCountryName = null;
-            if (countriesGeoJsonRef.current) {
-              const matchedFeature = countriesGeoJsonRef.current.features.find(feature => {
-                return isPointInCountry(pickedLat, pickedLon, feature);
+            if (is3DActive) {
+              let closestLandmark = null;
+              let minDistance = Infinity;
+              FAMOUS_LANDMARKS.forEach((landmark) => {
+                const latDiff = (pickedLat - landmark.lat) * 111000;
+                const lonDiff = (pickedLon - landmark.lon) * 111000 * Math.cos(Cesium.Math.toRadians(landmark.lat));
+                const horizontalDist = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+                if (horizontalDist < minDistance) {
+                  minDistance = horizontalDist;
+                  closestLandmark = landmark;
+                }
               });
-              if (matchedFeature) {
-                matchedCountryName = matchedFeature.properties?.name || "Unknown Sector";
-              }
-            }
 
-            if (matchedCountryName) {
-              if (onCountrySelect) {
-                onCountrySelect(matchedCountryName);
+              if (minDistance < 300.0 && closestLandmark) {
+                selectSkyscraper(closestLandmark);
               }
-              handled = true;
-            } else if (minDistance < 300.0 && closestLandmark) {
-              selectSkyscraper(closestLandmark);
-              handled = true;
-            } else {
-              const isBuildingFeature = pickedObject && (
-                !(pickedObject.id instanceof Cesium.Entity) ||
-                pickedObject instanceof Cesium.Cesium3DTileFeature ||
-                (pickedObject.primitive && pickedObject.primitive instanceof Cesium.Cesium3DTileset) ||
-                (typeof pickedObject.getProperty === 'function')
-              );
-
-              if (isBuildingFeature) {
-                if (lastPickedFeatureRef.current && !lastPickedFeatureRef.current.isDestroyed?.()) {
-                  try { lastPickedFeatureRef.current.color = Cesium.Color.WHITE; } catch (e) {}
-                }
-                try {
-                  pickedObject.color = Cesium.Color.fromCssColorString('rgba(0, 240, 255, 0.85)');
-                  lastPickedFeatureRef.current = pickedObject;
-                } catch (e) {
-                  lastPickedFeatureRef.current = null;
-                }
-              }
-
-              let buildingName = "3D OSM URBAN STRUCTURE";
-              if (pickedObject && typeof pickedObject.getProperty === 'function') {
-                try {
-                  const name = pickedObject.getProperty('name') || pickedObject.getProperty('Label') || pickedObject.getProperty('title');
-                  if (name) buildingName = name.toUpperCase();
-                } catch (e) {}
-              }
-
-              const genericLandmark = {
-                id: `generic-${pickedLat.toFixed(4)}-${pickedLon.toFixed(4)}`,
-                name: buildingName,
-                city: 'WGS84 URBAN FOOTPRINT',
-                lat: pickedLat,
-                lon: pickedLon,
-                height: pickedHeight > 10 ? pickedHeight : 60,
-                boxDimensions: { x: 50, y: 50, z: pickedHeight > 10 ? pickedHeight * 1.1 : 70 },
-                description: 'OpenStreetMap / Cesium 3D Tileset structural footprint and elevation profile.'
-              };
-              selectSkyscraper(genericLandmark);
             }
             handled = true;
           }
@@ -2778,6 +2264,19 @@ export default function CesiumGlobe({
       viewer.camera.changed.addEventListener(updateAltitude);
       viewer.camera.moveEnd.addEventListener(updateAltitude);
 
+      const handleContextLost = (evt) => {
+        try { evt.preventDefault(); } catch {}
+        console.warn('[Cesium] WebGL context lost — switching cleanly to Equal Earth 2D until restored.');
+        if (typeof viewerCleanupRef.current === 'function') {
+          viewerCleanupRef.current();
+          viewerCleanupRef.current = null;
+        }
+        setMapError(true);
+      };
+      if (viewer.scene?.canvas) {
+        viewer.scene.canvas.addEventListener('webglcontextlost', handleContextLost, false);
+      }
+
       viewerRef.current = viewer;
       setViewerReady(true);
       
@@ -2785,19 +2284,23 @@ export default function CesiumGlobe({
       lastRepelledMarkersJsonRef.current = '';
       lastSelectedSatJsonRef.current = '';
 
-      // Clean up on unmount
-      return () => {
-        handler.destroy();
+      viewerCleanupRef.current = () => {
+        try { handler.destroy(); } catch {}
         try {
-          if (viewer && viewer.camera) {
+          if (viewer?.scene?.canvas) {
+            viewer.scene.canvas.removeEventListener('webglcontextlost', handleContextLost, false);
+          }
+        } catch {}
+        try {
+          if (viewer && viewer.camera && !viewer.isDestroyed?.()) {
             viewer.camera.changed.removeEventListener(updateAltitude);
             viewer.camera.moveEnd.removeEventListener(updateAltitude);
           }
-        } catch (e) {
-          console.warn("Failed to clean up camera listeners:", e);
-        }
+        } catch {}
         if (viewerRef.current) {
-          viewerRef.current.destroy();
+          try {
+            if (!viewerRef.current.isDestroyed?.()) viewerRef.current.destroy();
+          } catch {}
           viewerRef.current = null;
         }
         setViewerReady(false);
@@ -2806,10 +2309,13 @@ export default function CesiumGlobe({
         selectionEntityRef.current = null;
       };
     } catch (e) {
-      console.error("Cesium globe initialization failed. Switching to 2D Fallback:", e);
+      console.error("Cesium globe initialization failed. Switching to Equal Earth 2D:", e);
+      if (containerRef.current) containerRef.current.innerHTML = '';
+      viewerRef.current = null;
+      setViewerReady(false);
       setMapError(true);
     }
-  }, [mapError, scriptsLoaded]);
+  }, [mapError, scriptsLoaded, is2DActive, cesiumRetryNonce]);
 
   // 4. Handle Google 3D Tileset loading and visibility based on Map Mode, Viewport Style, Camera Altitude, and Target Acquisition
   useEffect(() => {
@@ -2916,7 +2422,7 @@ export default function CesiumGlobe({
         tilesetRef.current.show = false;
       }
     }
-  }, [mapMode, mapStyle, cameraAltitude, selectedSkyscraper, tilesetLoadingStatus, mapError, scriptsLoaded]);
+  }, [mapMode, mapStyle, cameraAltitude, selectedSkyscraper, tilesetLoadingStatus, mapError, scriptsLoaded, viewerReady]);
 
   // 5. Update threat markers on Cesium Globe
   useEffect(() => {
@@ -3081,7 +2587,7 @@ export default function CesiumGlobe({
       try { viewer.entities.resumeEvents(); } catch {}
       try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
     }
-  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin]);
+  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin, viewerReady]);
 
   // 6. Update dynamic orbiting satellites and flight paths
   useEffect(() => {
@@ -3350,55 +2856,11 @@ export default function CesiumGlobe({
         viewerRef.current.trackedEntity = undefined;
       }
     }
-  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError, uiTheme]);
-
-
-
-  // 7. Update Leaflet base map layer on mapStyle changes
-  useEffect(() => {
-    if (!scriptsLoaded || !mapError || !leafletMapRef.current) return;
-    const L = window.L;
-    const map = leafletMapRef.current;
-    if (!L) return;
-
-    try {
-      // Find and remove existing tile layers
-      map.eachLayer(layer => {
-        if (layer instanceof L.TileLayer) {
-          map.removeLayer(layer);
-        }
-      });
-
-      let tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
-      let attribStr = 'Google';
-
-      if (mapStyle === 'light') {
-        tileUrl = CARTO_LIGHT_URL;
-        attribStr = 'CartoDB Positron';
-      } else if (mapStyle === 'minimal') {
-        tileUrl = CARTO_DARK_MINIMAL_URL;
-        attribStr = 'CartoDB Dark Minimal';
-      } else if (mapStyle === 'tactical' || mapStyle === 'dark') {
-        tileUrl = CARTO_DARK_MATTER_URL;
-        attribStr = 'CartoDB';
-      } else if (mapStyle === 'lights') {
-        tileUrl = 'https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/Earth_at_Night_2016/MapServer/tile/{z}/{y}/{x}';
-        attribStr = 'Esri';
-      }
-
-      L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        attribution: attribStr
-      }).addTo(map);
-      console.log(`Leaflet fallback base map style swapped to: ${mapStyle}`);
-    } catch (e) {
-      console.error("Failed to swap Leaflet base map style:", e);
-    }
-  }, [is2DActive, mapStyle, leafletReady]);
+  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError, uiTheme, viewerReady]);
 
   // 8. Capture and normalize wheel zoom for perfect laptop trackpad and mouse scroll zoom!
   useEffect(() => {
-    if (!scriptsLoaded || mapError || !viewerRef.current) return;
+    if (!scriptsLoaded || mapError || !viewerRef.current || !viewerReady) return;
     const viewer = viewerRef.current;
     const container = containerRef.current;
     if (!container) return;
@@ -3464,7 +2926,10 @@ export default function CesiumGlobe({
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-  }, [mapError, scriptsLoaded]);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [mapError, scriptsLoaded, viewerReady]);
 
   // A. Dynamic Map Style Switcher (Tactical Dark, Satellite, Earth at Night, Terrain, Street)
   useEffect(() => {
@@ -4657,28 +4122,46 @@ export default function CesiumGlobe({
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: mapStyle === 'light' ? '#dbeafe' : '#020617' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: mapStyle === 'light' || uiTheme === 'light' ? '#e2e8f0' : '#020617' }}>
       
-      {/* 2D Leaflet Map Container (Active strictly as a robust fallback only) */}
-      <div 
-        ref={leafletContainerRef} 
-        onMouseDown={handleUserInteraction}
-        onTouchStart={handleUserInteraction}
-        onWheel={handleUserInteraction}
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          zIndex: is2DActive ? 2 : 1,
-          opacity: is2DActive ? 1 : 0,
-          pointerEvents: is2DActive ? 'auto' : 'none',
-          transition: 'opacity 0.3s ease'
-        }} 
+      {/* Default 2D Mode: Equal Earth Projection Map */}
+      <EqualEarthMap2D
+        active={is2DActive}
+        layerCache={GLOBE_LAYER_CACHE}
+        ensureCountriesGeoJson={ensureCountriesGeoJson}
+        repelledMarkers={repelledMarkers}
+        eventsEnabled={eventsEnabled}
+        showSatellites={showSatellites}
+        satellites={satellites}
+        selectedSatellite={selectedSatellite}
+        onSatelliteClick={(sat) => { if (onSatelliteClickRef.current) onSatelliteClickRef.current(sat); }}
+        onPointClick={(pt) => { if (onPointClickRef.current) onPointClickRef.current(pt); }}
+        onCountrySelect={(cName) => { if (onCountrySelectRef.current) onCountrySelectRef.current(cName); }}
+        selectedCountry={selectedCountry}
+        onHoverTooltip={setHoverTooltip}
+        onInteraction={handleUserInteraction}
+        resetKey={resetKey}
+        focusCoordinate={focusCoordinate}
+        uiTheme={uiTheme}
+        mapStyle={mapStyle}
+        dayNightEnabled={dayNightEnabled}
+        weatherEnabled={weatherEnabled}
+        oilGasEnabled={oilGasEnabled}
+        internetCablesEnabled={internetCablesEnabled}
+        gpsJammingEnabled={gpsJammingEnabled}
+        dataCentersEnabled={dataCentersEnabled}
+        aiRegulationsEnabled={aiRegulationsEnabled}
+        censorshipEnabled={censorshipEnabled}
+        envJusticeEnabled={envJusticeEnabled}
+        supplyChainEnabled={supplyChainEnabled}
+        biometricWelfareEnabled={biometricWelfareEnabled}
+        aiLaborEnabled={aiLaborEnabled}
+        temporalReplayActive={temporalReplayActive}
+        temporalMilestones={temporalMilestones}
+        regulationsUpdateTrigger={regulationsUpdateTrigger}
       />
 
-      {/* 3D Cesium Map Container (Primary Map - renders beautiful satellite globe by default!) */}
+      {/* 3D Cesium Spherical Globe Container */}
       <div 
         ref={containerRef} 
         onMouseDown={handleUserInteraction}
@@ -4693,49 +4176,50 @@ export default function CesiumGlobe({
           zIndex: !is2DActive ? 2 : 1,
           opacity: !is2DActive ? 1 : 0,
           pointerEvents: !is2DActive ? 'auto' : 'none',
-          transition: 'opacity 0.3s ease'
+          transition: 'opacity 0.25s ease'
         }} 
       />
 
-      {/* 2D Fallback Mode Badge */}
-      {mapError && (
+      {/* 2D Equal Earth Mode / 3D Globe Quick Switcher Badge */}
+      {is2DActive && (
         <div style={{
-          position: 'absolute', top: '12px', left: '12px', zIndex: 10,
-          background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.25)',
-          borderRadius: '4px', padding: '6px 12px', fontSize: '9px', fontFamily: 'monospace', color: '#38bdf8',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '0.05em',
-          display: 'flex', alignItems: 'center', gap: '10px'
+          position: 'absolute',
+          top: '12px',
+          left: '12px',
+          zIndex: 10,
+          background: 'var(--sov-panel-bg)',
+          border: '1px solid var(--sov-border)',
+          borderRadius: '7px',
+          padding: '6px 11px',
+          fontSize: '9.5px',
+          fontFamily: 'var(--font-jetbrains-fallback)',
+          color: 'var(--sov-text)',
+          boxShadow: 'var(--sov-shadow)',
+          backdropFilter: 'blur(10px)',
+          letterSpacing: '0.04em',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
         }}>
-          <span>🛰️ TACTICAL MAP: 2D SAT-COM ACTIVE</span>
+          <span style={{ fontWeight: 700, color: 'var(--sov-muted)' }}>
+            🗺️ 2D EQUAL EARTH MAP
+          </span>
           <button
-            onClick={() => {
-              setMapError(false);
-              localStorage.setItem('operator_pref_mapMode', '3d');
-              window.dispatchEvent(new Event('operator_pref_changed'));
-              if (onMapModeChange) onMapModeChange('3d');
-            }}
+            type="button"
+            onClick={triggerSwitchTo3D}
             style={{
-              background: 'rgba(0, 240, 255, 0.15)',
-              border: '1px solid #00f0ff',
-              borderRadius: '3px',
-              color: '#00f0ff',
-              padding: '2px 8px',
-              fontSize: '8.5px',
-              fontFamily: 'monospace',
-              fontWeight: 'bold',
+              background: 'var(--sov-accent-soft)',
+              border: '1px solid var(--sov-accent)',
+              borderRadius: '4px',
+              color: 'var(--sov-accent)',
+              padding: '3px 9px',
+              fontSize: '9px',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              fontWeight: 800,
               cursor: 'pointer',
-              letterSpacing: '0.05em',
-              transition: 'all 0.15s ease'
+              letterSpacing: '0.04em'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 240, 255, 0.3)';
-              e.currentTarget.style.boxShadow = '0 0 8px rgba(0, 240, 255, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-            title="Attempt to switch back to 3D Spherical Globe"
+            title="Switch to 3D Spherical Globe"
           >
             SWITCH TO 3D GLOBE
           </button>

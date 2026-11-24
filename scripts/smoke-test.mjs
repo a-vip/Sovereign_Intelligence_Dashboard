@@ -124,6 +124,28 @@ async function run() {
     }
   });
 
+  await assertOk('/api/events?refresh=true', (_, text) => {
+    const data = JSON.parse(text);
+    const events = data.events || [];
+    if (events.length < 40) throw new Error(`Expected >=40 live events, got ${events.length}`);
+    const badUrls = events.filter((e) => {
+      try {
+        const u = new URL(e.url);
+        const p = u.pathname.replace(/\/+$/, '');
+        return !p || e.url.includes('?ref=') || u.hostname.includes('news.google.com');
+      } catch {
+        return true;
+      }
+    });
+    if (badUrls.length > 0) {
+      throw new Error(`Found ${badUrls.length} generic/broken event URLs: ${badUrls[0].id} -> ${badUrls[0].url}`);
+    }
+    const vnEvents = events.filter((e) => String(e.location || '').toLowerCase().includes('vietnam'));
+    if (vnEvents.length < 2) {
+      throw new Error(`Expected >=2 Vietnam signals in /api/events, got ${vnEvents.length}`);
+    }
+  });
+
   await assertOk('/api/ai-report', (_, text) => {
     const data = JSON.parse(text);
     if (!data?.success || !data?.latestEval) {

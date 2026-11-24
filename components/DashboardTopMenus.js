@@ -447,15 +447,21 @@ export default function DashboardTopMenus({
                 MAP STYLE &amp; VIEWPORT
               </span>
               <div style={{ display: 'flex', gap: '4px' }}>
-                {['3d', '2d'].map((mode) => {
-                  const active = mapMode === mode;
+                {[
+                  { id: '3d', label: '3D GLOBE' },
+                  { id: '2d', label: '2D EQUAL EARTH' }
+                ].map((opt) => {
+                  const active = mapMode === opt.id;
                   return (
                     <button
-                      key={mode}
+                      key={opt.id}
                       type="button"
                       onClick={() => {
-                        setMapMode(mode);
-                        try { localStorage.setItem('operator_pref_mapMode', mode); } catch {}
+                        setMapMode(opt.id);
+                        try {
+                          localStorage.setItem('operator_pref_mapMode', opt.id);
+                          window.dispatchEvent(new Event('operator_pref_changed'));
+                        } catch {}
                       }}
                       style={{
                         padding: '2px 7px',
@@ -463,13 +469,13 @@ export default function DashboardTopMenus({
                         border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
                         background: active ? 'var(--sov-accent-soft)' : 'transparent',
                         color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
-                        fontSize: '10px',
+                        fontSize: '9.5px',
                         fontWeight: 700,
                         fontFamily: 'var(--font-jetbrains-fallback)',
                         cursor: 'pointer'
                       }}
                     >
-                      {mode.toUpperCase()}
+                      {opt.label}
                     </button>
                   );
                 })}

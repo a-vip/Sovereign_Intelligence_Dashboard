@@ -2642,25 +2642,27 @@ export default function LiveMap({
             transform: 'translateX(-50%)',
             zIndex: 1000,
             background: 'var(--sov-panel-bg)',
-            backdropFilter: 'blur(10px)',
+            backdropFilter: 'blur(12px)',
             border: '1px solid var(--sov-border)',
             borderRadius: '8px',
-            padding: '8px 16px',
+            padding: '8px 14px',
             fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: '11px',
             color: 'var(--sov-text)',
-            boxShadow: '0 0 15px rgba(0, 240, 255, 0.25)',
+            boxShadow: 'var(--sov-shadow)',
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
-            gap: '12px',
+            gap: '10px',
+            maxWidth: 'calc(100% - 28px)',
             pointerEvents: 'auto'
           }}>
             <span style={{ 
               width: '8px', 
               height: '8px', 
               borderRadius: '50%', 
-              backgroundColor: '#00f0ff',
-              boxShadow: '0 0 8px #00f0ff',
+              backgroundColor: 'var(--sov-accent)',
+              boxShadow: '0 0 8px var(--sov-accent)',
               display: 'inline-block',
               animation: 'pulse 1.5s infinite'
             }} />
@@ -2674,11 +2676,11 @@ export default function LiveMap({
                   style={{
                     background: 'rgba(168, 85, 247, 0.14)',
                     border: '1px solid rgba(168, 85, 247, 0.45)',
-                    color: '#c084fc',
+                    color: 'var(--sov-purple)',
                     fontSize: '10px',
                     fontWeight: 'bold',
-                    padding: '2px 7px',
-                    borderRadius: '3px',
+                    padding: '3px 7px',
+                    borderRadius: '4px',
                     textDecoration: 'none'
                   }}
                   title={`Open full AI Policy & Safety Dossier for ${jur.name}`}
@@ -2688,48 +2690,68 @@ export default function LiveMap({
               );
             })()}
             <button
+              type="button"
               onClick={() => {
                 const targetQuery = `loc:"${selectedCountry}"`;
-                setSearchQuery(prev => prev === targetQuery ? '' : targetQuery);
+                const isClearing = searchQuery.trim().toLowerCase() === targetQuery.toLowerCase();
+                const nextQuery = isClearing ? '' : targetQuery;
+                setSearchQuery(nextQuery);
+                setDebouncedSearchQuery(nextQuery);
+                if (!isClearing) {
+                  setIsFeedCollapsed(false);
+                  if (feedType === 'satellites') setFeedType('live');
+                  setTimeWindowDays(prev => {
+                    if (prev >= 365) return prev;
+                    const cutoff = Date.now() - prev * 86400000;
+                    const hasRecentMatch = [...allFetchedEvents, ...(rssItems || [])].some(ev => {
+                      if (!matchAdvancedQuery(ev, targetQuery)) return false;
+                      const ts = parseDateSafe(ev.original_post_time || ev.timestamp || ev.published_at).getTime();
+                      return !ts || ts >= cutoff || ev.details?.isPinned;
+                    });
+                    return hasRecentMatch ? prev : 365;
+                  });
+                }
               }}
               style={{
-                background: searchQuery === `loc:"${selectedCountry}"` ? 'rgba(0, 240, 255, 0.25)' : 'rgba(0, 240, 255, 0.08)',
-                border: '1px solid rgba(0, 240, 255, 0.35)',
-                color: '#00f0ff',
+                background: searchQuery.trim().toLowerCase() === `loc:"${selectedCountry}"`.toLowerCase() ? 'var(--sov-accent)' : 'var(--sov-accent-soft)',
+                border: '1px solid var(--sov-accent)',
+                color: searchQuery.trim().toLowerCase() === `loc:"${selectedCountry}"`.toLowerCase() ? '#ffffff' : 'var(--sov-accent)',
                 cursor: 'pointer',
                 fontSize: '10px',
                 fontWeight: 'bold',
                 outline: 'none',
-                padding: '2px 6px',
-                borderRadius: '3px',
+                padding: '3px 8px',
+                borderRadius: '4px',
                 transition: 'all 0.15s ease'
               }}
               title="Filter intelligence feed to this jurisdiction"
             >
-              {searchQuery === `loc:"${selectedCountry}"` ? '[CLEAR FILTER]' : '[FILTER FEED]'}
+              {searchQuery.trim().toLowerCase() === `loc:"${selectedCountry}"`.toLowerCase()
+                ? `[CLEAR FILTER (${filteredEvents.length})]`
+                : '[FILTER FEED]'}
             </button>
             <button 
+              type="button"
               onClick={() => {
-                if (searchQuery === `loc:"${selectedCountry}"`) setSearchQuery('');
+                if (searchQuery.trim().toLowerCase() === `loc:"${selectedCountry}"`.toLowerCase()) {
+                  setSearchQuery('');
+                  setDebouncedSearchQuery('');
+                }
                 setSelectedCountry(null);
               }}
               style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#ff2d55',
+                color: 'var(--sov-danger)',
                 cursor: 'pointer',
                 fontSize: '10px',
                 fontWeight: 'bold',
-                marginLeft: '10px',
+                marginLeft: '4px',
                 outline: 'none',
-                padding: '2px 6px',
-                border: '1px solid rgba(255, 45, 85, 0.3)',
-                borderRadius: '3px',
-                background: 'rgba(255, 45, 85, 0.1)',
+                padding: '3px 7px',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '4px',
+                background: 'rgba(239, 68, 68, 0.12)',
                 transition: 'all 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 45, 85, 0.25)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 45, 85, 0.1)'}
             >
               [DISMISS]
             </button>
@@ -2998,6 +3020,43 @@ export default function LiveMap({
 
             {isMapOptionsExpanded && (
               <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+
+                {/* 3D Globe vs 2D Equal Earth Projection Switcher */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '2px' }}>
+                  {[
+                    { id: '3d', label: '🌐 3D GLOBE' },
+                    { id: '2d', label: '🗺️ 2D EQUAL EARTH' }
+                  ].map((opt) => {
+                    const active = mapMode === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setMapMode(opt.id);
+                          try {
+                            localStorage.setItem('operator_pref_mapMode', opt.id);
+                            window.dispatchEvent(new Event('operator_pref_changed'));
+                          } catch {}
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '5px 4px',
+                          borderRadius: '4px',
+                          border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
+                          background: active ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                          color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
+                          fontSize: '8.5px',
+                          fontWeight: 800,
+                          fontFamily: 'var(--font-jetbrains-fallback)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 
                 {/* Map style selection */}
                 <div style={{ marginBottom: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--sov-border)' }}>
@@ -4312,34 +4371,133 @@ export default function LiveMap({
   );
 }
 
+const COUNTRY_QUERY_ALIASES = {
+  'united states of america': ['usa', 'united states', 'u.s.', 'u.s.a.', 'washington d.c.', 'pentagon', 'arlington', 'new york', 'california', 'sacramento', 'san francisco', 'silicon valley', 'chicago', 'texas', 'virginia', 'colorado', 'seattle', 'boston'],
+  'united states': ['usa', 'united states', 'united states of america', 'u.s.', 'washington d.c.', 'pentagon', 'arlington', 'new york', 'california', 'sacramento', 'san francisco', 'silicon valley', 'chicago'],
+  'usa': ['usa', 'united states', 'united states of america', 'washington d.c.', 'pentagon', 'new york', 'california', 'san francisco', 'chicago'],
+  'united kingdom': ['united kingdom', 'uk', 'britain', 'england', 'scotland', 'wales', 'northern ireland', 'london', 'cambridge, uk', 'edinburgh', 'oxford, uk'],
+  'uk': ['uk', 'united kingdom', 'britain', 'london', 'cambridge, uk', 'edinburgh'],
+  'vietnam': ['vietnam', 'viet nam', 'hanoi', 'ho chi minh'],
+  'viet nam': ['vietnam', 'viet nam', 'hanoi', 'ho chi minh'],
+  'south korea': ['south korea', 'republic of korea', 'seoul', 'busan'],
+  'republic of korea': ['south korea', 'republic of korea', 'seoul'],
+  'north korea': ['north korea', 'pyongyang', 'dprk'],
+  'united arab emirates': ['uae', 'united arab emirates', 'abu dhabi', 'dubai'],
+  'uae': ['uae', 'united arab emirates', 'abu dhabi', 'dubai'],
+  'ivory coast': ['ivory coast', "côte d'ivoire", "cote d'ivoire", 'abidjan'],
+  "côte d'ivoire": ['ivory coast', "côte d'ivoire", "cote d'ivoire", 'abidjan'],
+  'russia': ['russia', 'russian federation', 'moscow'],
+  'russian federation': ['russia', 'russian federation', 'moscow'],
+  'china': ['china', 'beijing', 'shanghai', 'shenzhen', 'hangzhou', 'xinjiang', 'hong kong'],
+  'taiwan': ['taiwan', 'taipei', 'hsinchu'],
+  'israel': ['israel', 'gaza', 'west bank', 'hebron', 'tel aviv', 'jerusalem'],
+  'palestine': ['palestine', 'gaza', 'west bank', 'hebron', 'ramallah'],
+  'west bank': ['west bank', 'hebron', 'gaza', 'palestine'],
+  'iran': ['iran', 'tehran'],
+  'turkey': ['turkey', 'türkiye', 'ankara', 'istanbul'],
+  'united republic of tanzania': ['tanzania', 'dar es salaam', 'dodoma'],
+  'democratic republic of the congo': ['congo', 'drc', 'kinshasa', 'kolwezi'],
+  'republic of the congo': ['congo', 'brazzaville'],
+  'czechia': ['czechia', 'czech republic', 'prague'],
+  'czech republic': ['czechia', 'czech republic', 'prague'],
+  'netherlands': ['netherlands', 'amsterdam', 'the hague', 'eindhoven', 'veldhoven'],
+  'switzerland': ['switzerland', 'geneva', 'zurich', 'bern'],
+  'belgium': ['belgium', 'brussels'],
+  'india': ['india', 'new delhi', 'bengaluru', 'mumbai', 'chennai', 'hyderabad'],
+  'indonesia': ['indonesia', 'jakarta'],
+  'malaysia': ['malaysia', 'kuala lumpur', 'johor'],
+  'thailand': ['thailand', 'bangkok'],
+  'philippines': ['philippines', 'manila'],
+  'australia': ['australia', 'canberra', 'sydney', 'melbourne'],
+  'new zealand': ['new zealand', 'auckland', 'wellington', 'aotearoa'],
+  'brazil': ['brazil', 'brasília', 'brasilia', 'são paulo', 'sao paulo'],
+  'south africa': ['south africa', 'pretoria', 'cape town', 'johannesburg'],
+  'kenya': ['kenya', 'nairobi'],
+  'nigeria': ['nigeria', 'lagos', 'abuja'],
+  'yemen': ['yemen', 'sanaa', 'bab el-mandeb', 'red sea']
+};
+
+function matchesLocationFilter(item, rawLocVal) {
+  const cleanVal = String(rawLocVal || '').replace(/^["']+|["']+$/g, '').trim().toLowerCase();
+  if (!cleanVal) return true;
+
+  const itemLocation = String(item.location || item.country || item.jurisdiction || '').toLowerCase();
+  if (itemLocation.includes(cleanVal)) return true;
+
+  const candidateTerms = new Set([cleanVal]);
+  const directAliases = COUNTRY_QUERY_ALIASES[cleanVal];
+  if (directAliases) {
+    directAliases.forEach((a) => candidateTerms.add(a.toLowerCase()));
+  }
+
+  const jur = getJurisdictionBySlug(cleanVal) || resolveJurisdictionForLocation(cleanVal);
+  if (jur) {
+    candidateTerms.add(jur.name.toLowerCase());
+    if (jur.capital) {
+      jur.capital.split('/').forEach((c) => {
+        const trimmed = c.trim().toLowerCase();
+        if (trimmed.length >= 3) candidateTerms.add(trimmed);
+      });
+    }
+    (jur.matchPatterns || []).forEach((p) => {
+      const pl = p.toLowerCase();
+      if (pl.length >= 3 && !['nist', 'cisa', 'congress', 'deepseek', 'fanar', 'sb 53', 'sb 1047'].includes(pl)) {
+        candidateTerms.add(pl);
+      }
+    });
+  }
+
+  for (const term of candidateTerms) {
+    if (!term) continue;
+    if (term.length <= 3) {
+      const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const wordRe = new RegExp(`(?:^|[^a-z0-9])${esc}(?:$|[^a-z0-9])`, 'i');
+      if (wordRe.test(itemLocation)) return true;
+    } else if (itemLocation.includes(term)) {
+      return true;
+    }
+  }
+
+  // Fallback for Global / unlocated RSS items that explicitly name the country in the headline
+  if (!itemLocation || itemLocation.includes('global') || itemLocation === 'unknown') {
+    const titleLower = String(item.title || item.name || '').toLowerCase();
+    for (const term of candidateTerms) {
+      if (term.length >= 4 && titleLower.includes(term)) return true;
+    }
+  }
+
+  return false;
+}
+
 function matchAdvancedQuery(item, queryStr) {
-  const q = (queryStr || '').toLowerCase().trim();
+  const q = (queryStr || '').trim();
   if (!q) return true;
-  
+  const qLower = q.toLowerCase();
+
   const SEV_LABELS = { 1: 'low', 2: 'moderate', 3: 'alert', 4: 'high', 5: 'critical' };
-  
-  // Parse key-value tokens (e.g. "cat:conflict", "severity:critical", "loc:london")
-  const tokens = q.match(/([a-z]+):([^\s]+)/g);
-  if (tokens) {
+
+  // Parse quoted and unquoted key:value tokens (e.g. loc:"United States of America", loc:"Vietnam", cat:conflict)
+  const kvRegex = /([a-z]+):(?:"([^"]+)"|'([^']+)'|([^\s]+))/gi;
+  const kvMatches = [...q.matchAll(kvRegex)];
+
+  if (kvMatches.length > 0) {
     let isMatch = true;
-    
-    tokens.forEach(token => {
-      const parts = token.split(':');
-      if (parts.length < 2) return;
-      const key = parts[0];
-      const val = parts[1];
-      
-      const itemLocation = (item.location || '').toLowerCase();
+
+    for (const m of kvMatches) {
+      const key = (m[1] || '').toLowerCase();
+      const val = (m[2] ?? m[3] ?? m[4] ?? '').trim().toLowerCase();
+      if (!val) continue;
+
       const itemCategory = (item.category || '').toLowerCase();
       const itemSource = (item.source || item.details?.source || '').toLowerCase();
-      
+
       if (key === 'cat' || key === 'category') {
         if (!itemCategory.includes(val)) isMatch = false;
-      } else if (key === 'loc' || key === 'location') {
-        if (!itemLocation.includes(val)) isMatch = false;
+      } else if (key === 'loc' || key === 'location' || key === 'country') {
+        if (!matchesLocationFilter(item, val)) isMatch = false;
       } else if (key === 'sev' || key === 'severity') {
         const sevName = SEV_LABELS[item.severity] || '';
-        if (!sevName.includes(val) && String(item.severity) !== val) isMatch = false;
+        if (!sevName.includes(val) && String(item.severity) !== val.replace(/^s/i, '')) isMatch = false;
       } else if (key === 'src' || key === 'source') {
         if (!itemSource.includes(val)) isMatch = false;
       } else if (key === 'date') {
@@ -4347,13 +4505,13 @@ function matchAdvancedQuery(item, queryStr) {
         const dateStr = effectiveTime ? new Date(effectiveTime).toLocaleDateString().toLowerCase() : '';
         if (!dateStr.includes(val)) isMatch = false;
       }
-    });
-    
-    const remainingQuery = q.replace(/([a-z]+):([^\s]+)/g, '').trim();
+    }
+
+    const remainingQuery = q.replace(kvRegex, '').trim().toLowerCase();
     if (remainingQuery) {
-      const standardMatch = 
+      const standardMatch =
         (item.title || item.name || '').toLowerCase().includes(remainingQuery) ||
-        (item.location || '').toLowerCase().includes(remainingQuery) ||
+        matchesLocationFilter(item, remainingQuery) ||
         (item.category || '').toLowerCase().includes(remainingQuery) ||
         (item.summary || item.description || item.details?.summary || '').toLowerCase().includes(remainingQuery) ||
         (item.source || item.details?.source || '').toLowerCase().includes(remainingQuery);
@@ -4361,19 +4519,19 @@ function matchAdvancedQuery(item, queryStr) {
     }
     return isMatch;
   }
-  
-  const titleMatch = (item.title || item.name || '').toLowerCase().includes(q);
-  const locMatch = (item.location || '').toLowerCase().includes(q);
-  const catMatch = (item.category || '').toLowerCase().includes(q);
-  const summaryMatch = (item.summary || item.description || item.details?.summary || '').toLowerCase().includes(q);
-  const sourceMatch = (item.source || item.details?.source || '').toLowerCase().includes(q);
-  
+
+  const titleMatch = (item.title || item.name || '').toLowerCase().includes(qLower);
+  const locMatch = matchesLocationFilter(item, qLower);
+  const catMatch = (item.category || '').toLowerCase().includes(qLower);
+  const summaryMatch = (item.summary || item.description || item.details?.summary || '').toLowerCase().includes(qLower);
+  const sourceMatch = (item.source || item.details?.source || '').toLowerCase().includes(qLower);
+
   const effectiveTime = item.original_post_time || item.timestamp;
   const dateStr = effectiveTime ? new Date(effectiveTime).toLocaleDateString().toLowerCase() : '';
-  const dateMatch = dateStr.includes(q);
-  
+  const dateMatch = dateStr.includes(qLower);
+
   const sevName = SEV_LABELS[item.severity] || '';
-  const sevMatch = sevName.includes(q) || `severity ${item.severity}`.includes(q) || `sev ${item.severity}`.includes(q);
-  
+  const sevMatch = sevName.includes(qLower) || `severity ${item.severity}`.includes(qLower) || `sev ${item.severity}`.includes(qLower);
+
   return titleMatch || locMatch || catMatch || summaryMatch || sourceMatch || dateMatch || sevMatch;
 }
