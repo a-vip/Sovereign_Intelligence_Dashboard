@@ -2020,17 +2020,20 @@ export default function CesiumGlobe({
         credit: creditStr
       });
 
+      const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth < 1024));
+      const isLowMem = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+
       const viewerOptions = {
         contextOptions: {
           webgl: {
             alpha: true,
             depth: true,
             stencil: false,
-            antialias: true,
+            antialias: !(isMobileDevice || isLowMem),
             premultipliedAlpha: true,
             preserveDrawingBuffer: false,
             failIfMajorPerformanceCaveat: false,
-            powerPreference: 'high-performance'
+            powerPreference: isMobileDevice ? 'default' : 'high-performance'
           }
         },
         baseLayerPicker: false,
@@ -2061,7 +2064,7 @@ export default function CesiumGlobe({
       viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
 
       viewer.clock.shouldAnimate = false;
-      viewer.resolutionScale = 1.0;
+      viewer.resolutionScale = (isMobileDevice || isLowMem) ? 0.9 : Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 1.25);
       viewer.useBrowserRecommendedResolution = false;
 
       // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
@@ -2099,12 +2102,13 @@ export default function CesiumGlobe({
       // Enable Google Maps API key globally in Cesium
       Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
 
-      // Keep the globe visible to guarantee rendering stability
-      viewer.scene.globe.show = true;
-      // Start as false to prevent any curvature/terrain clipping visual bugs on initial tactical dark load!
-      viewer.scene.globe.depthTestAgainstTerrain = false;
-      viewer.scene.globe.tileCacheSize = 20;
-      viewer.scene.globe.maximumScreenSpaceError = 4.5;
+      if (viewer.scene?.globe) {
+        viewer.scene.globe.show = true;
+        // Start as false to prevent any curvature/terrain clipping visual bugs on initial tactical dark load!
+        viewer.scene.globe.depthTestAgainstTerrain = false;
+        viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem) ? 35 : 90;
+        viewer.scene.globe.maximumScreenSpaceError = (isMobileDevice || isLowMem) ? 2.5 : 1.8;
+      }
 
       viewer.scene.renderError.addEventListener((scene, error) => {
         console.warn('[Cesium Render Loop] Suppressed render error:', error?.message || error);
@@ -2915,136 +2919,144 @@ export default function CesiumGlobe({
     const viewer = viewerRef.current;
     const threatDS = threatDataSourceRef.current;
     const threatEntities = threatDS ? threatDS.entities : viewer.entities;
+    const hasDistinctThreatEntities = Boolean(threatDS && threatEntities !== viewer.entities);
     const eyeOffsetGround = new Cesium.Cartesian3(0.0, 0.0, -50.0);
-    try { threatEntities.suspendEvents(); } catch {}
+    if (hasDistinctThreatEntities) {
+      try { threatEntities.suspendEvents(); } catch {}
+    }
     try { viewer.entities.suspendEvents(); } catch {}
 
-    // Create a Set of incoming threat IDs for quick lookup
-    const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
+    try {
+      // Create a Set of incoming threat IDs for quick lookup
+      const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
 
-    // Remove stale threat markers from clustered CustomDataSource
-    const existingThreats = threatEntities.values.filter(e => e.id && e.id.startsWith('threat-') && !e.id.startsWith('threat-pulse-'));
-    existingThreats.forEach(e => {
-      if (!incomingIds.has(e.id)) {
-        threatEntities.remove(e);
-      }
-    });
-
-    // Remove stale pulse rings from viewer.entities
-    viewer.entities.values
-      .filter(e => e.id && e.id.startsWith('threat-pulse-'))
-      .forEach(e => {
-        const parentId = e.id.replace('threat-pulse-', 'threat-');
-        if (!incomingIds.has(parentId)) {
-          viewer.entities.remove(e);
+      // Remove stale threat markers from clustered CustomDataSource
+      const existingThreats = threatEntities.values.filter(e => e.id && e.id.startsWith('threat-') && !e.id.startsWith('threat-pulse-'));
+      existingThreats.forEach(e => {
+        if (!incomingIds.has(e.id)) {
+          threatEntities.remove(e);
         }
       });
 
-    // Surgically add new threat markers or update existing ones inside clustered datasource
-    repelledMarkers.forEach(m => {
-      if (m.repelledLat === undefined || m.repelledLon === undefined || !isValidCoordinate(m.repelledLat, m.repelledLon)) return;
-
-      const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
-      const threatId = `threat-${m.id || m.title}`;
-      const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
-
-      const existing = threatEntities.getById(threatId);
-      const isManualEvent = String(m.id || '').startsWith('evt-');
-      const outlineColor = isManualEvent ? '#00f0ff' : '#ffffff';
-      const outlineWidth = isManualEvent ? 2.5 : 1.5;
-
-      if (existing) {
-        const currentPos = existing.position.getValue(Cesium.JulianDate.now());
-        if (!currentPos || !Cesium.Cartesian3.equalsEpsilon(currentPos, newPos, 0.01)) {
-          existing.position = newPos;
-        }
-
-        const prevProps = existing.properties ? (typeof existing.properties.getValue === 'function' ? existing.properties.getValue(Cesium.JulianDate.now()) : existing.properties) : null;
-        const needsVisualUpdate = !prevProps || prevProps.severity !== m.severity || prevProps.title !== (m.title || m.name);
-
-        if (needsVisualUpdate) {
-          if (existing.billboard) {
-            existing.billboard.image = createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth);
+      // Remove stale pulse rings from viewer.entities
+      viewer.entities.values
+        .filter(e => e.id && e.id.startsWith('threat-pulse-'))
+        .forEach(e => {
+          const parentId = e.id.replace('threat-pulse-', 'threat-');
+          if (!incomingIds.has(parentId)) {
+            viewer.entities.remove(e);
           }
-          if (existing.label) {
-            existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
-          }
-        }
-
-        if (existing.billboard && existing.billboard.heightReference?.getValue() !== targetHeightRef) {
-          existing.billboard.heightReference = targetHeightRef;
-          existing.billboard.disableDepthTestDistance = targetDisableDepthTest;
-        }
-
-        if (existing.label && existing.label.heightReference?.getValue() !== targetHeightRef) {
-          existing.label.heightReference = targetHeightRef;
-          existing.label.disableDepthTestDistance = targetDisableDepthTest;
-          existing.label.show = false;
-        }
-
-        existing.properties = m;
-      } else {
-        threatEntities.add({
-          id: threatId,
-          name: m.title || m.name,
-          position: newPos,
-          billboard: {
-            image: createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth),
-            scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.0, 1.8e7, 0.56),
-            heightReference: targetHeightRef,
-            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER,
-            eyeOffset: eyeOffsetGround,
-            disableDepthTestDistance: targetDisableDepthTest,
-          },
-          label: {
-            text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
-            font: 'bold 9pt monospace',
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 3,
-            showBackground: true,
-            backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
-            backgroundPadding: new Cesium.Cartesian2(10, 6),
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -20),
-            heightReference: targetHeightRef,
-            disableDepthTestDistance: targetDisableDepthTest,
-            show: false,
-          },
-          properties: m,
         });
-      }
 
-      // Crisp static critical-tier halo ring (zero idle GPU wakeups)
-      if (m.severity >= 5) {
-        const pulseId = `threat-pulse-${m.id || m.title}`;
-        const existingPulse = viewer.entities.getById(pulseId);
-        if (existingPulse) {
-          existingPulse.position = newPos;
-          if (existingPulse.ellipse) {
-            existingPulse.ellipse.heightReference = targetHeightRef;
+      // Surgically add new threat markers or update existing ones inside clustered datasource
+      repelledMarkers.forEach(m => {
+        if (m.repelledLat === undefined || m.repelledLon === undefined || !isValidCoordinate(m.repelledLat, m.repelledLon)) return;
+
+        const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
+        const threatId = `threat-${m.id || m.title}`;
+        const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
+
+        const existing = threatEntities.getById(threatId);
+        const isManualEvent = String(m.id || '').startsWith('evt-');
+        const outlineColor = isManualEvent ? '#00f0ff' : '#ffffff';
+        const outlineWidth = isManualEvent ? 2.5 : 1.5;
+
+        if (existing) {
+          const currentPos = existing.position.getValue(Cesium.JulianDate.now());
+          if (!currentPos || !Cesium.Cartesian3.equalsEpsilon(currentPos, newPos, 0.01)) {
+            existing.position = newPos;
           }
-        } else {
-          viewer.entities.add({
-            id: pulseId,
-            position: newPos,
-            ellipse: {
-              semiMajorAxis: 115000.0,
-              semiMinorAxis: 115000.0,
-              material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.14),
-              outline: true,
-              outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.85),
-              heightReference: targetHeightRef
+
+          const prevProps = existing.properties ? (typeof existing.properties.getValue === 'function' ? existing.properties.getValue(Cesium.JulianDate.now()) : existing.properties) : null;
+          const needsVisualUpdate = !prevProps || prevProps.severity !== m.severity || prevProps.title !== (m.title || m.name);
+
+          if (needsVisualUpdate) {
+            if (existing.billboard) {
+              existing.billboard.image = createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth);
             }
+            if (existing.label) {
+              existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
+            }
+          }
+
+          if (existing.billboard && existing.billboard.heightReference?.getValue() !== targetHeightRef) {
+            existing.billboard.heightReference = targetHeightRef;
+            existing.billboard.disableDepthTestDistance = targetDisableDepthTest;
+          }
+
+          if (existing.label && existing.label.heightReference?.getValue() !== targetHeightRef) {
+            existing.label.heightReference = targetHeightRef;
+            existing.label.disableDepthTestDistance = targetDisableDepthTest;
+            existing.label.show = false;
+          }
+
+          existing.properties = m;
+        } else {
+          threatEntities.add({
+            id: threatId,
+            name: m.title || m.name,
+            position: newPos,
+            billboard: {
+              image: createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth),
+              scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.0, 1.8e7, 0.56),
+              heightReference: targetHeightRef,
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              verticalOrigin: Cesium.VerticalOrigin.CENTER,
+              eyeOffset: eyeOffsetGround,
+              disableDepthTestDistance: targetDisableDepthTest,
+            },
+            label: {
+              text: `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`,
+              font: 'bold 9pt monospace',
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              fillColor: Cesium.Color.WHITE,
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 3,
+              showBackground: true,
+              backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
+              backgroundPadding: new Cesium.Cartesian2(10, 6),
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              pixelOffset: new Cesium.Cartesian2(0, -20),
+              heightReference: targetHeightRef,
+              disableDepthTestDistance: targetDisableDepthTest,
+              show: false,
+            },
+            properties: m,
           });
         }
+
+        // Crisp static critical-tier halo ring (zero idle GPU wakeups)
+        if (m.severity >= 5) {
+          const pulseId = `threat-pulse-${m.id || m.title}`;
+          const existingPulse = viewer.entities.getById(pulseId);
+          if (existingPulse) {
+            existingPulse.position = newPos;
+            if (existingPulse.ellipse) {
+              existingPulse.ellipse.heightReference = targetHeightRef;
+            }
+          } else {
+            viewer.entities.add({
+              id: pulseId,
+              position: newPos,
+              ellipse: {
+                semiMajorAxis: 115000.0,
+                semiMinorAxis: 115000.0,
+                material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.14),
+                outline: true,
+                outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.85),
+                heightReference: targetHeightRef
+              }
+            });
+          }
+        }
+      });
+    } finally {
+      if (hasDistinctThreatEntities) {
+        try { threatEntities.resumeEvents(); } catch {}
       }
-    });
-    try { threatEntities.resumeEvents(); } catch {}
-    try { viewer.entities.resumeEvents(); } catch {}
-    try { viewer.scene.requestRender(); } catch {}
+      try { viewer.entities.resumeEvents(); } catch {}
+      try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+    }
   }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin]);
 
   // 6. Update dynamic orbiting satellites and flight paths
@@ -4295,14 +4307,19 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const clearEthics = () => {
-      if (ethicsEntitiesRef.current.length > 0) {
+      if (ethicsEntitiesRef.current.length > 0 && !viewer.isDestroyed()) {
         try { viewer.entities.suspendEvents(); } catch {}
-        ethicsEntitiesRef.current.forEach(e => {
-          try { if (!viewer.isDestroyed()) viewer.entities.remove(e); } catch {}
-        });
+        try {
+          ethicsEntitiesRef.current.forEach(e => {
+            try { if (!viewer.isDestroyed()) viewer.entities.remove(e); } catch {}
+          });
+          ethicsEntitiesRef.current = [];
+        } finally {
+          try { if (!viewer.isDestroyed()) viewer.entities.resumeEvents(); } catch {}
+          try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+        }
+      } else {
         ethicsEntitiesRef.current = [];
-        try { viewer.entities.resumeEvents(); } catch {}
-        try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -4340,85 +4357,87 @@ export default function CesiumGlobe({
       clearEthics();
       const added = [];
       try { viewer.entities.suspendEvents(); } catch {}
+      try {
+        results.forEach(({ kind, data }) => {
+          if (!data) return;
+          (data.arcs || []).forEach((arc, aIdx) => {
+            if (!Array.isArray(arc.from) || !Array.isArray(arc.to)) return;
+            try {
+              const ent = viewer.entities.add({
+                id: `ethics-arc-${kind}-${aIdx}`,
+                name: arc.name,
+                polyline: {
+                  positions: Cesium.Cartesian3.fromDegreesArray([arc.from[1], arc.from[0], arc.to[1], arc.to[0]]),
+                  width: 1.7,
+                  arcType: Cesium.ArcType.GEODESIC,
+                  material: Cesium.Color.fromCssColorString(arc.color || '#38bdf8').withAlpha(0.75)
+                },
+                properties: {
+                  isEthicsOverlay: true,
+                  title: arc.name,
+                  country: 'Global Supply Chain',
+                  metricLabel: 'Corridor',
+                  metricValue: 'Extractive / Semiconductor Flow',
+                  source: 'USGS / ASML / CSET'
+                }
+              });
+              added.push(ent);
+            } catch {}
+          });
 
-      results.forEach(({ kind, data }) => {
-        if (!data) return;
-        (data.arcs || []).forEach((arc, aIdx) => {
-          if (!Array.isArray(arc.from) || !Array.isArray(arc.to)) return;
-          try {
-            const ent = viewer.entities.add({
-              id: `ethics-arc-${kind}-${aIdx}`,
-              name: arc.name,
-              polyline: {
-                positions: Cesium.Cartesian3.fromDegreesArray([arc.from[1], arc.from[0], arc.to[1], arc.to[0]]),
-                width: 1.7,
-                arcType: Cesium.ArcType.GEODESIC,
-                material: Cesium.Color.fromCssColorString(arc.color || '#38bdf8').withAlpha(0.75)
-              },
-              properties: {
-                isEthicsOverlay: true,
-                title: arc.name,
-                country: 'Global Supply Chain',
-                metricLabel: 'Corridor',
-                metricValue: 'Extractive / Semiconductor Flow',
-                source: 'USGS / ASML / CSET'
-              }
-            });
-            added.push(ent);
-          } catch {}
+          (data.items || []).forEach(item => {
+            if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
+            const color = item.color || '#a855f7';
+            const metricLabel =
+              kind === 'censorship' ? 'OONI Blocks'
+                : kind === 'environmental' ? 'Water / Carbon'
+                : kind === 'supplyChain' ? 'Mineral / Stage'
+                : kind === 'biometricWelfare' ? 'Legal Status'
+                : 'Hourly Wage';
+            const metricValue =
+              kind === 'censorship' ? `${(item.confirmedBlocks || 0).toLocaleString()} (${item.blockRatePct || 0}%)`
+                : kind === 'environmental' ? `${item.waterStress} · ${item.carbonIntensity}g/kWh`
+                : kind === 'supplyChain' ? `${item.stage?.toUpperCase()} · ${item.mineral}`
+                : kind === 'biometricWelfare' ? (item.status || 'Active')
+                : (item.typicalHourlyUsd || 'Verified');
+
+            try {
+              const ent = viewer.entities.add({
+                id: `ethics-${kind}-${item.id}`,
+                name: item.name,
+                position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, 0),
+                billboard: {
+                  image: kind === 'supplyChain' || kind === 'environmental'
+                    ? createDiamondCanvas(color, 10, '#0f172a', 1.3)
+                    : createCircleCanvas(color, 8.5, '#0f172a', 1.3),
+                  scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.8e7, 0.65),
+                  horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                  verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                  eyeOffset: eyeOffsetEthics,
+                  heightReference: targetHeightRef,
+                  disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
+                },
+                properties: {
+                  ...item,
+                  isEthicsOverlay: true,
+                  title: item.title || item.name,
+                  location: item.country || 'Global',
+                  metricLabel,
+                  metricValue,
+                  category: kind === 'environmental' ? 'Disaster' : kind === 'supplyChain' ? 'Economic' : kind === 'censorship' ? 'Surveillance' : 'Humanitarian',
+                  severity: item.severity || 3
+                }
+              });
+              added.push(ent);
+            } catch {}
+          });
         });
 
-        (data.items || []).forEach(item => {
-          if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
-          const color = item.color || '#a855f7';
-          const metricLabel =
-            kind === 'censorship' ? 'OONI Blocks'
-              : kind === 'environmental' ? 'Water / Carbon'
-              : kind === 'supplyChain' ? 'Mineral / Stage'
-              : kind === 'biometricWelfare' ? 'Legal Status'
-              : 'Hourly Wage';
-          const metricValue =
-            kind === 'censorship' ? `${(item.confirmedBlocks || 0).toLocaleString()} (${item.blockRatePct || 0}%)`
-              : kind === 'environmental' ? `${item.waterStress} · ${item.carbonIntensity}g/kWh`
-              : kind === 'supplyChain' ? `${item.stage?.toUpperCase()} · ${item.mineral}`
-              : kind === 'biometricWelfare' ? (item.status || 'Active')
-              : (item.typicalHourlyUsd || 'Verified');
-
-          try {
-            const ent = viewer.entities.add({
-              id: `ethics-${kind}-${item.id}`,
-              name: item.name,
-              position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, 0),
-              billboard: {
-                image: kind === 'supplyChain' || kind === 'environmental'
-                  ? createDiamondCanvas(color, 10, '#0f172a', 1.3)
-                  : createCircleCanvas(color, 8.5, '#0f172a', 1.3),
-                scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.8e7, 0.65),
-                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                verticalOrigin: Cesium.VerticalOrigin.CENTER,
-                eyeOffset: eyeOffsetEthics,
-                heightReference: targetHeightRef,
-                disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
-              },
-              properties: {
-                ...item,
-                isEthicsOverlay: true,
-                title: item.title || item.name,
-                location: item.country || 'Global',
-                metricLabel,
-                metricValue,
-                category: kind === 'environmental' ? 'Disaster' : kind === 'supplyChain' ? 'Economic' : kind === 'censorship' ? 'Surveillance' : 'Humanitarian',
-                severity: item.severity || 3
-              }
-            });
-            added.push(ent);
-          } catch {}
-        });
-      });
-
-      ethicsEntitiesRef.current = added;
-      try { viewer.entities.resumeEvents(); } catch {}
-      try { viewer.scene.requestRender(); } catch {}
+        ethicsEntitiesRef.current = added;
+      } finally {
+        try { if (!viewer.isDestroyed()) viewer.entities.resumeEvents(); } catch {}
+        try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+      }
     }).catch(() => {});
 
     return () => {
@@ -4435,14 +4454,19 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const clearTemporal = () => {
-      if (temporalEntitiesRef.current.length > 0) {
+      if (temporalEntitiesRef.current.length > 0 && !viewer.isDestroyed()) {
         try { viewer.entities.suspendEvents(); } catch {}
-        temporalEntitiesRef.current.forEach(e => {
-          try { if (!viewer.isDestroyed()) viewer.entities.remove(e); } catch {}
-        });
+        try {
+          temporalEntitiesRef.current.forEach(e => {
+            try { if (!viewer.isDestroyed()) viewer.entities.remove(e); } catch {}
+          });
+          temporalEntitiesRef.current = [];
+        } finally {
+          try { if (!viewer.isDestroyed()) viewer.entities.resumeEvents(); } catch {}
+          try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+        }
+      } else {
         temporalEntitiesRef.current = [];
-        try { viewer.entities.resumeEvents(); } catch {}
-        try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
       }
     };
 
@@ -4458,43 +4482,45 @@ export default function CesiumGlobe({
       : Cesium.HeightReference.NONE;
     const added = [];
     try { viewer.entities.suspendEvents(); } catch {}
+    try {
+      temporalMilestones.forEach((m, idx) => {
+        if (typeof m.lat !== 'number' || typeof m.lon !== 'number') return;
+        const color = m.track === 'law' ? '#10b981' : m.track === 'institute' ? '#a855f7' : '#f59e0b';
+        const dotSize = m.powerMw ? Math.min(16, 7 + Math.sqrt(m.powerMw) * 0.22) : 9.5;
+        // Slight deterministic offset when two milestones sit on the same capital
+        const a = (idx % 7) * 2.39996323;
+        const r = idx % 7 === 0 ? 0 : 0.25;
+        const pLat = m.lat + r * Math.cos(a);
+        const pLon = m.lon + r * Math.sin(a);
+        try {
+          const ent = viewer.entities.add({
+            id: `temporal-${m.id}`,
+            name: m.title,
+            position: Cesium.Cartesian3.fromDegrees(pLon, pLat, 0),
+            billboard: {
+              image: createCircleCanvas(color, dotSize, m.isPostBaseline ? '#00f0ff' : '#ffffff', m.isPostBaseline ? 2.2 : 1.3),
+              scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.1, 1.8e7, 0.7),
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              verticalOrigin: Cesium.VerticalOrigin.CENTER,
+              eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -55.0),
+              heightReference: targetHeightRef,
+              disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
+            },
+            properties: {
+              ...m,
+              isTemporalMilestone: true,
+              category: m.track === 'compute' ? 'Economic' : 'Political'
+            }
+          });
+          added.push(ent);
+        } catch {}
+      });
 
-    temporalMilestones.forEach((m, idx) => {
-      if (typeof m.lat !== 'number' || typeof m.lon !== 'number') return;
-      const color = m.track === 'law' ? '#10b981' : m.track === 'institute' ? '#a855f7' : '#f59e0b';
-      const dotSize = m.powerMw ? Math.min(16, 7 + Math.sqrt(m.powerMw) * 0.22) : 9.5;
-      // Slight deterministic offset when two milestones sit on the same capital
-      const a = (idx % 7) * 2.39996323;
-      const r = idx % 7 === 0 ? 0 : 0.25;
-      const pLat = m.lat + r * Math.cos(a);
-      const pLon = m.lon + r * Math.sin(a);
-      try {
-        const ent = viewer.entities.add({
-          id: `temporal-${m.id}`,
-          name: m.title,
-          position: Cesium.Cartesian3.fromDegrees(pLon, pLat, 0),
-          billboard: {
-            image: createCircleCanvas(color, dotSize, m.isPostBaseline ? '#00f0ff' : '#ffffff', m.isPostBaseline ? 2.2 : 1.3),
-            scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.1, 1.8e7, 0.7),
-            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER,
-            eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -55.0),
-            heightReference: targetHeightRef,
-            disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
-          },
-          properties: {
-            ...m,
-            isTemporalMilestone: true,
-            category: m.track === 'compute' ? 'Economic' : 'Political'
-          }
-        });
-        added.push(ent);
-      } catch {}
-    });
-
-    temporalEntitiesRef.current = added;
-    try { viewer.entities.resumeEvents(); } catch {}
-    try { viewer.scene.requestRender(); } catch {}
+      temporalEntitiesRef.current = added;
+    } finally {
+      try { if (!viewer.isDestroyed()) viewer.entities.resumeEvents(); } catch {}
+      try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+    }
 
     return () => clearTemporal();
   }, [temporalReplayActive, temporalMilestones, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);

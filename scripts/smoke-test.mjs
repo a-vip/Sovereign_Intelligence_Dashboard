@@ -1,3 +1,5 @@
+import { computeTemporalSnapshot } from '../lib/temporalMilestones.js';
+
 const BASE_URL = (process.env.BASE_URL || 'https://app.sovdash.com').replace(/\/$/, '');
 
 async function assertOk(path, checkFn = null) {
@@ -13,6 +15,15 @@ async function assertOk(path, checkFn = null) {
 }
 
 async function run() {
+  // Verify longitudinal temporal snapshot calculation across all baselines
+  for (const baseline of ['', '2020-01', '2022-10', '2023-11', '2024-08']) {
+    const snap = computeTemporalSnapshot('2026-11', baseline, { law: true, institute: true, compute: true });
+    if (!Array.isArray(snap?.milestones) || snap.milestones.length === 0 || typeof snap?.metrics?.totalGw !== 'number') {
+      throw new Error(`Invalid computeTemporalSnapshot output for baseline=${baseline}`);
+    }
+  }
+  console.log('PASS computeTemporalSnapshot across all baselines');
+
   const ssrRoutes = [
     '/',
     '/jurisdictions',
@@ -73,6 +84,23 @@ async function run() {
     const dp = JSON.parse(text);
     if (dp.profile !== 'tabular-data-package' || !dp.datasetSha256) throw new Error('Invalid datapackage');
   });
+
+  await assertOk('/api/satellite', (_, text) => {
+    const sats = JSON.parse(text);
+    if (!Array.isArray(sats) || sats.length === 0 || !sats[0]?.code) throw new Error('Invalid /api/satellite payload');
+  });
+
+  await assertOk('/api/censorship', (_, text) => {
+    const data = JSON.parse(text);
+    if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('Invalid /api/censorship payload');
+  });
+
+  for (const layer of ['environmental', 'supply_chain', 'biometric_welfare', 'ai_labor']) {
+    await assertOk(`/api/ethics-layers?layer=${layer}`, (_, text) => {
+      const data = JSON.parse(text);
+      if (!Array.isArray(data.items) || data.items.length === 0) throw new Error(`Invalid /api/ethics-layers?layer=${layer}`);
+    });
+  }
 
   // Copilot POST
   const copRes = await fetch(`${BASE_URL}/api/copilot`, {

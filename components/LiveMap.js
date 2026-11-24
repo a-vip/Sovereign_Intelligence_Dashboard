@@ -3,20 +3,22 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Shield, RefreshCw, User, LogOut, Heart, Share2, Globe, Copy, Check, Plus, Rss, Bookmark, ChevronLeft } from 'lucide-react';
 import EventDetailsWindow from './EventDetailsWindow';
-import MarketQuotesBox from './MarketQuotesBox';
-import SatelliteDetailWindow from './SatelliteDetailWindow';
-import ChangelogBox from './ChangelogBox';
-import ResourcesModal from './ResourcesModal';
 import Link from 'next/link';
-import SourceManagerModal from './SourceManagerModal';
-import CommandPaletteModal from './CommandPaletteModal';
 import DashboardTopMenus from './DashboardTopMenus';
-import TemporalReplayBar from './TemporalReplayBar';
 import { MONTHS_2020_2026, computeTemporalSnapshot } from '@/lib/temporalMilestones';
 import { getJurisdictionBySlug, resolveJurisdictionForLocation } from '@/lib/jurisdictions';
 import { normalizeSignalId } from '@/lib/provenance';
 
 const CesiumGlobe = dynamic(() => import('./CesiumGlobe'), { ssr: false });
+const MarketQuotesBox = dynamic(() => import('./MarketQuotesBox'), { ssr: false });
+const SatelliteDetailWindow = dynamic(() => import('./SatelliteDetailWindow'), { ssr: false });
+const ChangelogBox = dynamic(() => import('./ChangelogBox'), { ssr: false });
+const ResourcesModal = dynamic(() => import('./ResourcesModal'), { ssr: false });
+const SourceManagerModal = dynamic(() => import('./SourceManagerModal'), { ssr: false });
+const CommandPaletteModal = dynamic(() => import('./CommandPaletteModal'), { ssr: false });
+const TemporalReplayBar = dynamic(() => import('./TemporalReplayBar'), { ssr: false });
+
+const EMPTY_MILESTONES = [];
 
 const EVENTS_POLL = 60000; // 60s visibility-gated sync for minimal CPU/network footprint
 
@@ -828,9 +830,12 @@ export default function LiveMap({
   const [temporalBaselineYm, setTemporalBaselineYm] = useState('2022-10');
   const [temporalTracks, setTemporalTracks] = useState({ law: true, institute: true, compute: true });
   const temporalSnapshot = useMemo(() => {
+    if (!temporalReplayActive) {
+      return { milestones: EMPTY_MILESTONES, metrics: null };
+    }
     const ym = MONTHS_2020_2026[temporalMonthIdx] || '2026-11';
     return computeTemporalSnapshot(ym, temporalBaselineYm, temporalTracks);
-  }, [temporalMonthIdx, temporalBaselineYm, temporalTracks]);
+  }, [temporalReplayActive, temporalMonthIdx, temporalBaselineYm, temporalTracks]);
 
 
 
@@ -2762,7 +2767,7 @@ export default function LiveMap({
           biometricWelfareEnabled={biometricWelfareEnabled}
           aiLaborEnabled={aiLaborEnabled}
           temporalReplayActive={temporalReplayActive}
-          temporalMilestones={temporalSnapshot.milestones}
+          temporalMilestones={temporalReplayActive ? temporalSnapshot.milestones : EMPTY_MILESTONES}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite

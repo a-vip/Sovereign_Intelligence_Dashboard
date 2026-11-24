@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
-import AuthModal from '@/components/AuthModal';
-import AccountModal from '@/components/AccountModal';
-import AdminCMS from '@/components/AdminCMS';
+
+const AuthModal = dynamic(() => import('@/components/AuthModal'), { ssr: false });
+const AccountModal = dynamic(() => import('@/components/AccountModal'), { ssr: false });
+const AdminCMS = dynamic(() => import('@/components/AdminCMS'), { ssr: false });
 
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState(null);
