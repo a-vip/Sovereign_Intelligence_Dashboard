@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Global AI Governance Jurisdiction Atlas',
   description:
-    'Comparative directory of binding AI legislation, safety institutes, multilateral treaties, and live incident telemetry across 38 major global AI jurisdictions.',
+    'Comparative directory of binding AI legislation, safety institutes, multilateral treaties, and live incident telemetry across 60+ global AI jurisdictions.',
   alternates: { canonical: '/jurisdictions' }
 };
 

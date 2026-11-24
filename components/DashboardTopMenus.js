@@ -30,7 +30,7 @@ const OBSERVATORY_GROUPS = [
   {
     heading: 'GLOBAL MONITORS',
     links: [
-      { href: '/jurisdictions', label: 'Jurisdiction Atlas (38)', color: '#c084fc' },
+      { href: '/jurisdictions', label: 'Jurisdiction Atlas (60)', color: '#c084fc' },
       { href: '/compare', label: 'Regulatory Diff Matrix', color: '#00f0ff' },
       { href: '/readiness', label: 'SAGRI Readiness Index', color: '#34d399' },
       { href: '/labs', label: 'Frontier Lab Watch', color: '#38bdf8' },

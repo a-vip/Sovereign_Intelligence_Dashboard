@@ -3518,33 +3518,6 @@ export default function LiveMap({
           <span>📋</span> {isMobile ? 'FEED' : 'LIVE FEED'}
         </button>
 
-        {/* Ask SovDash AI Pill Button */}
-        <button
-          type="button"
-          className={`tour-ai-button bottom-dock-pill${showSovDashAi ? ' active' : ''}`}
-          onClick={() => setShowSovDashAi(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: isMobile ? '6px 12px' : '8px 16px',
-            borderRadius: '24px',
-            background: showSovDashAi ? 'var(--sov-accent-soft)' : 'var(--sov-panel-bg)',
-            border: '1px solid var(--sov-accent)',
-            color: 'var(--sov-accent)',
-            fontSize: isMobile ? '10px' : '11px',
-            fontWeight: '800',
-            cursor: 'pointer',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 240, 255, 0.16)',
-            backdropFilter: 'blur(8px)',
-            transition: 'all 0.2s ease',
-            outline: 'none',
-            fontFamily: 'monospace'
-          }}
-        >
-          <span>✨</span> {isMobile ? 'ASK AI' : 'ASK SOVDASH'}
-        </button>
-
         {/* Support Pill Button */}
         <div style={{ position: 'relative' }}>
           <button 
@@ -4009,13 +3982,17 @@ export default function LiveMap({
         />
       )}
 
-      {/* Ask SovDash Citation-Locked Research Copilot Drawer */}
+      {/* Ask SovDash Floating Research Assistant */}
       {showSovDashAi && (
         <SovDashAiDrawer
           isOpen={showSovDashAi}
           onClose={() => setShowSovDashAi(false)}
           currentUser={currentUser}
           onRequestAuth={() => setShowAuthModal(true)}
+          onFocusLocation={(lat, lon) => {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }}
         />
       )}
 

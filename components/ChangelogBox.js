@@ -6,12 +6,12 @@ const CHANGELOG_DATA = [
   {
     version: 'v2.8.0',
     date: '2026-11-24',
-    title: 'SovDash AI (Ask SovDash), Neon pgvector RAG & Hallucination Audit',
+    title: 'Ask SovDash Floating Assistant, 60 Jurisdictions & Gemma-4 Reasoning',
     isMajor: true,
     bullets: [
-      'Launched Ask SovDash conversational research copilot powered by Neon pgvector hybrid RRF retrieval across all 38 jurisdictions, 472 statutes, Frontier Labs, Epoch clusters, PeeringDB facilities, ethics layers, and live OSINT wires.',
-      'Defaulted to free open-source reasoning cascades (Groq GPT-OSS 120B / Qwen3 / Llama 3.3 & OpenRouter :free) with live model switching, audit logging, and pgvector sync inside Admin CMS.',
-      'Added deterministic sentence-level citation verification, 16-case adversarial hallucination benchmarks, and public technical audit report at `/ai-report`.'
+      'Redesigned Ask SovDash into a non-blocking floating research window on desktop & mobile so the 3D globe and live feeds stay visible and interactive, triggered cleanly from the header.',
+      'Expanded Observatory coverage from 38 to 60 jurisdictions alongside live chronological event streaming, 472 statutes across 115 regional registries, and 6,033 PeeringDB facilities.',
+      'Enabled Google Gemma 4 31B open-weights reasoning traces paired with proportional concise formatting and 20-case automated hallucination auditing.'
     ]
   },
   {
