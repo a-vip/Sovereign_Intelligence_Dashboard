@@ -154,7 +154,7 @@ async function handleEnrichRequest(searchParams) {
   const netCount = Number(pdbMatch?.net_count || 0);
   const ixCount = Number(pdbMatch?.ix_count || 0);
   const carrierCount = Number(pdbMatch?.carrier_count || 0);
-  const resolvedOperator = pdbMatch?.org_name || operator || 'Independent';
+  const resolvedOperator = pdbMatch?.org_name || operator || deduceOperator(name, '');
   const website = pdbMatch?.website || null;
   const peeringDbUrl = pdbMatch?.id ? `https://www.peeringdb.com/fac/${pdbMatch.id}` : null;
 
