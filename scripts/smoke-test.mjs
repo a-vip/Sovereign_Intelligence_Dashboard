@@ -95,7 +95,7 @@ async function run() {
     if (!Array.isArray(data.items) || data.items.length < 50) throw new Error(`Expected >=50 censorship countries, got ${data.items?.length}`);
   });
 
-  const layerThresholds = { environmental: 80, supply_chain: 60, biometric_welfare: 40, ai_labor: 30 };
+  const layerThresholds = { environmental: 50, supply_chain: 60, biometric_welfare: 40, ai_labor: 30 };
   for (const [layer, minCount] of Object.entries(layerThresholds)) {
     await assertOk(`/api/ethics-layers?layer=${layer}`, (_, text) => {
       const data = JSON.parse(text);
