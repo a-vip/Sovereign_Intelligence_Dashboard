@@ -340,7 +340,8 @@ export async function GET(request) {
           dupIdx = i;
           break;
         }
-        if (calculateTitleFuzzySimilarity(e.title, acc.title) >= 0.6) {
+        const bothDistinctPinned = isPinned && (acc.details?.isPinned === true || acc.edited === true) && e.id && acc.id && e.id !== acc.id;
+        if (!bothDistinctPinned && calculateTitleFuzzySimilarity(e.title, acc.title) >= 0.6) {
           dupIdx = i;
           break;
         }
@@ -357,8 +358,8 @@ export async function GET(request) {
       deduplicated.push(e);
     }
 
-    // Apply deterministic, land-safe golden-angle dispersion & cap automated hub density (max 4 per city)
-    const normalizedDispersed = disperseCoLocatedEvents(deduplicated, 4).slice(0, 120).map((e) => {
+    // Apply deterministic, land-safe golden-angle dispersion & cap automated hub density (max 3 per city)
+    const normalizedDispersed = disperseCoLocatedEvents(deduplicated, 3).slice(0, 160).map((e) => {
       const safeSource = String(e.source || e.details?.source || 'Sovereign Observatory').trim() || 'Sovereign Observatory';
       const safeUrl = e.url && String(e.url).startsWith('http') ? e.url : 'https://app.sovdash.com/methodology';
       const safeSummary =
@@ -405,7 +406,7 @@ export async function GET(request) {
     }
 
     const responseData = {
-      markers: finalMarkers.slice(0, 120),
+      markers: finalMarkers.slice(0, 160),
       events: normalizedDispersed,
       lastUpdated: new Date().toISOString(),
       status: 'success'

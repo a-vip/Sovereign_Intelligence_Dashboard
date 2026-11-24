@@ -1209,3 +1209,40 @@ html[data-ui-theme="emerald"] div[style*="rgb(6, 10, 18)"],
 html[data-ui-theme="emerald"] .editorial-page {
   background: #050f0c !important;
 }
+
+/* ═══ SUB-PAGE MOBILE & RESPONSIVE LAYOUT UTILITIES ═══ */
+.sov-subnav-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.sov-subnav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.sov-desktop-table {
+  display: block;
+}
+.sov-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .editorial-page {
+    padding: 18px 14px 48px !important;
+  }
+  .sov-desktop-table {
+    display: none !important;
+  }
+  .sov-mobile-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

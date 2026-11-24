@@ -3,8 +3,13 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { FileText, Download, Copy, Check, Sparkles, Pin, ExternalLink } from 'lucide-react';
-import EditorialThemeToggle from './EditorialThemeToggle';
 import { sha256Hex, generateCitations } from '@/lib/provenance';
+
+const BRIEF_PRESETS = [
+  { label: 'Global South AI Governance', jurisdiction: 'za', pillar: 'AI Governance & Policy', severity: 2 },
+  { label: 'Autonomous Weapons & Conflict', jurisdiction: 'all', pillar: 'Autonomous Weapons & Military AI', severity: 3 },
+  { label: 'Compute & Critical Infrastructure', jurisdiction: 'all', pillar: 'Compute, Chips & Infrastructure', severity: 2 }
+];
 
 const STARTER_PROMPTS = [
   'Compare EU AI Act systemic risk obligations with California SB 53',
@@ -100,7 +105,12 @@ export default function BriefGeneratorClient({
     const avgSagri = relevantSagri.length
       ? Math.round(relevantSagri.reduce((acc, s) => acc + (Number(s.score ?? s.totalScore) || 0), 0) / relevantSagri.length)
       : 0;
-    return { total, highSev, parityPct, totalMw, avgSagri };
+    const catCounts = filteredSignals.reduce((acc, s) => {
+      const k = s.category || 'Political';
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    }, {});
+    return { total, highSev, parityPct, totalMw, avgSagri, catCounts };
   }, [filteredSignals, filteredClusters, relevantSagri]);
 
   const topSignals = useMemo(() => filteredSignals.slice(0, 20), [filteredSignals]);
@@ -316,7 +326,23 @@ export default function BriefGeneratorClient({
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid var(--sov-border)', paddingTop: '12px' }}>
-          <EditorialThemeToggle />
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)', fontWeight: 700 }}>PRESETS:</span>
+            {BRIEF_PRESETS.map((pr) => (
+              <button
+                key={pr.label}
+                type="button"
+                onClick={() => {
+                  setSelectedJurisdiction(pr.jurisdiction);
+                  setSelectedPillar(pr.pillar);
+                  setMinSeverity(pr.severity);
+                }}
+                style={{ padding: '4px 9px', borderRadius: '5px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-sky)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                {pr.label}
+              </button>
+            ))}
+          </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
@@ -460,6 +486,18 @@ export default function BriefGeneratorClient({
             </div>
           ))}
         </div>
+
+        {/* Category Breakdown Pill Strip */}
+        {Object.keys(metrics.catCounts || {}).length > 0 && (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)', fontWeight: 700 }}>CATEGORY MIX:</span>
+            {Object.entries(metrics.catCounts).map(([cat, cnt]) => (
+              <span key={cat} style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', padding: '3px 9px', borderRadius: '5px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', color: 'var(--sov-text)', fontWeight: 700 }}>
+                {cat}: {cnt}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Statutory & Readiness Context */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

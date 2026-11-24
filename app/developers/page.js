@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import EmbedCopyCard from '@/components/EmbedCopyCard';
-import EditorialThemeToggle from '@/components/EditorialThemeToggle';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
+import DeveloperApiPlayground from '@/components/DeveloperApiPlayground';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,19 +46,7 @@ export default function DevelopersPage() {
   return (
     <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1160px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            ← RETURN TO LIVE 3D GLOBE
-          </Link>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/brief" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>BRIEF EXPORTER</Link>
-            <Link href="/watchlists" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>WATCHLISTS</Link>
-            <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>SAGRI INDEX</Link>
-            <Link href="/whitepaper" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>WHITEPAPER</Link>
-            <Link href="/methodology" style={{ color: 'var(--sov-muted)', textDecoration: 'none' }}>METHODOLOGY</Link>
-            <EditorialThemeToggle />
-          </div>
-        </nav>
+        <ObservatorySubNav active="developers" />
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <span style={{ color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
@@ -107,6 +95,9 @@ export default function DevelopersPage() {
           </div>
         </section>
 
+        {/* Interactive API Playground */}
+        <DeveloperApiPlayground />
+
         {/* Endpoints */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--sov-text)' }}>v1 Endpoints Reference</h2>
@@ -145,7 +136,7 @@ export default function DevelopersPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '18px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <iframe
                 src="/embed/jurisdiction/eu"

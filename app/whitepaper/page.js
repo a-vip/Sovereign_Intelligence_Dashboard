@@ -6,6 +6,7 @@ import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeGovernanceCoverage } from '@/lib/epochSync';
 import { computeSagriScores, buildLiveMetricsBySlug, DEFAULT_SAGRI_WEIGHTS, computeEpistemicParity } from '@/lib/governanceIndex';
 import WhitepaperClientActions from '@/components/WhitepaperClientActions';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,17 +49,7 @@ export default async function WhitepaperPage() {
   return (
     <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 72px' }}>
       <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
-        <nav className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            ← RETURN TO LIVE 3D GLOBE
-          </Link>
-          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>SAGRI INDEX</Link>
-            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/methodology" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>CODEBOOK</Link>
-            <Link href="/developers" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>API &amp; EXPORTS</Link>
-          </div>
-        </nav>
+        <ObservatorySubNav active="whitepaper" />
 
         <WhitepaperClientActions bibtex={bibtexSelf} oscola={oscolaSelf} />
 

@@ -13,8 +13,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { Download, RotateCcw } from 'lucide-react';
-import EditorialThemeToggle from './EditorialThemeToggle';
+import { Download, RotateCcw, Search } from 'lucide-react';
 import { DEFAULT_SAGRI_WEIGHTS, computeSagriScores } from '@/lib/governanceIndex';
 
 const WEIGHT_SLIDERS = [
@@ -28,6 +27,8 @@ const WEIGHT_SLIDERS = [
 export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, totalSignals, totalClusters }) {
   const [weights, setWeights] = useState(DEFAULT_SAGRI_WEIGHTS);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [regionFilter, setRegionFilter] = useState('All');
 
   useEffect(() => {
     setMounted(true);
@@ -37,6 +38,23 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
     () => computeSagriScores(weights, liveMetricsBySlug),
     [weights, liveMetricsBySlug]
   );
+
+  const summaryStats = useMemo(() => {
+    const meanAll = ranked.length ? Math.round(ranked.reduce((a, r) => a + r.score, 0) / ranked.length) : 0;
+    const majorityRows = ranked.filter((r) => ['MENA & Africa', 'Americas', 'Indo-Pacific'].includes(r.region) && !['United States', 'California (USA)', 'Canada', 'Japan', 'South Korea', 'Australia', 'New Zealand', 'Singapore', 'Taiwan', 'Israel'].includes(r.name));
+    const meanMajority = majorityRows.length ? Math.round(majorityRows.reduce((a, r) => a + r.score, 0) / majorityRows.length) : 0;
+    const tier1Count = ranked.filter((r) => r.score >= 70).length;
+    return { meanAll, meanMajority, tier1Count };
+  }, [ranked]);
+
+  const filteredRanked = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return ranked.filter((r) => {
+      if (regionFilter !== 'All' && r.region !== regionFilter) return false;
+      if (q && !`${r.name} ${r.iso} ${r.region} ${r.tier}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [ranked, searchQuery, regionFilter]);
 
   const handleExportCsv = () => {
     if (typeof window === 'undefined') return;
@@ -84,6 +102,21 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '12px' }}>
+        {[
+          { label: 'Global Mean SAGRI', value: `${summaryStats.meanAll}/100`, sub: `Across ${ranked.length} jurisdictions`, color: 'var(--sov-accent)' },
+          { label: 'Global Majority Mean', value: `${summaryStats.meanMajority}/100`, sub: 'Africa, LATAM, South/SE Asia', color: 'var(--sov-purple)' },
+          { label: 'Tier-1 Leaders (>=70)', value: summaryStats.tier1Count, sub: 'Statutory & eval leaders', color: 'var(--sov-emerald)' },
+          { label: 'Empirical Corpus', value: `${totalSignals} sig • ${totalClusters} clu`, sub: 'Live telemetry & Epoch AI', color: 'var(--sov-amber)' }
+        ].map((kpi) => (
+          <div key={kpi.label} style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px', padding: '14px 16px' }}>
+            <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{kpi.label}</div>
+            <div style={{ fontSize: '21px', fontWeight: 800, color: kpi.color, fontFamily: 'var(--font-jetbrains-fallback)', marginTop: '4px' }}>{kpi.value}</div>
+            <div style={{ fontSize: '11px', color: 'var(--sov-muted)', marginTop: '2px' }}>{kpi.sub}</div>
+          </div>
+        ))}
+      </section>
+
       {/* Interactive Sensitivity Sliders + Export Controls */}
       <section
         className="editorial-card"
@@ -151,8 +184,43 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
               <Download size={12} />
               <span>EXPORT CSV</span>
             </button>
-            <EditorialThemeToggle />
           </div>
+        </div>
+
+        {/* Search & Region Filters */}
+        <div className="no-print" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: '1 1 220px' }}>
+            <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search jurisdiction, ISO, or tier..."
+              style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: '6px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', color: 'var(--sov-text)', fontSize: '12px' }}
+            />
+          </div>
+          {['All', 'MENA & Africa', 'Indo-Pacific', 'Americas', 'Europe', 'Multilateral'].map((reg) => {
+            const active = regionFilter === reg;
+            return (
+              <button
+                key={reg}
+                type="button"
+                onClick={() => setRegionFilter(reg)}
+                style={{
+                  padding: '5px 9px',
+                  borderRadius: '6px',
+                  border: active ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+                  background: active ? 'var(--sov-card-bg)' : 'transparent',
+                  color: active ? 'var(--sov-accent)' : 'var(--sov-text)',
+                  fontSize: '11px',
+                  fontWeight: active ? 800 : 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {reg}
+              </button>
+            );
+          })}
         </div>
 
         {/* 5 Weight Sliders */}
@@ -187,8 +255,8 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
           ))}
         </div>
 
-        {/* Ranked SAGRI Leaderboard */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Ranked SAGRI Leaderboard (Desktop Table + Mobile Cards) */}
+        <div className="sov-desktop-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--sov-border)', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10px', textTransform: 'uppercase' }}>
@@ -205,7 +273,7 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
               </tr>
             </thead>
             <tbody>
-              {ranked.map((row, idx) => (
+              {filteredRanked.map((row, idx) => (
                 <tr key={row.slug} style={{ borderBottom: '1px solid var(--sov-border)' }}>
                   <td style={{ padding: '9px 10px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)' }}>
                     {idx + 1}
@@ -241,6 +309,49 @@ export default function ReadinessIndexClient({ liveMetricsBySlug, parityData, to
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="sov-mobile-cards">
+          {filteredRanked.map((row, idx) => (
+            <Link
+              key={row.slug}
+              href={`/jurisdiction/${row.slug}`}
+              style={{
+                background: 'var(--sov-card-bg)',
+                border: '1px solid var(--sov-border)',
+                borderRadius: '8px',
+                padding: '12px',
+                textDecoration: 'none',
+                color: 'var(--sov-text)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 800 }}>
+                  #{idx + 1} {row.name}
+                </div>
+                <span style={{ fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 800, color: row.tierColor, fontSize: '14px' }}>
+                  {row.score}/100
+                </span>
+              </div>
+              <div style={{ height: '6px', background: 'rgba(148,163,184,0.2)', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${row.score}%`, height: '100%', background: row.tierColor }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--sov-muted)' }}>
+                <span style={{ color: row.tierColor, fontWeight: 700 }}>{row.tier}</span>
+                <span>{row.live.signalCount} sig • {row.live.regulationCount} law</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)', textAlign: 'center', paddingTop: '4px', borderTop: '1px solid var(--sov-border)' }}>
+                <div><div style={{ color: 'var(--sov-muted)' }}>STAT</div><div style={{ fontWeight: 700 }}>{row.pillars.statutory}</div></div>
+                <div><div style={{ color: 'var(--sov-muted)' }}>EVAL</div><div style={{ fontWeight: 700 }}>{row.pillars.evaluation}</div></div>
+                <div><div style={{ color: 'var(--sov-muted)' }}>TRTY</div><div style={{ fontWeight: 700 }}>{row.pillars.treaty}</div></div>
+                <div><div style={{ color: 'var(--sov-muted)' }}>COMP</div><div style={{ fontWeight: 700 }}>{row.pillars.compute}</div></div>
+                <div><div style={{ color: 'var(--sov-muted)' }}>TRNS</div><div style={{ fontWeight: 700 }}>{row.pillars.transparency}</div></div>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 

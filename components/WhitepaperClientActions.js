@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Copy, Check, Download } from 'lucide-react';
-import EditorialThemeToggle from './EditorialThemeToggle';
 
 export default function WhitepaperClientActions({ bibtex = '', oscola = '' }) {
   const [copiedKey, setCopiedKey] = useState(null);
@@ -17,8 +16,7 @@ export default function WhitepaperClientActions({ bibtex = '', oscola = '' }) {
 
   return (
     <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <EditorialThemeToggle />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <a
             href="/api/v1/export/dataset?format=jsonl"

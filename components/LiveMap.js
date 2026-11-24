@@ -1500,7 +1500,7 @@ export default function LiveMap({
       const count = hubCounts[hubKey] || 0;
 
       // Prevent automated feed spam from crowding any single city while always preserving pinned/edited dossiers
-      if (count >= 3 && !m.isPinned && !m.isEdited) {
+      if (count >= 2 && !m.isPinned && !m.isEdited) {
         continue;
       }
       hubCounts[hubKey] = count + 1;
@@ -1512,7 +1512,7 @@ export default function LiveMap({
 
       // Golden-angle (137.508 deg) land-safe micro-spiral separating co-located markers clearly
       const angle = count * 2.39996323;
-      const radius = Math.min(0.36, 0.18 * Math.sqrt(count));
+      const radius = Math.min(0.65, 0.28 * Math.sqrt(count));
       const dLat = radius * Math.cos(angle);
       const cosLat = Math.max(0.25, Math.cos((latVal * Math.PI) / 180.0));
       const dLon = (radius * Math.sin(angle)) / cosLat;

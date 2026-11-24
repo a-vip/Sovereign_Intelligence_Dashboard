@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Link from 'next/link';
 import { getObservatoryMetrics } from '@/lib/db';
-import EditorialThemeToggle from '@/components/EditorialThemeToggle';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,22 +64,7 @@ export default async function MethodologyPage() {
   return (
     <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1020px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        {/* Navigation Bar */}
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            ← RETURN TO LIVE 3D GLOBE
-          </Link>
-          <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>READINESS INDEX</Link>
-            <Link href="/labs" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>LAB WATCH</Link>
-            <Link href="/whitepaper" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>WHITEPAPER</Link>
-            <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>
-              JURISDICTION ATLAS →
-            </Link>
-            <EditorialThemeToggle />
-          </div>
-        </nav>
+        <ObservatorySubNav active="methodology" />
 
         {/* Title Block */}
         <header style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

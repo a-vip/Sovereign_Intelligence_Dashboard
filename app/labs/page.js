@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { FRONTIER_LABS, matchModelsToLab } from '@/lib/frontierLabs';
 import { getFrontierModels, saveFrontierModels } from '@/lib/db';
 import { fetchEpochFrontierModels } from '@/lib/epochSync';
-import EditorialThemeToggle from '@/components/EditorialThemeToggle';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,19 +69,7 @@ export default async function FrontierLabsWatchPage() {
   return (
     <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1220px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            ← RETURN TO LIVE 3D GLOBE
-          </Link>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>READINESS INDEX</Link>
-            <Link href="/compute" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>COMPUTE OBSERVATORY</Link>
-            <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
-            <Link href="/methodology" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>METHODOLOGY</Link>
-            <EditorialThemeToggle />
-          </div>
-        </nav>
+        <ObservatorySubNav active="labs" />
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <span style={{ color: 'var(--sov-sky)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
@@ -95,8 +83,23 @@ export default async function FrontierLabsWatchPage() {
           </p>
         </header>
 
-        {/* Executive Matrix Table */}
-        <section style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
+        {/* KPI Summary Strip */}
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '12px' }}>
+          {[
+            { label: 'Tracked Frontier Labs', value: enrichedLabs.length, color: 'var(--sov-accent)' },
+            { label: 'Published Safety Frameworks', value: enrichedLabs.filter((l) => Boolean(l.safetyFramework?.name)).length, color: 'var(--sov-emerald)' },
+            { label: 'External AISI / METR Audited', value: enrichedLabs.filter((l) => l.externalEvaluations?.metrTested || l.externalEvaluations?.ukAisiTested || l.externalEvaluations?.usCaisiTested).length, color: 'var(--sov-purple)' },
+            { label: 'Linked Epoch AI Models', value: enrichedLabs.reduce((a, l) => a + (l.trackedModelsCount || 0), 0), color: 'var(--sov-amber)' }
+          ].map((kpi) => (
+            <div key={kpi.label} style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '8px', padding: '14px 16px' }}>
+              <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{kpi.label}</div>
+              <div style={{ fontSize: '23px', fontWeight: 800, color: kpi.color, fontFamily: 'var(--font-jetbrains-fallback)', marginTop: '4px' }}>{kpi.value}</div>
+            </div>
+          ))}
+        </section>
+
+        {/* Executive Matrix Table (Desktop) */}
+        <section className="sov-desktop-table" style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--sov-border)', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', textTransform: 'uppercase' }}>
@@ -162,7 +165,7 @@ export default async function FrontierLabsWatchPage() {
         </section>
 
         {/* Detailed Lab Dossier Cards */}
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))', gap: '16px' }}>
           {enrichedLabs.map((lab) => (
             <article key={lab.slug} style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>

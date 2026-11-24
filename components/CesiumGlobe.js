@@ -182,6 +182,44 @@ const createCircleCanvas = (color, size = 16, outlineColor = '#ffffff', outlineW
   return canvas;
 };
 
+const createDiamondCanvas = (color = '#f59e0b', size = 12, outlineColor = '#0f172a', outlineWidth = 1.4) => {
+  if (typeof document === 'undefined') return null;
+  const cacheKey = `diamond-${color}-${size}-${outlineColor}-${outlineWidth}`;
+  if (canvasCache[cacheKey]) return canvasCache[cacheKey];
+
+  const totalSize = size + outlineWidth * 2 + 6;
+  const canvas = document.createElement('canvas');
+  canvas.width = totalSize;
+  canvas.height = totalSize;
+  const ctx = canvas.getContext('2d');
+  const c = totalSize / 2;
+  const r = size / 2;
+
+  ctx.beginPath();
+  ctx.moveTo(c, c - r - 1.5);
+  ctx.lineTo(c + r + 1.5, c);
+  ctx.lineTo(c, c + r + 1.5);
+  ctx.lineTo(c - r - 1.5, c);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(c, c - r);
+  ctx.lineTo(c + r, c);
+  ctx.lineTo(c, c + r);
+  ctx.lineTo(c - r, c);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = outlineWidth;
+  ctx.strokeStyle = outlineColor;
+  ctx.stroke();
+
+  canvasCache[cacheKey] = canvas;
+  return canvas;
+};
+
 const createClusterCanvas = (count, color = '#38bdf8') => {
   if (typeof document === 'undefined') return null;
   const label = count > 99 ? '99+' : String(count);
@@ -1131,44 +1169,61 @@ export default function CesiumGlobe({
              p.lon >= -180.0 && p.lon <= 180.0;
     });
 
-    const gravity = 0.08; // Preserve true regional placement while allowing clear visual separation
-    const repelForce = 0.28; // Push co-located nodes cleanly apart so none overlap
-    const thresholdDegrees = 0.90; // Distinct individual node spacing threshold
-    const maxDriftDegrees = 0.72; // Bounded regional spread
-    const iterations = 16;
+    // Seed identical/near-identical coordinate pairs deterministically so repulsion separates cleanly
+    const seedBuckets = {};
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const bk = `${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;
+      const bIdx = seedBuckets[bk] || 0;
+      seedBuckets[bk] = bIdx + 1;
+      if (bIdx > 0) {
+        const a = bIdx * 2.39996323;
+        const r = 0.35;
+        const cosL = Math.max(0.28, Math.cos((p.lat * Math.PI) / 180));
+        p.lat = Math.max(-82, Math.min(82, p.lat + r * Math.cos(a)));
+        p.lon = Math.max(-179, Math.min(179, p.lon + (r * Math.sin(a)) / cosL));
+      }
+    }
+
+    const gravity = 0.045;
+    const repelForce = 0.36;
+    const thresholdDegrees = 2.45;
+    const maxDriftDegrees = 2.15;
+    const iterations = 28;
 
     for (let step = 0; step < iterations; step++) {
       for (let i = 0; i < points.length; i++) {
         const p1 = points[i];
+        const cosLat = Math.max(0.28, Math.cos((p1.lat * Math.PI) / 180));
         let forceLat = 0;
         let forceLon = 0;
 
         for (let j = 0; j < points.length; j++) {
           if (i === j) continue;
           const p2 = points[j];
-          
+
           const dLat = p1.lat - p2.lat;
-          const dLon = p1.lon - p2.lon;
-          const dist = Math.sqrt(dLat * dLat + dLon * dLon) || 0.001;
+          const dLonScaled = (p1.lon - p2.lon) * cosLat;
+          const dist = Math.sqrt(dLat * dLat + dLonScaled * dLonScaled) || 0.01;
 
           if (dist < thresholdDegrees) {
             const overlap = thresholdDegrees - dist;
             const dirLat = dLat / dist;
-            const dirLon = dLon / dist;
-            
+            const dirLon = dLonScaled / dist;
+
             forceLat += dirLat * overlap * repelForce;
-            forceLon += dirLon * overlap * repelForce;
+            forceLon += (dirLon * overlap * repelForce) / cosLat;
           }
         }
 
-        // Attraction to real geographic origin
         const origLatDiff = p1.original.lat - p1.lat;
         const origLonDiff = p1.original.lon - p1.lon;
         forceLat += origLatDiff * gravity;
         forceLon += origLonDiff * gravity;
 
-        p1.lat = Math.max(p1.original.lat - maxDriftDegrees, Math.min(p1.original.lat + maxDriftDegrees, p1.lat + forceLat));
-        p1.lon = Math.max(p1.original.lon - maxDriftDegrees, Math.min(p1.original.lon + maxDriftDegrees, p1.lon + forceLon));
+        const maxLonDrift = maxDriftDegrees / cosLat;
+        p1.lat = Math.max(-82, Math.min(82, Math.max(p1.original.lat - maxDriftDegrees, Math.min(p1.original.lat + maxDriftDegrees, p1.lat + forceLat))));
+        p1.lon = Math.max(-179, Math.min(179, Math.max(p1.original.lon - maxLonDrift, Math.min(p1.original.lon + maxLonDrift, p1.lon + forceLon))));
       }
     }
 
@@ -1346,7 +1401,7 @@ export default function CesiumGlobe({
       if (m.repelledLat === undefined || m.repelledLon === undefined) return;
       const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
       const marker = L.circleMarker([m.repelledLat, m.repelledLon], {
-        radius: Math.min(5 + (m.severity || 1) * 1.15, 11),
+        radius: Math.min(4.5 + (m.severity || 1) * 0.95, 9.5),
         fillColor: sevColorStr,
         color: '#0f172a',
         weight: 2,
@@ -1533,14 +1588,23 @@ export default function CesiumGlobe({
       loadJsonCached('oilGas', '/api/oil-gas').then((data) => {
         if (cancelled || !data) return;
         (data.lines || []).forEach(line => {
-          L.polyline(line.coordinates.map(c => [c[1], c[0]]), { color: line.color || '#f59e0b', weight: 1.4, opacity: 0.6 })
-            .bindTooltip(esc(line.project || 'Pipeline'), { sticky: true })
+          const metaLine = [line.type?.replace(/_/g, ' '), line.capacity, line.countries].filter(Boolean).join(' · ');
+          L.polyline(line.coordinates.map(c => [c[1], c[0]]), { color: line.color || '#f97316', weight: 1.6, opacity: 0.68 })
+            .bindTooltip(`<b>${esc(line.project || 'Pipeline')}</b>${metaLine ? '<br/>' + esc(metaLine) : ''}`, { sticky: true })
             .addTo(overlayGroup);
         });
         (data.points || []).forEach(pt => {
           if (!Array.isArray(pt.coordinate)) return;
-          L.circleMarker([pt.coordinate[1], pt.coordinate[0]], { radius: 3.5, fillColor: pt.color || '#f59e0b', color: '#0f172a', weight: 1, fillOpacity: 0.8 })
-            .bindTooltip(esc(pt.name || 'Energy Facility'), { sticky: true })
+          const isLng = pt.facilityType === 'lng_terminal';
+          const metaPt = [pt.operator, pt.capacity, pt.country].filter(Boolean).join(' · ');
+          L.circleMarker([pt.coordinate[1], pt.coordinate[0]], {
+            radius: isLng ? 4.5 : 5.2,
+            fillColor: pt.color || (isLng ? '#38bdf8' : '#f59e0b'),
+            color: '#0f172a',
+            weight: 1.2,
+            fillOpacity: 0.92
+          })
+            .bindTooltip(`<b>${isLng ? '⚓ ' : '🏭 '}${esc(pt.name || 'Energy Facility')}</b>${metaPt ? '<br/>' + esc(metaPt) : ''}`, { sticky: true })
             .addTo(overlayGroup);
         });
       }).catch(() => {});
@@ -1621,14 +1685,46 @@ export default function CesiumGlobe({
     }
 
     if (weatherEnabled) {
+      const weatherGroup = L.layerGroup().addTo(map);
+      leafletWeatherLayerRef.current = weatherGroup;
+
+      L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30min/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png',
+        { opacity: 0.65, maxNativeZoom: 6 }
+      ).addTo(weatherGroup);
+
       fetch('https://api.rainviewer.com/public/weather-maps.json')
-        .then(r => r.ok ? r.json() : null)
+        .then(r => (r.ok ? r.json() : null))
         .then(data => {
           if (cancelled || !data?.radar?.past?.length) return;
           const latest = data.radar.past[data.radar.past.length - 1];
-          const layer = L.tileLayer(`${data.host || 'https://tilecache.rainviewer.com'}${latest.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.6 }).addTo(map);
-          leafletWeatherLayerRef.current = layer;
-        }).catch(() => {});
+          L.tileLayer(`${data.host || 'https://tilecache.rainviewer.com'}${latest.path}/256/{z}/{x}/{y}/6/1_1.png`, {
+            opacity: 0.78,
+            maxNativeZoom: 7
+          }).addTo(weatherGroup);
+        })
+        .catch(() => {});
+
+      fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&category=severeStorms')
+        .then(r => (r.ok ? r.json() : null))
+        .then(eonet => {
+          if (cancelled || !eonet?.events) return;
+          eonet.events.forEach(ev => {
+            const latestGeo = Array.isArray(ev.geometry) ? ev.geometry[ev.geometry.length - 1] : null;
+            const coords = latestGeo?.coordinates;
+            if (!Array.isArray(coords) || coords.length < 2) return;
+            L.circleMarker([coords[1], coords[0]], {
+              radius: 7,
+              fillColor: '#06b6d4',
+              color: '#ffffff',
+              weight: 2,
+              fillOpacity: 0.92
+            })
+              .bindTooltip(`<b>🌀 ${esc(ev.title)}</b><br/>Active Storm · ${esc((latestGeo.date || '').slice(0, 10))}`, { sticky: true })
+              .addTo(weatherGroup);
+          });
+        })
+        .catch(() => {});
     }
 
     return () => { cancelled = true; };
@@ -2012,9 +2108,10 @@ export default function CesiumGlobe({
           const isGpsJamming = getPropValue(props, 'isGpsJamming', false);
           const isDataCenter = getPropValue(props, 'isDataCenter', false);
           const isAiRegulation = getPropValue(props, 'isAiRegulation', false);
+          const isWeatherStorm = getPropValue(props, 'isWeatherStorm', false);
           const title = getPropValue(props, 'title', hoveredEntity.name || '');
 
-          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation) {
+          if (isCable || isLandingStation || isOilGas || isGpsJamming || isDataCenter || isAiRegulation || isWeatherStorm) {
             if (isAiRegulation) {
               document.body.style.cursor = 'pointer';
               const status = getPropValue(props, 'status', 'Proposed');
@@ -2107,19 +2204,32 @@ export default function CesiumGlobe({
                 titlePrefix = '🔌 ';
                 tooltipContent = `🔌 Cable Landing Station\nName: ${title}`;
                 details = { 'Type': 'Cable Landing Station' };
+              } else if (isWeatherStorm) {
+                const stormDate = getPropValue(props, 'date', 'Active');
+                type = 'generic';
+                titlePrefix = '🌀 ';
+                tooltipContent = `🌀 Active Severe Storm\nName: ${title}\nObserved: ${stormDate}`;
+                details = { 'Source': 'NASA EONET Satellite Telemetry', 'Observed': stormDate };
               } else if (isOilGas) {
                 const isPipeline = getPropValue(props, 'isPipeline', false);
                 const isPlant = getPropValue(props, 'isPlant', false);
                 if (isPipeline) {
+                  const pType = getPropValue(props, 'pipelineType', 'Pipeline');
+                  const pCap = getPropValue(props, 'capacity', 'N/A');
+                  const pCountries = getPropValue(props, 'countries', '');
                   type = 'energy';
                   titlePrefix = '🛢️ ';
-                  tooltipContent = `🛢️ Pipeline Project\nName: ${title}`;
-                  details = { 'Type': 'Pipeline Project' };
+                  tooltipContent = `🛢️ ${title}\nType: ${pType}\nCapacity: ${pCap}${pCountries ? '\nCountries: ' + pCountries : ''}`;
+                  details = { 'Type': String(pType).replace(/_/g, ' '), 'Capacity': pCap, 'Countries': pCountries || 'Transnational' };
                 } else if (isPlant) {
+                  const operator = getPropValue(props, 'operator', 'Operator');
+                  const country = getPropValue(props, 'country', 'Global');
+                  const capacity = getPropValue(props, 'capacity', 'N/A');
+                  const facType = getPropValue(props, 'facilityType', 'refinery');
                   type = 'energy';
-                  titlePrefix = '🏭 ';
-                  tooltipContent = `🏭 Energy Refinery / Plant\nName: ${title}`;
-                  details = { 'Type': 'Energy Refinery / Plant' };
+                  titlePrefix = facType === 'lng_terminal' ? '⚓ ' : '🏭 ';
+                  tooltipContent = `${titlePrefix}${title}\nOperator: ${operator}\nCapacity: ${capacity}\nCountry: ${country}`;
+                  details = { 'Facility': facType === 'lng_terminal' ? 'LNG Terminal' : 'Oil Refinery', 'Operator': operator, 'Capacity': capacity, 'Country': country };
                 } else {
                   type = 'energy';
                   titlePrefix = '🛢️ ';
@@ -2670,7 +2780,7 @@ export default function CesiumGlobe({
 
         if (needsVisualUpdate) {
           if (existing.billboard) {
-            existing.billboard.image = createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.2, outlineColor, outlineWidth);
+            existing.billboard.image = createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth);
           }
           if (existing.label) {
             existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
@@ -2695,8 +2805,8 @@ export default function CesiumGlobe({
           name: m.title || m.name,
           position: newPos,
           billboard: {
-            image: createCircleCanvas(sevColorStr, 6 + (m.severity || 1) * 1.2, outlineColor, outlineWidth),
-            scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.4e7, 0.72),
+            image: createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth),
+            scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.0, 1.8e7, 0.56),
             heightReference: targetHeightRef,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
@@ -3222,91 +3332,123 @@ export default function CesiumGlobe({
     viewer.scene.requestRender();
   }, [dayNightEnabled, scriptsLoaded, mapError, viewerReady]);
 
-  // D. RainViewer Weather Radar Tiles & Rain Post-Processing Particle Effects
+  // D. Real Global Weather: NASA GIBS Global Satellite Precipitation (IMERG) + RainViewer Doppler Radar + EONET Cyclones
   useEffect(() => {
     if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
-    let weatherLayer = null;
-    let rainStage = null;
+    const weatherLayers = [];
+    const stormEntities = [];
     let isActive = true;
 
     if (weatherEnabled) {
-      // 1. Fetch RainViewer's latest global radar frame metadata
+      // 1. Global Satellite Precipitation (NASA GIBS IMERG 30-min) with true WebMercator alignment
+      try {
+        const imergProvider = new Cesium.UrlTemplateImageryProvider({
+          url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30min/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png',
+          tilingScheme: new Cesium.WebMercatorTilingScheme(),
+          tileWidth: 256,
+          tileHeight: 256,
+          maximumLevel: 6,
+          credit: 'NASA GIBS IMERG 30-Min Global Precipitation'
+        });
+        const imergLayer = viewer.imageryLayers.addImageryProvider(imergProvider);
+        imergLayer.alpha = 0.70;
+        weatherLayers.push(imergLayer);
+        viewer.scene.requestRender();
+      } catch (err) {
+        console.warn('NASA GIBS IMERG weather layer failed:', err);
+      }
+
+      // 2. Live High-Resolution Ground Doppler Radar (RainViewer NEXRAD Vivid Scheme 6)
       fetch('https://api.rainviewer.com/public/weather-maps.json')
         .then(res => {
-          if (!res.ok) throw new Error("RainViewer metadata request failed");
+          if (!res.ok) throw new Error('RainViewer metadata request failed');
           return res.json();
         })
         .then(data => {
           if (!isActive || !viewerRef.current || viewer.isDestroyed()) return;
-
           const host = data.host || 'https://tilecache.rainviewer.com';
           const pastFrames = data.radar?.past;
-          if (!pastFrames || pastFrames.length === 0) {
-            console.warn("No RainViewer past radar frames found.");
-            return;
-          }
+          if (!pastFrames || pastFrames.length === 0) return;
 
-          // Use the latest available past frame path
           const latestFrame = pastFrames[pastFrames.length - 1];
-          const path = latestFrame.path;
-
-          // Universal Blue scheme (2) for high-aesthetic neon theme fit, with smoothing option (1)
-          const tileUrl = `${host}${path}/256/{z}/{x}/{y}/2/1_1.png`;
-
           const weatherProvider = new Cesium.UrlTemplateImageryProvider({
-            url: tileUrl,
-            credit: 'RainViewer Real-time Global Radar',
-            alpha: 0.65
+            url: `${host}${latestFrame.path}/256/{z}/{x}/{y}/6/1_1.png`,
+            tilingScheme: new Cesium.WebMercatorTilingScheme(),
+            tileWidth: 256,
+            tileHeight: 256,
+            maximumLevel: 7,
+            credit: 'RainViewer Real-Time Global Radar'
           });
 
           try {
-            weatherLayer = viewer.imageryLayers.addImageryProvider(weatherProvider);
+            const radarLayer = viewer.imageryLayers.addImageryProvider(weatherProvider);
+            radarLayer.alpha = 0.80;
+            weatherLayers.push(radarLayer);
             viewer.scene.requestRender();
           } catch (err) {
-            console.warn("RainViewer radar tiles failed to add:", err);
+            console.warn('RainViewer radar layer failed:', err);
           }
         })
-        .catch(err => {
-          console.warn("Failed to retrieve RainViewer global radar metadata. Falling back to NEXRAD:", err);
-          
-          // Failover to local NEXRAD just in case
-          const fallbackProvider = new Cesium.UrlTemplateImageryProvider({
-            url: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
-            credit: 'IEM Weather Radar (Fallback)',
-            alpha: 0.65
+        .catch(() => {});
+
+      // 3. Active Global Severe Storms & Tropical Cyclones (NASA EONET v3)
+      fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&category=severeStorms')
+        .then(r => (r.ok ? r.json() : null))
+        .then(eonet => {
+          if (!isActive || !viewerRef.current || viewer.isDestroyed() || !eonet?.events) return;
+          eonet.events.forEach(ev => {
+            const latestGeo = Array.isArray(ev.geometry) ? ev.geometry[ev.geometry.length - 1] : null;
+            const coords = latestGeo?.coordinates;
+            if (!Array.isArray(coords) || coords.length < 2) return;
+            const ent = viewer.entities.add({
+              id: `weather-storm-${ev.id}`,
+              name: ev.title,
+              position: Cesium.Cartesian3.fromDegrees(coords[0], coords[1], 0),
+              billboard: {
+                image: createCircleCanvas('#06b6d4', 10, '#ffffff', 2.0),
+                scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.1, 1.8e7, 0.72),
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                disableDepthTestDistance: 350000.0
+              },
+              label: {
+                text: `🌀 ${ev.title}`,
+                font: 'bold 8.5pt monospace',
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                fillColor: Cesium.Color.fromCssColorString('#67e8f9'),
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 3,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -14),
+                disableDepthTestDistance: 350000.0,
+                show: true
+              },
+              properties: {
+                isWeatherStorm: true,
+                title: ev.title,
+                date: String(latestGeo.date || '').slice(0, 10)
+              }
+            });
+            stormEntities.push(ent);
           });
-
-          try {
-            weatherLayer = viewer.imageryLayers.addImageryProvider(fallbackProvider);
-          } catch (e) {}
-        });
-
-      // 2. Add screen space rain post-process storm overlay
-      try {
-        rainStage = Cesium.PostProcessStageLibrary.createRainStage();
-        viewer.scene.postProcessStages.add(rainStage);
-      } catch (err) {
-        console.warn("Cesium rain stage post-process failed:", err);
-      }
+          try { viewer.scene.requestRender(); } catch {}
+        })
+        .catch(() => {});
     }
 
     return () => {
       isActive = false;
       if (viewer && !viewer.isDestroyed()) {
-        if (weatherLayer) {
-          try {
-            viewer.imageryLayers.remove(weatherLayer);
-          } catch (e) {}
-        }
-        if (rainStage) {
-          try {
-            viewer.scene.postProcessStages.remove(rainStage);
-          } catch (e) {}
-        }
+        weatherLayers.forEach(layer => {
+          try { viewer.imageryLayers.remove(layer); } catch {}
+        });
+        stormEntities.forEach(ent => {
+          try { viewer.entities.remove(ent); } catch {}
+        });
         try { viewer.scene.requestRender(); } catch {}
       }
     };
@@ -3371,27 +3513,33 @@ export default function CesiumGlobe({
 
       const newEntities = [];
 
-      // 1. Draw Pipeline Vector Paths (Thin, gorgeous custom colored lines draped on ground)
+      // 1. Draw Pipeline Vector Paths (Geodesic lines anchored on terrain/globe)
       if (data.lines && data.lines.length > 0) {
         data.lines.forEach(line => {
           const degreesArray = [];
           line.coordinates.forEach(coord => {
             degreesArray.push(coord[0], coord[1]);
           });
+          if (degreesArray.length < 4) return;
 
           try {
+            const isInactive = String(line.status || '').toLowerCase() === 'inactive';
             const entity = viewer.entities.add({
               name: line.project,
               polyline: {
                 positions: Cesium.Cartesian3.fromDegreesArray(degreesArray),
-                width: 1.4,
-                material: Cesium.Color.fromCssColorString(line.color || '#f59e0b').withAlpha(0.65),
+                width: 1.65,
+                arcType: Cesium.ArcType.GEODESIC,
+                material: Cesium.Color.fromCssColorString(line.color || '#f97316').withAlpha(isInactive ? 0.35 : 0.72),
                 clampToGround: true
               },
               properties: {
                 isOilGas: true,
                 isPipeline: true,
-                title: line.project
+                title: line.project,
+                pipelineType: line.type || 'oil_pipelines',
+                capacity: line.capacity || 'N/A',
+                countries: line.countries || ''
               }
             });
             newEntities.push(entity);
@@ -3399,26 +3547,34 @@ export default function CesiumGlobe({
         });
       }
 
-      // 2. Draw Plants, Refineries, and Terminals (Dynamic solid translucent micro-droplets color-coded correctly)
+      // 2. Draw Verified Oil Refineries (Amber Diamonds) & LNG Terminals (Cyan Nodes)
       if (data.points && data.points.length > 0) {
         data.points.forEach(point => {
           try {
+            const isLng = point.facilityType === 'lng_terminal';
+            const icon = isLng
+              ? createCircleCanvas(point.color || '#38bdf8', 7, '#0f172a', 1.2)
+              : createDiamondCanvas(point.color || '#f59e0b', 10, '#0f172a', 1.2);
             const entity = viewer.entities.add({
               name: point.name,
               position: Cesium.Cartesian3.fromDegrees(point.coordinate[0], point.coordinate[1], targetHeight),
               billboard: {
-                image: createCircleCanvas(point.color || '#f59e0b', 6, '#ffffff', 1.1),
-                scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.0, 1.4e7, 0.6),
+                image: icon,
+                scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.6e7, 0.58),
                 horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
                 verticalOrigin: Cesium.VerticalOrigin.CENTER,
                 eyeOffset: eyeOffsetOverlay,
                 heightReference: targetHeightRef,
-                disableDepthTestDistance: targetDisableDepthTest,
+                disableDepthTestDistance: targetDisableDepthTest
               },
               properties: {
                 isOilGas: true,
                 isPlant: true,
-                title: point.name
+                title: point.name,
+                facilityType: point.facilityType || 'refinery',
+                operator: point.operator || 'Major Operator',
+                country: point.country || 'Global',
+                capacity: point.capacity || 'N/A'
               }
             });
             newEntities.push(entity);

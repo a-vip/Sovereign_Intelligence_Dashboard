@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import ReadinessIndexClient from '@/components/ReadinessIndexClient';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
 import { JURISDICTIONS, eventMatchesJurisdiction } from '@/lib/jurisdictions';
 import { getEvents, getAiRegulations, getFrontierClusters } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
@@ -54,18 +54,7 @@ export default async function ReadinessIndexPage() {
   return (
     <div className="editorial-page" style={{ padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1260px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <nav className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            ← RETURN TO LIVE 3D GLOBE
-          </Link>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF MATRIX</Link>
-            <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
-            <Link href="/labs" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>LAB WATCH</Link>
-            <Link href="/compute" style={{ color: 'var(--sov-amber)', textDecoration: 'none' }}>COMPUTE</Link>
-            <Link href="/methodology" style={{ color: 'var(--sov-muted)', textDecoration: 'none' }}>METHODOLOGY</Link>
-          </div>
-        </nav>
+        <ObservatorySubNav active="readiness" />
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <span style={{ color: 'var(--sov-emerald)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>

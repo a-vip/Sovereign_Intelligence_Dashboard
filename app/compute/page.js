@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getFrontierClusters, getFrontierModels, saveFrontierClusters, saveFrontierModels } from '@/lib/db';
 import { fetchEpochFrontierClusters, fetchEpochFrontierModels, computeGovernanceCoverage } from '@/lib/epochSync';
-import EditorialThemeToggle from '@/components/EditorialThemeToggle';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,19 +55,7 @@ export default async function ComputeObservatoryPage() {
   return (
     <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1240px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            ← RETURN TO LIVE 3D GLOBE
-          </Link>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px', fontWeight: 700 }}>
-            <Link href="/compare" style={{ color: 'var(--sov-accent)', textDecoration: 'none' }}>LEGAL DIFF</Link>
-            <Link href="/readiness" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>READINESS INDEX</Link>
-            <Link href="/labs" style={{ color: 'var(--sov-emerald)', textDecoration: 'none' }}>FRONTIER LAB WATCH</Link>
-            <Link href="/jurisdictions" style={{ color: 'var(--sov-purple)', textDecoration: 'none' }}>JURISDICTION ATLAS</Link>
-            <Link href="/methodology" style={{ color: 'var(--sov-sky)', textDecoration: 'none' }}>METHODOLOGY</Link>
-            <EditorialThemeToggle />
-          </div>
-        </nav>
+        <ObservatorySubNav active="compute" />
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <span style={{ color: 'var(--sov-amber)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '11px', letterSpacing: '0.16em', fontWeight: 700 }}>
@@ -124,7 +112,7 @@ export default async function ComputeObservatoryPage() {
         {/* Ranked Frontier Data Center Clusters */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--sov-text)' }}>Largest Frontier AI Compute Clusters ({clusters.length})</h2>
-          <div style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
+          <div className="sov-desktop-table" style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--sov-border)', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', textTransform: 'uppercase' }}>
@@ -174,12 +162,39 @@ export default async function ComputeObservatoryPage() {
               </tbody>
             </table>
           </div>
+
+          <div className="sov-mobile-cards">
+            {clusters.slice(0, 30).map((c) => (
+              <div key={c.id} style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <a href={c.sourceUrl || 'https://epoch.ai/data/data-centers'} target="_blank" rel="noopener noreferrer" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--sov-text)', textDecoration: 'none' }}>
+                    {c.name} ↗
+                  </a>
+                  <span style={{ fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-amber)', fontWeight: 800, fontSize: '12.5px', whiteSpace: 'nowrap' }}>
+                    {c.powerMw ? `${c.powerMw} MW` : '—'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11.5px', color: 'var(--sov-muted)' }}>
+                  {c.owner || 'Undisclosed'} · {c.address || c.country}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+                  <span style={{ color: 'var(--sov-accent)' }}>{c.h100Equivalents ? `${c.h100Equivalents.toLocaleString()} H100e` : 'Hardware TBA'}</span>
+                  <span style={{ color: 'var(--sov-emerald)' }}>{c.capexBillions ? `$${c.capexBillions}B` : ''}</span>
+                  {c.jurisdictionSlug && (
+                    <Link href={`/jurisdiction/${c.jurisdictionSlug}`} style={{ color: 'var(--sov-purple)', fontWeight: 700, textDecoration: 'none' }}>
+                      {c.jurisdictionSlug.toUpperCase()} DOSSIER →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Recent Frontier Models */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--sov-text)' }}>Recent Notable &amp; Frontier AI Models (Epoch AI)</h2>
-          <div style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
+          <div className="sov-desktop-table" style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--sov-border)', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '10.5px', textTransform: 'uppercase' }}>
@@ -212,6 +227,28 @@ export default async function ComputeObservatoryPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="sov-mobile-cards">
+            {models.slice(0, 25).map((m) => (
+              <div key={m.id} style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <a href={m.link || 'https://epoch.ai/data/ai-models'} target="_blank" rel="noopener noreferrer" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--sov-sky)', textDecoration: 'none' }}>
+                    {m.model} ↗
+                  </a>
+                  <span style={{ color: m.openWeights ? 'var(--sov-emerald)' : 'var(--sov-muted)', fontSize: '10.5px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {m.openWeights ? 'Open Weights' : 'Restricted'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--sov-muted)' }}>
+                  <span>{m.organization}</span>
+                  <span style={{ color: 'var(--sov-amber)', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700 }}>{formatFlop(m.trainingComputeFlop)} FLOP</span>
+                </div>
+                <div style={{ fontSize: '10.5px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+                  {m.publicationDate} · {m.country || 'Global'}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       </div>

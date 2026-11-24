@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Copy, Check, Scale } from 'lucide-react';
-import EditorialThemeToggle from './EditorialThemeToggle';
 import { DIFF_DIMENSIONS, REGULATORY_DIFF_PROFILES } from '@/lib/governanceIndex';
 
 const PRESETS = [
@@ -111,7 +110,6 @@ export default function RegulatoryCompareClient() {
               {copiedMd ? <Check size={12} /> : <Copy size={12} />}
               <span>{copiedMd ? 'MARKDOWN COPIED' : 'COPY MARKDOWN TABLE'}</span>
             </button>
-            <EditorialThemeToggle />
           </div>
         </div>
 
@@ -130,9 +128,9 @@ export default function RegulatoryCompareClient() {
                 style={{
                   padding: '5px 11px',
                   borderRadius: '6px',
-                  border: active ? `1px solid ${j.postureColor}` : '1px solid rgba(148, 163, 184, 0.25)',
-                  background: active ? `${j.postureColor}1f` : 'rgba(15, 23, 42, 0.55)',
-                  color: active ? j.postureColor : '#94a3b8',
+                  border: active ? `1px solid ${j.postureColor}` : '1px solid var(--sov-border)',
+                  background: active ? `${j.postureColor}1f` : 'var(--sov-card-bg)',
+                  color: active ? j.postureColor : 'var(--sov-muted)',
                   fontSize: '11.5px',
                   fontWeight: 700,
                   cursor: 'pointer'
@@ -146,9 +144,9 @@ export default function RegulatoryCompareClient() {
         </div>
       </div>
 
-      {/* Comparison Matrix Table */}
+      {/* Comparison Matrix (Desktop Table + Mobile Cards) */}
       <div
-        className="editorial-card"
+        className="editorial-card sov-desktop-table"
         style={{
           overflowX: 'auto',
           background: 'var(--sov-panel-bg)',
@@ -207,6 +205,51 @@ export default function RegulatoryCompareClient() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="sov-mobile-cards">
+        {DIFF_DIMENSIONS.map((dim) => (
+          <div
+            key={dim.key}
+            style={{
+              background: 'var(--sov-panel-bg)',
+              border: '1px solid var(--sov-border)',
+              borderRadius: '10px',
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--sov-sky)', fontFamily: 'var(--font-jetbrains-fallback)', textTransform: 'uppercase' }}>
+              {dim.label}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {selectedProfiles.map((p) => (
+                <div
+                  key={p.slug}
+                  style={{
+                    background: 'var(--sov-card-bg)',
+                    border: '1px solid var(--sov-border)',
+                    borderRadius: '6px',
+                    padding: '9px 11px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                    <Link href={`/jurisdiction/${p.slug}`} style={{ fontSize: '12.5px', fontWeight: 800, color: p.postureColor, textDecoration: 'none' }}>
+                      {p.name} ({p.iso})
+                    </Link>
+                    <span style={{ fontSize: '10px', color: 'var(--sov-muted)' }}>{p.postureTag}</span>
+                  </div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--sov-text)', lineHeight: 1.5 }}>{p[dim.key]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
