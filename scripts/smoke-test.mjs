@@ -92,15 +92,36 @@ async function run() {
 
   await assertOk('/api/censorship', (_, text) => {
     const data = JSON.parse(text);
-    if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('Invalid /api/censorship payload');
+    if (!Array.isArray(data.items) || data.items.length < 50) throw new Error(`Expected >=50 censorship countries, got ${data.items?.length}`);
   });
 
-  for (const layer of ['environmental', 'supply_chain', 'biometric_welfare', 'ai_labor']) {
+  const layerThresholds = { environmental: 80, supply_chain: 60, biometric_welfare: 40, ai_labor: 30 };
+  for (const [layer, minCount] of Object.entries(layerThresholds)) {
     await assertOk(`/api/ethics-layers?layer=${layer}`, (_, text) => {
       const data = JSON.parse(text);
-      if (!Array.isArray(data.items) || data.items.length === 0) throw new Error(`Invalid /api/ethics-layers?layer=${layer}`);
+      if (!Array.isArray(data.items) || data.items.length < minCount) {
+        throw new Error(`Expected >=${minCount} items for ${layer}, got ${data.items?.length}`);
+      }
+      if (layer === 'supply_chain' && (!Array.isArray(data.arcs) || data.arcs.length < 45)) {
+        throw new Error(`Expected >=45 supply_chain arcs, got ${data.arcs?.length}`);
+      }
     });
   }
+
+  await assertOk('/api/datacenters?enrich=1&name=Blue%20Nap%20Americas&lat=12.1778&lon=-68.9551&country=Netherlands%20Antilles', (_, text) => {
+    const data = JSON.parse(text);
+    if (!data?.enriched?.address || !data?.enriched?.facilityPurpose) {
+      throw new Error('Invalid /api/datacenters?enrich=1 payload');
+    }
+  });
+
+  await assertOk('/api/ai-regulations', (_, text) => {
+    const data = JSON.parse(text);
+    const regs = data.aiRegulations || [];
+    if (regs.length < 400 || regs.some((r) => !r.url)) {
+      throw new Error(`Invalid /api/ai-regulations payload: total=${regs.length}`);
+    }
+  });
 
   // Copilot POST
   const copRes = await fetch(`${BASE_URL}/api/copilot`, {

@@ -2768,6 +2768,7 @@ export default function LiveMap({
           aiLaborEnabled={aiLaborEnabled}
           temporalReplayActive={temporalReplayActive}
           temporalMilestones={temporalReplayActive ? temporalSnapshot.milestones : EMPTY_MILESTONES}
+          uiTheme={uiTheme}
           onSatelliteClick={(sat) => {
             setSelectedSatellite(sat);
             setIsTracked(false); // Reset tracking when selecting a new satellite
@@ -3537,7 +3538,7 @@ export default function LiveMap({
                   fontFamily: 'var(--font-jetbrains-fallback)',
                   letterSpacing: '0.08em'
                 }}>
-                  SUPPORT
+                  ❤️ SUPPORT
                 </span>
                 <button
                   type="button"
@@ -3579,7 +3580,7 @@ export default function LiveMap({
                 }}
               >
                 <Globe size={13} />
-                <span>🌐 Visit sovdash.com</span>
+                <span>Visit sovdash.com</span>
               </a>
 
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -3668,7 +3669,7 @@ export default function LiveMap({
                 }}
               >
                 {shareCopied ? <Check size={13} /> : <Share2 size={13} />}
-                <span>{shareCopied ? '✅ Link Copied' : '⚡ Share Dashboard'}</span>
+                <span>{shareCopied ? 'Link Copied' : 'Share Dashboard'}</span>
               </button>
 
               <a
@@ -3689,7 +3690,7 @@ export default function LiveMap({
                   color: '#ffffff'
                 }}
               >
-                💎 Upgrade to Pro ($29/mo)
+                💎 Upgrade to Pro
               </a>
 
               <div style={{ display: 'flex', gap: '6px' }}>

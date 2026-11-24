@@ -231,51 +231,32 @@ const MISSION_COLORS = {
 
 const createSatelliteGlyphCanvas = (color = '#38bdf8', isSelected = false) => {
   if (typeof document === 'undefined') return null;
-  const cacheKey = `sat-glyph-${color}-${isSelected ? '1' : '0'}`;
+  const cacheKey = `sat-icon-ring-${color}-${isSelected ? '1' : '0'}`;
   if (canvasCache[cacheKey]) return canvasCache[cacheKey];
 
-  const size = isSelected ? 34 : 22;
+  const size = isSelected ? 40 : 28;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   const c = size / 2;
+  const r = size * 0.42;
 
-  ctx.save();
-  ctx.translate(c, c);
-  ctx.rotate(-0.55);
-
-  if (isSelected) {
-    ctx.beginPath();
-    ctx.arc(0, 0, size * 0.44, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-  }
-
-  // Solar arrays
-  const wingW = isSelected ? 8.5 : 5.6;
-  const wingH = isSelected ? 4.4 : 3.0;
-  const gap = isSelected ? 4.2 : 2.8;
-  ctx.fillStyle = color;
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 1;
-  ctx.fillRect(-gap - wingW, -wingH / 2, wingW, wingH);
-  ctx.strokeRect(-gap - wingW, -wingH / 2, wingW, wingH);
-  ctx.fillRect(gap, -wingH / 2, wingW, wingH);
-  ctx.strokeRect(gap, -wingH / 2, wingW, wingH);
-
-  // Satellite core bus
-  const coreR = isSelected ? 3.8 : 2.6;
+  // Sleek translucent category-colored halo behind iconic satellite emblem
   ctx.beginPath();
-  ctx.arc(0, 0, coreR, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
+  ctx.arc(c, c, r, 0, Math.PI * 2);
+  ctx.fillStyle = isSelected ? `${color}38` : 'rgba(15, 23, 42, 0.35)';
   ctx.fill();
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = isSelected ? 2 : 1.3;
   ctx.strokeStyle = color;
   ctx.stroke();
 
-  ctx.restore();
+  const iconPx = isSelected ? 22 : 15;
+  ctx.font = `${iconPx}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🛰️', c, c + 1);
+
   canvasCache[cacheKey] = canvas;
   return canvas;
 };
@@ -477,6 +458,7 @@ export default function CesiumGlobe({
   aiLaborEnabled = false,
   temporalReplayActive = false,
   temporalMilestones = [],
+  uiTheme = 'obsidian',
   selectedCountry = null,
   onCountrySelect = null,
   isAdmin = false
@@ -1522,9 +1504,9 @@ export default function CesiumGlobe({
         const isSelected = selectedSatellite && selectedSatellite.code === sat.code;
         
         const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
-        const satSize = isSelected ? 18 : 12;
+        const satSize = isSelected ? 30 : 22;
         const satIcon = L.divIcon({
-          html: `<div style="width:${satSize}px;height:${satSize}px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="display:block;width:${Math.round(satSize*0.65)}px;height:${Math.round(satSize*0.65)}px;transform:rotate(45deg);border-radius:2px;background:#ffffff;border:2px solid ${satColor};box-shadow:0 0 8px ${satColor};"></span></div>`,
+          html: `<div style="width:${satSize}px;height:${satSize}px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${isSelected ? `${satColor}33` : 'rgba(15,23,42,0.32)'};border:1.5px solid ${satColor};font-size:${isSelected ? 17 : 13}px;line-height:1;">🛰️</div>`,
           className: 'leaflet-sat-vector-icon',
           iconSize: [satSize, satSize],
           iconAnchor: [satSize / 2, satSize / 2]
@@ -1725,13 +1707,24 @@ export default function CesiumGlobe({
         }
         selected.forEach(dc => {
           const isFrontier = Boolean(dc.isFrontierCluster || dc.status === 'planned');
+          const cleanLoc = [dc.city && !/^unknown$/i.test(dc.city) ? dc.city : '', dc.country || ''].filter(Boolean).join(', ');
           L.circleMarker([dc.lat, dc.lon], {
             radius: isFrontier ? 6.5 : 4,
             fillColor: isFrontier ? '#f59e0b' : '#0ea5e9',
             color: '#0f172a',
             weight: isFrontier ? 1.8 : 1,
             fillOpacity: 0.9
-          }).bindTooltip(`${esc(dc.name)} (${esc(dc.operator || 'Independent')} · ${esc(dc.city || '')}, ${esc(dc.country || '')})`, { sticky: true })
+          }).bindTooltip(`${esc(dc.name)} (${esc(dc.operator || 'Independent')} · ${esc(cleanLoc || 'Global')})`, { sticky: true })
+            .on('click', () => {
+              if (onPointClickRef.current) {
+                onPointClickRef.current({
+                  ...dc,
+                  isDataCenter: true,
+                  title: dc.name,
+                  location: cleanLoc || dc.country || 'Global'
+                });
+              }
+            })
             .addTo(overlayGroup);
         });
       }).catch(() => {});
@@ -3080,6 +3073,14 @@ export default function CesiumGlobe({
     });
 
     // Render 3D Orbiting Satellites in Space dynamically or update existing persistent ones
+    const isLightTheme = uiTheme === 'light';
+    const labelBgColor = isLightTheme
+      ? Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.88)
+      : uiTheme === 'emerald'
+        ? Cesium.Color.fromCssColorString('#06281e').withAlpha(0.76)
+        : Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.72);
+    const labelOutlineColor = Cesium.Color.fromCssColorString(isLightTheme ? '#f8fafc' : '#020617');
+
     if (showSatellites && satellites && satellites.length > 0) {
       satellites.forEach(sat => {
         const altInMeters = sat.altitude * 1000;
@@ -3088,13 +3089,16 @@ export default function CesiumGlobe({
         const newPos = Cesium.Cartesian3.fromDegrees(sat.longitude, sat.latitude, altInMeters);
 
         const satColor = MISSION_COLORS[sat.missionType] || '#38bdf8';
+        const labelFillColor = Cesium.Color.fromCssColorString(isLightTheme ? '#0f172a' : satColor);
         const existingSat = viewer.entities.getById(satId);
         if (existingSat) {
           existingSat.position = newPos;
           if (existingSat.label) {
-            existingSat.label.text = `${sat.name} · ${sat.altitude} km`;
+            existingSat.label.text = sat.name;
             existingSat.label.show = isSelected;
-            existingSat.label.fillColor = Cesium.Color.fromCssColorString(satColor);
+            existingSat.label.fillColor = labelFillColor;
+            existingSat.label.outlineColor = labelOutlineColor;
+            existingSat.label.backgroundColor = labelBgColor;
           }
           if (existingSat.billboard) {
             existingSat.billboard.image = createSatelliteGlyphCanvas(satColor, isSelected);
@@ -3114,17 +3118,17 @@ export default function CesiumGlobe({
               verticalOrigin: Cesium.VerticalOrigin.CENTER
             },
             label: {
-              text: `${sat.name} · ${sat.altitude} km`,
+              text: sat.name,
               font: '600 8.5pt system-ui, -apple-system, sans-serif',
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-              fillColor: Cesium.Color.fromCssColorString(satColor),
-              outlineColor: Cesium.Color.fromCssColorString('#020617'),
-              outlineWidth: 2,
+              fillColor: labelFillColor,
+              outlineColor: labelOutlineColor,
+              outlineWidth: isLightTheme ? 1.5 : 2,
               showBackground: true,
-              backgroundColor: Cesium.Color.fromCssColorString('#0b132b').withAlpha(0.84),
-              backgroundPadding: new Cesium.Cartesian2(8, 4),
+              backgroundColor: labelBgColor,
+              backgroundPadding: new Cesium.Cartesian2(9, 4),
               verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              pixelOffset: new Cesium.Cartesian2(0, -18),
+              pixelOffset: new Cesium.Cartesian2(0, -20),
               heightReference: Cesium.HeightReference.NONE,
               show: isSelected,
               disableDepthTestDistance: 100000.0
@@ -3320,7 +3324,7 @@ export default function CesiumGlobe({
         viewerRef.current.trackedEntity = undefined;
       }
     }
-  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError]);
+  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError, uiTheme]);
 
 
 
@@ -3979,10 +3983,11 @@ export default function CesiumGlobe({
               eyeOffset: eyeOffsetDc
             },
             properties: {
+              ...dc,
               isDataCenter: true,
               title: dc.name,
               operator: dc.operator || 'Independent',
-              location: `${dc.city || ''}${dc.city && dc.country ? ', ' : ''}${dc.country || 'Global'}`,
+              location: `${dc.city && !/^unknown$/i.test(dc.city) ? dc.city : ''}${dc.city && !/^unknown$/i.test(dc.city) && dc.country ? ', ' : ''}${dc.country || 'Global'}`,
               status: isFrontier ? (dc.powerMw ? `Frontier (${dc.powerMw} MW)` : 'Frontier Cluster') : (dc.status || 'Active')
             }
           });
@@ -4089,6 +4094,7 @@ export default function CesiumGlobe({
               eyeOffset: eyeOffsetReg
             },
             properties: {
+              ...item,
               isAiRegulation: true,
               title: item.title,
               jurisdiction: item.jurisdiction,

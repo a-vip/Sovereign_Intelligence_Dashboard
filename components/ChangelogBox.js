@@ -4,274 +4,153 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 
 const CHANGELOG_DATA = [
   {
-    version: 'v1.11.0',
-    date: '2026-08-24',
-    title: 'System Restoration & Data Pipeline Overhaul',
+    version: 'v2.6.0',
+    date: '2026-11-24',
+    title: 'Data-Rich Ethics Overlays, Facility & Statute Inspectors',
     isMajor: true,
     bullets: [
-      'Restored full OSINT data pipeline after 2+ months of inactivity — all GDELT, RSS, and AI Regulations feeds are ingesting fresh intelligence again.',
-      'Fixed critical ESM/CommonJS module conflict in the cron ingestion route that caused silent build failures on Vercel.',
-      'Increased Vercel cron frequency from daily (midnight UTC) to every 6 hours for fresher data coverage.',
-      'Added maxDuration export to extend Vercel serverless function timeout for the ingestion pipeline.',
-      'Implemented automatic staleness detection: the dashboard now self-heals by triggering a background data refresh when events are older than 24 hours.',
-      'Suppressed Cesium render loop error dialogs with graceful auto-recovery and MutationObserver-based error panel hiding.',
-      'Updated RSS fallback dataset timestamps to August 2026 for current curated intelligence when live feeds are unavailable.',
-      'Improved relative timestamp formatting: added day-count display (e.g. \"3d ago\") and cleaner short-date fallback to reduce visual staleness.',
+      'Expanded Internet Censorship layer to 180+ country coordinates fusing OONI Web Connectivity, OONI Signal/Telegram/WhatsApp/Tor probes, and live Georgia Tech IODA outage alerts.',
+      'Expanded AI Supply Chain to 65 nodes and 50 directed corridors across 7 stages (Critical Minerals, Refining, EUV Tooling, Logic/HBM Fabs, CoWoS Packaging, Server Racks, E-Waste).',
+      'Enriched Environmental Justice with 32 global hotspots plus live Epoch AI cluster carbon (Ember 2025) and water stress (WRI Aqueduct) projections; expanded Biometrics & Welfare (44 cases) and AI Labor/RLHF (34 hubs).',
+      'Upgraded Data Center clicks with PeeringDB + Nominatim address, owner, ASN/IX counts, purpose, and workload profile; fixed AI Regulation cards with working legislation links.',
+      'Restored mission-colored satellite icon markers with sleek theme-native name pills, refined Support popup, and modernized theme-aware Changelog.'
+    ]
+  },
+  {
+    version: 'v2.5.0',
+    date: '2026-11-24',
+    title: 'Temporal Replay Lens (2020–2026), Theme CMS & Orbital Inspector',
+    isMajor: true,
+    bullets: [
+      'Added interactive 2020–2026 Longitudinal Temporal Replay Scrubber & Before/After Compute–Regulation Gap Lens across 49+ cited statutes, safety institutes, and GW clusters.',
+      'Rebuilt Admin CMS in theme-native tokens with live search, anomaly bulk actions, Nominatim autocomplete, and feedback coordinate resolution.',
+      'Upgraded Orbital Telemetry API (42 spacecraft + live CelesTrak GP station feeds) and draggable Orbital Intelligence Inspector.',
+      'Code-split heavy modals, deferred idle evaluations, and hardened cross-device Cesium WebGL settings and error recovery.'
+    ]
+  },
+  {
+    version: 'v2.4.0',
+    date: '2026-11-23',
+    title: 'Blind-Spot Regional Feeds, Weather & Verified Refineries',
+    isMajor: true,
+    bullets: [
+      'Expanded multi-city geocoding and 18 new verified Global South, APAC, Africa, West Asia, and Latin America intelligence feeds (55 built-in feeds).',
+      'Applied 2.45° cosine-corrected spherical node dispersion for clearer default-zoom node separation.',
+      'Added real global precipitation/storm layers (NASA GIBS IMERG, RainViewer Doppler, NASA EONET) and 85+ verified refineries + 20+ LNG terminals.'
+    ]
+  },
+  {
+    version: 'v2.3.0',
+    date: '2026-11-22',
+    title: '38-Jurisdiction Global Majority Monitors & Theme Consistency',
+    isMajor: true,
+    bullets: [
+      'Expanded Flagship AI Governance Atlas & SAGRI Readiness Index from 24 to 38 jurisdictions and added 12 statutory diff profiles.',
+      'Unified Obsidian, Cambridge, Emerald, and Editorial Light themes across all 12 observatory sub-pages and interactive windows.',
+      'Implemented Postgres & guest profile signal bookmarks alongside verified conflict, agentic AI, and cybersecurity dossiers.'
+    ]
+  },
+  {
+    version: 'v2.2.0',
+    date: '2026-11-08',
+    title: 'Watchlists, Citation-Locked Copilot & GeoJSON API v1',
+    isMajor: true,
+    bullets: [
+      'Launched public `/api/v1` GeoJSON & tabular-datapackage endpoints, Executive Brief generator, and citation-locked Governance Copilot.',
+      'Added SSRF-guarded jurisdiction Watchlists & alert webhooks plus embeddable jurisdiction/readiness widgets.'
+    ]
+  },
+  {
+    version: 'v2.1.0',
+    date: '2026-11-07',
+    title: 'Regulatory Diff Matrix, SAGRI Index & Epistemic Parity',
+    isMajor: false,
+    bullets: [
+      'Introduced multi-jurisdiction statutory comparison matrix (`/compare`), SAGRI Readiness & Epistemic Parity Index (`/readiness`), and Cmd/Ctrl+K command palette.'
+    ]
+  },
+  {
+    version: 'v2.0.0',
+    date: '2026-11-06',
+    title: 'Observatory Foundation, Provenance, Epoch Compute & Labs Watch',
+    isMajor: true,
+    bullets: [
+      'Integrated SHA-256 provenance, NATO Admiralty grading, OSCOLA/APA/BibTeX citations, MIT AI Risk 7-Domain taxonomy, Epoch AI frontier clusters, and Frontier Lab Watch.',
+      'Shipped non-destructive Postgres archival lifecycle, methodology/whitepaper routes, and 200-item classifier evaluation benchmark.'
+    ]
+  },
+  {
+    version: 'v1.12.0',
+    date: '2026-10-28',
+    title: 'Precision Classifier, Custom Source Ingestion & Security Hardening',
+    isMajor: false,
+    bullets: [
+      'Enforced 5-pillar AI/Cyber policy classification, 115+ land-verified geocoder hubs, custom RSS/Atom source ingestion, and HMAC-SHA256 session lockdown.'
+    ]
+  },
+  {
+    version: 'v1.11.0',
+    date: '2026-08-24',
+    title: 'Pipeline Restoration & Staleness Self-Healing',
+    isMajor: false,
+    bullets: [
+      'Restored GDELT, RSS, and AI Regulations pipelines, added 6h ingestion cadence, staleness auto-refresh, and Cesium render-loop graceful recovery.'
     ]
   },
   {
     version: 'v1.10.0',
     date: '2026-06-13',
-    title: 'Interactive Onboarding Tour & Layout Resilience',
-    isMajor: true,
-    bullets: [
-      'Implemented an 11-step interactive guided onboarding tour system with rounded dark SVG cutout masks.',
-      'Configured conditional page load auto-rotation: the globe remains stationary for first-time visitors until skipped or completed.',
-      'Refactored dialog card positioning math using position: "fixed" and viewport-relative collision logic.',
-      'Resolved mobile off-screen cutting for full-height elements (Tactical Map and Intelligence Feed) by shifting cards to a safe top: 75px on mobile and top: 120px on desktop.',
-      'Integrated dynamic bottom anchoring for above-target placement to prevent dynamic height overflow overlap.',
-      'Emphasized manual refresh control resetting globe projection, stopping active satellite tracking, and centering views.',
-      'Updated credit labels at the bottom of the overlays box to attribute "by Avi" with a styled link to aviperera.com.'
-    ]
-  },
-  {
-    version: 'v1.9.1',
-    date: '2026-06-06',
-    title: 'Telemetry Panel & Integrity Enhancements',
+    title: 'Guided Onboarding & Core Globe Infrastructure',
     isMajor: false,
     bullets: [
-      'Fixed Vercel deployment compilation by resolving a database syntax error in db.js.',
-      'Configured cascading deletion constraints and blocklists to protect core OSINT datasets.',
-      'Restored active operator telemetry signals, online counts indicator, and user presence HUD layouts.',
-      'Fixed messy threat event overlays and solved performance spikes by optimizing rendering of raw maps data layers.'
-    ]
-  },
-  {
-    version: 'v1.9.0',
-    date: '2026-06-01',
-    title: 'Manual Event Ingestion & Advanced Search Uplink',
-    isMajor: true,
-    bullets: [
-      'Programmed a manual event creation draft engine with location-based geocoding autocomplete and custom database ingestion.',
-      'Upgraded signal searches to key-value advanced syntax matching (e.g. cat:conflict, severity:critical, loc:london).',
-      'Integrated Leaflet preventFocus coordinate tracking to stop viewport jumping during feed navigation.',
-      'Fixed Hubble Optical Camera feeds, resolved Orbit livestream video 404s, and added a manual image carousel slider for Hubble telemetry.',
-      'Designed full-screen maximized camera viewports, styled connection indicator lights, and integrated sports/entertainment filtering.'
-    ]
-  },
-  {
-    version: 'v1.8.0',
-    date: '2026-05-30',
-    title: 'Domain Migration & Diagnostics Anomalies Hub',
-    isMajor: true,
-    bullets: [
-      'Replaced vercel.app URLs with the official app.sovdash.com custom domain throughout the client database and API modules.',
-      'Created an administrative diagnostics anomalies hub to capture data discrepancies and identify duplicates.',
-      'Refactored administrative archiving separations and updated primary system indexes.',
-      'Corrected coordinate duplicate propagation NaN coordinates and category/severity mismatch parsing.'
-    ]
-  },
-  {
-    version: 'v1.7.2',
-    date: '2026-05-29',
-    title: 'Backend Auto-Geocoding & Safety Guards',
-    isMajor: true,
-    bullets: [
-      'Implemented backend auto-geocoding to resolve coordinates automatically from location text in both JSON and Vercel Neon modes.',
-      'Hidden coordinates fields from the operator CMS interface for simplified and error-free onboarding.',
-      'Enforced strict coordinates validation and bounds checks to prevent globe/map rendering RangeErrors on invalid coords.',
-      'Fixed geocoding override persistence, dateline boundaries sanitization, and server-side duplicates override propagation.'
-    ]
-  },
-  {
-    version: 'v1.7.1',
-    date: '2026-05-27',
-    title: 'Tactical 3D Sensors & Performance Throttling',
-    isMajor: false,
-    bullets: [
-      'Enabled target-acquired auto-3D scanning with floating 3D sensor nodes and cyber-cyan scanner dome visual layers.',
-      'Throttled camera altitude React state updates utilizing altitude-based frustum culling and boundary culling thresholding to eliminate layout thrashing.',
-      'Isolated dynamic HUD window dragging translations from CSS sliding keyframes to ensure absolute drag-handle responsiveness.',
-      'Corrected 3D buildings camera altitude mathematical bounds to prevent canvas rendering RangeErrors.'
-    ]
-  },
-  {
-    version: 'v1.7.0',
-    date: '2026-05-27',
-    title: '3D Altitude-Culling & Community Hub',
-    isMajor: true,
-    bullets: [
-      'Optimized 3D buildings rendering with altitude-based culling, cyber-neon OSM buildings fallback, and dynamic HUD standby telemetry warning.',
-      'Upgraded operator support dropdown into a complete tactical community hub with social grids, landing redirects, and tactical indicators.',
-      'Wired copy-to-clipboard sharing indicators to easily dispatch coordinates and share tactical datasets.'
-    ]
-  },
-  {
-    version: 'v1.6.2',
-    date: '2026-05-26',
-    title: 'System Changelog Console & UI Resilience',
-    isMajor: false,
-    bullets: [
-      'Resolved changelog flex shrink slivers, removing trigger word wrap truncations, and expanding default version view label sizes.',
-      'Added a terminal-style systems changelog console and sales redirection gateways.'
-    ]
-  },
-  {
-    version: 'v1.6.1',
-    date: '2026-05-26',
-    title: 'Collapsible Version Layouts',
-    isMajor: false,
-    bullets: [
-      'Completed sequential 3rd decimal changelog versions and added collapsible version panels (collapsed by default).',
-      'Expanded changelog versions by default, enriched release logs with git bugfixes, styled cyber-cyan custom scrollbars, and updated headers.'
-    ]
-  },
-  {
-    version: 'v1.6.0',
-    date: '2026-05-26',
-    title: 'Operator Profile CTA & OSINT Chronology',
-    isMajor: true,
-    bullets: [
-      'Released a guest-accessible suggestions & bug reporting module inside the profile panel.',
-      'Prompted anonymous operators with secure sign-up CTAs to promote registration.',
-      'Upgraded RSS & GDELT OSINT crawlers to parse original feed publication timestamps rather than database ingestion timestamps.',
-      'Enabled Cesium 3D camera auto-rotation as the default boot behavior to yield immediate dynamic geospatial awareness.',
-      'Replaced transient connection alerts with secure channel status indicators (SECURE CHANNEL ACTIVE and CONNECTING...) next to live map signals.',
-      'Set flat-map overlay disableDepthTestDistance to 1.0m to guarantee billboard depth bypass at all standard zooms.',
-      'Resolved CMS event persistence database overrides and global billboard horizon clipping/vanishing bugs.'
-    ]
-  },
-  {
-    version: 'v1.5.0',
-    date: '2026-05-23',
-    title: 'Border Ray-Casting & Memory Optimization',
-    isMajor: true,
-    bullets: [
-      'Re-architected boundary and country highlighting overlays utilizing a memory-resident point-in-polygon ray-casting engine.',
-      'Reduced initial WebGL memory footprint by up to 600MB+ overhead.',
-      'Programmed interactive geocoded coordinate camera panning and high-contrast polygon boundary fills on selection.',
-      'Fixed leaflet resize triggers and implemented Cesium requestRenderMode & ScreenSpaceError throttling to scale framerates.',
-      'Implemented plain object property resolvers to parse multi-layered JSON metadata fields on LEFT_CLICK entity select.',
-      'Re-instated the 3D rotating Cesium globe as the primary landing interface, relegating the 2D Leaflet canvas to fallback.',
-      'Relocated is2DActive declaration to the top of CesiumGlobe to resolve client TDZ ReferenceError.',
-      'Resolved 2D/3D map switching overlays zIndex and leaflet container dimension clipping.',
-      'Safeguarded LEFT_CLICK property getValue resolution on 3D globe entities.'
-    ]
-  },
-  {
-    version: 'v1.4.0',
-    date: '2026-05-22',
-    title: 'Spatial Balancer & Threat Tracking Overlays',
-    isMajor: true,
-    bullets: [
-      'Implemented Spatial & Regional Balancer, excluded specific high-density drone strikes from live mapping datasets to maintain performance, and decommissioned the GeoConfirmed API engine.',
-      'Optimized 3D building picking handler by removing camera altitude checks and enhancing click target checks.',
-      'Resolved 3D point clipping with verticalOrigin bottom and enhanced HUD dossier coordinates.',
-      'Implemented administrative archiving integrity, ingestion filters, and dynamic mobile viewport tooltip clamping.',
-      'Added refresh button rename and onboarding tooltip.',
-      'Hidden old grey Cesium event labels and restyled satellite labels to cyan tactical HUD.',
-      'Premium stacked tooltips for all map overlays + threat events.'
-    ]
-  },
-  {
-    version: 'v1.3.0',
-    date: '2026-05-21',
-    title: 'AI Regulations & Secure Mail Authentication',
-    isMajor: true,
-    bullets: [
-      'Synced active Google My Maps layers mapping 450+ international AI guidelines and legal frameworks with automatic database synchronization.',
-      'Downgraded nodemailer dependencies from v8 to v6 to resolve compiling discrepancies and host building failures on Vercel.',
-      'Integrated direct secure Gmail SMTP gateways as the primary transactional mailer, replacing unverified mail fallbacks.',
-      'Conditionally render live delivery vs local simulator in auth modal.'
-    ]
-  },
-  {
-    version: 'v1.2.0',
-    date: '2026-05-20',
-    title: 'Mount Cycle Locks & ATLAS Core Overlays',
-    isMajor: true,
-    bullets: [
-      'Relocated temporal dead zone window event listeners under component lifecycle callbacks, resolving mounting loop crashes.',
-      'Applied mathematical golden-angle spiral offsets to overlapping geolocated map signals to prevent overlapping icon clipping.',
-      'Synced global undersea fiber-optic network cables and regional server database centers directly onto ATLAS physical map vectors.',
-      'Constructed active signal degradation honeycomb maps utilizing localized H3-like active degradation epicenters with Gaussian intensity gradients and interactive telemetry tooltips.',
-      'Wired real-time satellite precipitation overlays using RainViewer cyan/blue weather tile system.',
-      'Integrated custom screenshot lightbox displays and resolve action triggers to clear reported coordinates directly inside the CMS panel.',
-      'Released a secure, administrative CMS console to add, edit, and archive custom event markers with complete database integrations.',
-      'Rendered extruded 3D metropolitan outline toggle buttons for dense urban districts (e.g. Geneva, London, New York).'
-    ]
-  },
-  {
-    version: 'v1.1.0',
-    date: '2026-05-19',
-    title: 'High-Fidelity Bloomed Lotus Loader',
-    isMajor: true,
-    bullets: [
-      'Upgraded AsciiLoader blooming sequence to utilize a sequential 8-frame bird\'s-eye view bloom for smooth upward animations.',
-      'Created the growable high-density Braille lotus loading sequence holding frame to maximize loading visuals.',
-      'Built the primary geospatial system mapping real-time international OSINT reports, featuring a fallback geocoding engine and HTML entity decoders.'
+      'Released interactive onboarding tour, global subsea cable & oil/gas vectors, Admin CMS, diagnostics anomalies hub, and offline/Vercel Neon persistence.'
     ]
   }
 ];
 
 export default function ChangelogBox({ onClose }) {
-  // Collapsed by default as requested (empty expanded states)
-  const [expandedVersions, setExpandedVersions] = useState({});
-
-  // Position state for dragging
+  const [expandedVersions, setExpandedVersions] = useState({ 'v2.6.0': true });
   const [pos, setPos] = useState({ x: 100, y: 120 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
-  // Elegant sizing & adaptive layout on mobile mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const mobile = window.innerWidth < 900;
       if (mobile) {
-        const startX = Math.max(10, (window.innerWidth - 320) / 2);
-        setPos({ x: startX, y: 60 });
+        setPos({ x: Math.max(10, (window.innerWidth - 320) / 2), y: 60 });
       } else {
-        const startX = window.innerWidth - 470;
-        const startY = Math.max(20, (window.innerHeight - 530) / 2);
-        setPos({ x: Math.max(20, startX), y: startY });
+        setPos({
+          x: Math.max(20, window.innerWidth - 470),
+          y: Math.max(20, (window.innerHeight - 530) / 2)
+        });
       }
     }
   }, []);
 
   const handleDragStart = (e) => {
-    if (e.button !== 0) return; // Left click only
+    if (e.button !== 0) return;
     setDragging(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startPosX: pos.x,
-      startPosY: pos.y,
-    };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
   };
 
   const handleTouchStart = (e) => {
     if (e.touches.length !== 1) return;
     const touch = e.touches[0];
     setDragging(true);
-    dragRef.current = {
-      startX: touch.clientX,
-      startY: touch.clientY,
-      startPosX: pos.x,
-      startPosY: pos.y,
-    };
+    dragRef.current = { startX: touch.clientX, startY: touch.clientY, startPosX: pos.x, startPosY: pos.y };
   };
 
   useEffect(() => {
     const handleDrag = (e) => {
       if (!dragging) return;
-      const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-      const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-      
-      const newX = dragRef.current.startPosX + (clientX - dragRef.current.startX);
-      const newY = dragRef.current.startPosY + (clientY - dragRef.current.startY);
-      setPos({ x: newX, y: newY });
+      const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX || 0;
+      const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY || 0;
+      setPos({
+        x: Math.max(8, Math.min(window.innerWidth - 120, dragRef.current.startPosX + (clientX - dragRef.current.startX))),
+        y: Math.max(52, Math.min(window.innerHeight - 80, dragRef.current.startPosY + (clientY - dragRef.current.startY)))
+      });
     };
-
     const handleDragEnd = () => setDragging(false);
 
     if (dragging) {
@@ -289,37 +168,34 @@ export default function ChangelogBox({ onClose }) {
   }, [dragging]);
 
   const toggleVersion = (version) => {
-    setExpandedVersions(prev => ({
-      ...prev,
-      [version]: !prev[version]
-    }));
+    setExpandedVersions((prev) => ({ ...prev, [version]: !prev[version] }));
   };
 
   return (
     <div
+      className="sov-modal-shell"
       style={{
-        position: 'absolute',
+        position: 'fixed',
         left: `${pos.x}px`,
         top: `${pos.y}px`,
         width: '430px',
         maxWidth: 'calc(100vw - 20px)',
-        height: '530px',
+        height: '520px',
         maxHeight: 'calc(100vh - 100px)',
         background: 'var(--sov-panel-bg)',
-        border: '1px solid rgba(6, 182, 212, 0.3)',
+        border: '1px solid var(--sov-border)',
         borderRadius: '12px',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(6, 182, 212, 0.12)',
+        boxShadow: 'var(--sov-shadow, 0 20px 50px rgba(0, 0, 0, 0.45))',
         zIndex: 1005,
-        fontFamily: 'var(--font-jetbrains-fallback), monospace',
+        fontFamily: 'var(--font-inter-fallback), system-ui, sans-serif',
         color: 'var(--sov-text)',
         backdropFilter: 'blur(16px)',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
-        transition: dragging ? 'none' : 'transform 0.1s ease',
+        overflow: 'hidden'
       }}
     >
-      {/* Drag Handle & Header (userSelect: none locked here to maintain scrolling capacity) */}
+      {/* Header */}
       <div
         onMouseDown={handleDragStart}
         onTouchStart={handleTouchStart}
@@ -327,61 +203,51 @@ export default function ChangelogBox({ onClose }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 16px',
+          padding: '11px 15px',
           borderBottom: '1px solid var(--sov-border)',
           cursor: dragging ? 'grabbing' : 'grab',
-          background: 'rgba(6, 182, 212, 0.05)',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          MozUserSelect: 'none',
-          msUserSelect: 'none'
+          background: 'var(--sov-card-bg)',
+          userSelect: 'none'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Terminal size={14} style={{ color: 'var(--sov-accent)' }} />
-          <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.12em', color: 'var(--sov-text)' }}>
-            DASHBOARD CHANGELOG
+          <span style={{ fontSize: '11.5px', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--sov-text)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+            CHANGELOG
           </span>
-          <span style={{ fontSize: '9px', color: 'rgba(6, 182, 212, 0.7)', fontWeight: 'bold' }}>
-            [UPDATE_LOGS]
+          <span style={{ fontSize: '10px', color: 'var(--sov-accent)', fontWeight: 700, fontFamily: 'var(--font-jetbrains-fallback)' }}>
+            v2.6.0
           </span>
         </div>
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close changelog"
           style={{
-            background: 'var(--sov-card-bg)',
+            background: 'transparent',
             border: '1px solid var(--sov-border)',
-            color: 'var(--sov-text)',
+            color: 'var(--sov-muted)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '4px',
-            borderRadius: '6px',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            borderRadius: '6px'
           }}
         >
-          <X size={12} />
+          <X size={13} />
         </button>
       </div>
 
-      {/* Accordion Versions Body Container with scroll wheel enabled and scrollbars */}
-      <div 
-        style={{ 
-          padding: '12px', 
-          overflowY: 'auto', 
+      {/* Release Accordions */}
+      <div
+        style={{
+          padding: '10px 12px',
+          overflowY: 'auto',
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px'
+          gap: '6px'
         }}
         className="changelog-scrollbar"
       >
@@ -391,106 +257,70 @@ export default function ChangelogBox({ onClose }) {
             <div
               key={item.version}
               style={{
-                border: isExpanded ? '1px solid rgba(6, 182, 212, 0.25)' : '1px solid rgba(255, 255, 255, 0.04)',
-                borderRadius: '6px',
-                background: isExpanded ? 'rgba(6, 182, 212, 0.02)' : 'rgba(255, 255, 255, 0.01)',
+                border: `1px solid ${isExpanded ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
+                borderRadius: '8px',
+                background: 'var(--sov-card-bg)',
                 overflow: 'hidden',
-                transition: 'all 0.2s ease',
-                flexShrink: 0 // CRITICAL: Stop browser from squishing items into flat horizontal slivers
+                flexShrink: 0
               }}
             >
-              {/* Version Banner Trigger (Wraps text naturally without ellipsis to avoid culling dates/titles) */}
-              <div
+              <button
+                type="button"
                 onClick={() => toggleVersion(item.version)}
                 style={{
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '10px 14px',
+                  padding: '9px 11px',
                   cursor: 'pointer',
-                  background: isExpanded ? 'rgba(6, 182, 212, 0.06)' : 'transparent',
-                  transition: 'background 0.2s',
-                  gap: '12px'
-                }}
-                onMouseEnter={e => {
-                  if (!isExpanded) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                }}
-                onMouseLeave={e => {
-                  if (!isExpanded) e.currentTarget.style.background = 'transparent';
+                  background: isExpanded ? 'var(--sov-accent-soft)' : 'transparent',
+                  border: 'none',
+                  gap: '10px',
+                  textAlign: 'left'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                   <span
                     style={{
                       fontSize: '10px',
-                      fontWeight: '800',
-                      color: item.isMajor ? '#06b6d4' : '#38bdf8',
-                      background: item.isMajor ? 'rgba(6, 182, 212, 0.15)' : 'rgba(56, 189, 248, 0.1)',
-                      border: item.isMajor ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid rgba(56, 189, 248, 0.2)',
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      letterSpacing: '0.05em',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-jetbrains-fallback)',
+                      color: item.isMajor ? 'var(--sov-accent)' : 'var(--sov-sky)',
+                      background: 'var(--sov-panel-bg)',
+                      border: '1px solid var(--sov-border)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
                       flexShrink: 0
                     }}
                   >
                     {item.version}
                   </span>
-                  <span style={{ fontSize: '9px', color: 'var(--sov-muted)', fontFamily: 'monospace', flexShrink: 0 }}>
+                  <span style={{ fontSize: '10px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)', flexShrink: 0 }}>
                     {item.date}
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.15)', flexShrink: 0 }}>|</span>
-                  <span 
-                    style={{ 
-                      fontSize: '11px', // Sized up default labels as requested
-                      fontWeight: isExpanded ? '800' : '600', 
-                      color: isExpanded ? '#ffffff' : '#cbd5e1', 
-                      textAlign: 'left',
-                      lineHeight: '1.4',
-                      flex: 1
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: isExpanded ? 700 : 600,
+                      color: 'var(--sov-text)',
+                      lineHeight: 1.35,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: isExpanded ? 'normal' : 'nowrap'
                     }}
                   >
                     {item.title}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                  {item.isMajor && !isExpanded && (
-                    <span style={{ fontSize: '7.5px', color: '#eab308', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', padding: '1px 4px', borderRadius: '3.5px', fontWeight: 'bold' }}>
-                      MAJOR
-                    </span>
-                  )}
-                  {isExpanded ? <ChevronDown size={13} color="#8892a4" /> : <ChevronRight size={13} color="#8892a4" />}
-                </div>
-              </div>
+                {isExpanded ? <ChevronDown size={14} style={{ color: 'var(--sov-accent)', flexShrink: 0 }} /> : <ChevronRight size={14} style={{ color: 'var(--sov-muted)', flexShrink: 0 }} />}
+              </button>
 
-              {/* Version Content */}
               {isExpanded && (
-                <div 
-                  style={{
-                    padding: '12px 14px',
-                    borderTop: '1px solid var(--sov-border)',
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    animation: 'fadeIn 0.15s ease-out'
-                  }}
-                >
-                  <ul 
-                    style={{ 
-                      margin: 0, 
-                      paddingLeft: '14px', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '8px' 
-                    }}
-                  >
+                <div style={{ padding: '10px 14px 12px', borderTop: '1px solid var(--sov-border)' }}>
+                  <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {item.bullets.map((bullet, bidx) => (
-                      <li 
-                        key={bidx} 
-                        style={{ 
-                          fontSize: '10px', 
-                          color: 'var(--sov-text)', 
-                          lineHeight: '1.45',
-                          listStyleType: 'square'
-                        }}
-                      >
+                      <li key={bidx} style={{ fontSize: '11.5px', color: 'var(--sov-text)', lineHeight: 1.5 }}>
                         {bullet}
                       </li>
                     ))}
@@ -502,43 +332,24 @@ export default function ChangelogBox({ onClose }) {
         })}
       </div>
 
-      {/* Footer Branding */}
+      {/* Footer */}
       <div
         style={{
-          padding: '8px 12px',
+          padding: '8px 14px',
           borderTop: '1px solid var(--sov-border)',
           background: 'var(--sov-card-bg)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontSize: '8px',
+          fontSize: '9.5px',
+          fontFamily: 'var(--font-jetbrains-fallback)',
           color: 'var(--sov-muted)',
-          letterSpacing: '0.05em',
           userSelect: 'none'
         }}
       >
-        <span>SECURE HANDSHAKE VERIFIED</span>
-        <span style={{ color: 'var(--sov-accent)', fontWeight: 'bold' }}>SOVEREIGN NETWORK v1.10.0</span>
+        <span>VERIFIED RELEASE HISTORY</span>
+        <span style={{ color: 'var(--sov-accent)', fontWeight: 700 }}>SOVEREIGN OBSERVATORY v2.6.0</span>
       </div>
-
-      {/* Styled visible scrollbar injected directly */}
-      <style jsx global>{`
-        .changelog-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .changelog-scrollbar::-webkit-scrollbar-track {
-          background: rgba(2, 6, 23, 0.3);
-          border-radius: 3px;
-        }
-        .changelog-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(6, 182, 212, 0.35);
-          border: 1px solid rgba(8, 12, 24, 0.96);
-          border-radius: 3px;
-        }
-        .changelog-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(6, 182, 212, 0.55);
-        }
-      `}</style>
     </div>
   );
 }
