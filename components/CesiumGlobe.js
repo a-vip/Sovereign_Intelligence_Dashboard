@@ -628,7 +628,7 @@ export default function CesiumGlobe({
     if (!v || v.isDestroyed?.()) return;
     try { v.scene.requestRender(); } catch {}
     renderTimersRef.current.forEach(clearTimeout);
-    renderTimersRef.current = [65, 210, 520].map((ms) =>
+    renderTimersRef.current = [50, 140, 320, 700, 1300].map((ms) =>
       setTimeout(() => {
         try {
           if (viewerRef.current && !viewerRef.current.isDestroyed?.()) {
@@ -1741,9 +1741,7 @@ export default function CesiumGlobe({
         viewer.scene.globe.maximumScreenSpaceError = (isMobileDevice || isLowMem) ? 2.5 : 2.0;
         if (viewer.scene.globe.tileLoadProgressEvent) {
           removeTileProgressListener = viewer.scene.globe.tileLoadProgressEvent.addEventListener(() => {
-            try {
-              if (!viewer.isDestroyed?.()) viewer.scene.requestRender();
-            } catch {}
+            scheduleSceneRenders(viewer);
           });
         }
       }
