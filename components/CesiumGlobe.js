@@ -628,15 +628,29 @@ export default function CesiumGlobe({
     if (!v || v.isDestroyed?.()) return;
     try { v.scene.requestRender(); } catch {}
     renderTimersRef.current.forEach(clearTimeout);
-    renderTimersRef.current = [50, 140, 320, 700, 1300].map((ms) =>
-      setTimeout(() => {
-        try {
-          if (viewerRef.current && !viewerRef.current.isDestroyed?.()) {
-            viewerRef.current.scene.requestRender();
-          }
-        } catch {}
-      }, ms)
-    );
+    renderTimersRef.current = [];
+
+    // Drive QuadtreePrimitive.endFrame until globe.tilesLoaded reaches true (+3 settle frames), then idle at 0% GPU!
+    let settleFramesAfterLoaded = 0;
+    let ticks = 0;
+    const pump = () => {
+      const cur = viewerRef.current;
+      if (!cur || cur.isDestroyed?.() || ticks > 75) return;
+      ticks++;
+      try {
+        cur.scene.requestRender();
+        if (cur.scene?.globe?.tilesLoaded) {
+          settleFramesAfterLoaded++;
+          if (settleFramesAfterLoaded >= 4) return;
+        }
+      } catch {
+        return;
+      }
+      const tid = setTimeout(pump, ticks < 6 ? 70 : 180);
+      renderTimersRef.current.push(tid);
+    };
+    const firstTid = setTimeout(pump, 60);
+    renderTimersRef.current.push(firstTid);
   }, []);
 
   useEffect(() => {
