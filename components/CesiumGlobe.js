@@ -639,6 +639,9 @@ export default function CesiumGlobe({
       ticks++;
       try {
         cur.scene.requestRender();
+        if ((cur.scene?.globe?._surface?._tilesToRender?.length || 0) === 0) {
+          cur.render?.();
+        }
         if (cur.scene?.globe?.tilesLoaded) {
           settleFramesAfterLoaded++;
           if (settleFramesAfterLoaded >= 4) return;
@@ -789,6 +792,7 @@ export default function CesiumGlobe({
   }, [is2DActive, cesiumRetryNonce]);
 
   const [viewerReady, setViewerReady] = useState(false);
+  const [globeSurfaceReady, setGlobeSurfaceReady] = useState(false);
   const [cameraAltitude, setCameraAltitude] = useState(10000000);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [tilesetLoadingStatus, setTilesetLoadingStatus] = useState('idle'); // 'idle', 'loading', 'loaded', 'error'
@@ -1549,11 +1553,11 @@ export default function CesiumGlobe({
           ellipse: {
             semiMajorAxis: 135000.0,
             semiMinorAxis: 135000.0,
+            height: 0,
             material: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.14),
             outline: true,
             outlineColor: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.95),
-            outlineWidth: 2,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+            outlineWidth: 2
           }
         });
         viewer.scene.requestRender();
@@ -1647,12 +1651,24 @@ export default function CesiumGlobe({
 
       const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth < 1024));
       const isLowMem = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+      const isSoftwareGl = (() => {
+        try {
+          const probe = document.createElement('canvas');
+          const gl = probe.getContext('webgl') || probe.getContext('experimental-webgl');
+          if (!gl) return false;
+          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+          const renderer = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
+          return /swiftshader|llvmpipe|software|basic render/i.test(renderer);
+        } catch {
+          return false;
+        }
+      })();
 
       const buildViewerOpts = (compatFallback = false) => {
         const provider = createBaseProvider();
         const opts = {
           contextOptions: {
-            webgl: compatFallback
+            webgl: (compatFallback || isSoftwareGl)
               ? {
                   alpha: false,
                   depth: true,
@@ -1707,7 +1723,11 @@ export default function CesiumGlobe({
       }
 
       viewer.clock.shouldAnimate = false;
-      viewer.resolutionScale = (isMobileDevice || isLowMem) ? 0.9 : Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 1.25);
+      viewer.resolutionScale = isSoftwareGl
+        ? 0.72
+        : (isMobileDevice || isLowMem)
+          ? 0.9
+          : Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 1.25);
       viewer.useBrowserRecommendedResolution = false;
 
       // Disable default wheel zoom to replace with our normalized, ultra-smooth trackpad/mouse wheel controller
@@ -1746,18 +1766,43 @@ export default function CesiumGlobe({
       Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
 
       let removeTileProgressListener = null;
+      let removeFirstSurfaceListener = null;
+      let surfaceFallbackTimer = null;
       if (viewer.scene?.globe) {
         viewer.scene.globe.show = true;
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(mapStyle === 'light' ? '#dbeafe' : '#0c192c');
-        viewer.scene.globe.showGroundAtmosphere = true;
+        viewer.scene.globe.showGroundAtmosphere = !isSoftwareGl;
         viewer.scene.globe.depthTestAgainstTerrain = false;
-        viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem) ? 45 : 110;
-        viewer.scene.globe.maximumScreenSpaceError = (isMobileDevice || isLowMem) ? 2.5 : 2.0;
+        viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem || isSoftwareGl) ? 45 : 110;
+        viewer.scene.globe.maximumScreenSpaceError = isSoftwareGl ? 3.2 : (isMobileDevice || isLowMem) ? 2.5 : 2.0;
         if (viewer.scene.globe.tileLoadProgressEvent) {
           removeTileProgressListener = viewer.scene.globe.tileLoadProgressEvent.addEventListener(() => {
             scheduleSceneRenders(viewer);
           });
         }
+      }
+
+      // Reveal 3D WebGL canvas the exact frame root Earth surface tiles finish uploading to GPU (zero floating-dots flash!)
+      if (viewer.scene?.postRender) {
+        removeFirstSurfaceListener = viewer.scene.postRender.addEventListener(() => {
+          const renderedTiles = viewer.scene?.globe?._surface?._tilesToRender?.length || 0;
+          if (renderedTiles > 0) {
+            setGlobeSurfaceReady(true);
+            if (surfaceFallbackTimer) {
+              clearTimeout(surfaceFallbackTimer);
+              surfaceFallbackTimer = null;
+            }
+            if (removeFirstSurfaceListener) {
+              try { removeFirstSurfaceListener(); } catch {}
+              removeFirstSurfaceListener = null;
+            }
+          }
+        });
+        surfaceFallbackTimer = setTimeout(() => {
+          setGlobeSurfaceReady(true);
+        }, 7000);
+      } else {
+        setGlobeSurfaceReady(true);
       }
 
       viewer.scene.renderError.addEventListener((scene, error) => {
@@ -2376,6 +2421,11 @@ export default function CesiumGlobe({
       lastSelectedSatJsonRef.current = '';
 
       viewerCleanupRef.current = () => {
+        if (surfaceFallbackTimer) {
+          clearTimeout(surfaceFallbackTimer);
+          surfaceFallbackTimer = null;
+        }
+        try { if (removeFirstSurfaceListener) removeFirstSurfaceListener(); } catch {}
         try { if (removeTileProgressListener) removeTileProgressListener(); } catch {}
         try { handler.destroy(); } catch {}
         try {
@@ -2399,6 +2449,7 @@ export default function CesiumGlobe({
         threatEntitiesMapRef.current.clear();
         appliedMapStyleRef.current = null;
         setViewerReady(false);
+        setGlobeSurfaceReady(false);
         tilesetRef.current = null;
         lastPickedFeatureRef.current = null;
         selectionEntityRef.current = null;
@@ -2408,6 +2459,7 @@ export default function CesiumGlobe({
       if (containerRef.current) containerRef.current.innerHTML = '';
       viewerRef.current = null;
       setViewerReady(false);
+      setGlobeSurfaceReady(false);
       setMapError(true);
     }
   }, [mapError, scriptsLoaded, is2DActive, cesiumRetryNonce]);
@@ -2665,10 +2717,10 @@ export default function CesiumGlobe({
               ellipse: {
                 semiMajorAxis: 135000.0,
                 semiMinorAxis: 135000.0,
+                height: 0,
                 material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.16),
                 outline: true,
-                outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.88),
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.88)
               }
             });
           }
@@ -2902,11 +2954,11 @@ export default function CesiumGlobe({
           ellipse: {
             semiMajorAxis: swathMeters,
             semiMinorAxis: swathMeters,
+            height: 0,
             material: Cesium.Color.fromCssColorString(MISSION_COLORS[selectedSatellite.missionType] || '#00f0ff').withAlpha(0.09),
             outline: true,
             outlineColor: Cesium.Color.fromCssColorString(MISSION_COLORS[selectedSatellite.missionType] || '#00f0ff').withAlpha(0.65),
-            outlineWidth: 1.5,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+            outlineWidth: 1.5
           }
         });
       }
@@ -3118,8 +3170,9 @@ export default function CesiumGlobe({
   }, [dayNightEnabled, scriptsLoaded, mapError, viewerReady]);
 
   // D. Real Global Weather: NASA GIBS Global Satellite Precipitation (IMERG) + RainViewer Doppler Radar + EONET Cyclones
+  // Deferred until globeSurfaceReady so external weather WMTS tiles NEVER block initial root 3D Earth surface rendering!
   useEffect(() => {
-    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady || !globeSurfaceReady) return;
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
@@ -3237,7 +3290,7 @@ export default function CesiumGlobe({
         try { viewer.scene.requestRender(); } catch {}
       }
     };
-  }, [weatherEnabled, scriptsLoaded, mapError, viewerReady]);
+  }, [weatherEnabled, scriptsLoaded, mapError, viewerReady, globeSurfaceReady]);
 
   // E. Oil & Gas Pipelines (Global Energy Monitor Vector Ingestion)
   useEffect(() => {
@@ -4227,7 +4280,7 @@ export default function CesiumGlobe({
     }
   }
 
-  const show2DCanvas = is2DActive || !viewerReady;
+  const show2DCanvas = is2DActive || !viewerReady || !globeSurfaceReady;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: mapStyle === 'light' || uiTheme === 'light' ? '#e2e8f0' : '#020617' }}>
@@ -4288,8 +4341,8 @@ export default function CesiumGlobe({
         }} 
       />
 
-      {/* Non-blocking 3D Cold-Boot Indicator (only during initial script/shader compile) */}
-      {!is2DActive && !viewerReady && (
+      {/* Non-blocking 3D Cold-Boot Indicator (only during initial script/shader/root-tile upload) */}
+      {!is2DActive && (!viewerReady || !globeSurfaceReady) && (
         <div style={{
           position: 'absolute',
           top: '12px',

@@ -104,7 +104,7 @@ function SovDashThinkingVisualizer({ elapsedSec, promptText = '' }) {
       const dt = Math.min(0.05, (now - lastTs) / 1000);
       lastTs = now;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = canvas.clientWidth || 340;
       const h = canvas.clientHeight || 126;
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {

@@ -89,10 +89,11 @@ export default function RootLayout({ children }) {
         {/* Modern Custom Premium Favicon Link + Fast CDN/Tile Preconnects */}
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
-        <link rel="preconnect" href="https://basemaps.cartocdn.com" crossOrigin="" />
+        <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossOrigin="" />
+        <link rel="preconnect" href="https://b.basemaps.cartocdn.com" crossOrigin="" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{localStorage.removeItem('operator_pref_mapMode');var t=localStorage.getItem('sovdash_ui_theme')||'obsidian';if(['obsidian','cambridge','emerald','light'].indexOf(t)===-1)t='obsidian';document.documentElement.setAttribute('data-ui-theme',t);if(t==='light'){document.documentElement.classList.add('editorial-light');}else{document.documentElement.classList.remove('editorial-light');}}catch(e){}})();`
+            __html: `(function(){try{localStorage.removeItem('operator_pref_mapMode');var t=localStorage.getItem('sovdash_ui_theme')||'obsidian';if(['obsidian','cambridge','emerald','light'].indexOf(t)===-1)t='obsidian';document.documentElement.setAttribute('data-ui-theme',t);if(t==='light'){document.documentElement.classList.add('editorial-light');}else{document.documentElement.classList.remove('editorial-light');}if(localStorage.getItem('sovdash_map_mode_v2')!=='2d'){var pl=document.createElement('link');pl.rel='preload';pl.as='script';pl.href='https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js';document.head.appendChild(pl);}}catch(e){}})();`
           }}
         />
         <script
