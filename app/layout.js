@@ -86,11 +86,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
-        {/* Modern Custom Premium Favicon Link */}
+        {/* Modern Custom Premium Favicon Link + Fast CDN/Tile Preconnects */}
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
+        <link rel="preconnect" href="https://basemaps.cartocdn.com" crossOrigin="" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('sovdash_ui_theme')||'obsidian';if(['obsidian','cambridge','emerald','light'].indexOf(t)===-1)t='obsidian';document.documentElement.setAttribute('data-ui-theme',t);if(t==='light'){document.documentElement.classList.add('editorial-light');}else{document.documentElement.classList.remove('editorial-light');}}catch(e){}})();`
+            __html: `(function(){try{localStorage.removeItem('operator_pref_mapMode');var t=localStorage.getItem('sovdash_ui_theme')||'obsidian';if(['obsidian','cambridge','emerald','light'].indexOf(t)===-1)t='obsidian';document.documentElement.setAttribute('data-ui-theme',t);if(t==='light'){document.documentElement.classList.add('editorial-light');}else{document.documentElement.classList.remove('editorial-light');}}catch(e){}})();`
           }}
         />
         <script

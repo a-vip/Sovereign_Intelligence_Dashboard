@@ -433,6 +433,8 @@ export default function EqualEarthMap2D({
   const hoveredCountryRef = useRef(null);
   const interactivePointsRef = useRef([]);
   const interactiveSegmentsRef = useRef([]);
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   const [countriesReady, setCountriesReady] = useState(0);
   const [overlayTick, setOverlayTick] = useState(0);
@@ -440,12 +442,21 @@ export default function EqualEarthMap2D({
   const [zoomLabel, setZoomLabel] = useState('1.0x');
 
   const requestDraw = useCallback(() => {
-    if (drawReqRef.current != null) return;
+    if (!activeRef.current || drawReqRef.current != null) return;
     drawReqRef.current = requestAnimationFrame(() => {
       drawReqRef.current = null;
-      renderCanvas();
+      if (activeRef.current) renderCanvas();
     });
   }, []);
+
+  useEffect(() => {
+    if (active) {
+      requestDraw();
+    } else if (drawReqRef.current != null) {
+      cancelAnimationFrame(drawReqRef.current);
+      drawReqRef.current = null;
+    }
+  }, [active, requestDraw]);
 
   // Load countries GeoJSON once when 2D becomes active
   useEffect(() => {

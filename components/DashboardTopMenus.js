@@ -143,7 +143,7 @@ export default function DashboardTopMenus({
         scrollbarWidth: 'none'
       }}
     >
-      {/* 1. Ask SovDash Copilot */}
+      {/* 1. Ask AI Copilot */}
       {onOpenAiCopilot && (
         <button
           type="button"
@@ -157,10 +157,10 @@ export default function DashboardTopMenus({
             background: 'var(--sov-accent-soft)',
             color: 'var(--sov-accent)'
           }}
-          title="Ask SovDash AI (Citation-Locked RAG)"
+          title="Ask SovDash AI"
         >
           <Sparkles size={13} />
-          {!isMobile && <span>Ask SovDash</span>}
+          {!isMobile && <span>Ask AI</span>}
         </button>
       )}
 
@@ -459,7 +459,7 @@ export default function DashboardTopMenus({
                       onClick={() => {
                         setMapMode(opt.id);
                         try {
-                          localStorage.setItem('operator_pref_mapMode', opt.id);
+                          localStorage.setItem('sovdash_map_mode_v2', opt.id);
                           window.dispatchEvent(new Event('operator_pref_changed'));
                         } catch {}
                       }}

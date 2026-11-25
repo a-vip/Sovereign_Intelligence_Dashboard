@@ -426,6 +426,110 @@ const GLOBE_LAYER_CACHE = {
   aiLabor: null,
 };
 
+// Module-level singleton CesiumJS loader so re-renders or 2D<->3D toggles NEVER abort an in-flight download
+const CESIUM_CDNS = [
+  {
+    js: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js',
+    css: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css'
+  },
+  {
+    js: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/Cesium.js',
+    css: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/Widgets/widgets.css'
+  },
+  {
+    js: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/Cesium.js',
+    css: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/Widgets/widgets.css'
+  }
+];
+
+let cesiumSingletonPromise = null;
+
+function loadCesiumLibraryOnce() {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (window.Cesium) return Promise.resolve(true);
+  if (cesiumSingletonPromise) return cesiumSingletonPromise;
+
+  cesiumSingletonPromise = new Promise((resolve) => {
+    const tryCdn = (idx) => {
+      if (window.Cesium) {
+        resolve(true);
+        return;
+      }
+      if (idx >= CESIUM_CDNS.length) {
+        cesiumSingletonPromise = null;
+        resolve(false);
+        return;
+      }
+
+      const cdn = CESIUM_CDNS[idx];
+      let link = document.getElementById('cesium-css-pkg');
+      if (!link) {
+        link = document.createElement('link');
+        link.id = 'cesium-css-pkg';
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+      }
+      if (link.href !== cdn.css) {
+        link.href = cdn.css;
+      }
+
+      const prevScript = document.getElementById('cesium-js-pkg');
+      if (prevScript && idx > 0) {
+        prevScript.remove();
+      }
+
+      let script = document.getElementById('cesium-js-pkg');
+      if (!script) {
+        script = document.createElement('script');
+        script.id = 'cesium-js-pkg';
+        script.src = cdn.js;
+        script.async = true;
+        document.head.appendChild(script);
+      }
+
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        if (window.Cesium) {
+          resolve(true);
+        } else {
+          console.warn(`Cesium CDN timed out (${cdn.js}), trying mirror...`);
+          tryCdn(idx + 1);
+        }
+      }, 14000);
+
+      script.addEventListener(
+        'load',
+        () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (window.Cesium) resolve(true);
+          else tryCdn(idx + 1);
+        },
+        { once: true }
+      );
+
+      script.addEventListener(
+        'error',
+        () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          console.warn(`Cesium CDN failed (${cdn.js}), trying mirror...`);
+          tryCdn(idx + 1);
+        },
+        { once: true }
+      );
+    };
+
+    tryCdn(0);
+  });
+
+  return cesiumSingletonPromise;
+}
+
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
@@ -477,6 +581,8 @@ export default function CesiumGlobe({
   const dataCenterEntitiesRef = useRef([]);
   const aiRegulationsEntitiesRef = useRef([]);
   const threatDataSourceRef = useRef(null);
+  const threatEntitiesMapRef = useRef(new Map());
+  const renderTimersRef = useRef([]);
   const leafletThreatGroupRef = useRef(null);
   const leafletOverlayGroupRef = useRef(null);
   const leafletWeatherLayerRef = useRef(null);
@@ -510,39 +616,70 @@ export default function CesiumGlobe({
   };
 
   const [mapError, setMapError] = useState(false);
-  const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [scriptsLoaded, setScriptsLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.Cesium));
   const [cesiumRetryNonce, setCesiumRetryNonce] = useState(0);
   const prevMapModeRef = useRef(mapMode);
+
+  // Schedule immediate + short follow-up scene renders so async Billboard TextureAtlas / ImageBitmap uploads
+  // ALWAYS paint onto the WebGL canvas even when requestRenderMode=true and autoRotate=false (0% idle GPU).
+  const scheduleSceneRenders = useCallback((targetViewer = null) => {
+    const v = targetViewer || viewerRef.current;
+    if (!v || v.isDestroyed?.()) return;
+    try { v.scene.requestRender(); } catch {}
+    renderTimersRef.current.forEach(clearTimeout);
+    renderTimersRef.current = [65, 210, 520].map((ms) =>
+      setTimeout(() => {
+        try {
+          if (viewerRef.current && !viewerRef.current.isDestroyed?.()) {
+            viewerRef.current.scene.requestRender();
+          }
+        } catch {}
+      }, ms)
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      renderTimersRef.current.forEach(clearTimeout);
+      renderTimersRef.current = [];
+    };
+  }, []);
 
   // Automatically clear any previous WebGL/CDN fallback state whenever the user selects 3D Globe
   useEffect(() => {
     if (mapMode === '3d' && prevMapModeRef.current !== '3d') {
-      setMapError(false);
-      setCesiumRetryNonce(n => n + 1);
+      if (mapError || !viewerRef.current || viewerRef.current.isDestroyed?.()) {
+        setMapError(false);
+        setCesiumRetryNonce(n => n + 1);
+      }
     }
     prevMapModeRef.current = mapMode;
-  }, [mapMode]);
+  }, [mapMode, mapError]);
 
   const is2DActive = mapError || mapMode === '2d';
 
   const triggerSwitchTo3D = useCallback(() => {
-    if (viewerRef.current) {
-      try {
-        if (!viewerRef.current.isDestroyed?.()) {
-          viewerRef.current.destroy();
-        }
-      } catch {}
-      viewerRef.current = null;
-      setViewerReady(false);
+    // Keep any healthy existing 3D WebGL viewer warm for instantaneous (<16ms) 2D -> 3D switching!
+    // Only teardown & recreate if mapError occurred or viewer was destroyed.
+    const hasHealthyViewer = Boolean(!mapError && viewerRef.current && !viewerRef.current.isDestroyed?.());
+    if (!hasHealthyViewer) {
+      if (typeof viewerCleanupRef.current === 'function') {
+        viewerCleanupRef.current();
+        viewerCleanupRef.current = null;
+      }
+      setMapError(false);
+      setCesiumRetryNonce(n => n + 1);
     }
-    setMapError(false);
-    setCesiumRetryNonce(n => n + 1);
     try {
-      localStorage.setItem('operator_pref_mapMode', '3d');
+      localStorage.setItem('sovdash_map_mode_v2', '3d');
       window.dispatchEvent(new Event('operator_pref_changed'));
     } catch {}
     if (onMapModeChange) onMapModeChange('3d');
-  }, [onMapModeChange]);
+    if (hasHealthyViewer) {
+      try { viewerRef.current.resize(); } catch {}
+      scheduleSceneRenders(viewerRef.current);
+    }
+  }, [mapError, onMapModeChange, scheduleSceneRenders]);
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
@@ -601,103 +738,38 @@ export default function CesiumGlobe({
     };
   }, []);
 
-  // Multi-CDN resilient Cesium loader — deferred when in 2D Equal Earth mode for zero unused JS/GPU overhead
+  // Singleton Cesium loader — starts immediately in 3D or warms in background idle callback in 2D for 0ms switching
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.Cesium) {
       setScriptsLoaded(true);
       return;
     }
-    if (is2DActive) return;
 
     let isMounted = true;
-    const CESIUM_CDNS = [
-      {
-        js: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Cesium.js',
-        css: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/Widgets/widgets.css',
-        base: 'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Build/Cesium/'
-      },
-      {
-        js: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/Cesium.js',
-        css: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/Widgets/widgets.css',
-        base: 'https://unpkg.com/cesium@1.115.0/Build/Cesium/'
-      },
-      {
-        js: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/Cesium.js',
-        css: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/Widgets/widgets.css',
-        base: 'https://cdnjs.cloudflare.com/ajax/libs/cesium/1.115.0/'
-      }
-    ];
+    let idleTimer = null;
 
-    const loadFromCdn = (idx) => {
-      if (!isMounted) return;
-      if (window.Cesium) {
-        setScriptsLoaded(true);
-        return;
-      }
-      if (idx >= CESIUM_CDNS.length) {
-        console.error('All Cesium CDNs failed; engaging Equal Earth 2D fallback.');
-        if (isMounted) setMapError(true);
-        return;
-      }
-
-      const cdn = CESIUM_CDNS[idx];
-      window.CESIUM_BASE_URL = cdn.base;
-
-      let link = document.getElementById('cesium-css-pkg');
-      if (!link) {
-        link = document.createElement('link');
-        link.id = 'cesium-css-pkg';
-        link.rel = 'stylesheet';
-        link.crossOrigin = '';
-        document.head.appendChild(link);
-      }
-      if (link.href !== cdn.css) {
-        link.href = cdn.css;
-      }
-
-      const existing = document.getElementById('cesium-js-pkg');
-      if (existing) {
-        existing.remove();
-      }
-
-      const script = document.createElement('script');
-      script.id = 'cesium-js-pkg';
-      script.src = cdn.js;
-      script.async = true;
-      script.crossOrigin = '';
-
-      const timeoutId = setTimeout(() => {
-        if (!window.Cesium && isMounted) {
-          console.warn(`Cesium CDN timed out (${cdn.js}), trying next mirror...`);
-          script.remove();
-          loadFromCdn(idx + 1);
+    const startLoad = () => {
+      loadCesiumLibraryOnce().then((ok) => {
+        if (!isMounted) return;
+        if (ok && window.Cesium) {
+          setScriptsLoaded(true);
+        } else if (!is2DActive) {
+          console.error('All Cesium CDNs failed; engaging Equal Earth 2D fallback.');
+          setMapError(true);
         }
-      }, 12000);
-
-      script.onload = () => {
-        clearTimeout(timeoutId);
-        if (window.Cesium) {
-          if (isMounted) setScriptsLoaded(true);
-        } else {
-          loadFromCdn(idx + 1);
-        }
-      };
-
-      script.onerror = () => {
-        clearTimeout(timeoutId);
-        console.warn(`Cesium CDN failed (${cdn.js}), trying fallback mirror...`);
-        script.remove();
-        loadFromCdn(idx + 1);
-      };
-
-      document.head.appendChild(script);
+      });
     };
 
-    loadFromCdn(0);
+    if (is2DActive) {
+      idleTimer = setTimeout(startLoad, 250);
+    } else {
+      startLoad();
+    }
 
     return () => {
       isMounted = false;
+      if (idleTimer) clearTimeout(idleTimer);
     };
   }, [is2DActive, cesiumRetryNonce]);
 
@@ -855,19 +927,10 @@ export default function CesiumGlobe({
       const v = viewerRef.current;
       try {
         v.resize();
-        v.scene.requestRender();
       } catch {}
-      const t = setTimeout(() => {
-        try {
-          if (!v.isDestroyed?.()) {
-            v.resize();
-            v.scene.requestRender();
-          }
-        } catch {}
-      }, 120);
-      return () => clearTimeout(t);
+      scheduleSceneRenders(v);
     }
-  }, [is2DActive, viewerReady]);
+  }, [is2DActive, viewerReady, scheduleSceneRenders]);
 
   // 4b. Dynamic loading of Predefined Landmark Reticles in 3D Mode
   const landmarkEntitiesRef = useRef([]);
@@ -1167,6 +1230,7 @@ export default function CesiumGlobe({
       if (cartographic) height = cartographic.height;
     } catch(e) {}
     camera.move(camera.direction, height * 0.25);
+    try { scene.requestRender(); } catch {}
   };
 
   const handleZoomOut = () => {
@@ -1179,6 +1243,7 @@ export default function CesiumGlobe({
       if (cartographic) height = cartographic.height;
     } catch(e) {}
     camera.move(camera.direction, -height * 0.25);
+    try { scene.requestRender(); } catch {}
   };
 
   const handleResetNorth = () => {
@@ -1556,15 +1621,17 @@ export default function CesiumGlobe({
         creditStr = 'Esri Earth at Night';
       }
 
-      const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
-        url: mapUrl,
-        credit: creditStr
-      });
+      const createBaseProvider = () =>
+        new Cesium.UrlTemplateImageryProvider({
+          url: mapUrl,
+          credit: creditStr
+        });
 
       const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth < 1024));
       const isLowMem = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
 
       const buildViewerOpts = (compatFallback = false) => {
+        const provider = createBaseProvider();
         const opts = {
           contextOptions: {
             webgl: compatFallback
@@ -1606,9 +1673,9 @@ export default function CesiumGlobe({
           creditContainer: typeof document !== 'undefined' ? document.createElement('div') : undefined
         };
         if (Cesium.ImageryLayer) {
-          opts.baseLayer = new Cesium.ImageryLayer(satelliteProvider);
+          opts.baseLayer = new Cesium.ImageryLayer(provider);
         } else {
-          opts.imageryProvider = satelliteProvider;
+          opts.imageryProvider = provider;
         }
         return opts;
       };
@@ -1654,18 +1721,25 @@ export default function CesiumGlobe({
 
       // Force verification & manual layer loading fallback to ensure we never get a blank blue globe
       if (viewer.imageryLayers.length === 0) {
-        viewer.imageryLayers.addImageryProvider(satelliteProvider);
+        viewer.imageryLayers.addImageryProvider(createBaseProvider());
       }
 
       // Enable Google Maps API key globally in Cesium
       Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
 
+      let removeTileProgressListener = null;
       if (viewer.scene?.globe) {
         viewer.scene.globe.show = true;
-        // Start as false to prevent any curvature/terrain clipping visual bugs on initial tactical dark load!
         viewer.scene.globe.depthTestAgainstTerrain = false;
         viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem) ? 35 : 90;
         viewer.scene.globe.maximumScreenSpaceError = (isMobileDevice || isLowMem) ? 2.5 : 1.8;
+        if (viewer.scene.globe.tileLoadProgressEvent) {
+          removeTileProgressListener = viewer.scene.globe.tileLoadProgressEvent.addEventListener(() => {
+            try {
+              if (!viewer.isDestroyed?.()) viewer.scene.requestRender();
+            } catch {}
+          });
+        }
       }
 
       viewer.scene.renderError.addEventListener((scene, error) => {
@@ -1682,11 +1756,9 @@ export default function CesiumGlobe({
         }
       });
 
-      // Dedicated threat datasource showing individual grounded event nodes (clustering disabled)
-      const threatDS = new Cesium.CustomDataSource('sovereign-threats');
-      threatDS.clustering.enabled = false;
-      viewer.dataSources.add(threatDS);
-      threatDataSourceRef.current = threatDS;
+      // Direct synchronous entity management on viewer.entities (eliminates async CustomDataSource race)
+      threatDataSourceRef.current = null;
+      threatEntitiesMapRef.current.clear();
 
       // Safe utility helpers to retrieve properties from Cesium entities without throwing TypeErrors
       const getIsSatellite = (entity) => {
@@ -2279,12 +2351,14 @@ export default function CesiumGlobe({
 
       viewerRef.current = viewer;
       setViewerReady(true);
+      scheduleSceneRenders(viewer);
       
       // Reset JSON memoization references on new viewer creations
       lastRepelledMarkersJsonRef.current = '';
       lastSelectedSatJsonRef.current = '';
 
       viewerCleanupRef.current = () => {
+        try { if (removeTileProgressListener) removeTileProgressListener(); } catch {}
         try { handler.destroy(); } catch {}
         try {
           if (viewer?.scene?.canvas) {
@@ -2303,6 +2377,8 @@ export default function CesiumGlobe({
           } catch {}
           viewerRef.current = null;
         }
+        threatDataSourceRef.current = null;
+        threatEntitiesMapRef.current.clear();
         setViewerReady(false);
         tilesetRef.current = null;
         lastPickedFeatureRef.current = null;
@@ -2424,49 +2500,45 @@ export default function CesiumGlobe({
     }
   }, [mapMode, mapStyle, cameraAltitude, selectedSkyscraper, tilesetLoadingStatus, mapError, scriptsLoaded, viewerReady]);
 
-  // 5. Update threat markers on Cesium Globe
+  // 5. Update threat markers on Cesium Globe (Synchronous viewer.entities + crisp elevation & async atlas render schedule)
   useEffect(() => {
-    if (!scriptsLoaded || mapError || !viewerRef.current) return;
+    if (!scriptsLoaded || mapError || !viewerReady || !viewerRef.current || viewerRef.current.isDestroyed?.()) return;
 
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
+    const viewer = viewerRef.current;
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = 0;
-    const targetHeightRef = is3DActive 
+    // 16km ellipsoidal elevation in standard 3D globe mode eliminates globe-tile chord/skirt Z-fighting on all GPUs
+    // while keeping back-hemisphere nodes naturally occluded behind the 6,378km Earth sphere!
+    const targetHeight = is3DActive ? 0 : 16000.0;
+    const targetHeightRef = is3DActive
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1200000.0;
+    const eyeOffsetGround = new Cesium.Cartesian3(0.0, 0.0, -2500.0);
 
-    // Lightweight structural signature so Cesium never JSON-stringifies full payloads every render
+    // Lightweight structural signature; include viewer entity presence so recreated viewers NEVER skip plotting!
     const repelledSig = repelledMarkers.map(m => `${m.id || m.title}:${m.repelledLat}:${m.repelledLon}:${m.severity}:${m.category}`).join('|');
     const cacheKey = `${is3DActive}_${repelledSig}`;
-    if (lastRepelledMarkersJsonRef.current === cacheKey) {
+    if (lastRepelledMarkersJsonRef.current === cacheKey && threatEntitiesMapRef.current.size === repelledMarkers.length) {
+      scheduleSceneRenders(viewer);
       return;
     }
     lastRepelledMarkersJsonRef.current = cacheKey;
 
-    const viewer = viewerRef.current;
-    const threatDS = threatDataSourceRef.current;
-    const threatEntities = threatDS ? threatDS.entities : viewer.entities;
-    const hasDistinctThreatEntities = Boolean(threatDS && threatEntities !== viewer.entities);
-    const eyeOffsetGround = new Cesium.Cartesian3(0.0, 0.0, -50.0);
-    if (hasDistinctThreatEntities) {
-      try { threatEntities.suspendEvents(); } catch {}
-    }
     try { viewer.entities.suspendEvents(); } catch {}
 
     try {
-      // Create a Set of incoming threat IDs for quick lookup
       const incomingIds = new Set(repelledMarkers.map(m => `threat-${m.id || m.title}`));
 
-      // Remove stale threat markers from clustered CustomDataSource
-      const existingThreats = threatEntities.values.filter(e => e.id && e.id.startsWith('threat-') && !e.id.startsWith('threat-pulse-'));
-      existingThreats.forEach(e => {
-        if (!incomingIds.has(e.id)) {
-          threatEntities.remove(e);
+      // Remove stale threat markers tracked in threatEntitiesMapRef
+      for (const [entId, ent] of threatEntitiesMapRef.current.entries()) {
+        if (!incomingIds.has(entId)) {
+          try { viewer.entities.remove(ent); } catch {}
+          threatEntitiesMapRef.current.delete(entId);
         }
-      });
+      }
 
       // Remove stale pulse rings from viewer.entities
       viewer.entities.values
@@ -2478,21 +2550,23 @@ export default function CesiumGlobe({
           }
         });
 
-      // Surgically add new threat markers or update existing ones inside clustered datasource
+      // Surgically add or update individual grounded event nodes directly on viewer.entities
       repelledMarkers.forEach(m => {
         if (m.repelledLat === undefined || m.repelledLon === undefined || !isValidCoordinate(m.repelledLat, m.repelledLon)) return;
 
         const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
         const threatId = `threat-${m.id || m.title}`;
         const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
+        const nodeDiameter = 9.5 + (m.severity || 1) * 1.9;
 
-        const existing = threatEntities.getById(threatId);
+        const existing = threatEntitiesMapRef.current.get(threatId) || viewer.entities.getById(threatId);
         const isManualEvent = String(m.id || '').startsWith('evt-');
         const outlineColor = isManualEvent ? '#00f0ff' : '#ffffff';
-        const outlineWidth = isManualEvent ? 2.5 : 1.5;
+        const outlineWidth = isManualEvent ? 2.4 : 1.6;
 
         if (existing) {
-          const currentPos = existing.position.getValue(Cesium.JulianDate.now());
+          threatEntitiesMapRef.current.set(threatId, existing);
+          const currentPos = existing.position?.getValue?.(Cesium.JulianDate.now());
           if (!currentPos || !Cesium.Cartesian3.equalsEpsilon(currentPos, newPos, 0.01)) {
             existing.position = newPos;
           }
@@ -2502,7 +2576,7 @@ export default function CesiumGlobe({
 
           if (needsVisualUpdate) {
             if (existing.billboard) {
-              existing.billboard.image = createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth);
+              existing.billboard.image = createCircleCanvas(sevColorStr, nodeDiameter, outlineColor, outlineWidth);
             }
             if (existing.label) {
               existing.label.text = `${m.title || m.name}\n[Severity ${m.severity} • ${m.category}]`;
@@ -2522,13 +2596,13 @@ export default function CesiumGlobe({
 
           existing.properties = m;
         } else {
-          threatEntities.add({
+          const added = viewer.entities.add({
             id: threatId,
             name: m.title || m.name,
             position: newPos,
             billboard: {
-              image: createCircleCanvas(sevColorStr, 4.5 + (m.severity || 1) * 0.95, outlineColor, outlineWidth),
-              scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.0, 1.8e7, 0.56),
+              image: createCircleCanvas(sevColorStr, nodeDiameter, outlineColor, outlineWidth),
+              scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.08, 1.8e7, 0.80),
               heightReference: targetHeightRef,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               verticalOrigin: Cesium.VerticalOrigin.CENTER,
@@ -2553,6 +2627,7 @@ export default function CesiumGlobe({
             },
             properties: m,
           });
+          threatEntitiesMapRef.current.set(threatId, added);
         }
 
         // Crisp static critical-tier halo ring (zero idle GPU wakeups)
@@ -2569,25 +2644,22 @@ export default function CesiumGlobe({
               id: pulseId,
               position: newPos,
               ellipse: {
-                semiMajorAxis: 115000.0,
-                semiMinorAxis: 115000.0,
-                material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.14),
+                semiMajorAxis: 135000.0,
+                semiMinorAxis: 135000.0,
+                material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.16),
                 outline: true,
-                outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.85),
-                heightReference: targetHeightRef
+                outlineColor: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.88),
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
               }
             });
           }
         }
       });
     } finally {
-      if (hasDistinctThreatEntities) {
-        try { threatEntities.resumeEvents(); } catch {}
-      }
       try { viewer.entities.resumeEvents(); } catch {}
-      try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+      scheduleSceneRenders(viewer);
     }
-  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin, viewerReady]);
+  }, [repelledMarkers, mapError, scriptsLoaded, mapMode, mapStyle, isAdmin, viewerReady, scheduleSceneRenders]);
 
   // 6. Update dynamic orbiting satellites and flight paths
   useEffect(() => {
@@ -2856,7 +2928,8 @@ export default function CesiumGlobe({
         viewerRef.current.trackedEntity = undefined;
       }
     }
-  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError, uiTheme, viewerReady]);
+    scheduleSceneRenders(viewer);
+  }, [showSatellites, satellites, selectedSatellite, isTracked, scriptsLoaded, mapError, uiTheme, viewerReady, scheduleSceneRenders]);
 
   // 8. Capture and normalize wheel zoom for perfect laptop trackpad and mouse scroll zoom!
   useEffect(() => {
@@ -2914,6 +2987,7 @@ export default function CesiumGlobe({
         } catch (err) {
           camera.lookUp(tiltAngle);
         }
+        try { scene.requestRender(); } catch {}
         return;
       }
 
@@ -2923,6 +2997,7 @@ export default function CesiumGlobe({
 
       // Adjust camera positioning along its forward direction vector
       camera.move(camera.direction, -amount);
+      try { scene.requestRender(); } catch {}
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
@@ -3141,12 +3216,12 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = 0;
+    const targetHeight = is3DActive ? 0 : 14000.0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
-    const eyeOffsetOverlay = new Cesium.Cartesian3(0.0, 0.0, -40.0);
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1200000.0;
+    const eyeOffsetOverlay = new Cesium.Cartesian3(0.0, 0.0, -2200.0);
 
     // Helper to generate a crisp, solid vector teardrop marker filled dynamically by pipeline category (no bulky white outline)
     const createTeardropCanvas = (colorHex) => {
@@ -3262,7 +3337,7 @@ export default function CesiumGlobe({
       }
 
       oilGasEntitiesRef.current = newEntities;
-      try { viewer.scene.requestRender(); } catch {}
+      scheduleSceneRenders(viewer);
     };
 
     if (GLOBE_LAYER_CACHE.oilGas) {
@@ -3410,12 +3485,12 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = 0;
+    const targetHeight = is3DActive ? 0 : 14000.0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
-    const eyeOffsetDc = new Cesium.Cartesian3(0.0, 0.0, -40.0);
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1200000.0;
+    const eyeOffsetDc = new Cesium.Cartesian3(0.0, 0.0, -2200.0);
 
     const clearDataCenters = () => {
       if (dataCenterEntitiesRef.current && dataCenterEntitiesRef.current.length > 0) {
@@ -3487,7 +3562,7 @@ export default function CesiumGlobe({
       });
 
       dataCenterEntitiesRef.current = newEntities;
-      try { viewer.scene.requestRender(); } catch {}
+      scheduleSceneRenders(viewer);
     };
 
     if (GLOBE_LAYER_CACHE.dataCenters) {
@@ -3520,12 +3595,12 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = 0;
+    const targetHeight = is3DActive ? 0 : 14500.0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
-    const eyeOffsetReg = new Cesium.Cartesian3(0.0, 0.0, -40.0);
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1200000.0;
+    const eyeOffsetReg = new Cesium.Cartesian3(0.0, 0.0, -2200.0);
 
     const clearAiRegulations = () => {
       if (aiRegulationsEntitiesRef.current && aiRegulationsEntitiesRef.current.length > 0) {
@@ -3602,7 +3677,7 @@ export default function CesiumGlobe({
       });
 
       aiRegulationsEntitiesRef.current = newEntities;
-      try { viewer.scene.requestRender(); } catch {}
+      scheduleSceneRenders(viewer);
     };
 
     if (GLOBE_LAYER_CACHE.aiRegulations && regulationsUpdateTrigger === 0) {
@@ -3635,12 +3710,12 @@ export default function CesiumGlobe({
     if (!Cesium) return;
 
     const is3DActive = mapMode === '3d' && mapStyle === 'buildings';
-    const targetHeight = 0;
+    const targetHeight = is3DActive ? 0 : 13000.0;
     const targetHeightRef = is3DActive 
       ? (Cesium.HeightReference.CLAMP_TO_3D_TILE || Cesium.HeightReference.CLAMP_TO_GROUND)
       : Cesium.HeightReference.NONE;
-    const targetDisableDepthTest = is3DActive ? 0.0 : 350000.0;
-    const eyeOffsetCable = new Cesium.Cartesian3(0.0, 0.0, -40.0);
+    const targetDisableDepthTest = is3DActive ? 0.0 : 1200000.0;
+    const eyeOffsetCable = new Cesium.Cartesian3(0.0, 0.0, -2200.0);
 
     const clearCables = () => {
       if (cableEntitiesRef.current && cableEntitiesRef.current.length > 0) {
@@ -3734,11 +3809,11 @@ export default function CesiumGlobe({
       }
 
       cableEntitiesRef.current = newEntities;
-      try { viewer.scene.requestRender(); } catch {}
+      scheduleSceneRenders(viewer);
     };
 
-    if (GLOBE_LAYER_CACHE.submarineCables && GLOBE_LAYER_CACHE.landingStations) {
-      drawCables(GLOBE_LAYER_CACHE.submarineCables, GLOBE_LAYER_CACHE.landingStations);
+    if (GLOBE_LAYER_CACHE.cables && GLOBE_LAYER_CACHE.landingStations) {
+      drawCables(GLOBE_LAYER_CACHE.cables, GLOBE_LAYER_CACHE.landingStations);
     } else {
       Promise.all([
         fetch('/api/cables').then(res => {
@@ -3751,7 +3826,7 @@ export default function CesiumGlobe({
         })
       ])
         .then(([cablesGeo, landingGeo]) => {
-          GLOBE_LAYER_CACHE.submarineCables = cablesGeo;
+          GLOBE_LAYER_CACHE.cables = cablesGeo;
           GLOBE_LAYER_CACHE.landingStations = landingGeo;
           drawCables(cablesGeo, landingGeo);
         })
@@ -3902,17 +3977,17 @@ export default function CesiumGlobe({
               const ent = viewer.entities.add({
                 id: `ethics-${kind}-${item.id}`,
                 name: item.name,
-                position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, 0),
+                position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, is3DActive ? 0 : 14500.0),
                 billboard: {
                   image: kind === 'supplyChain' || kind === 'environmental'
-                    ? createDiamondCanvas(color, 10, '#0f172a', 1.3)
-                    : createCircleCanvas(color, 8.5, '#0f172a', 1.3),
-                  scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.8e7, 0.65),
+                    ? createDiamondCanvas(color, 11.5, '#0f172a', 1.4)
+                    : createCircleCanvas(color, 10.5, '#0f172a', 1.4),
+                  scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.05, 1.8e7, 0.76),
                   horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
                   verticalOrigin: Cesium.VerticalOrigin.CENTER,
-                  eyeOffset: eyeOffsetEthics,
+                  eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -2200.0),
                   heightReference: targetHeightRef,
-                  disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
+                  disableDepthTestDistance: is3DActive ? 0.0 : 1200000.0
                 },
                 properties: {
                   ...item,
@@ -3933,7 +4008,7 @@ export default function CesiumGlobe({
         ethicsEntitiesRef.current = added;
       } finally {
         try { if (!viewer.isDestroyed()) viewer.entities.resumeEvents(); } catch {}
-        try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+        scheduleSceneRenders(viewer);
       }
     }).catch(() => {});
 
@@ -3993,15 +4068,15 @@ export default function CesiumGlobe({
           const ent = viewer.entities.add({
             id: `temporal-${m.id}`,
             name: m.title,
-            position: Cesium.Cartesian3.fromDegrees(pLon, pLat, 0),
+            position: Cesium.Cartesian3.fromDegrees(pLon, pLat, is3DActive ? 0 : 15000.0),
             billboard: {
-              image: createCircleCanvas(color, dotSize, m.isPostBaseline ? '#00f0ff' : '#ffffff', m.isPostBaseline ? 2.2 : 1.3),
-              scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.1, 1.8e7, 0.7),
+              image: createCircleCanvas(color, dotSize + 2, m.isPostBaseline ? '#00f0ff' : '#ffffff', m.isPostBaseline ? 2.2 : 1.4),
+              scaleByDistance: new Cesium.NearFarScalar(1.2e6, 1.1, 1.8e7, 0.78),
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               verticalOrigin: Cesium.VerticalOrigin.CENTER,
-              eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -55.0),
+              eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -2500.0),
               heightReference: targetHeightRef,
-              disableDepthTestDistance: is3DActive ? 0.0 : 350000.0
+              disableDepthTestDistance: is3DActive ? 0.0 : 1200000.0
             },
             properties: {
               ...m,
@@ -4016,11 +4091,11 @@ export default function CesiumGlobe({
       temporalEntitiesRef.current = added;
     } finally {
       try { if (!viewer.isDestroyed()) viewer.entities.resumeEvents(); } catch {}
-      try { if (!viewer.isDestroyed()) viewer.scene.requestRender(); } catch {}
+      scheduleSceneRenders(viewer);
     }
 
     return () => clearTemporal();
-  }, [temporalReplayActive, temporalMilestones, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle]);
+  }, [temporalReplayActive, temporalMilestones, scriptsLoaded, mapError, viewerReady, mapMode, mapStyle, scheduleSceneRenders]);
 
   // Safe utility to parse any tooltip string content (e.g. collapsed cached single-line formats)
   // into a beautifully structured, premium tactical key-value dossier layout.
@@ -4121,12 +4196,14 @@ export default function CesiumGlobe({
     }
   }
 
+  const show2DCanvas = is2DActive || !viewerReady;
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: mapStyle === 'light' || uiTheme === 'light' ? '#e2e8f0' : '#020617' }}>
       
-      {/* Default 2D Mode: Equal Earth Projection Map */}
+      {/* Equal Earth 2D Map (Default in 2D mode & instant zero-blank-screen backdrop while 3D WebGL warms) */}
       <EqualEarthMap2D
-        active={is2DActive}
+        active={show2DCanvas}
         layerCache={GLOBE_LAYER_CACHE}
         ensureCountriesGeoJson={ensureCountriesGeoJson}
         repelledMarkers={repelledMarkers}
@@ -4173,12 +4250,49 @@ export default function CesiumGlobe({
           position: 'absolute', 
           top: 0, 
           left: 0, 
-          zIndex: !is2DActive ? 2 : 1,
-          opacity: !is2DActive ? 1 : 0,
-          pointerEvents: !is2DActive ? 'auto' : 'none',
-          transition: 'opacity 0.25s ease'
+          zIndex: !show2DCanvas ? 2 : 1,
+          opacity: !show2DCanvas ? 1 : 0,
+          pointerEvents: !show2DCanvas ? 'auto' : 'none',
+          transition: 'opacity 0.22s ease'
         }} 
       />
+
+      {/* Non-blocking 3D Cold-Boot Indicator (only during initial script/shader compile) */}
+      {!is2DActive && !viewerReady && (
+        <div style={{
+          position: 'absolute',
+          top: '12px',
+          left: '12px',
+          zIndex: 10,
+          background: 'var(--sov-panel-bg)',
+          border: '1px solid var(--sov-accent)',
+          borderRadius: '7px',
+          padding: '6px 12px',
+          fontSize: '9.5px',
+          fontFamily: 'var(--font-jetbrains-fallback)',
+          color: 'var(--sov-accent)',
+          boxShadow: 'var(--sov-shadow)',
+          backdropFilter: 'blur(10px)',
+          letterSpacing: '0.04em',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontWeight: 700
+        }}>
+          <span
+            className="animate-spin"
+            style={{
+              width: '11px',
+              height: '11px',
+              borderRadius: '50%',
+              border: '2px solid var(--sov-border)',
+              borderTopColor: 'var(--sov-accent)',
+              display: 'inline-block'
+            }}
+          />
+          <span>INITIALIZING 3D GLOBE…</span>
+        </div>
+      )}
 
       {/* 2D Equal Earth Mode / 3D Globe Quick Switcher Badge */}
       {is2DActive && (

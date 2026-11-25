@@ -616,7 +616,11 @@ export default function LiveMap({
   const [selectedRssSources, setSelectedRssSources] = useState(() => DEFAULT_RSS_SOURCE_LIST.map(s => s.id));
   const [mapMode, setMapMode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('operator_pref_mapMode') || '3d';
+      try {
+        localStorage.removeItem('operator_pref_mapMode');
+        const saved = localStorage.getItem('sovdash_map_mode_v2');
+        return saved === '2d' || saved === '3d' ? saved : '3d';
+      } catch {}
     }
     return '3d';
   });
@@ -982,10 +986,18 @@ export default function LiveMap({
   // Handle preferences changes dynamically via standard browser events
   useEffect(() => {
     const handlePrefChange = () => {
-      setMapMode(localStorage.getItem('operator_pref_mapMode') || '3d');
-      setMapStyle(localStorage.getItem('operator_pref_mapStyle') || 'dark');
+      const nextMode = localStorage.getItem('sovdash_map_mode_v2');
+      if (nextMode === '2d' || nextMode === '3d') {
+        setMapMode(nextMode);
+      }
+      const storedStyle = localStorage.getItem('operator_pref_mapStyle');
+      if (storedStyle) {
+        setMapStyle(storedStyle === 'dark' ? 'tactical' : storedStyle);
+      }
       const rotate = localStorage.getItem('operator_pref_autoRotate');
-      setAutoRotate(rotate !== null ? rotate === 'true' : true);
+      if (rotate !== null) {
+        setAutoRotate(rotate === 'true');
+      }
       const sev = localStorage.getItem('operator_pref_minSeverity');
       setMinSeverity(sev !== null ? parseInt(sev) : 1);
       setTickerSpeed(localStorage.getItem('operator_pref_tickerSpeed') || 'slow');
@@ -3035,7 +3047,7 @@ export default function LiveMap({
                         onClick={() => {
                           setMapMode(opt.id);
                           try {
-                            localStorage.setItem('operator_pref_mapMode', opt.id);
+                            localStorage.setItem('sovdash_map_mode_v2', opt.id);
                             window.dispatchEvent(new Event('operator_pref_changed'));
                           } catch {}
                         }}

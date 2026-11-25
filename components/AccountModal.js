@@ -205,15 +205,19 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
   // Load preferences from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setMapStyle(localStorage.getItem('operator_pref_mapStyle') || 'dark');
-    setMapMode(localStorage.getItem('operator_pref_mapMode') || '3d');
+    setMapStyle(localStorage.getItem('operator_pref_mapStyle') || 'tactical');
+    setMapMode(localStorage.getItem('sovdash_map_mode_v2') || '3d');
     setAutoRotate(localStorage.getItem('operator_pref_autoRotate') !== 'false');
     setTickerSpeed(localStorage.getItem('operator_pref_tickerSpeed') || 'slow');
     setMinSeverity(parseInt(localStorage.getItem('operator_pref_minSeverity') || '1'));
   }, []);
 
   const handlePreferenceChange = (key, value) => {
-    localStorage.setItem(`operator_pref_${key}`, value);
+    if (key === 'mapMode') {
+      localStorage.setItem('sovdash_map_mode_v2', value);
+    } else {
+      localStorage.setItem(`operator_pref_${key}`, value);
+    }
     window.dispatchEvent(new Event('operator_pref_changed'));
     
     // Update local state

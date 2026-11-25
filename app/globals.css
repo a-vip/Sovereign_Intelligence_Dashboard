@@ -151,7 +151,11 @@ body {
   font-family: inherit;
 }
 .refresh-btn:hover { background: var(--bg-card-hover); color: var(--cyan); border-color: var(--border-glow); }
-.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+.refresh-btn.spinning svg,
+.spinning,
+.animate-spin {
+  animation: spin 0.85s linear infinite;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .last-updated { font-size: 11px; color: var(--text-muted); font-family: var(--font-jetbrains-fallback); }
