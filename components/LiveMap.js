@@ -651,13 +651,17 @@ export default function LiveMap({
   // Opt-in Satellite Tracking Layer (off by default to keep initial GPU/network overhead near zero)
   const [showSatellites, setShowSatellites] = useState(false);
 
-  // Hydrate & apply global UI color theme
+  // Hydrate & apply global UI color theme + idle-warm Ask SovDash AI chunk for 0ms drawer open
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem('sovdash_ui_theme') || 'obsidian';
       setUiTheme(savedTheme);
       document.documentElement.setAttribute('data-ui-theme', savedTheme);
     } catch {}
+    const warmTimer = setTimeout(() => {
+      import('./SovDashAiDrawer').catch(() => {});
+    }, 900);
+    return () => clearTimeout(warmTimer);
   }, []);
 
   const handleSelectUiTheme = useCallback((nextTheme) => {

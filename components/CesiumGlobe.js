@@ -342,10 +342,10 @@ const createPowerCanvas = (color, size = 32) => {
   return canvas;
 };
 
-const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY || 'cb1_2lpu_1_f2c6edda75611222b49c9464';
-const CARTO_DARK_MATTER_URL = `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`;
-const CARTO_DARK_MINIMAL_URL = `https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
-const CARTO_LIGHT_URL = `https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`;
+const CARTO_DARK_MATTER_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+const CARTO_DARK_MINIMAL_URL = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png';
+const CARTO_LIGHT_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+const CARTO_SUBDOMAINS = ['a', 'b', 'c', 'd'];
 
 const getLeafletTileUrl = (style) => {
   if (style === 'light') {
@@ -583,6 +583,7 @@ export default function CesiumGlobe({
   const threatDataSourceRef = useRef(null);
   const threatEntitiesMapRef = useRef(new Map());
   const renderTimersRef = useRef([]);
+  const appliedMapStyleRef = useRef(null);
   const leafletThreatGroupRef = useRef(null);
   const leafletOverlayGroupRef = useRef(null);
   const leafletWeatherLayerRef = useRef(null);
@@ -1621,11 +1622,14 @@ export default function CesiumGlobe({
         creditStr = 'Esri Earth at Night';
       }
 
+      const isCartoUrl = mapUrl.includes('basemaps.cartocdn.com');
       const createBaseProvider = () =>
         new Cesium.UrlTemplateImageryProvider({
           url: mapUrl,
-          credit: creditStr
+          credit: creditStr,
+          ...(isCartoUrl ? { subdomains: CARTO_SUBDOMAINS } : {})
         });
+      appliedMapStyleRef.current = mapStyle;
 
       const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth < 1024));
       const isLowMem = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
@@ -1730,9 +1734,11 @@ export default function CesiumGlobe({
       let removeTileProgressListener = null;
       if (viewer.scene?.globe) {
         viewer.scene.globe.show = true;
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(mapStyle === 'light' ? '#dbeafe' : '#0c192c');
+        viewer.scene.globe.showGroundAtmosphere = true;
         viewer.scene.globe.depthTestAgainstTerrain = false;
-        viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem) ? 35 : 90;
-        viewer.scene.globe.maximumScreenSpaceError = (isMobileDevice || isLowMem) ? 2.5 : 1.8;
+        viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem) ? 45 : 110;
+        viewer.scene.globe.maximumScreenSpaceError = (isMobileDevice || isLowMem) ? 2.5 : 2.0;
         if (viewer.scene.globe.tileLoadProgressEvent) {
           removeTileProgressListener = viewer.scene.globe.tileLoadProgressEvent.addEventListener(() => {
             try {
@@ -2379,6 +2385,7 @@ export default function CesiumGlobe({
         }
         threatDataSourceRef.current = null;
         threatEntitiesMapRef.current.clear();
+        appliedMapStyleRef.current = null;
         setViewerReady(false);
         tilesetRef.current = null;
         lastPickedFeatureRef.current = null;
@@ -3013,6 +3020,10 @@ export default function CesiumGlobe({
     const Cesium = window.Cesium;
     if (!Cesium) return;
 
+    // Skip redundant base-layer teardown & re-download if viewer already initialized with this exact mapStyle!
+    if (appliedMapStyleRef.current === mapStyle) return;
+    appliedMapStyleRef.current = mapStyle;
+
     const layers = viewer.imageryLayers;
     
     // Choose correct tile URL based on chosen style
@@ -3039,7 +3050,12 @@ export default function CesiumGlobe({
       credit = 'OpenStreetMap';
     }
 
-    const provider = new Cesium.UrlTemplateImageryProvider({ url, credit });
+    const isCarto = url.includes('basemaps.cartocdn.com');
+    const provider = new Cesium.UrlTemplateImageryProvider({
+      url,
+      credit,
+      ...(isCarto ? { subdomains: CARTO_SUBDOMAINS } : {})
+    });
     
     try {
       const newLayer = new Cesium.ImageryLayer(provider);
@@ -3050,12 +3066,15 @@ export default function CesiumGlobe({
       } else {
         layers.add(newLayer);
       }
+      if (viewer.scene?.globe) {
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(mapStyle === 'light' ? '#dbeafe' : '#0c192c');
+      }
       viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(mapStyle === 'light' ? '#dbeafe' : '#020617');
-      viewer.scene.requestRender();
+      scheduleSceneRenders(viewer);
     } catch (err) {
       console.warn("Dynamic imagery layer swap failed:", err);
     }
-  }, [mapStyle, scriptsLoaded, mapError, viewerReady]);
+  }, [mapStyle, scriptsLoaded, mapError, viewerReady, scheduleSceneRenders]);
 
   // Dynamic Depth Test toggle to resolve billboard clipping vs premium 3D occlusion
   useEffect(() => {
