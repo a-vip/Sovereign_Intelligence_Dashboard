@@ -342,9 +342,10 @@ const createPowerCanvas = (color, size = 32) => {
   return canvas;
 };
 
-const CARTO_DARK_MATTER_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-const CARTO_DARK_MINIMAL_URL = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png';
-const CARTO_LIGHT_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY || 'cb1_2lpu_1_f2c6edda75611222b49c9464';
+const CARTO_DARK_MATTER_URL = `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
+const CARTO_DARK_MINIMAL_URL = `https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
+const CARTO_LIGHT_URL = `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`;
 const CARTO_SUBDOMAINS = ['a', 'b', 'c', 'd'];
 
 const getLeafletTileUrl = (style) => {
@@ -1771,7 +1772,7 @@ export default function CesiumGlobe({
       if (viewer.scene?.globe) {
         viewer.scene.globe.show = true;
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(mapStyle === 'light' ? '#dbeafe' : '#0c192c');
-        viewer.scene.globe.showGroundAtmosphere = !isSoftwareGl;
+        viewer.scene.globe.showGroundAtmosphere = true;
         viewer.scene.globe.depthTestAgainstTerrain = false;
         viewer.scene.globe.tileCacheSize = (isMobileDevice || isLowMem || isSoftwareGl) ? 45 : 110;
         viewer.scene.globe.maximumScreenSpaceError = isSoftwareGl ? 3.2 : (isMobileDevice || isLowMem) ? 2.5 : 2.0;
