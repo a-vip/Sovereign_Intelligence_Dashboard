@@ -3053,6 +3053,9 @@ export default function LiveMap({
                           try {
                             localStorage.setItem('sovdash_map_mode_v2', opt.id);
                             window.dispatchEvent(new Event('operator_pref_changed'));
+                            if (opt.id === '3d') {
+                              window.dispatchEvent(new Event('sovdash_force_3d'));
+                            }
                           } catch {}
                         }}
                         style={{

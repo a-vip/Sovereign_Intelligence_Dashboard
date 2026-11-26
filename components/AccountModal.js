@@ -26,8 +26,8 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Preference fields
-  const [mapStyle, setMapStyle] = useState('dark');
-  const [mapMode, setMapMode] = useState('2d');
+  const [mapStyle, setMapStyle] = useState('tactical');
+  const [mapMode, setMapMode] = useState('3d');
   const [autoRotate, setAutoRotate] = useState(true);
   const [tickerSpeed, setTickerSpeed] = useState('slow');
   const [minSeverity, setMinSeverity] = useState(1);
@@ -219,6 +219,9 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
       localStorage.setItem(`operator_pref_${key}`, value);
     }
     window.dispatchEvent(new Event('operator_pref_changed'));
+    if (key === 'mapMode' && value === '3d') {
+      window.dispatchEvent(new Event('sovdash_force_3d'));
+    }
     
     // Update local state
     if (key === 'mapStyle') setMapStyle(value);

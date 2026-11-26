@@ -435,6 +435,22 @@ export default function EqualEarthMap2D({
   const interactiveSegmentsRef = useRef([]);
   const activeRef = useRef(active);
   activeRef.current = active;
+  const renderCanvasRef = useRef(null);
+  const tooltipActiveRef = useRef(false);
+  const callbacksRef = useRef({
+    onSatelliteClick,
+    onPointClick,
+    onCountrySelect,
+    onHoverTooltip,
+    onInteraction
+  });
+  callbacksRef.current = {
+    onSatelliteClick,
+    onPointClick,
+    onCountrySelect,
+    onHoverTooltip,
+    onInteraction
+  };
 
   const [countriesReady, setCountriesReady] = useState(0);
   const [overlayTick, setOverlayTick] = useState(0);
@@ -445,7 +461,9 @@ export default function EqualEarthMap2D({
     if (!activeRef.current || drawReqRef.current != null) return;
     drawReqRef.current = requestAnimationFrame(() => {
       drawReqRef.current = null;
-      if (activeRef.current) renderCanvas();
+      if (activeRef.current && typeof renderCanvasRef.current === 'function') {
+        renderCanvasRef.current();
+      }
     });
   }, []);
 
@@ -566,7 +584,9 @@ export default function EqualEarthMap2D({
         viewRef.current.panX = startPanX + (targetPanX - startPanX) * ease;
         viewRef.current.panY = startPanY + (targetPanY - startPanY) * ease;
         setZoomLabel(`${viewRef.current.zoom.toFixed(1)}x`);
-        renderCanvas();
+        if (typeof renderCanvasRef.current === 'function') {
+          renderCanvasRef.current();
+        }
         if (p < 1) {
           animFrameRef.current = requestAnimationFrame(step);
         } else {
@@ -1456,6 +1476,7 @@ export default function EqualEarthMap2D({
     interactivePointsRef.current = hitPoints;
     interactiveSegmentsRef.current = hitSegments;
   }
+  renderCanvasRef.current = renderCanvas;
 
   // Re-render whenever relevant state/props change
   useEffect(() => {
@@ -1585,7 +1606,7 @@ export default function EqualEarthMap2D({
 
     const onWheel = (e) => {
       e.preventDefault();
-      if (onInteraction) onInteraction();
+      if (callbacksRef.current.onInteraction) callbacksRef.current.onInteraction();
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
@@ -1604,7 +1625,7 @@ export default function EqualEarthMap2D({
       movedPx = 0;
       lastX = e.clientX;
       lastY = e.clientY;
-      if (onInteraction) onInteraction();
+      if (callbacksRef.current.onInteraction) callbacksRef.current.onInteraction();
     };
 
     const onMouseMove = (e) => {
@@ -1622,8 +1643,9 @@ export default function EqualEarthMap2D({
         viewRef.current.panY += dy;
         clampPan();
         canvas.style.cursor = 'grabbing';
-        if (onHoverTooltip) {
-          onHoverTooltip({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
+        if (tooltipActiveRef.current && callbacksRef.current.onHoverTooltip) {
+          tooltipActiveRef.current = false;
+          callbacksRef.current.onHoverTooltip({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
         }
         requestDraw();
         return;
@@ -1640,9 +1662,10 @@ export default function EqualEarthMap2D({
           hoveredCountryRef.current = null;
           requestDraw();
         }
-        if (onHoverTooltip) {
+        if (callbacksRef.current.onHoverTooltip) {
           const item = hit.item;
-          onHoverTooltip({
+          tooltipActiveRef.current = true;
+          callbacksRef.current.onHoverTooltip({
             show: true,
             x: sx,
             y: sy,
@@ -1655,8 +1678,9 @@ export default function EqualEarthMap2D({
         return;
       }
 
-      if (onHoverTooltip) {
-        onHoverTooltip({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
+      if (tooltipActiveRef.current && callbacksRef.current.onHoverTooltip) {
+        tooltipActiveRef.current = false;
+        callbacksRef.current.onHoverTooltip({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
       }
 
       const geoPt = screenToLonLat(sx, sy);
@@ -1689,22 +1713,22 @@ export default function EqualEarthMap2D({
       const hit = findHitAt(sx, sy);
       if (hit) {
         if (hit.type === 'point') {
-          if (hit.item.isSatellite && onSatelliteClick) {
-            onSatelliteClick(hit.item.payload);
-          } else if (hit.item.payload && onPointClick) {
-            onPointClick(hit.item.payload);
+          if (hit.item.isSatellite && callbacksRef.current.onSatelliteClick) {
+            callbacksRef.current.onSatelliteClick(hit.item.payload);
+          } else if (hit.item.payload && callbacksRef.current.onPointClick) {
+            callbacksRef.current.onPointClick(hit.item.payload);
           }
-        } else if (hit.type === 'segment' && hit.item.payload && onPointClick) {
-          onPointClick(hit.item.payload);
+        } else if (hit.type === 'segment' && hit.item.payload && callbacksRef.current.onPointClick) {
+          callbacksRef.current.onPointClick(hit.item.payload);
         }
         return;
       }
 
       const geoPt = screenToLonLat(sx, sy);
-      if (geoPt && PREPARED_COUNTRIES_CACHE && onCountrySelect) {
+      if (geoPt && PREPARED_COUNTRIES_CACHE && callbacksRef.current.onCountrySelect) {
         for (let i = 0; i < PREPARED_COUNTRIES_CACHE.length; i++) {
           if (isPointInFeature(geoPt.lat, geoPt.lon, PREPARED_COUNTRIES_CACHE[i])) {
-            onCountrySelect(PREPARED_COUNTRIES_CACHE[i].name);
+            callbacksRef.current.onCountrySelect(PREPARED_COUNTRIES_CACHE[i].name);
             return;
           }
         }
@@ -1722,13 +1746,14 @@ export default function EqualEarthMap2D({
         hoveredCountryRef.current = null;
         requestDraw();
       }
-      if (onHoverTooltip) {
-        onHoverTooltip({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
+      if (tooltipActiveRef.current && callbacksRef.current.onHoverTooltip) {
+        tooltipActiveRef.current = false;
+        callbacksRef.current.onHoverTooltip({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
       }
     };
 
     const onTouchStart = (e) => {
-      if (onInteraction) onInteraction();
+      if (callbacksRef.current.onInteraction) callbacksRef.current.onInteraction();
       if (e.touches.length === 1) {
         dragging = true;
         movedPx = 0;
@@ -1776,14 +1801,14 @@ export default function EqualEarthMap2D({
         const sy = e.changedTouches[0].clientY - rect.top;
         const hit = findHitAt(sx, sy);
         if (hit?.type === 'point') {
-          if (hit.item.isSatellite && onSatelliteClick) onSatelliteClick(hit.item.payload);
-          else if (hit.item.payload && onPointClick) onPointClick(hit.item.payload);
+          if (hit.item.isSatellite && callbacksRef.current.onSatelliteClick) callbacksRef.current.onSatelliteClick(hit.item.payload);
+          else if (hit.item.payload && callbacksRef.current.onPointClick) callbacksRef.current.onPointClick(hit.item.payload);
         } else {
           const geoPt = screenToLonLat(sx, sy);
-          if (geoPt && PREPARED_COUNTRIES_CACHE && onCountrySelect) {
+          if (geoPt && PREPARED_COUNTRIES_CACHE && callbacksRef.current.onCountrySelect) {
             for (let i = 0; i < PREPARED_COUNTRIES_CACHE.length; i++) {
               if (isPointInFeature(geoPt.lat, geoPt.lon, PREPARED_COUNTRIES_CACHE[i])) {
-                onCountrySelect(PREPARED_COUNTRIES_CACHE[i].name);
+                callbacksRef.current.onCountrySelect(PREPARED_COUNTRIES_CACHE[i].name);
                 break;
               }
             }
@@ -1815,7 +1840,7 @@ export default function EqualEarthMap2D({
       canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
     };
-  }, [active, findHitAt, onCountrySelect, onHoverTooltip, onInteraction, onPointClick, onSatelliteClick, requestDraw, screenToLonLat]);
+  }, [active, findHitAt, requestDraw, screenToLonLat]);
 
   return (
     <div

@@ -444,6 +444,28 @@ const CESIUM_CDNS = [
 ];
 
 let cesiumSingletonPromise = null;
+let cachedSoftwareGl = null;
+
+function detectSoftwareWebGL() {
+  if (cachedSoftwareGl !== null) return cachedSoftwareGl;
+  if (typeof document === 'undefined') return false;
+  try {
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2') || probe.getContext('webgl') || probe.getContext('experimental-webgl');
+    if (!gl) {
+      cachedSoftwareGl = false;
+      return false;
+    }
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const renderer = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
+    cachedSoftwareGl = /swiftshader|llvmpipe|software|basic render/i.test(renderer);
+    try { gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch {}
+    return cachedSoftwareGl;
+  } catch {
+    cachedSoftwareGl = false;
+    return false;
+  }
+}
 
 function loadCesiumLibraryOnce() {
   if (typeof window === 'undefined') return Promise.resolve(false);
@@ -475,7 +497,7 @@ function loadCesiumLibraryOnce() {
       }
 
       const prevScript = document.getElementById('cesium-js-pkg');
-      if (prevScript && idx > 0) {
+      if (prevScript && (idx > 0 || prevScript.dataset.failed === '1')) {
         prevScript.remove();
       }
 
@@ -496,9 +518,10 @@ function loadCesiumLibraryOnce() {
           resolve(true);
         } else {
           console.warn(`Cesium CDN timed out (${cdn.js}), trying mirror...`);
+          try { script.dataset.failed = '1'; script.remove(); } catch {}
           tryCdn(idx + 1);
         }
-      }, 14000);
+      }, 20000);
 
       script.addEventListener(
         'load',
@@ -507,7 +530,10 @@ function loadCesiumLibraryOnce() {
           settled = true;
           clearTimeout(timer);
           if (window.Cesium) resolve(true);
-          else tryCdn(idx + 1);
+          else {
+            try { script.dataset.failed = '1'; script.remove(); } catch {}
+            tryCdn(idx + 1);
+          }
         },
         { once: true }
       );
@@ -519,6 +545,7 @@ function loadCesiumLibraryOnce() {
           settled = true;
           clearTimeout(timer);
           console.warn(`Cesium CDN failed (${cdn.js}), trying mirror...`);
+          try { script.dataset.failed = '1'; script.remove(); } catch {}
           tryCdn(idx + 1);
         },
         { once: true }
@@ -534,7 +561,7 @@ function loadCesiumLibraryOnce() {
 export default function CesiumGlobe({ 
   displayedMarkers = [], 
   onPointClick = null, 
-  mapMode = '2d', 
+  mapMode = '3d', 
   mapStyle = 'satellite', 
   focusCoordinate = null, 
   onMapModeChange = null,
@@ -618,8 +645,10 @@ export default function CesiumGlobe({
   };
 
   const [mapError, setMapError] = useState(false);
+  const [mapErrorReason, setMapErrorReason] = useState('');
   const [scriptsLoaded, setScriptsLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.Cesium));
   const [cesiumRetryNonce, setCesiumRetryNonce] = useState(0);
+  const contextLostRetriesRef = useRef(0);
   const prevMapModeRef = useRef(mapMode);
 
   // Schedule immediate + short follow-up scene renders so async Billboard TextureAtlas / ImageBitmap uploads
@@ -686,7 +715,9 @@ export default function CesiumGlobe({
         viewerCleanupRef.current();
         viewerCleanupRef.current = null;
       }
+      contextLostRetriesRef.current = 0;
       setMapError(false);
+      setMapErrorReason('');
       setCesiumRetryNonce(n => n + 1);
     }
     try {
@@ -699,6 +730,14 @@ export default function CesiumGlobe({
       scheduleSceneRenders(viewerRef.current);
     }
   }, [mapError, onMapModeChange, scheduleSceneRenders]);
+
+  // Allow Theme & Settings / AccountModal "3D GLOBE" clicks to ALWAYS clear any prior mapError even if mapMode is already '3d'
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onForce3D = () => triggerSwitchTo3D();
+    window.addEventListener('sovdash_force_3d', onForce3D);
+    return () => window.removeEventListener('sovdash_force_3d', onForce3D);
+  }, [triggerSwitchTo3D]);
 
   const [hoverTooltip, setHoverTooltip] = useState({ show: false, x: 0, y: 0, content: '', type: 'generic', title: '', details: null });
   const setHoverTooltipRef = useRef(setHoverTooltip);
@@ -1652,24 +1691,21 @@ export default function CesiumGlobe({
 
       const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth < 1024));
       const isLowMem = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-      const isSoftwareGl = (() => {
-        try {
-          const probe = document.createElement('canvas');
-          const gl = probe.getContext('webgl') || probe.getContext('experimental-webgl');
-          if (!gl) return false;
-          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-          const renderer = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
-          return /swiftshader|llvmpipe|software|basic render/i.test(renderer);
-        } catch {
-          return false;
-        }
-      })();
+      const isSoftwareGl = detectSoftwareWebGL();
 
-      const buildViewerOpts = (compatFallback = false) => {
+      // Guard against 0x0 container during initial flexbox hydration so WebGL framebuffer creation never throws
+      if (containerRef.current.clientWidth < 16 || containerRef.current.clientHeight < 16) {
+        const retryTimer = setTimeout(() => setCesiumRetryNonce(n => n + 1), 120);
+        return () => clearTimeout(retryTimer);
+      }
+
+      const buildViewerOpts = (tier = 'primary') => {
         const provider = createBaseProvider();
+        const isCompat = tier === 'compat' || tier === 'webgl1' || isSoftwareGl;
         const opts = {
           contextOptions: {
-            webgl: (compatFallback || isSoftwareGl)
+            ...(tier === 'webgl1' ? { requestWebgl1: true } : {}),
+            webgl: isCompat
               ? {
                   alpha: false,
                   depth: true,
@@ -1691,6 +1727,7 @@ export default function CesiumGlobe({
                   powerPreference: 'default'
                 }
           },
+          ...(tier === 'webgl1' ? { skyBox: false, skyAtmosphere: false } : {}),
           baseLayerPicker: false,
           geocoder: false,
           homeButton: false,
@@ -1716,11 +1753,17 @@ export default function CesiumGlobe({
       };
 
       try {
-        viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts(false));
+        viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts('primary'));
       } catch (primaryErr) {
         console.warn('Primary WebGL context failed, retrying with compatibility WebGL profile:', primaryErr);
         containerRef.current.innerHTML = '';
-        viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts(true));
+        try {
+          viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts('compat'));
+        } catch (compatErr) {
+          console.warn('Compatibility WebGL2 profile failed, retrying with WebGL1 ultra-compat profile:', compatErr);
+          containerRef.current.innerHTML = '';
+          viewer = new Cesium.Viewer(containerRef.current, buildViewerOpts('webgl1'));
+        }
       }
 
       viewer.clock.shouldAnimate = false;
@@ -1763,8 +1806,10 @@ export default function CesiumGlobe({
         viewer.imageryLayers.addImageryProvider(createBaseProvider());
       }
 
-      // Enable Google Maps API key globally in Cesium
-      Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
+      // Enable Google Maps API key globally in Cesium (defensive guard across CDN builds)
+      if (Cesium.GoogleMaps) {
+        Cesium.GoogleMaps.defaultApiKey = GOOGLE_API_KEY;
+      }
 
       let removeTileProgressListener = null;
       let removeFirstSurfaceListener = null;
@@ -2402,11 +2447,31 @@ export default function CesiumGlobe({
 
       const handleContextLost = (evt) => {
         try { evt.preventDefault(); } catch {}
-        console.warn('[Cesium] WebGL context lost — switching cleanly to Equal Earth 2D until restored.');
         if (typeof viewerCleanupRef.current === 'function') {
           viewerCleanupRef.current();
           viewerCleanupRef.current = null;
         }
+        if (contextLostRetriesRef.current < 3) {
+          contextLostRetriesRef.current += 1;
+          console.warn(`[Cesium] Transient WebGL context lost — auto-recovering 3D Globe (attempt ${contextLostRetriesRef.current}/3)...`);
+          const scheduleRecover = () => {
+            setTimeout(() => setCesiumRetryNonce(n => n + 1), 900 * contextLostRetriesRef.current);
+          };
+          if (typeof document !== 'undefined' && document.hidden) {
+            const onVis = () => {
+              if (!document.hidden) {
+                document.removeEventListener('visibilitychange', onVis);
+                scheduleRecover();
+              }
+            };
+            document.addEventListener('visibilitychange', onVis);
+          } else {
+            scheduleRecover();
+          }
+          return;
+        }
+        console.warn('[Cesium] Repeated WebGL context loss — switching cleanly to Equal Earth 2D.');
+        setMapErrorReason('WebGL context lost');
         setMapError(true);
       };
       if (viewer.scene?.canvas) {
@@ -2461,6 +2526,7 @@ export default function CesiumGlobe({
       viewerRef.current = null;
       setViewerReady(false);
       setGlobeSurfaceReady(false);
+      setMapErrorReason(String(e?.message || 'WebGL unavailable'));
       setMapError(true);
     }
   }, [mapError, scriptsLoaded, is2DActive, cesiumRetryNonce]);
@@ -4281,14 +4347,16 @@ export default function CesiumGlobe({
     }
   }
 
-  const show2DCanvas = is2DActive || !viewerReady || !globeSurfaceReady;
+  // Only render Equal Earth 2D when 2D mode is explicitly selected or WebGL genuinely failed — NEVER flash 2D during 3D cold boot!
+  const is3DReadyToDisplay = !is2DActive && viewerReady && globeSurfaceReady;
+  const isLightBackdrop = mapStyle === 'light' || uiTheme === 'light';
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: mapStyle === 'light' || uiTheme === 'light' ? '#e2e8f0' : '#020617' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: isLightBackdrop ? '#e2e8f0' : '#020617' }}>
       
-      {/* Equal Earth 2D Map (Default in 2D mode & instant zero-blank-screen backdrop while 3D WebGL warms) */}
+      {/* Equal Earth 2D Map (Active ONLY in 2D mode or WebGL fallback — never shown on 3D default boot) */}
       <EqualEarthMap2D
-        active={show2DCanvas}
+        active={is2DActive}
         layerCache={GLOBE_LAYER_CACHE}
         ensureCountriesGeoJson={ensureCountriesGeoJson}
         repelledMarkers={repelledMarkers}
@@ -4335,47 +4403,67 @@ export default function CesiumGlobe({
           position: 'absolute', 
           top: 0, 
           left: 0, 
-          zIndex: !show2DCanvas ? 2 : 1,
-          opacity: !show2DCanvas ? 1 : 0,
-          pointerEvents: !show2DCanvas ? 'auto' : 'none',
-          transition: 'opacity 0.22s ease'
+          zIndex: !is2DActive ? 2 : 1,
+          opacity: is3DReadyToDisplay ? 1 : 0,
+          pointerEvents: !is2DActive ? 'auto' : 'none',
+          transition: 'opacity 0.28s ease'
         }} 
       />
 
-      {/* Non-blocking 3D Cold-Boot Indicator (only during initial script/shader/root-tile upload) */}
-      {!is2DActive && (!viewerReady || !globeSurfaceReady) && (
+      {/* Sleek 3D Orbital Sphere Cold-Boot Backdrop (only during initial script/shader/root-tile upload — zero 2D map flash!) */}
+      {!is2DActive && !is3DReadyToDisplay && (
         <div style={{
           position: 'absolute',
-          top: '12px',
-          left: '12px',
-          zIndex: 10,
-          background: 'var(--sov-panel-bg)',
-          border: '1px solid var(--sov-accent)',
-          borderRadius: '7px',
-          padding: '6px 12px',
-          fontSize: '9.5px',
-          fontFamily: 'var(--font-jetbrains-fallback)',
-          color: 'var(--sov-accent)',
-          boxShadow: 'var(--sov-shadow)',
-          backdropFilter: 'blur(10px)',
-          letterSpacing: '0.04em',
+          inset: 0,
+          zIndex: 3,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px',
-          fontWeight: 700
+          justifyContent: 'center',
+          gap: '16px',
+          pointerEvents: 'none',
+          background: isLightBackdrop
+            ? 'radial-gradient(circle at 50% 48%, rgba(191, 219, 254, 0.55) 0%, #e2e8f0 68%)'
+            : 'radial-gradient(circle at 50% 48%, rgba(14, 165, 233, 0.14) 0%, #020617 65%)'
         }}>
-          <span
-            className="animate-spin"
-            style={{
-              width: '11px',
-              height: '11px',
-              borderRadius: '50%',
-              border: '2px solid var(--sov-border)',
-              borderTopColor: 'var(--sov-accent)',
-              display: 'inline-block'
-            }}
-          />
-          <span>INITIALIZING 3D GLOBE…</span>
+          <div style={{
+            width: 'min(42vw, 310px)',
+            height: 'min(42vw, 310px)',
+            borderRadius: '50%',
+            position: 'relative',
+            background: isLightBackdrop
+              ? 'radial-gradient(circle at 35% 32%, #eff6ff 0%, #bfdbfe 58%, #93c5fd 100%)'
+              : 'radial-gradient(circle at 35% 32%, #132c4c 0%, #0a192f 58%, #030917 100%)',
+            boxShadow: isLightBackdrop
+              ? '0 0 60px rgba(2, 132, 199, 0.18), inset -18px -18px 36px rgba(15, 23, 42, 0.12)'
+              : '0 0 70px rgba(0, 240, 255, 0.16), inset -22px -22px 42px rgba(0, 0, 0, 0.55)',
+            border: `1px solid ${isLightBackdrop ? 'rgba(2, 132, 199, 0.35)' : 'rgba(56, 189, 248, 0.32)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <span
+              className="animate-spin"
+              style={{
+                position: 'absolute',
+                inset: '-10px',
+                borderRadius: '50%',
+                border: '2px solid transparent',
+                borderTopColor: 'var(--sov-accent)',
+                borderRightColor: isLightBackdrop ? 'rgba(2, 132, 199, 0.35)' : 'rgba(0, 240, 255, 0.35)'
+              }}
+            />
+            <span style={{
+              fontSize: '10px',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              color: 'var(--sov-accent)',
+              textTransform: 'uppercase'
+            }}>
+              INITIALIZING 3D GLOBE…
+            </span>
+          </div>
         </div>
       )}
 
