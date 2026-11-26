@@ -155,7 +155,7 @@ export default async function MethodologyPage() {
             Active signals age off the real-time tactical map after 21 days by transitioning to <code>lifecycle_state = &apos;archived&apos;</code> rather than deletion, preserving longitudinal continuity for policy diffusion research. Pinned treaty dossiers remain visible continuously.
           </p>
           <p style={{ fontSize: '13px', color: 'var(--sov-muted)', lineHeight: 1.65 }}>
-            <strong>Epistemic Caveat:</strong> Current live wire feeds skew toward English-language policy disclosures, North American/European statutory filings, and anglophone civil-society monitors. Direct machine-readable coverage spans CISA, US Federal Register, EUR-Lex, Epoch AI compute clusters, AIID incidents, and multilingual community RSS submissions.
+            <strong>Epistemic Caveat:</strong> Current live wire feeds skew toward English-language policy disclosures, North American/European statutory filings, and anglophone civil-society monitors. Direct machine-readable ingestion spans 65+ authoritative global feeds—including the US Federal Register API, US NIST/CAISI, UK NCSC, EUR-Lex, Epoch AI compute clusters, PeeringDB facilities, OONI/IODA censorship probes, arXiv (`cs.AI`/`cs.CY`/`cs.CR`/`cs.LG`/`cs.CL`), Nature Machine Intelligence, TechPolicy.Press, AIID incidents, and Global South civil-society monitors (CIPESA, Access Now, Advox, Derechos Digitales, Rest of World).
           </p>
         </section>
 
@@ -164,22 +164,23 @@ export default async function MethodologyPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--sov-text)' }}>5. Reproducible 200-Item Evaluation Benchmark &amp; CC-BY-4.0 Releases</h2>
             <Link href="/whitepaper" style={{ fontSize: '12px', color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}>
-              READ WHITEPAPER #1 ↗
+              READ WHITEPAPER V2.0 ↗
             </Link>
           </div>
           {benchmark ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
               {[
-                { label: 'Precision', value: `${(benchmark.metrics.precision * 100).toFixed(1)}%` },
-                { label: 'Recall', value: `${(benchmark.metrics.recall * 100).toFixed(1)}%` },
-                { label: 'F1 Score', value: `${(benchmark.metrics.f1 * 100).toFixed(1)}%` },
-                { label: 'Noise Rejection (TNR)', value: `${(benchmark.metrics.trueNegativeRate * 100).toFixed(1)}%` },
-                { label: 'Geocoding (<=200km)', value: `${(benchmark.metrics.geocodingAccuracy * 100).toFixed(1)}%` },
-                { label: 'Zero-Fabrication', value: `${(benchmark.metrics.zeroFabricationRate * 100).toFixed(1)}%` }
+                { label: 'Precision', value: `${(benchmark.metrics.precision * 100).toFixed(1)}%`, hint: 'Zero off-topic noise admitted' },
+                { label: 'Recall', value: `${(benchmark.metrics.recall * 100).toFixed(1)}%`, hint: 'Relevant policy signals caught' },
+                { label: 'F1 Score', value: `${(benchmark.metrics.f1 * 100).toFixed(1)}%`, hint: 'Balanced overall accuracy' },
+                { label: 'Noise Rejection (TNR)', value: `${(benchmark.metrics.trueNegativeRate * 100).toFixed(1)}%`, hint: 'Distractors & promos blocked' },
+                { label: 'Geocoding (<=200km)', value: `${(benchmark.metrics.geocodingAccuracy * 100).toFixed(1)}%`, hint: 'Verified real-world pin accuracy' },
+                { label: 'Zero-Fabrication', value: `${(benchmark.metrics.zeroFabricationRate * 100).toFixed(1)}%`, hint: 'No invented coordinates' }
               ].map((stat) => (
                 <div key={stat.label} style={{ background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '6px', padding: '10px 12px' }}>
                   <div style={{ fontSize: '10.5px', color: 'var(--sov-muted)' }}>{stat.label}</div>
                   <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--sov-emerald)', fontFamily: 'var(--font-jetbrains-fallback)' }}>{stat.value}</div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--sov-muted)', marginTop: '2px' }}>{stat.hint}</div>
                 </div>
               ))}
             </div>

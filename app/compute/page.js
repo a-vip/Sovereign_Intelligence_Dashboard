@@ -107,6 +107,10 @@ export default async function ComputeObservatoryPage() {
               </div>
             ))}
           </div>
+          <div style={{ marginTop: '4px', padding: '12px 14px', borderRadius: '8px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', fontSize: '12.5px', color: 'var(--sov-muted)', lineHeight: 1.6 }}>
+            <strong style={{ color: 'var(--sov-text)' }}>How to interpret this gap:</strong> <strong>GW / MW</strong> measures electric power load required to train and serve frontier AI models; <strong>H100e</strong> normalizes diverse GPUs/TPUs into NVIDIA H100 equivalents; <strong>FLOP</strong> measures cumulative mathematical operations used during training. Currently <strong>{coverage.sectoralPct}%</strong> of tracked global AI cluster power operates outside comprehensive national AI statutes—see our full empirical analysis in{' '}
+            <Link href="/whitepaper#sec-2" style={{ color: 'var(--sov-accent)', fontWeight: 700, textDecoration: 'none' }}>Whitepaper v2.0 →</Link>
+          </div>
         </section>
 
         {/* Ranked Frontier Data Center Clusters */}

@@ -3,13 +3,15 @@ import path from 'path';
 import Link from 'next/link';
 import ObservatorySubNav from '@/components/ObservatorySubNav';
 import { getAdminAiAnalytics, getAiConfig, getEvalRuns, getKnowledgeChunkStats } from '@/lib/sovdashAiDb';
+import { getAiRegulations } from '@/lib/db';
+import { JURISDICTIONS } from '@/lib/jurisdictions';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'SovDash AI Technical Architecture & Hallucination Audit Report',
+  title: 'Ask SovDash AI Technical Architecture & Hallucination Audit Report',
   description:
-    'Published methodology, Neon pgvector hybrid RRF citation-locked RAG architecture, and automated adversarial hallucination benchmark results for SovDash AI.',
+    'Published methodology, hybrid Neon pgvector + live web-verified research architecture, and automated adversarial hallucination benchmark results for Ask SovDash AI.',
   alternates: { canonical: '/ai-report' }
 };
 
@@ -24,12 +26,15 @@ function readBenchmarkFallback() {
 }
 
 export default async function AiAuditReportPage() {
-  const [evalRuns, indexStats, analytics, config] = await Promise.all([
+  const [evalRuns, indexStats, analytics, config, regulations] = await Promise.all([
     getEvalRuns(5).catch(() => []),
     getKnowledgeChunkStats().catch(() => ({ total: 0, byType: {}, hasPgVector: false })),
     getAdminAiAnalytics().catch(() => ({ totalTurns: 0, passRate: 100, avgCitationCoverage: 100, flaggedCount: 0 })),
-    getAiConfig().catch(() => ({ provider: 'auto-opensource', modelId: 'openai/gpt-oss-120b' }))
+    getAiConfig().catch(() => ({ provider: 'auto-opensource', modelId: 'openai/gpt-oss-120b' })),
+    getAiRegulations().catch(() => [])
   ]);
+
+  const statuteCount = regulations?.length || 472;
 
   const committed = readBenchmarkFallback();
   const latest = evalRuns?.[0] || committed || {
@@ -64,12 +69,17 @@ export default async function AiAuditReportPage() {
             SOVEREIGN OBSERVATORY // TECHNICAL REPORT &amp; HALLUCINATION BENCHMARK
           </span>
           <h1 style={{ fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)', fontWeight: 800, color: 'var(--sov-text)', lineHeight: 1.2, margin: 0 }}>
-            SovDash AI: Citation-Locked Governance RAG &amp; Hallucination Audit
+            Ask SovDash AI: Grounded Research Architecture &amp; Hallucination Audit
           </h1>
           <p style={{ color: 'var(--sov-muted)', fontSize: '14.5px', lineHeight: 1.65, maxWidth: '880px', margin: 0 }}>
-            Empirical evaluation of <strong>Ask SovDash</strong>, a Neon <code style={{ color: 'var(--sov-accent)' }}>pgvector</code> hybrid retrieval copilot operating over Sovereign Observatory&apos;s legal diff profiles, 472+ normalized statutes, Epoch compute clusters, PeeringDB data centers, Frontier Lab commitments, OONI/IODA censorship probes, and live OSINT feeds—with open-source reasoning cascade support and deterministic sentence-level citation auditing.
+            Empirical evaluation of <strong>Ask SovDash AI</strong>, a hybrid Neon <code style={{ color: 'var(--sov-accent)' }}>pgvector</code> + live authoritative web-verified research copilot operating over Sovereign Observatory&apos;s {JURISDICTIONS.length} jurisdiction profiles, {statuteCount.toLocaleString()} normalized statutory/policy records, Epoch AI compute clusters, PeeringDB data centers, Frontier Lab commitments, OONI/IODA censorship probes, and live OSINT feeds—with multi-step reasoning and deterministic sentence-level citation verification.
           </p>
         </header>
+
+        {/* Plain-English Audit Guide */}
+        <section style={{ padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'var(--sov-card-bg)', fontSize: '13px', color: 'var(--sov-muted)', lineHeight: 1.6 }}>
+          <strong style={{ color: 'var(--sov-text)' }}>How to read this benchmark:</strong> Every test prompt runs through the live Ask SovDash AI retrieval and verification pipeline. <strong>Pass Rate</strong> measures factual correctness, completeness, and clean formatting; <strong>Trap Abstention</strong> tests whether the assistant refuses to invent answers to fictional or undisclosed laws; and <strong>Phantom Citations</strong> confirms zero fabricated or out-of-bounds reference numbers.
+        </section>
 
         {/* Primary KPI Scorecard */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: '12px' }}>
@@ -165,7 +175,7 @@ export default async function AiAuditReportPage() {
 
         {/* Academic Citation Footer */}
         <section style={{ padding: '16px', borderRadius: '10px', border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)', fontSize: '12px', color: 'var(--sov-muted)', lineHeight: 1.6 }}>
-          <strong style={{ color: 'var(--sov-text)' }}>Cite This Audit Report (APA 7th / OSCOLA):</strong> Sovereign AI Policy Observatory (2026). <em>SovDash AI Technical Architecture &amp; Citation-Lock Hallucination Benchmark</em>. https://app.sovdash.com/ai-report · <Link href="/" style={{ color: 'var(--sov-accent)', fontWeight: 700 }}>Return to Live Globe &amp; Ask SovDash →</Link>
+          <strong style={{ color: 'var(--sov-text)' }}>Cite This Audit Report (APA 7th / OSCOLA):</strong> Sovereign AI Policy Observatory (2026). <em>Ask SovDash AI Technical Architecture &amp; Hallucination Audit Benchmark</em>. https://app.sovdash.com/ai-report · <Link href="/" style={{ color: 'var(--sov-accent)', fontWeight: 700 }}>Return to Live Globe &amp; Ask SovDash AI →</Link>
         </section>
       </div>
     </div>

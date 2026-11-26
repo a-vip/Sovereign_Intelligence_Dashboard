@@ -1,15 +1,18 @@
 import EmbedCopyCard from '@/components/EmbedCopyCard';
 import ObservatorySubNav from '@/components/ObservatorySubNav';
 import DeveloperApiPlayground from '@/components/DeveloperApiPlayground';
+import { JURISDICTIONS } from '@/lib/jurisdictions';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Developer REST API, GeoJSON Feeds & Institutional Embeds',
   description:
-    'Programmatic REST and RFC 7946 GeoJSON endpoints for AI safety signals, 38-jurisdiction SAGRI readiness scores, Epoch AI compute clusters, and iframeable institutional widgets.',
+    'Programmatic REST and RFC 7946 GeoJSON endpoints for AI safety signals, 60-jurisdiction SAGRI readiness scores, Epoch AI compute clusters, and iframeable institutional widgets.',
   alternates: { canonical: '/developers' }
 };
+
+const JURISDICTION_COUNT = JURISDICTIONS.length;
 
 const ENDPOINTS = [
   {
@@ -22,7 +25,7 @@ const ENDPOINTS = [
   {
     path: '/api/v1/jurisdictions',
     title: 'GET /api/v1/jurisdictions',
-    desc: 'Returns all 38 sovereign AI jurisdiction profiles merged with live SAGRI readiness scores (0–100) and statutory diff parameters. Supports ?slug=eu.',
+    desc: `Returns all ${JURISDICTION_COUNT} sovereign AI jurisdiction profiles merged with live SAGRI readiness scores (0–100) and statutory diff parameters. Supports ?slug=eu.`,
     curl: 'curl -s "https://app.sovdash.com/api/v1/jurisdictions?slug=eu" | jq .',
     proCurl: null
   },
@@ -69,7 +72,7 @@ export default function DevelopersPage() {
               <li>Up to <strong>15 records</strong> per API call</li>
               <li>21-day live rolling signal window</li>
               <li>Full JSON &amp; RFC 7946 GeoJSON output</li>
-              <li>Complete 38-jurisdiction SAGRI &amp; Embed access</li>
+              <li>Complete {JURISDICTION_COUNT}-jurisdiction SAGRI &amp; Embed access</li>
             </ul>
           </div>
 

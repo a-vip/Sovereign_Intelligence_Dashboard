@@ -1,10 +1,11 @@
 import RegulatoryCompareClient from '@/components/RegulatoryCompareClient';
 import ObservatorySubNav from '@/components/ObservatorySubNav';
+import { REGULATORY_DIFF_PROFILES } from '@/lib/governanceIndex';
 
 export const metadata = {
   title: 'Side-by-Side Global AI Regulation Diff Matrix',
   description:
-    'Compare binding statutory status, compute thresholds, prohibited AI practices, pre-deployment safety testing, watermarking, whistleblower protections, and penalties across the EU AI Act, California SB 53, South Korea AI Basic Act, China CAC, UK AISI, and more.',
+    'Compare binding statutory status, compute thresholds, prohibited AI practices, pre-deployment safety testing, watermarking, whistleblower protections, and penalties across 16 major global AI jurisdictions.',
   alternates: { canonical: '/compare' }
 };
 
@@ -22,7 +23,7 @@ export default function CompareRegulationsPage() {
             Cross-Jurisdictional AI Law &amp; Compliance Diff Matrix
           </h1>
           <p style={{ color: 'var(--sov-muted)', fontSize: '15px', lineHeight: 1.6, maxWidth: '880px' }}>
-            Side-by-side statutory comparison across 10 compliance and enforcement dimensions—built for policy researchers, general counsel, and international governance scholars. Toggle Editorial Light mode or export directly to Markdown/PDF.
+            Side-by-side statutory comparison across 10 compliance and enforcement dimensions covering {REGULATORY_DIFF_PROFILES.length} anchor jurisdictions—built for policy researchers, general counsel, and international governance scholars. Toggle Editorial Light mode or export directly to Markdown/PDF.
           </p>
         </header>
 

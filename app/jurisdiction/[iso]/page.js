@@ -4,8 +4,9 @@ import { getJurisdictionBySlug, eventMatchesJurisdiction } from '@/lib/jurisdict
 import { getEventsByJurisdiction, getAiRegulations, getFrontierClusters } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeAdmiraltyGrade, normalizeSignalId } from '@/lib/provenance';
+import { computeSagriScores, DEFAULT_SAGRI_WEIGHTS } from '@/lib/governanceIndex';
 import EmbedCopyCard from '@/components/EmbedCopyCard';
-import EditorialThemeToggle from '@/components/EditorialThemeToggle';
+import ObservatorySubNav from '@/components/ObservatorySubNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,24 +94,49 @@ export default async function JurisdictionDossierPage({ params }) {
     );
   });
 
+  const totalDomesticMw = domesticClusters.reduce((acc, c) => acc + (Number(c.powerMw) || 0), 0);
+  const sagriMatch = curatedJurisdiction
+    ? computeSagriScores(DEFAULT_SAGRI_WEIGHTS, {
+        [jurisdiction.slug]: {
+          signalCount: combinedSignals.length,
+          regulationCount: matchedRegulations.length,
+          powerMw: totalDomesticMw
+        }
+      }).find((s) => s.slug === jurisdiction.slug)
+    : null;
+
   return (
     <div className="editorial-page" style={{ minHeight: '100vh', background: 'var(--sov-bg)', color: 'var(--sov-text)', padding: '32px 20px 64px' }}>
       <div style={{ maxWidth: '1080px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '26px' }}>
-        {/* Breadcrumb Bar */}
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px' }}>
-            <Link href="/" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontWeight: 700 }}>
-              ← 3D GLOBE
-            </Link>
-            <span style={{ color: '#334155' }}>/</span>
-            <Link href="/jurisdictions" style={{ color: 'var(--sov-muted)', textDecoration: 'none', fontWeight: 600 }}>
-              JURISDICTIONS
+        <ObservatorySubNav active="jurisdictions" />
+
+        {/* Breadcrumb & Quick Actions Bar */}
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--sov-border)', paddingBottom: '14px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontFamily: 'var(--font-jetbrains-fallback)', fontSize: '12px' }}>
+            <Link href="/jurisdictions" style={{ color: 'var(--sov-accent)', textDecoration: 'none', fontWeight: 700 }}>
+              ← ALL JURISDICTIONS
             </Link>
             <span style={{ color: '#334155' }}>/</span>
             <span style={{ color: 'var(--sov-text)', fontWeight: 700 }}>{jurisdiction.iso}</span>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link
+              href="/compare"
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                background: 'rgba(168, 85, 247, 0.12)',
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                color: 'var(--sov-purple)',
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                fontSize: '11px',
+                fontWeight: 700,
+                textDecoration: 'none'
+              }}
+            >
+              COMPARE LAWS ↗
+            </Link>
             <Link
               href={`/brief?jurisdiction=${encodeURIComponent(jurisdiction.slug)}`}
               style={{
@@ -143,19 +169,38 @@ export default async function JurisdictionDossierPage({ params }) {
             >
               OPEN ON 3D GLOBE ↗
             </Link>
-            <EditorialThemeToggle />
           </div>
         </nav>
 
         {/* Jurisdiction Header Card */}
         <header style={{ background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-jetbrains-fallback)', color: jurisdiction.postureColor, background: `${jurisdiction.postureColor}18`, border: `1px solid ${jurisdiction.postureColor}55`, padding: '4px 10px', borderRadius: '4px' }}>
-              {jurisdiction.posture.toUpperCase()}
-            </span>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)' }}>
-              REGION: {jurisdiction.region.toUpperCase()} • HUB: {jurisdiction.capital}
-            </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-jetbrains-fallback)', color: jurisdiction.postureColor, background: `${jurisdiction.postureColor}18`, border: `1px solid ${jurisdiction.postureColor}55`, padding: '4px 10px', borderRadius: '4px' }}>
+                {jurisdiction.posture.toUpperCase()}
+              </span>
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-muted)' }}>
+                REGION: {jurisdiction.region.toUpperCase()} • HUB: {jurisdiction.capital}
+              </span>
+            </div>
+            {sagriMatch && (
+              <Link
+                href="/readiness"
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-jetbrains-fallback)',
+                  color: sagriMatch.tierColor,
+                  background: 'var(--sov-card-bg)',
+                  border: `1px solid ${sagriMatch.tierColor}66`,
+                  padding: '5px 11px',
+                  borderRadius: '6px',
+                  textDecoration: 'none'
+                }}
+              >
+                SAGRI {sagriMatch.score}/100 · {sagriMatch.tier.split('—')[0].trim()}
+              </Link>
+            )}
           </div>
 
           <h1 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 800, color: 'var(--sov-text)', lineHeight: 1.2 }}>

@@ -2,6 +2,7 @@ import { JURISDICTIONS, eventMatchesJurisdiction } from '@/lib/jurisdictions';
 import { getEvents, getAiRegulations, getFrontierClusters } from '@/lib/db';
 import { getStopKillerRobotsSignals } from '@/lib/researchFunnel';
 import { computeSagriScores, buildLiveMetricsBySlug, DEFAULT_SAGRI_WEIGHTS } from '@/lib/governanceIndex';
+import { normalizeSignalId } from '@/lib/provenance';
 import ObservatorySubNav from '@/components/ObservatorySubNav';
 import JurisdictionsAtlasClient from '@/components/JurisdictionsAtlasClient';
 
@@ -22,7 +23,14 @@ export default async function JurisdictionsAtlasPage() {
   ]);
 
   const curated = getStopKillerRobotsSignals() || [];
-  const combinedSignals = [...curated, ...(dbEvents || [])];
+  const seenIds = new Set();
+  const combinedSignals = [];
+  for (const ev of [...curated, ...(dbEvents || [])]) {
+    const cid = normalizeSignalId(ev?.id);
+    if (!cid || seenIds.has(cid)) continue;
+    seenIds.add(cid);
+    combinedSignals.push(ev);
+  }
   const liveMetrics = buildLiveMetricsBySlug({ events: combinedSignals, clusters, regulations: regs });
   const sagriScores = computeSagriScores(DEFAULT_SAGRI_WEIGHTS, liveMetrics);
   const sagriMap = Object.fromEntries(sagriScores.map((s) => [s.slug, s]));

@@ -1314,23 +1314,23 @@ export default function EqualEarthMap2D({
         const [sx, sy] = lonLatToScreen(Number(lon), Number(lat));
         const sev = Number(m.severity) || 2;
         const sevColor = SEV_COLORS[sev] || '#ff2d55';
-        const r = Math.min(4.2 + sev * 0.88, 8.8);
+        const r = Math.min(3.1 + sev * 0.62, 6.4);
         const isManual = String(m.id || '').startsWith('evt-');
 
         // Critical S5 outer halo ring
         if (sev >= 5) {
           ctx.beginPath();
-          ctx.arc(sx, sy, r + 5.2, 0, Math.PI * 2);
+          ctx.arc(sx, sy, r + 4.0, 0, Math.PI * 2);
           ctx.fillStyle = 'rgba(255, 45, 85, 0.16)';
           ctx.fill();
-          ctx.lineWidth = 1.2;
+          ctx.lineWidth = 1.1;
           ctx.strokeStyle = 'rgba(255, 45, 85, 0.78)';
           ctx.stroke();
         }
 
         // Grounding shadow ring
         ctx.beginPath();
-        ctx.arc(sx, sy, r + 1.8, 0, Math.PI * 2);
+        ctx.arc(sx, sy, r + 1.35, 0, Math.PI * 2);
         ctx.fillStyle = palette.isLight ? 'rgba(15, 23, 42, 0.28)' : 'rgba(2, 6, 23, 0.55)';
         ctx.fill();
 
@@ -1339,14 +1339,14 @@ export default function EqualEarthMap2D({
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.fillStyle = sevColor;
         ctx.fill();
-        ctx.lineWidth = isManual ? 2.2 : 1.5;
+        ctx.lineWidth = isManual ? 1.8 : 1.25;
         ctx.strokeStyle = isManual ? '#00f0ff' : palette.isLight ? '#0f172a' : '#ffffff';
         ctx.stroke();
 
         hitPoints.push({
           x: sx,
           y: sy,
-          r: Math.max(9, r + 4),
+          r: Math.max(8.5, r + 3.8),
           priority: 8,
           tooltipType: 'event',
           title: m.title || m.name || 'Policy Signal',

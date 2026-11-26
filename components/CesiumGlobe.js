@@ -2695,12 +2695,12 @@ export default function CesiumGlobe({
         const sevColorStr = SEV_COLORS[m.severity] || '#ff2d55';
         const threatId = `threat-${m.id || m.title}`;
         const newPos = Cesium.Cartesian3.fromDegrees(m.repelledLon, m.repelledLat, targetHeight);
-        const nodeDiameter = 9.5 + (m.severity || 1) * 1.9;
+        const nodeDiameter = 6.8 + (m.severity || 1) * 1.3;
 
         const existing = threatEntitiesMapRef.current.get(threatId) || viewer.entities.getById(threatId);
         const isManualEvent = String(m.id || '').startsWith('evt-');
         const outlineColor = isManualEvent ? '#00f0ff' : '#ffffff';
-        const outlineWidth = isManualEvent ? 2.4 : 1.6;
+        const outlineWidth = isManualEvent ? 1.9 : 1.35;
 
         if (existing) {
           threatEntitiesMapRef.current.set(threatId, existing);
@@ -2740,7 +2740,7 @@ export default function CesiumGlobe({
             position: newPos,
             billboard: {
               image: createCircleCanvas(sevColorStr, nodeDiameter, outlineColor, outlineWidth),
-              scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.08, 1.8e7, 0.80),
+              scaleByDistance: new Cesium.NearFarScalar(1.5e6, 0.96, 1.8e7, 0.72),
               heightReference: targetHeightRef,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               verticalOrigin: Cesium.VerticalOrigin.CENTER,
@@ -2782,8 +2782,8 @@ export default function CesiumGlobe({
               id: pulseId,
               position: newPos,
               ellipse: {
-                semiMajorAxis: 135000.0,
-                semiMinorAxis: 135000.0,
+                semiMajorAxis: 98000.0,
+                semiMinorAxis: 98000.0,
                 height: 0,
                 material: Cesium.Color.fromCssColorString(sevColorStr).withAlpha(0.16),
                 outline: true,

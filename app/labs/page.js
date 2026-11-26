@@ -98,6 +98,16 @@ export default async function FrontierLabsWatchPage() {
           ))}
         </section>
 
+        {/* Plain-English Transparency Takeaway */}
+        <section style={{ padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.28)', background: 'var(--sov-card-bg)', fontSize: '13px', color: 'var(--sov-muted)', lineHeight: 1.6 }}>
+          <strong style={{ color: 'var(--sov-text)' }}>Key Transparency Finding:</strong> Across all {enrichedLabs.length} audited developers,{' '}
+          <strong style={{ color: 'var(--sov-emerald)' }}>{enrichedLabs.filter((l) => l.transparency.systemCards).length}/{enrichedLabs.length}</strong> publish Model System Cards,{' '}
+          <strong style={{ color: 'var(--sov-sky)' }}>{enrichedLabs.filter((l) => l.externalEvaluations.metrTested).length}/{enrichedLabs.length}</strong> have completed third-party METR autonomy evaluations,{' '}
+          <strong style={{ color: 'var(--sov-amber)' }}>{enrichedLabs.filter((l) => l.transparency.whistleblowerPolicy).length}/{enrichedLabs.length}</strong> guarantee formal whistleblower protections, and only{' '}
+          <strong style={{ color: 'var(--sov-amber)' }}>{enrichedLabs.filter((l) => l.transparency.computeDisclosed).length}/{enrichedLabs.length}</strong> disclose frontier training compute.{' '}
+          <Link href="/whitepaper#sec-4" style={{ color: 'var(--sov-accent)', fontWeight: 700, textDecoration: 'none' }}>Read full audit in Whitepaper v2.0 →</Link>
+        </section>
+
         {/* Executive Matrix Table (Desktop) */}
         <section className="sov-desktop-table" style={{ overflowX: 'auto', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)', borderRadius: '10px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>

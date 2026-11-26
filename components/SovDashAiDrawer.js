@@ -423,6 +423,7 @@ function SovDashThinkingVisualizer({ elapsedSec, promptText = '' }) {
   return (
     <div
       style={{
+        flexShrink: 0,
         borderRadius: '14px',
         border: '1px solid var(--sov-border)',
         background: 'var(--sov-card-bg)',
@@ -855,10 +856,18 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
   }, [loading]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, loading]);
+    const scrollToBottom = () => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    };
+    const rafId = typeof window !== 'undefined' ? window.requestAnimationFrame(scrollToBottom) : null;
+    const settleTimer = setTimeout(scrollToBottom, 90);
+    return () => {
+      if (rafId !== null && typeof window !== 'undefined') window.cancelAnimationFrame(rafId);
+      clearTimeout(settleTimer);
+    };
+  }, [messages.length, loading]);
 
   if (!isOpen) return null;
 
@@ -1016,6 +1025,8 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
     <aside
       role="dialog"
       aria-label="Ask SovDash AI Assistant"
+      onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
       style={{
         ...floatingFrameStyle,
         zIndex: 10040,
@@ -1033,6 +1044,7 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
       {/* Clean Compact Header */}
       <header
         style={{
+          flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1210,16 +1222,19 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
           <div
             ref={scrollRef}
             style={{
-              flex: 1,
+              flex: '1 1 0%',
+              minHeight: 0,
               overflowY: 'auto',
-              padding: '14px',
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
+              padding: '14px 14px 20px',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
             }}
           >
             {messages.length === 0 && !loading && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px', flexShrink: 0 }}>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--sov-text)', marginBottom: '2px' }}>
                   What would you like to explore?
                 </div>
@@ -1258,7 +1273,7 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
             {messages.map((m) => {
               if (m.role === 'user') {
                 return (
-                  <div key={m.id} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div key={m.id} style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
                     <div
                       style={{
                         maxWidth: '86%',
@@ -1286,6 +1301,7 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
                 <div
                   key={m.id}
                   style={{
+                    flexShrink: 0,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '7px',
@@ -1503,10 +1519,11 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
             )}
 
             {errorMsg && (
-              <div style={{ padding: '8px 11px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.12)', color: '#f87171', fontSize: '12px' }}>
+              <div style={{ flexShrink: 0, padding: '8px 11px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.12)', color: '#f87171', fontSize: '12px' }}>
                 {errorMsg}
               </div>
             )}
+            <div aria-hidden="true" style={{ height: '4px', flexShrink: 0 }} />
           </div>
 
           {/* Clean Composer */}
@@ -1516,6 +1533,7 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
               handleSend();
             }}
             style={{
+              flexShrink: 0,
               padding: '10px 12px',
               borderTop: '1px solid var(--sov-border)',
               background: 'var(--sov-card-bg)',

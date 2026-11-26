@@ -31,7 +31,7 @@ export default function WatchlistsPage() {
             Jurisdiction, Frontier Lab &amp; Keyword Watchlists
           </h1>
           <p style={{ color: 'var(--sov-muted)', fontSize: '15px', lineHeight: 1.6, maxWidth: '860px' }}>
-            Monitor statutory enactments, regulatory guidance, autonomous weapons diplomacy, and frontier compute governance across 38 jurisdictions. Test rules live against verified signals or route automated digests to Email, Slack, Discord, or custom HTTPS webhooks.
+            Monitor statutory enactments, regulatory guidance, autonomous weapons diplomacy, and frontier compute governance across {JURISDICTIONS.length} jurisdictions. Test rules live against verified signals or route automated digests to Email, Slack, Discord, or custom HTTPS webhooks.
           </p>
         </header>
 

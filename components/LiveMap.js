@@ -27,7 +27,18 @@ const EMPTY_MILESTONES = [];
 const EVENTS_POLL = 60000; // 60s visibility-gated sync for minimal CPU/network footprint
 
 const DEFAULT_RSS_SOURCE_LIST = [
-  { id: 'cisa', name: 'CISA Cyber Advisories' },
+  { id: 'techpolicy-press', name: 'TechPolicy.Press' },
+  { id: '404media', name: '404 Media Investigative Tech' },
+  { id: 'nist-news', name: 'US NIST / CAISI Standards & AI' },
+  { id: 'theregister-ai', name: 'The Register AI & Compute' },
+  { id: 'theregister-sec', name: 'The Register Security & Policy' },
+  { id: 'guardian-ai', name: 'The Guardian AI & Society' },
+  { id: 'theverge-ai', name: 'The Verge AI' },
+  { id: 'techcrunch-ai', name: 'TechCrunch AI' },
+  { id: 'biometricupdate', name: 'Biometric Update & Digital ID' },
+  { id: 'darkreading', name: 'Dark Reading Threat Intel' },
+  { id: 'mit-news-ai', name: 'MIT News Artificial Intelligence' },
+  { id: 'aclu', name: 'ACLU Civil Liberties & Surveillance' },
   { id: 'thn', name: 'The Hacker News' },
   { id: 'row', name: 'Rest of World Tech' },
   { id: 'mittr', name: 'MIT Tech Review AI' },
@@ -63,7 +74,25 @@ const DEFAULT_RSS_SOURCE_LIST = [
   { id: 'schneier', name: 'Schneier on Security' },
   { id: 'bleeping', name: 'BleepingComputer Security' },
   { id: 'arstechnica-policy', name: 'Ars Technica Tech Policy' },
-  { id: 'politico-tech', name: 'Politico Tech' }
+  { id: 'politico-tech', name: 'Politico Tech' },
+  { id: 'aspi-strategist', name: 'ASPI The Strategist (Australia)' },
+  { id: 'lowy-interpreter', name: 'Lowy Institute The Interpreter' },
+  { id: 'abc-au-tech', name: 'ABC Australia Tech & Policy' },
+  { id: 'cna-asia', name: 'Channel NewsAsia Tech & Policy' },
+  { id: 'vnexpress-intl', name: 'VnExpress International' },
+  { id: 'malaymail-tech', name: 'Malay Mail Tech & Policy' },
+  { id: 'medianama-india', name: 'MediaNama India Digital Policy' },
+  { id: 'inc42-india', name: 'Inc42 India AI & Compute Wire' },
+  { id: 'digichina-stanford', name: 'Stanford DigiChina' },
+  { id: 'china-ai-newsletter', name: 'ChinAI Newsletter (Jeffrey Ding)' },
+  { id: 'scmp-tech', name: 'South China Morning Post Tech' },
+  { id: 'smex-mena', name: 'SMEX West Asia Digital Rights' },
+  { id: 'paradigm-africa', name: 'Paradigm Initiative Africa' },
+  { id: 'hiperderecho-latam', name: 'Hiperderecho Andean Digital Rights' },
+  { id: 'r3d-mexico', name: 'R3D Digital Rights Mexico' },
+  { id: 'icrc-law-policy', name: 'ICRC Humanitarian Law & Policy' },
+  { id: 'datacenterdynamics', name: 'Data Center Dynamics' },
+  { id: 'subtelforum', name: 'Submarine Telecoms Forum' }
 ];
 
 const REGION_VIEWPORTS = [
@@ -1114,22 +1143,27 @@ export default function LiveMap({
     if (feedType !== 'papers' || vaultPapers.length > 0) return;
     fetch('/api/vault')
       .then((res) => (res.ok ? res.json() : []))
-      .then((docs) => {
-        if (!Array.isArray(docs)) return;
+      .then((payload) => {
+        const docs = Array.isArray(payload) ? payload : (Array.isArray(payload?.documents) ? payload.documents : []);
+        if (docs.length === 0) return;
         setVaultPapers(
-          docs.map((d, idx) => ({
-            id: d.id || `vault-${idx}`,
-            title: d.title || d.filename || 'Sovereign Research Dossier',
-            category: 'Political',
-            severity: 3,
-            location: 'Cambridge / Global Research',
-            timestamp: d.lastModified || d.createdAt || new Date().toISOString(),
-            original_post_time: d.lastModified || d.createdAt || new Date().toISOString(),
-            url: 'https://app.sovdash.com/whitepaper',
-            source: 'Sovereign Research Archive',
-            curated: true,
-            details: { summary: d.preview || d.content?.slice(0, 260) || '', isResearch: true, source: 'Sovereign Research Archive' }
-          }))
+          docs.map((d, idx) => {
+            const rawTitle = String(d.title || d.filename || 'Sovereign Research Dossier').replace(/\.md$/i, '');
+            const cleanTitle = rawTitle.replace(/^AUTO\s+DRAFT\s+\d{4}-\d{2}-\d{2}\s*[-–—:]?\s*/i, '').trim() || rawTitle;
+            return {
+              id: d.id || `vault-${idx}`,
+              title: cleanTitle,
+              category: d.category || 'Political',
+              severity: Number(d.severity) || 3,
+              location: d.location || 'Global Research Archive',
+              timestamp: d.lastModified || d.createdAt || '2026-05-30T00:00:00Z',
+              original_post_time: d.lastModified || d.createdAt || '2026-05-30T00:00:00Z',
+              url: d.url && String(d.url).startsWith('http') ? d.url : 'https://app.sovdash.com/whitepaper',
+              source: 'Sovereign Research Archive',
+              curated: true,
+              details: { summary: d.preview || d.content?.slice(0, 260) || '', isResearch: true, source: 'Sovereign Research Archive' }
+            };
+          })
         );
       })
       .catch(() => {});
@@ -1533,8 +1567,9 @@ export default function LiveMap({
     const windowMinMs = timeWindowDays < 365 ? Date.now() - timeWindowDays * 86400000 : 0;
     let filtered = deduplicated.filter(m => {
       if (!categories[m.category] || m.severity < minSeverity) return false;
+      const isPinned = Boolean(m.isPinned || m.details?.isPinned || m.details?.laws_disarmament);
       const tMs = parseDateSafe(m.original_post_time || m.timestamp).getTime();
-      if (windowMinMs > 0 && !m.isPinned && tMs > 0 && tMs < windowMinMs) return false;
+      if (windowMinMs > 0 && !isPinned && tMs > 0 && tMs < windowMinMs) return false;
       if (timelineCutoffMs !== null && tMs > 0 && tMs > timelineCutoffMs) return false;
       return true;
     });
@@ -1557,7 +1592,8 @@ export default function LiveMap({
       const count = hubCounts[hubKey] || 0;
 
       // Prevent automated feed spam from crowding any single city while always preserving pinned/edited dossiers
-      if (count >= 2 && !m.isPinned && !m.isEdited) {
+      const isPinned = Boolean(m.isPinned || m.details?.isPinned || m.details?.laws_disarmament);
+      if (count >= 2 && !isPinned && !m.edited && !m.isEdited) {
         continue;
       }
       hubCounts[hubKey] = count + 1;
@@ -1638,7 +1674,7 @@ export default function LiveMap({
         }
       }));
 
-    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|citizen\s*lab|oxford internet|oii|ieee|algorithmwatch|future of life|fli|oecd|nist|aisi|metr|epoch|sipri|unesco|african\s*union|cset|stanford|cambridge|brookings|rand|carnegie|hrw|eff|un|eur-lex|aiid|cipesa|access\s*now|advox|privacy international|apc|derechos digitales|sovereign research)/i;
+    const RESEARCH_SOURCE_RE = /(arxiv|nature|mit tech|mit news|techpolicy\.press|citizen\s*lab|oxford internet|oii|ieee|algorithmwatch|future of life|fli|oecd|nist|aisi|metr|epoch|sipri|unesco|african\s*union|cset|stanford|digichina|chinai|icrc|aspi|lowy|cambridge|brookings|rand|carnegie|hrw|eff|aclu|un|eur-lex|aiid|cipesa|access\s*now|advox|privacy international|apc|derechos digitales|sovereign research)/i;
     const allCandidateEvents = feedType === 'papers'
       ? [...vaultPapers, ...displayedEvents, ...formattedRssEvents]
       : [...displayedEvents, ...formattedRssEvents];

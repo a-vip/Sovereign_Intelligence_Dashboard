@@ -168,7 +168,7 @@ export async function GET(request) {
       getEvents(ts),
       Promise.resolve(loadStaticEvents()),
       getArchivedInfo(),
-      getRssItems(120).catch(() => [])
+      getRssItems(220).catch(() => [])
     ]);
 
     const dbEventsList = (rawDbEvents || []).map(e => ({ ...e, fromDb: true }));
@@ -368,6 +368,7 @@ export async function GET(request) {
         `${safeSource} documented this ${e.details?.domainPillar || e.category || 'AI policy'} signal in ${e.location || 'Global'}.`;
       return {
         ...e,
+        isPinned: Boolean(e.isPinned || e.details?.isPinned || e.details?.laws_disarmament),
         source: safeSource,
         url: safeUrl,
         summary: safeSummary,
@@ -392,6 +393,7 @@ export async function GET(request) {
       source: e.source,
       timestamp: e.original_post_time || e.timestamp,
       edited: e.edited || false,
+      isPinned: Boolean(e.isPinned || e.details?.isPinned || e.details?.laws_disarmament),
       details: e.details,
       count: 1
     }));
