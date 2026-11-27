@@ -1588,6 +1588,40 @@ export default function SovDashAiDrawer({ isOpen, onClose, currentUser, onReques
               <Send size={14} />
             </button>
           </form>
+
+          {/* Subtle PLG Enterprise Private RAG AI Funnel */}
+          <div
+            style={{
+              flexShrink: 0,
+              padding: '6px 12px',
+              borderTop: '1px solid var(--sov-border)',
+              background: 'var(--sov-panel-bg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              fontSize: '10.5px',
+              color: 'var(--sov-muted)'
+            }}
+          >
+            <span>Need private RAG AI on your company&apos;s own data?</span>
+            <a
+              href="https://sovdash.com/solutions.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--sov-accent)',
+                fontWeight: 700,
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px'
+              }}
+            >
+              Enterprise Blueprints <ExternalLink size={10} />
+            </a>
+          </div>
         </>
       )}
     </aside>

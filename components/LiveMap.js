@@ -3861,6 +3861,27 @@ export default function LiveMap({
                 💎 Upgrade to Pro
               </a>
 
+              <a
+                href="https://sovdash.com/solutions.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '7px 10px',
+                  borderRadius: '7px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  background: 'rgba(168, 85, 247, 0.14)',
+                  color: 'var(--sov-purple)',
+                  border: '1px solid rgba(168, 85, 247, 0.36)'
+                }}
+              >
+                🏢 Custom Enterprise Builds ↗
+              </a>
+
               <div style={{ display: 'flex', gap: '6px' }}>
                 <a
                   href="https://patreon.com/aviperera?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink"

@@ -368,6 +368,62 @@ export default function DashboardTopMenus({
               ))}
             </div>
           ))}
+
+          {/* Product-Led Growth Enterprise & Pro Funnel Bar */}
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              borderTop: `1px solid ${menuBorder}`,
+              paddingTop: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ fontSize: '11px', color: 'var(--sov-muted)', lineHeight: 1.35 }}>
+              <strong style={{ color: isLightUi ? '#0f172a' : '#f8fafc' }}>Deploy Sovereign for your organization</strong> — custom map layers &amp; private RAG AI.
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <a
+                href="https://sovdash.com/solutions.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpenMenu(null)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(168, 85, 247, 0.14)',
+                  border: '1px solid rgba(168, 85, 247, 0.42)',
+                  color: isLightUi ? '#7e22ce' : '#d8b4fe',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  textDecoration: 'none'
+                }}
+              >
+                Use Cases ↗
+              </a>
+              <a
+                href="https://sovdash.com/enterprise.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpenMenu(null)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  background: 'var(--sov-accent-soft)',
+                  border: '1px solid var(--sov-accent)',
+                  color: 'var(--sov-accent)',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  textDecoration: 'none'
+                }}
+              >
+                Enterprise →
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
