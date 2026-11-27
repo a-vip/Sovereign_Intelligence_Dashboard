@@ -56,7 +56,8 @@ const MAP_STYLE_OPTIONS = [
   { id: 'light', label: 'Editorial Light' },
   { id: 'satellite', label: 'Satellite' },
   { id: 'lights', label: 'Earth Night' },
-  { id: 'buildings', label: '3D Urban' }
+  { id: 'buildings', label: '3D Urban' },
+  { id: 'vector', label: '✦ Sovereign Vector 3D · Fast 60fps', fullWidth: true }
 ];
 
 export default function DashboardTopMenus({
@@ -550,15 +551,24 @@ export default function DashboardTopMenus({
                     onClick={() => {
                       setMapStyle(opt.id);
                       try { localStorage.setItem('operator_pref_mapStyle', opt.id); } catch {}
+                      if (opt.id === 'vector' && mapMode !== '3d') {
+                        setMapMode('3d');
+                        try {
+                          localStorage.setItem('sovdash_map_mode_v2', '3d');
+                          window.dispatchEvent(new Event('operator_pref_changed'));
+                          window.dispatchEvent(new Event('sovdash_force_3d'));
+                        } catch {}
+                      }
                     }}
                     style={{
-                      padding: '5px 4px',
+                      gridColumn: opt.fullWidth ? '1 / -1' : 'auto',
+                      padding: opt.fullWidth ? '6px 8px' : '5px 4px',
                       borderRadius: '5px',
-                      border: `1px solid ${active ? 'var(--sov-accent)' : isLightUi ? '#cbd5e1' : 'rgba(255,255,255,0.08)'}`,
-                      background: active ? 'var(--sov-accent-soft)' : subSurface,
-                      color: active ? 'var(--sov-accent)' : isLightUi ? '#334155' : '#cbd5e1',
+                      border: `1px solid ${active ? 'var(--sov-accent)' : opt.fullWidth ? 'rgba(0, 240, 255, 0.28)' : isLightUi ? '#cbd5e1' : 'rgba(255,255,255,0.08)'}`,
+                      background: active ? 'var(--sov-accent-soft)' : opt.fullWidth ? 'rgba(0, 240, 255, 0.05)' : subSurface,
+                      color: active ? 'var(--sov-accent)' : opt.fullWidth ? (isLightUi ? '#0369a1' : '#e0f2fe') : isLightUi ? '#334155' : '#cbd5e1',
                       fontSize: '10.5px',
-                      fontWeight: 600,
+                      fontWeight: opt.fullWidth ? 700 : 600,
                       cursor: 'pointer'
                     }}
                   >

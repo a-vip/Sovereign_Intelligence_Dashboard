@@ -3134,6 +3134,7 @@ export default function LiveMap({
                     }}
                   >
                     <option value="tactical">🛰️ TACTICAL DARK</option>
+                    <option value="vector">✦ SOVEREIGN VECTOR 3D (60FPS)</option>
                     <option value="minimal">🌑 CLEAN DARK (MINIMAL)</option>
                     <option value="light">☀️ EDITORIAL LIGHT</option>
                     <option value="satellite">🌍 HIGH-RES ORBITAL</option>

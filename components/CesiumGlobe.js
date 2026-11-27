@@ -730,8 +730,16 @@ export default function CesiumGlobe({
 
   // CRITICAL: 2D Equal Earth is ONLY active when the user explicitly selects '2d'.
   // WebGL failure or software-WebGL NEVER forces the user into 2D or traps them there — 3D seamlessly uses InteractiveCanvasGlobe3D!
+  // Also, when the user explicitly selects the 'vector' ("Sovereign Vector 3D") map style, we render InteractiveCanvasGlobe3D directly as a first-class 60fps vector globe.
   const is2DActive = mapMode === '2d';
-  const shouldUseCesiumHd = !is2DActive && !mapError && (forceHdWebgl || gpuTier === 'hd' || gpuTier === 'eco');
+  const isVectorGlobeStyle = !is2DActive && mapStyle === 'vector';
+  const [hasRequestedHdGlobe, setHasRequestedHdGlobe] = useState(() => mapStyle !== 'vector');
+  useEffect(() => {
+    if (mapStyle !== 'vector' && !hasRequestedHdGlobe) {
+      setHasRequestedHdGlobe(true);
+    }
+  }, [mapStyle, hasRequestedHdGlobe]);
+  const shouldUseCesiumHd = !is2DActive && hasRequestedHdGlobe && !mapError && (forceHdWebgl || gpuTier === 'hd' || gpuTier === 'eco');
 
   // Keep prevMapModeRef synced
   useEffect(() => {
@@ -3235,7 +3243,7 @@ export default function CesiumGlobe({
 
   // A. Dynamic Map Style Switcher (Tactical Dark, Satellite, Earth at Night, Terrain, Street)
   useEffect(() => {
-    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady) return;
+    if (!viewerRef.current || !scriptsLoaded || mapError || !viewerReady || mapStyle === 'vector') return;
     const viewer = viewerRef.current;
     const Cesium = window.Cesium;
     if (!Cesium) return;
@@ -4437,12 +4445,12 @@ export default function CesiumGlobe({
   }
 
   // 3D Globe is ALWAYS the active view when mapMode === '3d':
-  //   - InteractiveCanvasGlobe3D renders instantaneously (<120ms, 60fps, zero WebGL required) as immediate boot globe AND permanent Eco 3D engine on older/software-WebGL hardware
-  //   - Cesium HD WebGL Globe seamlessly crossfades in over it once root tiles upload on hardware-accelerated GPUs
-  const is3DReadyToDisplay = shouldUseCesiumHd && viewerReady && globeSurfaceReady;
+  //   - InteractiveCanvasGlobe3D renders instantaneously (<120ms, 60fps, zero WebGL required) as immediate boot globe, permanent Eco 3D engine, AND first-class 'vector' ("Sovereign Vector 3D") theme
+  //   - Cesium HD WebGL Globe seamlessly crossfades in over it once root tiles upload on hardware-accelerated GPUs (when a raster/3D-tiles style is selected)
+  const is3DReadyToDisplay = shouldUseCesiumHd && !isVectorGlobeStyle && viewerReady && globeSurfaceReady;
   const isCanvas3DActive = !is2DActive && !is3DReadyToDisplay;
-  const isLightBackdrop = mapStyle === 'light' || uiTheme === 'light';
-  const canTryHdWebgl = (gpuTier === 'software' || mapError) && gpuTier !== 'none';
+  const isLightBackdrop = mapStyle === 'light' || (uiTheme === 'light' && mapStyle !== 'vector');
+  const canTryHdWebgl = !isVectorGlobeStyle && (gpuTier === 'software' || mapError) && gpuTier !== 'none';
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: isLightBackdrop ? '#e2e8f0' : '#020617' }}>
@@ -4520,12 +4528,12 @@ export default function CesiumGlobe({
         temporalReplayActive={temporalReplayActive}
         temporalMilestones={temporalMilestones}
         regulationsUpdateTrigger={regulationsUpdateTrigger}
-        isWarmingHd={shouldUseCesiumHd && !is3DReadyToDisplay}
+        isWarmingHd={!isVectorGlobeStyle && shouldUseCesiumHd && !is3DReadyToDisplay}
         statusBadgeLabel={
-          shouldUseCesiumHd && !is3DReadyToDisplay
-            ? '3D GLOBE · LOADING HD TILES…'
-            : gpuTier === 'none'
-              ? '3D GLOBE · FAST ECO ENGINE'
+          isVectorGlobeStyle
+            ? null
+            : shouldUseCesiumHd && !is3DReadyToDisplay
+              ? '3D GLOBE · LOADING HD TILES…'
               : '3D GLOBE · FAST ECO ENGINE'
         }
         onTryHdWebgl={canTryHdWebgl ? triggerTryHdWebgl : null}

@@ -962,6 +962,7 @@ export default function AccountModal({ onClose, currentUser, onAuthSuccess, hand
                           onChange={(e) => handlePreferenceChange('mapStyle', e.target.value)}
                           style={{ background: 'var(--sov-backdrop)', border: '1px solid var(--sov-border)', borderRadius: '4px', padding: '4px 8px', color: 'var(--sov-text)', fontSize: '10px', outline: 'none', cursor: 'pointer' }}
                         >
+                          <option value="vector">✦ Sovereign Vector 3D (60fps)</option>
                           <option value="satellite">Satellite (Hybrid)</option>
                           <option value="dark">Tactical Dark</option>
                         </select>

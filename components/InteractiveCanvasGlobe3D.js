@@ -195,6 +195,30 @@ function isPointInFeature(lat, lon, item) {
 }
 
 function getGlobePalette(uiTheme, mapStyle) {
+  if (mapStyle === 'vector') {
+    // Signature crisp Sovereign Vector 3D initial-load globe theme (slate-obsidian oceans, luminous halo & crisp borders)
+    return {
+      isLight: false,
+      spaceBg: '#020612',
+      spaceGlow: 'rgba(56, 189, 248, 0.18)',
+      oceanCenter: '#1f364d',
+      oceanMid: '#122234',
+      oceanEdge: '#081220',
+      atmoHalo: 'rgba(148, 197, 235, 0.42)',
+      rimStroke: 'rgba(186, 230, 253, 0.62)',
+      graticule: 'rgba(148, 163, 184, 0.085)',
+      equator: 'rgba(56, 189, 248, 0.22)',
+      landFill: '#1b2636',
+      landHover: '#283b54',
+      landStroke: 'rgba(148, 163, 184, 0.38)',
+      selectedFill: 'rgba(0, 240, 255, 0.22)',
+      selectedStroke: '#00f0ff',
+      labelColor: 'rgba(226, 232, 240, 0.72)',
+      labelHalo: 'rgba(2, 6, 23, 0.92)',
+      nodeStroke: '#ffffff',
+      accent: '#00f0ff'
+    };
+  }
   const isLight =
     mapStyle === 'light' ||
     (uiTheme === 'light' &&
