@@ -895,6 +895,96 @@ export default async function WhitepaperPage() {
               </div>
             </div>
 
+            {/* Institutional Grant & Research Funder Portfolio Card */}
+            <div
+              className="editorial-subcard"
+              style={{
+                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(0, 240, 255, 0.05))',
+                border: '1px solid rgba(168, 85, 247, 0.34)',
+                borderRadius: '10px',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-purple)', letterSpacing: '0.1em' }}>
+                  PUBLIC-INTEREST INFRASTRUCTURE · RESEARCH &amp; GRANT PORTFOLIO
+                </span>
+                <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-emerald)', fontWeight: 700 }}>
+                  LIVE PLATFORM · CC-BY-4.0 OPEN DATA · NON-DILUTIVE READY
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--sov-text)', margin: 0, lineHeight: 1.65 }}>
+                This live empirical edition serves alongside{' '}
+                <a href="https://sovdash.com/about.html#grants" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--sov-accent)', fontWeight: 700, textDecoration: 'none' }}>
+                  sovdash.com/about.html
+                </a>{' '}
+                as Sovereign&apos;s verifiable research portfolio for AI governance foundations, public-interest technology funds, and university research centers. Every metric above—<strong>{totalSignalsRecorded.toLocaleString()}</strong> tracked signals, <strong>{totalRegsCount}</strong> statutory frameworks, <strong>{totalDcCount.toLocaleString()}</strong> mapped facilities, <strong>{coverage.totalClusters}</strong> frontier megaclusters, and <strong>{aiEval ? aiEval.phantomCitationCount : 0} phantom citations</strong>—is live and independently auditable today.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)' }}>TRACK A · EPISTEMIC PARITY</div>
+                  <div style={{ fontSize: '12px', color: 'var(--sov-muted)', marginTop: '4px', lineHeight: 1.5 }}>
+                    7-language Global South statutory gazettes &amp; regional civil-society AI harms monitors.
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--sov-purple)', fontFamily: 'var(--font-jetbrains-fallback)' }}>TRACK B · COMPUTE–LAW AUDITS</div>
+                  <div style={{ fontSize: '12px', color: 'var(--sov-muted)', marginTop: '4px', lineHeight: 1.5 }}>
+                    Continuous Epoch AI megacluster monitoring, EU AI Act Art. 73 / CA SB 53 compliance clocks &amp; lab accountability.
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--sov-panel-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--sov-emerald)', fontFamily: 'var(--font-jetbrains-fallback)' }}>TRACK C · OPEN CIVIC RAG</div>
+                  <div style={{ fontSize: '12px', color: 'var(--sov-muted)', marginTop: '4px', lineHeight: 1.5 }}>
+                    Open-source citation-locked evaluation harnesses &amp; free high-rate research APIs for newsrooms and parliaments.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', fontSize: '12px' }}>
+                <a
+                  href="https://sovdash.com/about.html#grants"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: '7px',
+                    background: 'rgba(168, 85, 247, 0.16)',
+                    border: '1px solid rgba(168, 85, 247, 0.45)',
+                    color: 'var(--sov-text)',
+                    fontWeight: 700,
+                    textDecoration: 'none'
+                  }}
+                >
+                  Open Grant &amp; Funder Portfolio ↗
+                </a>
+                <a
+                  href="/api/v1/export/dataset?format=datapackage"
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: '7px',
+                    background: 'var(--sov-panel-bg)',
+                    border: '1px solid var(--sov-border)',
+                    color: 'var(--sov-accent)',
+                    fontWeight: 700,
+                    textDecoration: 'none'
+                  }}
+                >
+                  Download Replication DataPackage (CC-BY-4.0) ↗
+                </a>
+                <a
+                  href="https://aviperera.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--sov-muted)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: '3px' }}
+                >
+                  Principal Investigator: Avi Perera (aviperera.com) ↗
+                </a>
+              </div>
+            </div>
+
             {/* Verified Bibliography */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--sov-text)', margin: 0 }}>
