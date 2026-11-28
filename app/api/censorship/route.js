@@ -185,24 +185,35 @@ const COUNTRY_COORDS = {
 export async function GET() {
   const since = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
   const untilSec = Math.floor(Date.now() / 1000);
-  const fromSec = untilSec - 14 * 86400;
+  const fromSec = untilSec - 7 * 86400; // 7-day IODA window keeps Georgia Tech responses fast & reliable
 
-  const [ooniWebRes, ooniImRes, iodaRes] = await Promise.all([
+  const fetchHeaders = {
+    'User-Agent': 'SovereignIntelligenceObservatory/2.0 (https://app.sovdash.com)',
+    Accept: 'application/json'
+  };
+
+  const [ooniWebRes, ooniImRes, iodaAlertsRes, iodaEventsRes] = await Promise.all([
     fetch(
       `https://api.ooni.io/api/v1/aggregation?since=${since}&axis_x=probe_cc&test_name=web_connectivity`,
-      { signal: AbortSignal.timeout(5000), next: { revalidate: 1800 } }
+      { headers: fetchHeaders, signal: AbortSignal.timeout(7500), next: { revalidate: 1800 } }
     )
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
     fetch(
       `https://api.ooni.io/api/v1/aggregation?since=${since}&axis_x=probe_cc&test_name=signal,telegram,whatsapp,tor,psiphon`,
-      { signal: AbortSignal.timeout(5000), next: { revalidate: 1800 } }
+      { headers: fetchHeaders, signal: AbortSignal.timeout(7500), next: { revalidate: 1800 } }
     )
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
     fetch(
-      `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/alerts?entityType=country&from=${fromSec}&until=${untilSec}&limit=200`,
-      { signal: AbortSignal.timeout(5000), next: { revalidate: 1800 } }
+      `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/alerts?entityType=country&from=${fromSec}&until=${untilSec}&limit=150`,
+      { headers: fetchHeaders, signal: AbortSignal.timeout(8500), next: { revalidate: 1800 } }
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null),
+    fetch(
+      `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/events?entityType=country&from=${fromSec}&until=${untilSec}&limit=100`,
+      { headers: fetchHeaders, signal: AbortSignal.timeout(8500), next: { revalidate: 1800 } }
     )
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null)
@@ -233,9 +244,9 @@ export async function GET() {
     };
   }
 
-  // Index IODA country BGP / Active-Probing / Ping outages (critical + warning levels)
+  // Index IODA country BGP / Active-Probing / Ping outages (alerts + outage events fallback)
   const iodaByCc = {};
-  const iodaAlertsRaw = Array.isArray(iodaRes?.data) ? iodaRes.data : [];
+  const iodaAlertsRaw = Array.isArray(iodaAlertsRes?.data) ? iodaAlertsRes.data : [];
   for (const al of iodaAlertsRaw) {
     const code = String(al?.entity?.code || '').toUpperCase();
     const level = String(al?.level || '').toLowerCase();
@@ -243,6 +254,15 @@ export async function GET() {
       if (!iodaByCc[code]) iodaByCc[code] = { count: 0, datasources: new Set() };
       iodaByCc[code].count += 1;
       if (al.datasource) iodaByCc[code].datasources.add(al.datasource);
+    }
+  }
+  const iodaEventsRaw = Array.isArray(iodaEventsRes?.data) ? iodaEventsRes.data : [];
+  for (const ev of iodaEventsRaw) {
+    const code = String(ev?.location || ev?.entity?.code || '').replace(/^country\./i, '').toUpperCase();
+    if (COUNTRY_COORDS[code] && (!iodaByCc[code] || iodaByCc[code].count === 0)) {
+      if (!iodaByCc[code]) iodaByCc[code] = { count: 0, datasources: new Set() };
+      iodaByCc[code].count += 1;
+      if (ev.datasource) iodaByCc[code].datasources.add(ev.datasource);
     }
   }
 
@@ -323,7 +343,7 @@ export async function GET() {
       totalCountries: items.length,
       ooniLive: Boolean(webRows.length),
       ooniImLive: Boolean(imRows.length),
-      iodaLive: Boolean(iodaAlertsRaw.length),
+      iodaLive: Boolean(iodaAlertsRaw.length || iodaEventsRaw.length),
       since
     }
   });

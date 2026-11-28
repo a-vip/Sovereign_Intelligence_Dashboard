@@ -1,17 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { X, WifiOff, RefreshCw, MapPin, ExternalLink, GripHorizontal, Eye } from 'lucide-react';
+import { X, WifiOff, RefreshCw, MapPin, ExternalLink, GripHorizontal, Eye, Search, LayoutGrid, Table2 } from 'lucide-react';
+import WidgetInfoTooltip from './WidgetInfoTooltip';
 
 export default function CensorshipPulseWidget({
   onClose,
   onFocusLocation,
   censorshipEnabled,
-  onToggleCensorshipLayer
+  onToggleCensorshipLayer,
+  isMobile = false
 }) {
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('top'); // 'top' | 'ioda' | 'im'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('severity'); // 'severity' | 'rate' | 'blocks' | 'im' | 'ioda' | 'name'
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
   const [pos, setPos] = useState({ x: 350, y: 120 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
@@ -29,16 +34,17 @@ export default function CensorshipPulseWidget({
     if (typeof window !== 'undefined') {
       const mobile = window.innerWidth < 900;
       setPos({
-        x: mobile ? 10 : Math.max(24, Math.min(window.innerWidth - 410, 380)),
-        y: mobile ? 76 : 112
+        x: mobile ? 10 : Math.max(24, Math.min(window.innerWidth - 420, 380)),
+        y: mobile ? 72 : 112
       });
     }
     loadData();
   }, []);
 
   const handlePointerDown = (e) => {
+    if (isMobile) return;
     if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
-    if (e.target?.closest?.('button, a')) return;
+    if (e.target?.closest?.('button, a, input, select')) return;
     setDragging(true);
     dragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
   };
@@ -76,15 +82,34 @@ export default function CensorshipPulseWidget({
   }, [items]);
 
   const displayed = useMemo(() => {
-    const list = [...items];
+    const q = searchQuery.trim().toLowerCase();
+    let list = [...items];
+
     if (tab === 'ioda') {
-      return list.filter((i) => i.iodaAlerts > 0).sort((a, b) => b.iodaAlerts - a.iodaAlerts || b.confirmedBlocks - a.confirmedBlocks);
+      list = list.filter((i) => i.iodaAlerts > 0);
+    } else if (tab === 'im') {
+      list = list.filter((i) => i.imAnomalies > 0);
     }
-    if (tab === 'im') {
-      return list.filter((i) => i.imAnomalies > 0).sort((a, b) => b.imAnomalies - a.imAnomalies);
+
+    if (q) {
+      list = list.filter((i) =>
+        `${i.country || ''} ${i.cc || ''}`.toLowerCase().includes(q)
+      );
     }
-    return list.slice(0, 24);
-  }, [items, tab]);
+
+    list.sort((a, b) => {
+      if (sortBy === 'rate') return (b.blockRatePct || 0) - (a.blockRatePct || 0);
+      if (sortBy === 'blocks') return (b.confirmedBlocks || 0) - (a.confirmedBlocks || 0);
+      if (sortBy === 'im') return (b.imAnomalies || 0) - (a.imAnomalies || 0);
+      if (sortBy === 'ioda') return (b.iodaAlerts || 0) - (a.iodaAlerts || 0) || (b.confirmedBlocks || 0) - (a.confirmedBlocks || 0);
+      if (sortBy === 'name') return String(a.country || '').localeCompare(String(b.country || ''));
+      if (tab === 'ioda') return (b.iodaAlerts || 0) - (a.iodaAlerts || 0) || (b.confirmedBlocks || 0) - (a.confirmedBlocks || 0);
+      if (tab === 'im') return (b.imAnomalies || 0) - (a.imAnomalies || 0);
+      return (b.confirmedBlocks + b.iodaAlerts * 350 + b.imAnomalies * 0.6) - (a.confirmedBlocks + a.iodaAlerts * 350 + a.imAnomalies * 0.6);
+    });
+
+    return q ? list : list.slice(0, 36);
+  }, [items, tab, searchQuery, sortBy]);
 
   return (
     <aside
@@ -94,8 +119,8 @@ export default function CensorshipPulseWidget({
         position: 'fixed',
         left: `${pos.x}px`,
         top: `${pos.y}px`,
-        width: 'min(94vw, 390px)',
-        maxHeight: 'calc(100dvh - 140px)',
+        width: 'min(94vw, 405px)',
+        maxHeight: 'calc(100dvh - 134px)',
         zIndex: 1451,
         background: 'var(--sov-panel-bg)',
         border: '1px solid var(--sov-border)',
@@ -108,6 +133,7 @@ export default function CensorshipPulseWidget({
         overflow: 'hidden'
       }}
     >
+      {/* Header */}
       <div
         onPointerDown={handlePointerDown}
         style={{
@@ -117,7 +143,7 @@ export default function CensorshipPulseWidget({
           padding: '10px 13px',
           background: 'var(--sov-card-bg)',
           borderBottom: '1px solid var(--sov-border)',
-          cursor: dragging ? 'grabbing' : 'grab',
+          cursor: isMobile ? 'default' : (dragging ? 'grabbing' : 'grab'),
           touchAction: 'none',
           userSelect: 'none'
         }}
@@ -128,8 +154,37 @@ export default function CensorshipPulseWidget({
           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-jetbrains-fallback)', letterSpacing: '0.05em' }}>
             SHUTDOWN &amp; OONI PULSE
           </span>
+          <WidgetInfoTooltip
+            title="Live Internet Censorship & Shutdown Pulse"
+            accent="#f43f5e"
+            description="Shows where governments or telecom providers are blocking websites, disrupting messaging apps (Signal, Telegram, WhatsApp, Tor), or cutting off national internet access over the past 14 days."
+            bullets={[
+              'OONI (Open Observatory of Network Interference) runs independent citizen network tests worldwide.',
+              'IODA (Georgia Tech) detects sudden country-wide internet blackouts via BGP routing and active pings.',
+              'Disruption Rate % shows what share of tests in that country failed or were blocked.'
+            ]}
+          />
         </div>
         <div style={{ display: 'flex', gap: '5px' }}>
+          <button
+            type="button"
+            onClick={() => setViewMode((m) => (m === 'cards' ? 'table' : 'cards'))}
+            title={viewMode === 'cards' ? 'Switch to compact table view' : 'Switch to card view'}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--sov-border)',
+              borderRadius: '5px',
+              color: viewMode === 'table' ? '#f43f5e' : 'var(--sov-muted)',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            {viewMode === 'cards' ? <Table2 size={12} /> : <LayoutGrid size={12} />}
+          </button>
           <button
             type="button"
             onClick={loadData}
@@ -219,15 +274,108 @@ export default function CensorshipPulseWidget({
         )}
       </div>
 
-      {/* Country Feed */}
+      {/* Subtle Search + Sort Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderBottom: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+          <Search size={11} style={{ position: 'absolute', left: '7px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sov-muted)' }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search country (e.g. Iran, RU, India)..."
+            style={{
+              width: '100%',
+              padding: '4px 7px 4px 23px',
+              borderRadius: '5px',
+              border: '1px solid var(--sov-border)',
+              background: 'var(--sov-panel-bg)',
+              color: 'var(--sov-text)',
+              fontSize: '10px',
+              fontFamily: 'var(--font-jetbrains-fallback)',
+              outline: 'none'
+            }}
+          />
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          aria-label="Sort countries"
+          style={{
+            padding: '4px 6px',
+            borderRadius: '5px',
+            border: '1px solid var(--sov-border)',
+            background: 'var(--sov-panel-bg)',
+            color: 'var(--sov-text)',
+            fontSize: '9.5px',
+            fontFamily: 'var(--font-jetbrains-fallback)',
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          <option value="severity">Severity</option>
+          <option value="rate">Block Rate %</option>
+          <option value="blocks">Web Blocks</option>
+          <option value="im">IM / Tor</option>
+          <option value="ioda">IODA Alerts</option>
+          <option value="name">Country A–Z</option>
+        </select>
+      </div>
+
+      {/* Country Feed (Cards or Compact Table) */}
       <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '7px' }}>
         {loading && items.length === 0 ? (
           <div style={{ padding: '20px', textAlign: 'center', fontSize: '11.5px', color: 'var(--sov-muted)' }}>
             Querying OONI Explorer &amp; Georgia Tech IODA…
           </div>
         ) : displayed.length === 0 ? (
-          <div style={{ padding: '16px', textAlign: 'center', fontSize: '11.5px', color: 'var(--sov-muted)' }}>
-            No matching disruption alerts in this filter window.
+          <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: 'var(--sov-muted)' }}>
+            {tab === 'ioda'
+              ? 'No active country-wide IODA BGP/ping outage alerts in the last 7 days.'
+              : 'No matching countries in this filter window.'}
+          </div>
+        ) : viewMode === 'table' ? (
+          <div style={{ border: '1px solid var(--sov-border)', borderRadius: '8px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)' }}>
+              <thead>
+                <tr style={{ background: 'var(--sov-card-bg)', color: 'var(--sov-muted)', borderBottom: '1px solid var(--sov-border)' }}>
+                  <th style={{ textAlign: 'left', padding: '6px 7px' }}>COUNTRY</th>
+                  <th style={{ textAlign: 'right', padding: '6px 6px' }}>RATE</th>
+                  <th style={{ textAlign: 'right', padding: '6px 6px' }}>BLOCKS</th>
+                  <th style={{ textAlign: 'right', padding: '6px 6px' }}>IM/TOR</th>
+                  <th style={{ textAlign: 'right', padding: '6px 6px' }}>MAP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayed.map((row) => (
+                  <tr key={row.id} style={{ borderBottom: '1px solid var(--sov-border)' }}>
+                    <td style={{ padding: '6px 7px', fontWeight: 700, color: 'var(--sov-text)' }}>
+                      {row.country} <span style={{ color: 'var(--sov-muted)', fontWeight: 500 }}>({row.cc})</span>
+                    </td>
+                    <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 800, color: row.color || '#f43f5e' }}>
+                      {row.blockRatePct}%
+                    </td>
+                    <td style={{ padding: '6px 6px', textAlign: 'right', color: 'var(--sov-text)' }}>
+                      {Number(row.confirmedBlocks || 0).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '6px 6px', textAlign: 'right', color: 'var(--sov-muted)' }}>
+                      {Number(row.imAnomalies || 0).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '6px 6px', textAlign: 'right' }}>
+                      {onFocusLocation && (
+                        <button
+                          type="button"
+                          onClick={() => onFocusLocation(row.lat, row.lon)}
+                          style={{ background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)', borderRadius: '4px', color: 'var(--sov-accent)', padding: '2px 5px', cursor: 'pointer' }}
+                          title="Fly to country"
+                        >
+                          <MapPin size={10} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           displayed.map((row) => (
@@ -254,6 +402,10 @@ export default function CensorshipPulseWidget({
               </div>
               <div style={{ fontSize: '10.5px', color: 'var(--sov-muted)', fontFamily: 'var(--font-jetbrains-fallback)' }}>
                 {Number(row.confirmedBlocks || 0).toLocaleString()} web blocks · {Number(row.imAnomalies || 0).toLocaleString()} IM/Tor · {row.iodaAlerts || 0} IODA alerts
+              </div>
+              {/* Subtle severity meter */}
+              <div style={{ height: '3px', width: '100%', background: 'var(--sov-panel-bg)', borderRadius: '99px', overflow: 'hidden', margin: '1px 0' }}>
+                <div style={{ width: `${Math.min(100, Math.max(4, Number(row.blockRatePct || 0) * 1.8))}%`, height: '100%', background: row.color || '#f43f5e', opacity: 0.8 }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', paddingTop: '2px' }}>
                 {onFocusLocation ? (

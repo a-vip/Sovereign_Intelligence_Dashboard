@@ -416,6 +416,20 @@ export default function InteractiveCanvasGlobe3D({
   const [overlayTick, setOverlayTick] = useState(0);
   const [storms, setStorms] = useState([]);
   const [zoomLabel, setZoomLabel] = useState('1.0x');
+  const [isCompact, setIsCompact] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncViewport = () => setIsCompact(window.innerWidth < 768);
+    syncViewport();
+    window.addEventListener('resize', syncViewport, { passive: true });
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
+
+  const syncZoomLabel = useCallback((z) => {
+    const formatted = `${Number(z).toFixed(1)}x`;
+    setZoomLabel((prev) => (prev === formatted ? prev : formatted));
+  }, []);
 
   const requestDraw = useCallback(() => {
     if (!activeRef.current || drawReqRef.current != null) return;
@@ -536,15 +550,18 @@ export default function InteractiveCanvasGlobe3D({
     layerCache
   ]);
 
+  const focusPulseRef = useRef(null);
+
   const animateTo = useCallback((targetLon, targetLat, targetZoom, durationMs = 540) => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     const startLon = viewRef.current.lon;
     const startLat = viewRef.current.lat;
     const startZoom = viewRef.current.zoom;
+    const clampedZoom = Math.max(0.55, Math.min(14.0, targetZoom));
     // Shortest angular delta for longitude
     let dLon = ((targetLon - startLon + 540) % 360) - 180;
-    const dLat = Math.max(-72, Math.min(72, targetLat)) - startLat;
-    const dZoom = targetZoom - startZoom;
+    const dLat = Math.max(-78, Math.min(78, targetLat)) - startLat;
+    const dZoom = clampedZoom - startZoom;
     viewRef.current.velLon = 0;
     viewRef.current.velLat = 0;
     const t0 = performance.now();
@@ -562,7 +579,7 @@ export default function InteractiveCanvasGlobe3D({
       viewRef.current.lon = nextLon;
       viewRef.current.lat = startLat + dLat * ease;
       viewRef.current.zoom = startZoom + dZoom * ease;
-      setZoomLabel(`${viewRef.current.zoom.toFixed(1)}x`);
+      syncZoomLabel(viewRef.current.zoom);
       if (typeof renderCanvasRef.current === 'function') renderCanvasRef.current();
       if (p < 1) {
         animFrameRef.current = requestAnimationFrame(step);
@@ -571,7 +588,7 @@ export default function InteractiveCanvasGlobe3D({
       }
     };
     animFrameRef.current = requestAnimationFrame(step);
-  }, []);
+  }, [syncZoomLabel]);
 
   // Reset view
   useEffect(() => {
@@ -580,21 +597,36 @@ export default function InteractiveCanvasGlobe3D({
     animateTo(14.0, 20.0, 1.0, 480);
   }, [resetKey, active, animateTo]);
 
-  // Smooth 3D spherical fly-to when clicking feed event / Locate on Globe
+  // Smooth 3D spherical fly-to + pulsing reticle when clicking feed event / Locate on Globe
   useEffect(() => {
     if (!active || !focusCoordinate || focusCoordinate.lat == null || focusCoordinate.lon == null) return;
     const lat = Number(focusCoordinate.lat);
     const lon = Number(focusCoordinate.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
-    focusRingRef.current = { lat, lon, expiresAt: Date.now() + 6000 };
-    animateTo(lon, Math.max(-70, Math.min(70, lat)), Math.max(viewRef.current.zoom, 2.2), 620);
+    const now = Date.now();
+    focusRingRef.current = { lat, lon, startedAt: now, expiresAt: now + 6000 };
+    animateTo(lon, Math.max(-74, Math.min(74, lat)), Math.max(viewRef.current.zoom, 2.6), 620);
 
-    const timer = setTimeout(() => {
-      focusRingRef.current = null;
+    if (focusPulseRef.current) cancelAnimationFrame(focusPulseRef.current);
+    const pulseStep = () => {
+      if (!activeRef.current || !focusRingRef.current || focusRingRef.current.expiresAt <= Date.now()) {
+        focusRingRef.current = null;
+        focusPulseRef.current = null;
+        requestDraw();
+        return;
+      }
       requestDraw();
-    }, 6100);
-    return () => clearTimeout(timer);
+      focusPulseRef.current = requestAnimationFrame(pulseStep);
+    };
+    focusPulseRef.current = requestAnimationFrame(pulseStep);
+
+    return () => {
+      if (focusPulseRef.current) {
+        cancelAnimationFrame(focusPulseRef.current);
+        focusPulseRef.current = null;
+      }
+    };
   }, [focusCoordinate, active, animateTo, requestDraw]);
 
   // Auto-rotate spin loop (ONLY runs when active && autoRotate && not dragging; 0% CPU when off!)
@@ -654,8 +686,9 @@ export default function InteractiveCanvasGlobe3D({
     const cx = width * 0.5;
     const cy = height * 0.5;
     const { lon: lon0, lat: lat0, zoom } = viewRef.current;
-    const baseRadius = Math.min(width, height) * 0.43;
+    const baseRadius = Math.min(width, height) * (width < 768 ? 0.42 : 0.43);
     const R = baseRadius * zoom;
+    const limbVisible = R < Math.hypot(width, height) * 1.15;
 
     const lam0 = lon0 * DEG2RAD;
     const phi0 = lat0 * DEG2RAD;
@@ -689,11 +722,13 @@ export default function InteractiveCanvasGlobe3D({
       return [cx + x1 * R, cy - y2 * R, z2];
     };
 
+    const onScreen = (sx, sy, pad = 42) => sx >= -pad && sx <= width + pad && sy >= -pad && sy <= height + pad;
+
     // 1. Deep Space / Light Backdrop + Starfield
     ctx.fillStyle = palette.spaceBg;
     ctx.fillRect(0, 0, width, height);
 
-    if (!palette.isLight) {
+    if (!palette.isLight && limbVisible) {
       ctx.fillStyle = '#e2e8f0';
       for (let i = 0; i < SPACE_STARS.length; i++) {
         const st = SPACE_STARS[i];
@@ -703,42 +738,52 @@ export default function InteractiveCanvasGlobe3D({
       ctx.globalAlpha = 1;
     }
 
-    // 2. Atmospheric Outer Corona Glow
-    const haloGrad = ctx.createRadialGradient(cx, cy, R * 0.88, cx, cy, R * 1.18);
-    haloGrad.addColorStop(0, palette.atmoHalo);
-    haloGrad.addColorStop(0.55, palette.spaceGlow);
-    haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = haloGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R * 1.18, 0, Math.PI * 2);
-    ctx.fill();
+    // 2. Atmospheric Outer Corona Glow (only when globe limb is inside viewport)
+    if (limbVisible) {
+      const haloGrad = ctx.createRadialGradient(cx, cy, R * 0.88, cx, cy, R * 1.18);
+      haloGrad.addColorStop(0, palette.atmoHalo);
+      haloGrad.addColorStop(0.55, palette.spaceGlow);
+      haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = haloGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 1.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // 3. Spherical Ocean Base with 3D Illumination Gradient + Clip
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    if (limbVisible) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      const oceanGrad = ctx.createRadialGradient(
+        cx - R * 0.28,
+        cy - R * 0.28,
+        R * 0.08,
+        cx,
+        cy,
+        R
+      );
+      oceanGrad.addColorStop(0, palette.oceanCenter);
+      oceanGrad.addColorStop(0.62, palette.oceanMid);
+      oceanGrad.addColorStop(1, palette.oceanEdge);
+      ctx.fillStyle = oceanGrad;
+      ctx.fill();
+      ctx.clip();
+    } else {
+      // Deep zoom inside the ocean disc: fast viewport-only fill for <3ms 60fps
+      ctx.fillStyle = palette.oceanMid;
+      ctx.fillRect(0, 0, width, height);
+    }
 
-    const oceanGrad = ctx.createRadialGradient(
-      cx - R * 0.28,
-      cy - R * 0.28,
-      R * 0.08,
-      cx,
-      cy,
-      R
-    );
-    oceanGrad.addColorStop(0, palette.oceanCenter);
-    oceanGrad.addColorStop(0.62, palette.oceanMid);
-    oceanGrad.addColorStop(1, palette.oceanEdge);
-    ctx.fillStyle = oceanGrad;
-    ctx.fill();
-    ctx.clip();
-
-    // 4. Curved 3D Spherical Graticule Lines
+    // 4. Curved 3D Spherical Graticule Lines (adaptive 30deg -> 15deg on deep zoom)
+    const gratStep = zoom >= 2.6 ? 15 : 30;
+    const sampleStep = zoom >= 3.0 ? 3 : 6;
     ctx.lineWidth = 0.75;
-    for (let lat = -60; lat <= 60; lat += 30) {
+    for (let lat = -75; lat <= 75; lat += gratStep) {
+      if (lat % 30 !== 0 && zoom < 2.6) continue;
       ctx.beginPath();
       let pen = false;
-      for (let lon = -180; lon <= 180; lon += 6) {
+      for (let lon = -180; lon <= 180; lon += sampleStep) {
         const [sx, sy, z] = projLonLat(lon, lat);
         if (z >= -0.02) {
           if (!pen) { ctx.moveTo(sx, sy); pen = true; }
@@ -748,12 +793,14 @@ export default function InteractiveCanvasGlobe3D({
         }
       }
       ctx.strokeStyle = lat === 0 ? palette.equator : palette.graticule;
+      ctx.globalAlpha = lat % 30 === 0 ? 1 : 0.45;
       ctx.stroke();
     }
-    for (let lon = -180; lon < 180; lon += 30) {
+    for (let lon = -180; lon < 180; lon += gratStep) {
+      if (lon % 30 !== 0 && zoom < 2.6) continue;
       ctx.beginPath();
       let pen = false;
-      for (let lat = -84; lat <= 84; lat += 6) {
+      for (let lat = -84; lat <= 84; lat += sampleStep) {
         const [sx, sy, z] = projLonLat(lon, lat);
         if (z >= -0.02) {
           if (!pen) { ctx.moveTo(sx, sy); pen = true; }
@@ -763,17 +810,50 @@ export default function InteractiveCanvasGlobe3D({
         }
       }
       ctx.strokeStyle = lon === 0 ? palette.equator : palette.graticule;
+      ctx.globalAlpha = lon % 30 === 0 ? 1 : 0.45;
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
 
-    // 5. Spherical 3D Country Polygons (horizon-clamped for zero wrap artifacts)
+    // 5. Spherical 3D Country Polygons (horizon-clamped + optional AI Regulation jurisdiction tint)
     const countries = PREPARED_SPHERE_COUNTRIES || [];
     const normSelected = (selectedCountry || '').trim().toLowerCase();
     const normHovered = (hoveredCountryRef.current || '').trim().toLowerCase();
     let selectedCountryItem = null;
 
+    // Build optional AI Regulation country status map when layer is active
+    let regCountryTint = null;
+    if (aiRegulationsEnabled && Array.isArray(layerCache.aiRegulations?.aiRegulations)) {
+      const EU27 = [
+        'austria', 'belgium', 'bulgaria', 'croatia', 'cyprus', 'czech republic', 'czechia', 'denmark',
+        'estonia', 'finland', 'france', 'germany', 'greece', 'hungary', 'ireland', 'italy', 'latvia',
+        'lithuania', 'luxembourg', 'malta', 'netherlands', 'poland', 'portugal', 'romania', 'slovakia',
+        'slovenia', 'spain', 'sweden'
+      ];
+      const rank = { 'In effect': 4, Passed: 3, Proposed: 2, Policy: 1 };
+      const statusMap = new Map();
+      const setStatus = (k, status) => {
+        const prev = statusMap.get(k);
+        if (!prev || (rank[status] || 0) > (rank[prev] || 0)) statusMap.set(k, status);
+      };
+      for (const item of layerCache.aiRegulations.aiRegulations) {
+        const j = String(item.jurisdiction || '').trim().toLowerCase();
+        const st = item.status || 'Policy';
+        if (!j) continue;
+        setStatus(j, st);
+        if (j === 'european union' || j === 'eu') EU27.forEach((m) => setStatus(m, st));
+        if (j === 'united states' || j === 'usa' || j === 'us') {
+          setStatus('united states of america', st);
+          setStatus('united states', st);
+        }
+        if (j === 'uk' || j === 'united kingdom') setStatus('united kingdom', st);
+        if (j === 'south korea') setStatus('republic of korea', st);
+      }
+      regCountryTint = statusMap;
+    }
+
     ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(0.55, Math.min(1.2, 0.7 * Math.sqrt(zoom)));
+    ctx.lineWidth = Math.max(0.55, Math.min(1.45, 0.72 * Math.sqrt(zoom)));
 
     const traceCountryRings = (item) => {
       let drewAny = false;
@@ -805,7 +885,6 @@ export default function InteractiveCanvasGlobe3D({
           let y2 = u[1] * cosP0 - z1 * sinP0;
           const z2 = u[1] * sinP0 + z1 * cosP0;
           if (z2 < 0) {
-            // Project back-hemisphere vertex cleanly onto limb edge (clipped smoothly by sphere circle)
             const hLen = Math.hypot(x1, y2) || 1;
             x1 = (x1 / hLen) * 1.01;
             y2 = (y2 / hLen) * 1.01;
@@ -830,6 +909,18 @@ export default function InteractiveCanvasGlobe3D({
       if (traceCountryRings(item)) {
         ctx.fillStyle = isHov ? palette.landHover : palette.landFill;
         ctx.fill();
+        if (regCountryTint && regCountryTint.has(nameLower)) {
+          const st = regCountryTint.get(nameLower);
+          ctx.fillStyle =
+            st === 'In effect'
+              ? 'rgba(16, 185, 129, 0.24)'
+              : st === 'Passed'
+                ? 'rgba(14, 165, 233, 0.20)'
+                : st === 'Proposed'
+                  ? 'rgba(245, 158, 11, 0.18)'
+                  : 'rgba(139, 92, 246, 0.18)';
+          ctx.fill();
+        }
         ctx.strokeStyle = palette.landStroke;
         ctx.stroke();
       }
@@ -847,7 +938,7 @@ export default function InteractiveCanvasGlobe3D({
       ctx.restore();
     }
 
-    // 6. Optional Day/Night Solar Terminator on the 3D Sphere
+    // 6. Optional Day/Night Solar Terminator on the 3D Sphere (viewport-clamped for 60fps at deep zoom)
     if (dayNightEnabled) {
       const now = new Date();
       const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
@@ -870,7 +961,7 @@ export default function InteractiveCanvasGlobe3D({
       nightGrad.addColorStop(1, 'rgba(0,0,0,0)');
       if (sunZ > -1.1) {
         ctx.fillStyle = nightGrad;
-        ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+        ctx.fillRect(0, 0, width, height);
       }
     }
 
@@ -941,27 +1032,59 @@ export default function InteractiveCanvasGlobe3D({
       ctx.restore();
     };
 
-    // 8A. Submarine Cables
+    // 8A. Submarine Cables + Coastal Landing Stations
     if (internetCablesEnabled && layerCache.cables?.features) {
+      const cableWidth = Math.max(1.15, Math.min(2.2, 1.25 * Math.sqrt(Math.min(zoom, 4))));
       layerCache.cables.features.forEach((f) => {
         const g = f.geometry;
         const col = f.properties?.color || '#ec4899';
-        if (g?.type === 'LineString') drawSphericalLine(g.coordinates, col, 1.3, 0.62);
-        else if (g?.type === 'MultiLineString') g.coordinates.forEach((c) => drawSphericalLine(c, col, 1.3, 0.62));
+        if (g?.type === 'LineString') drawSphericalLine(g.coordinates, col, cableWidth, 0.66);
+        else if (g?.type === 'MultiLineString') g.coordinates.forEach((c) => drawSphericalLine(c, col, cableWidth, 0.66));
       });
+    }
+    if (internetCablesEnabled && layerCache.landingStations?.features) {
+      const lsGrid = {};
+      const lsBucket = zoom >= 3.2 ? 0.25 : zoom >= 1.8 ? 0.9 : 2.1;
+      for (const f of layerCache.landingStations.features) {
+        const coords = f.geometry?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) continue;
+        const lon = Number(coords[0]);
+        const lat = Number(coords[1]);
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+        const gk = `${Math.round(lat / lsBucket)},${Math.round(lon / lsBucket)}`;
+        if (lsGrid[gk]) continue;
+        lsGrid[gk] = true;
+        const [sx, sy, z] = projLonLat(lon, lat);
+        if (z < 0.04 || !onScreen(sx, sy)) continue;
+        const r = zoom >= 2.5 ? 3.4 : 2.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#f472b6';
+        ctx.fill();
+        ctx.lineWidth = 0.9;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        const stName = f.properties?.name || 'Subsea Landing Station';
+        hitPoints.push({
+          x: sx, y: sy, r: r + 5, priority: 4, tooltipType: 'generic',
+          title: `🔌 ${stName}`,
+          details: { Infrastructure: 'Subsea Fiber Landing Point', Source: 'TeleGeography Live Map' },
+          payload: { id: f.properties?.id || stName, title: stName, lat, lon, category: 'Infrastructure', severity: 2, source: 'TeleGeography Submarine Cable Map' }
+        });
+      }
     }
 
     // 8B. Oil & Gas Pipelines & Refineries
     if (oilGasEnabled && layerCache.oilGas) {
       (layerCache.oilGas.lines || []).forEach((line) => {
-        drawSphericalLine(line.coordinates, line.color || '#f97316', 1.5, 0.7);
+        drawSphericalLine(line.coordinates, line.color || '#f97316', 1.55, 0.72);
       });
       (layerCache.oilGas.points || []).forEach((pt) => {
         if (!Array.isArray(pt.coordinate) || pt.coordinate.length < 2) return;
         const [sx, sy, z] = projLonLat(pt.coordinate[0], pt.coordinate[1]);
-        if (z < 0.04) return;
+        if (z < 0.04 || !onScreen(sx, sy)) return;
         const isLng = pt.facilityType === 'lng_terminal';
-        const r = isLng ? 3.8 : 4.2;
+        const r = isLng ? 4.0 : 4.4;
         ctx.beginPath();
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.fillStyle = pt.color || (isLng ? '#38bdf8' : '#f59e0b');
@@ -970,7 +1093,7 @@ export default function InteractiveCanvasGlobe3D({
         ctx.strokeStyle = '#0f172a';
         ctx.stroke();
         hitPoints.push({
-          x: sx, y: sy, r: r + 4, priority: 3, tooltipType: 'energy',
+          x: sx, y: sy, r: r + 5, priority: 3, tooltipType: 'energy',
           title: `${isLng ? '⚓ ' : '🏭 '}${pt.name || 'Energy Facility'}`,
           details: { Operator: pt.operator || 'Operator', Country: pt.country || 'Global', Capacity: pt.capacity || 'N/A' },
           payload: { ...pt, title: pt.name || 'Energy Facility', lat: pt.coordinate[1], lon: pt.coordinate[0], isOilGas: true, category: 'Economic', severity: 2 }
@@ -978,57 +1101,97 @@ export default function InteractiveCanvasGlobe3D({
       });
     }
 
-    // 8C. GPS Jamming
+    // 8C. GPS Jamming (Sharp Hexagonal Honeycomb Cells)
     if (gpsJammingEnabled && layerCache.gpsJamming?.cells) {
       layerCache.gpsJamming.cells
         .filter((cell) => cell.category && cell.category !== 'none' && cell.intensity > 0)
         .forEach((cell) => {
           const [sx, sy, z] = projLonLat(cell.lon, cell.lat);
-          if (z < 0.05) return;
-          const radPx = Math.max(5, Math.min(26, ((cell.radiusKm || 140) / 6371) * R));
+          if (z < 0.05 || !onScreen(sx, sy, 32)) return;
+          const radPx = Math.max(3.6, Math.min(20, ((cell.radiusKm || 14) * 1.45 / 6371) * R * 1.7));
           ctx.beginPath();
-          ctx.arc(sx, sy, radPx, 0, Math.PI * 2);
-          ctx.fillStyle = cell.category === 'high' ? 'rgba(239,68,68,0.42)' : cell.category === 'medium' ? 'rgba(249,115,22,0.3)' : 'rgba(250,204,21,0.22)';
+          for (let h = 0; h < 6; h++) {
+            const ang = (Math.PI / 3) * h + Math.PI / 6;
+            const hx = sx + radPx * Math.cos(ang);
+            const hy = sy + radPx * Math.sin(ang);
+            if (h === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.fillStyle = cell.category === 'high' ? 'rgba(239,68,68,0.44)' : cell.category === 'medium' ? 'rgba(249,115,22,0.32)' : 'rgba(250,204,21,0.22)';
           ctx.fill();
           ctx.strokeStyle = cell.color || '#ef4444';
-          ctx.lineWidth = 1;
+          ctx.lineWidth = 0.85;
           ctx.stroke();
           hitPoints.push({
-            x: sx, y: sy, r: radPx + 3, priority: 3, tooltipType: 'gps',
+            x: sx, y: sy, r: Math.max(7, radPx + 2), priority: 3, tooltipType: 'gps',
             title: '📡 GPS Interference Corridor',
-            details: { Region: cell.region || 'Contested Airspace', Severity: String(cell.category).toUpperCase(), Degradation: `${Math.round((cell.intensity || 0) * 100)}%` },
-            payload: { ...cell, title: cell.region || 'GPS Interference Corridor', isGpsJamming: true, category: 'Conflict', severity: cell.category === 'high' ? 4 : 3 }
+            details: { Corridor: cell.source || cell.region || 'Contested Airspace', Severity: String(cell.category).toUpperCase(), Degradation: `${Math.round((cell.intensity || 0) * 100)}%` },
+            payload: { ...cell, title: cell.source || cell.region || 'GPS Interference Corridor', isGpsJamming: true, category: 'Conflict', severity: cell.category === 'high' ? 4 : 3 }
           });
         });
     }
 
-    // 8D. Data Centers
+    // 8D. Data Centers & Frontier AI Compute Clusters (Zoom-Adaptive Density + Glowing Gold Diamonds)
     if (dataCentersEnabled && layerCache.dataCenters?.dataCenters) {
       const gridCounts = {};
+      const bucketDeg = 0.85 / Math.sqrt(Math.max(1, zoom));
+      const maxColoc = Math.round(650 * Math.min(3.4, zoom));
       let count = 0;
       for (const dc of layerCache.dataCenters.dataCenters) {
         if (typeof dc.lat !== 'number' || typeof dc.lon !== 'number') continue;
         const isFrontier = Boolean(dc.isFrontierCluster || dc.status === 'planned');
         if (!isFrontier) {
-          const gk = `${Math.round(dc.lat / 0.8)},${Math.round(dc.lon / 0.8)}`;
-          if ((gridCounts[gk] || 0) >= 2 || count >= 600) continue;
+          const gk = `${Math.round(dc.lat / bucketDeg)},${Math.round(dc.lon / bucketDeg)}`;
+          if ((gridCounts[gk] || 0) >= 2 || count >= maxColoc) continue;
           gridCounts[gk] = (gridCounts[gk] || 0) + 1;
         }
         count++;
         const [sx, sy, z] = projLonLat(dc.lon, dc.lat);
-        if (z < 0.04) continue;
-        const r = isFrontier ? 5.2 : 3.2;
-        ctx.beginPath();
-        ctx.arc(sx, sy, r, 0, Math.PI * 2);
-        ctx.fillStyle = isFrontier ? '#f59e0b' : '#0ea5e9';
-        ctx.fill();
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = '#0f172a';
-        ctx.stroke();
+        if (z < 0.04 || !onScreen(sx, sy)) continue;
+        if (isFrontier) {
+          const d = zoom >= 2.2 ? 6.4 : 5.4;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - d);
+          ctx.lineTo(sx + d, sy);
+          ctx.lineTo(sx, sy + d);
+          ctx.lineTo(sx - d, sy);
+          ctx.closePath();
+          ctx.fillStyle = '#f59e0b';
+          ctx.fill();
+          ctx.lineWidth = 1.3;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+          if (zoom >= 2.0 && dc.name) {
+            ctx.font = '700 8.5px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            const shortName = dc.name.length > 26 ? `${dc.name.slice(0, 24)}…` : dc.name;
+            ctx.lineWidth = 2.4;
+            ctx.strokeStyle = palette.labelHalo;
+            ctx.strokeText(shortName, sx + d + 4, sy);
+            ctx.fillStyle = palette.isLight ? '#b45309' : '#fcd34d';
+            ctx.fillText(shortName, sx + d + 4, sy);
+          }
+        } else {
+          const r = zoom >= 2.8 ? 3.8 : 3.0;
+          ctx.beginPath();
+          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#0ea5e9';
+          ctx.fill();
+          ctx.lineWidth = 0.9;
+          ctx.strokeStyle = '#0f172a';
+          ctx.stroke();
+        }
         hitPoints.push({
-          x: sx, y: sy, r: r + 4, priority: isFrontier ? 6 : 4, tooltipType: 'datacenter',
-          title: `🏢 ${dc.name}`,
-          details: { Operator: dc.operator || 'Independent', Country: dc.country || 'Global', Status: String(dc.status || 'Active').toUpperCase() },
+          x: sx, y: sy, r: isFrontier ? 10 : 7.5, priority: isFrontier ? 7 : 4, tooltipType: 'datacenter',
+          title: `${isFrontier ? '⚡ ' : '🏢 '}${dc.name}`,
+          details: {
+            Operator: dc.operator || 'Independent',
+            Country: dc.country || 'Global',
+            ...(dc.powerMw ? { Power: `${dc.powerMw} MW` } : {}),
+            Status: String(dc.status || 'Active').toUpperCase()
+          },
           payload: { ...dc, isDataCenter: true, title: dc.name }
         });
       }
@@ -1039,17 +1202,17 @@ export default function InteractiveCanvasGlobe3D({
       layerCache.aiRegulations.aiRegulations.forEach((item) => {
         if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
         const [sx, sy, z] = projLonLat(item.lon, item.lat);
-        if (z < 0.04) return;
+        if (z < 0.04 || !onScreen(sx, sy)) return;
         const color = REG_COLORS[item.status] || '#8b5cf6';
         ctx.beginPath();
-        ctx.arc(sx, sy, 4.6, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 4.8, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
         ctx.lineWidth = 1.2;
-        ctx.strokeStyle = '#0f172a';
+        ctx.strokeStyle = '#ffffff';
         ctx.stroke();
         hitPoints.push({
-          x: sx, y: sy, r: 8.5, priority: 5, tooltipType: 'regulation',
+          x: sx, y: sy, r: 9, priority: 5, tooltipType: 'regulation',
           title: `⚖️ ${item.title}`,
           details: { Jurisdiction: item.jurisdiction || 'Global', Status: String(item.status || 'Policy').toUpperCase(), Area: item.area || 'General' },
           payload: { ...item, isAiRegulation: true }
@@ -1064,7 +1227,12 @@ export default function InteractiveCanvasGlobe3D({
         const coords = latest?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) return;
         const [sx, sy, z] = projLonLat(coords[0], coords[1]);
-        if (z < 0.04) return;
+        if (z < 0.04 || !onScreen(sx, sy)) return;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 9.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.55)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
         ctx.beginPath();
         ctx.arc(sx, sy, 5.8, 0, Math.PI * 2);
         ctx.fillStyle = '#06b6d4';
@@ -1073,7 +1241,7 @@ export default function InteractiveCanvasGlobe3D({
         ctx.strokeStyle = '#ffffff';
         ctx.stroke();
         hitPoints.push({
-          x: sx, y: sy, r: 9.5, priority: 4, tooltipType: 'generic',
+          x: sx, y: sy, r: 10.5, priority: 4, tooltipType: 'generic',
           title: `🌀 ${ev.title}`,
           details: { Source: 'NASA EONET Satellite Telemetry', Observed: String(latest.date || 'Active').slice(0, 10) },
           payload: { id: ev.id || ev.title, title: ev.title, lat: coords[1], lon: coords[0], category: 'Disaster', severity: 3 }
@@ -1081,7 +1249,7 @@ export default function InteractiveCanvasGlobe3D({
       });
     }
 
-    // 8G. AI Ethics Layers
+    // 8G. AI Ethics & Censorship Layers
     const ethicsJobs = [
       [censorshipEnabled, 'censorship', '🔒'],
       [envJusticeEnabled, 'environmental', '🌍'],
@@ -1094,16 +1262,21 @@ export default function InteractiveCanvasGlobe3D({
       layerCache[key].items.forEach((item) => {
         if (typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
         const [sx, sy, z] = projLonLat(item.lon, item.lat);
-        if (z < 0.04) return;
+        if (z < 0.04 || !onScreen(sx, sy)) return;
+        const col = item.color || '#a855f7';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 7.6, 0, Math.PI * 2);
+        ctx.fillStyle = `${col}2a`;
+        ctx.fill();
         ctx.beginPath();
         ctx.arc(sx, sy, 5.0, 0, Math.PI * 2);
-        ctx.fillStyle = item.color || '#a855f7';
+        ctx.fillStyle = col;
         ctx.fill();
         ctx.lineWidth = 1.3;
-        ctx.strokeStyle = '#0f172a';
+        ctx.strokeStyle = '#ffffff';
         ctx.stroke();
         hitPoints.push({
-          x: sx, y: sy, r: 9, priority: 6, tooltipType: 'regulation',
+          x: sx, y: sy, r: 9.5, priority: 6, tooltipType: 'regulation',
           title: `${icon} ${item.title || item.name}`,
           details: { Country: item.country || 'Global', Source: item.source || 'Observatory' },
           payload: { ...item, isEthicsOverlay: true, title: item.title || item.name }
@@ -1198,69 +1371,135 @@ export default function InteractiveCanvasGlobe3D({
       }
     }
 
-    // 8J. Focus Target Reticle
+    // 8J. Pulsing Focus Target Reticle
     if (focusRingRef.current && focusRingRef.current.expiresAt > Date.now()) {
       const [fx, fy, fz] = projLonLat(focusRingRef.current.lon, focusRingRef.current.lat);
-      if (fz > 0.01) {
+      if (fz > 0.01 && onScreen(fx, fy, 48)) {
+        const pulse = ((Date.now() - (focusRingRef.current.startedAt || 0)) % 1200) / 1200;
         ctx.beginPath();
-        ctx.arc(fx, fy, 18, 0, Math.PI * 2);
+        ctx.arc(fx, fy, 12 + pulse * 22, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 240, 255, ${(1 - pulse) * 0.85})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(fx, fy, 14, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(0, 240, 255, 0.14)';
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.strokeStyle = '#00f0ff';
         ctx.stroke();
       }
     }
 
-    // 9. Spherical 3D Rim Shading (gives unmistakable curved 3D volume!)
-    const rimShade = ctx.createRadialGradient(
-      cx - R * 0.25,
-      cy - R * 0.25,
-      R * 0.52,
-      cx,
-      cy,
-      R
-    );
-    rimShade.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
-    rimShade.addColorStop(0.76, 'rgba(0, 0, 0, 0)');
-    rimShade.addColorStop(1, palette.isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(2, 6, 23, 0.42)');
-    ctx.fillStyle = rimShade;
-    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+    // 9. Spherical 3D Rim Shading (viewport-clamped so deep zoom stays 60fps!)
+    if (limbVisible) {
+      const rimShade = ctx.createRadialGradient(
+        cx - R * 0.25,
+        cy - R * 0.25,
+        R * 0.52,
+        cx,
+        cy,
+        R
+      );
+      rimShade.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+      rimShade.addColorStop(0.76, 'rgba(0, 0, 0, 0)');
+      rimShade.addColorStop(1, palette.isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(2, 6, 23, 0.42)');
+      ctx.fillStyle = rimShade;
+      ctx.fillRect(0, 0, width, height);
+    }
 
     ctx.restore(); // end sphere clip
 
-    // 10. Crisp Luminous Atmospheric Limb Ring
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = palette.rimStroke;
-    ctx.stroke();
+    // 10. Crisp Luminous Atmospheric Limb Ring (when visible in viewport)
+    if (limbVisible) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = palette.rimStroke;
+      ctx.stroke();
+    }
 
-    // 11. Orbiting Satellites (can float slightly outside the Earth sphere radius!)
+    // 11. Orbiting Satellites + Selected Satellite Orbit Path & Nadir Beam
     if (showSatellites && Array.isArray(satellites) && satellites.length > 0) {
-      satellites.forEach((sat) => {
-        const altScale = 1 + Math.min(0.24, Math.max(0.03, (Number(sat.altitude) || 550) / 16000));
-        const phi = Number(sat.latitude) * DEG2RAD;
-        const lam = (Number(sat.longitude) - lon0) * DEG2RAD;
+      const projOrbitPt = (lonDeg, latDeg, altScale) => {
+        const phi = latDeg * DEG2RAD;
+        const lam = (lonDeg - lon0) * DEG2RAD;
         const cosPhi = Math.cos(phi);
         const sinPhi = Math.sin(phi);
         const x1 = cosPhi * Math.sin(lam);
         const y2 = cosP0 * sinPhi - sinP0 * cosPhi * Math.cos(lam);
         const z2 = sinP0 * sinPhi + cosP0 * cosPhi * Math.cos(lam);
-        // Occlude only when strictly behind the Earth disk
-        if (z2 < 0 && x1 * x1 + y2 * y2 < 1 / (altScale * altScale)) return;
+        const occluded = z2 < 0 && x1 * x1 + y2 * y2 < 1 / (altScale * altScale);
+        return [cx + x1 * R * altScale, cy - y2 * R * altScale, z2, occluded];
+      };
 
-        const sx = cx + x1 * R * altScale;
-        const sy = cy - y2 * R * altScale;
+      // Draw selected satellite orbital track + nadir scan beam
+      if (selectedSatellite && Number.isFinite(Number(selectedSatellite.latitude)) && Number.isFinite(Number(selectedSatellite.longitude))) {
+        const satAltScale = 1 + Math.min(0.24, Math.max(0.03, (Number(selectedSatellite.altitude) || 550) / 16000));
+        const incRad = Math.max(0.05, ((Number(selectedSatellite.inclination) || 51.6) * Math.PI) / 180);
+        const satLatRad = Number(selectedSatellite.latitude) * DEG2RAD;
+        const sinTheta = Math.max(-1, Math.min(1, Math.sin(satLatRad) / Math.sin(incRad)));
+        const theta0 = Math.asin(sinTheta);
+        const lonOrb0 = Math.atan2(Math.cos(incRad) * Math.sin(theta0), Math.cos(theta0));
+        const raanDeg = Number(selectedSatellite.longitude) - lonOrb0 * RAD2DEG;
+
+        const drawTrackArc = (startDeg, endDeg, strokeStyle, lineW) => {
+          ctx.save();
+          ctx.strokeStyle = strokeStyle;
+          ctx.lineWidth = lineW;
+          ctx.beginPath();
+          let pen = false;
+          for (let off = startDeg; off <= endDeg; off += 4) {
+            const th = theta0 + off * DEG2RAD;
+            const latD = Math.asin(Math.max(-1, Math.min(1, Math.sin(incRad) * Math.sin(th)))) * RAD2DEG;
+            let lonD = Math.atan2(Math.cos(incRad) * Math.sin(th), Math.cos(th)) * RAD2DEG + raanDeg;
+            lonD = ((lonD + 540) % 360) - 180;
+            const [ox, oy, , occ] = projOrbitPt(lonD, latD, satAltScale);
+            if (!occ) {
+              if (!pen) { ctx.moveTo(ox, oy); pen = true; }
+              else ctx.lineTo(ox, oy);
+            } else {
+              pen = false;
+            }
+          }
+          ctx.stroke();
+          ctx.restore();
+        };
+
+        drawTrackArc(-170, 0, 'rgba(168, 85, 247, 0.55)', 1.5);
+        drawTrackArc(0, 170, 'rgba(0, 240, 255, 0.85)', 2.2);
+
+        // Vertical nadir scan beam from satellite down to sub-satellite surface point
+        const [satX, satY, , satOcc] = projOrbitPt(Number(selectedSatellite.longitude), Number(selectedSatellite.latitude), satAltScale);
+        const [gX, gY, gZ] = projLonLat(Number(selectedSatellite.longitude), Number(selectedSatellite.latitude));
+        if (!satOcc && gZ > 0) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.72)';
+          ctx.lineWidth = 1.6;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(satX, satY);
+          ctx.lineTo(gX, gY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+      }
+
+      satellites.forEach((sat) => {
+        const altScale = 1 + Math.min(0.24, Math.max(0.03, (Number(sat.altitude) || 550) / 16000));
+        const [sx, sy, , occluded] = projOrbitPt(Number(sat.longitude), Number(sat.latitude), altScale);
+        if (occluded || !onScreen(sx, sy)) return;
+
         const isSel = selectedSatellite && selectedSatellite.code === sat.code;
         const col = MISSION_COLORS[sat.missionType] || '#38bdf8';
 
         ctx.beginPath();
-        ctx.arc(sx, sy, isSel ? 7 : 4.5, 0, Math.PI * 2);
+        ctx.arc(sx, sy, isSel ? 7.5 : 4.5, 0, Math.PI * 2);
         ctx.fillStyle = `${col}44`;
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(sx, sy, isSel ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.arc(sx, sy, isSel ? 3.8 : 2.6, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.lineWidth = 1.3;
@@ -1268,7 +1507,7 @@ export default function InteractiveCanvasGlobe3D({
         ctx.stroke();
 
         hitPoints.push({
-          x: sx, y: sy, r: 10, priority: 18, isSatellite: true, tooltipType: 'generic',
+          x: sx, y: sy, r: 11, priority: 18, isSatellite: true, tooltipType: 'generic',
           title: `🛰️ ${sat.name}`,
           details: { Operator: sat.operator || sat.country || 'Space Agency', Altitude: `${sat.altitude || 550} km`, Orbit: sat.orbitRegime || 'LEO' },
           payload: sat
@@ -1325,30 +1564,52 @@ export default function InteractiveCanvasGlobe3D({
     return () => ro.disconnect();
   }, [requestDraw]);
 
-  // Pointer drag-to-orbit, wheel zoom, hover tooltip, and click hit-testing
+  // Multi-touch pinch-to-zoom, cursor-anchored wheel zoom, inertial drag-to-orbit, double-click zoom, keyboard & hover/tap hit-testing
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrapper = wrapperRef.current;
     if (!canvas || !wrapper) return;
 
-    let pointerDown = false;
+    const activePointers = new Map();
     let moved = false;
     let startX = 0;
     let startY = 0;
     let lastX = 0;
     let lastY = 0;
+    let prevPinchDist = null;
+    let prevPinchMidX = 0;
+    let prevPinchMidY = 0;
     let lastHoverCheck = 0;
+    let lastTapTs = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+    let inertiaRaf = null;
+
+    const stopInertia = () => {
+      if (inertiaRaf) {
+        cancelAnimationFrame(inertiaRaf);
+        inertiaRaf = null;
+      }
+      viewRef.current.velLon = 0;
+      viewRef.current.velLat = 0;
+    };
+
+    const getGlobeRadius = () => {
+      const w = wrapper.clientWidth || 1;
+      const h = wrapper.clientHeight || 1;
+      return Math.min(w, h) * (w < 768 ? 0.42 : 0.43) * viewRef.current.zoom;
+    };
 
     const screenToLonLat = (mx, my) => {
       const w = wrapper.clientWidth || 1;
       const h = wrapper.clientHeight || 1;
       const cx = w * 0.5;
       const cy = h * 0.5;
-      const R = Math.min(w, h) * 0.43 * viewRef.current.zoom;
+      const R = getGlobeRadius();
       const dx = (mx - cx) / R;
       const dy = (cy - my) / R;
       const rho2 = dx * dx + dy * dy;
-      if (rho2 > 1) return null;
+      if (rho2 > 0.9995) return null;
       const rho = Math.sqrt(rho2);
       const phi0 = viewRef.current.lat * DEG2RAD;
       const lam0 = viewRef.current.lon * DEG2RAD;
@@ -1364,7 +1625,7 @@ export default function InteractiveCanvasGlobe3D({
       return { lat, lon };
     };
 
-    const pickPoint = (mx, my) => {
+    const pickPoint = (mx, my, extraPad = 0) => {
       const pts = interactivePointsRef.current;
       let best = null;
       let bestScore = -Infinity;
@@ -1373,7 +1634,8 @@ export default function InteractiveCanvasGlobe3D({
         const dx = mx - p.x;
         const dy = my - p.y;
         const d2 = dx * dx + dy * dy;
-        if (d2 <= p.r * p.r) {
+        const hitR = p.r + extraPad;
+        if (d2 <= hitR * hitR) {
           const score = p.priority * 100 - Math.sqrt(d2);
           if (score > bestScore) {
             bestScore = score;
@@ -1384,20 +1646,59 @@ export default function InteractiveCanvasGlobe3D({
       return best;
     };
 
+    const applyCursorZoom = (factor, mx, my) => {
+      const prevZoom = viewRef.current.zoom;
+      const nextZoom = Math.max(0.55, Math.min(14.0, prevZoom * factor));
+      if (Math.abs(nextZoom - prevZoom) < 1e-5) return;
+
+      const geoBefore = mx != null && my != null ? screenToLonLat(mx, my) : null;
+      viewRef.current.zoom = nextZoom;
+
+      if (geoBefore) {
+        const geoAfter = screenToLonLat(mx, my);
+        if (geoAfter) {
+          let dLon = ((geoBefore.lon - geoAfter.lon + 540) % 360) - 180;
+          const dLat = geoBefore.lat - geoAfter.lat;
+          if (Math.abs(dLon) < 40 && Math.abs(dLat) < 40) {
+            let nextLon = viewRef.current.lon + dLon * 0.85;
+            if (nextLon > 180) nextLon -= 360;
+            if (nextLon < -180) nextLon += 360;
+            viewRef.current.lon = nextLon;
+            viewRef.current.lat = Math.max(-78, Math.min(78, viewRef.current.lat + dLat * 0.85));
+          }
+        }
+      }
+      syncZoomLabel(nextZoom);
+      requestDraw();
+    };
+
     const onPointerDown = (e) => {
-      if (!activeRef.current || e.button !== 0) return;
+      if (!activeRef.current) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      stopInertia();
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
       }
-      pointerDown = true;
+
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
       isDraggingRef.current = true;
-      moved = false;
-      startX = lastX = e.clientX;
-      startY = lastY = e.clientY;
       canvas.style.cursor = 'grabbing';
       if (callbacksRef.current.onInteraction) callbacksRef.current.onInteraction();
       try { canvas.setPointerCapture(e.pointerId); } catch {}
+
+      if (activePointers.size === 1) {
+        moved = false;
+        startX = lastX = e.clientX;
+        startY = lastY = e.clientY;
+        prevPinchDist = null;
+      } else if (activePointers.size === 2) {
+        moved = true;
+        const [p1, p2] = Array.from(activePointers.values());
+        prevPinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        prevPinchMidX = (p1.x + p2.x) * 0.5;
+        prevPinchMidY = (p1.y + p2.y) * 0.5;
+      }
     };
 
     const onPointerMove = (e) => {
@@ -1406,32 +1707,68 @@ export default function InteractiveCanvasGlobe3D({
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
-      if (pointerDown) {
+      if (activePointers.has(e.pointerId)) {
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+
+        // 2-finger pinch-to-zoom + midpoint pan on touch devices
+        if (activePointers.size >= 2) {
+          const [p1, p2] = Array.from(activePointers.values());
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const midX = (p1.x + p2.x) * 0.5;
+          const midY = (p1.y + p2.y) * 0.5;
+
+          if (prevPinchDist && prevPinchDist > 10 && dist > 10) {
+            const R = getGlobeRadius();
+            const degPerPx = 90 / Math.max(80, R);
+            const mdx = midX - prevPinchMidX;
+            const mdy = midY - prevPinchMidY;
+            let nextLon = viewRef.current.lon - mdx * degPerPx;
+            if (nextLon > 180) nextLon -= 360;
+            if (nextLon < -180) nextLon += 360;
+            viewRef.current.lon = nextLon;
+            viewRef.current.lat = Math.max(-78, Math.min(78, viewRef.current.lat + mdy * degPerPx));
+
+            const scaleRatio = Math.max(0.75, Math.min(1.35, dist / prevPinchDist));
+            applyCursorZoom(scaleRatio, midX - rect.left, midY - rect.top);
+          }
+          prevPinchDist = dist;
+          prevPinchMidX = midX;
+          prevPinchMidY = midY;
+          return;
+        }
+
+        // Single-finger / mouse spherical drag
         const dx = e.clientX - lastX;
         const dy = e.clientY - lastY;
-        if (Math.hypot(e.clientX - startX, e.clientY - startY) > 3) moved = true;
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) > (e.pointerType === 'touch' ? 7 : 3)) {
+          moved = true;
+        }
         lastX = e.clientX;
         lastY = e.clientY;
 
-        const w = wrapper.clientWidth || 800;
-        const h = wrapper.clientHeight || 600;
-        const R = Math.min(w, h) * 0.43 * viewRef.current.zoom;
+        const R = getGlobeRadius();
         const degPerPx = 90 / Math.max(80, R);
+        const dLon = -dx * degPerPx;
+        const dLat = dy * degPerPx;
 
-        let nextLon = viewRef.current.lon - dx * degPerPx;
+        let nextLon = viewRef.current.lon + dLon;
         if (nextLon > 180) nextLon -= 360;
         if (nextLon < -180) nextLon += 360;
         viewRef.current.lon = nextLon;
-        viewRef.current.lat = Math.max(-72, Math.min(72, viewRef.current.lat + dy * degPerPx));
+        viewRef.current.lat = Math.max(-78, Math.min(78, viewRef.current.lat + dLat));
+        viewRef.current.velLon = dLon;
+        viewRef.current.velLat = dLat;
         requestDraw();
         return;
       }
 
+      // Desktop hover inspection
+      if (e.pointerType === 'touch') return;
       const now = performance.now();
-      if (now - lastHoverCheck < 45) return;
+      if (now - lastHoverCheck < 40) return;
       lastHoverCheck = now;
 
-      const hit = pickPoint(mx, my);
+      const hit = pickPoint(mx, my, 0);
       if (hit) {
         canvas.style.cursor = 'pointer';
         tooltipActiveRef.current = true;
@@ -1474,17 +1811,47 @@ export default function InteractiveCanvasGlobe3D({
     };
 
     const onPointerUp = (e) => {
-      if (!pointerDown) return;
-      pointerDown = false;
+      if (!activePointers.has(e.pointerId)) return;
+      const pointerType = activePointers.get(e.pointerId)?.type || e.pointerType;
+      activePointers.delete(e.pointerId);
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
+      if (activePointers.size === 1) {
+        // One finger still down after pinch: smoothly re-anchor single drag without jumping
+        const remaining = Array.from(activePointers.values())[0];
+        lastX = remaining.x;
+        lastY = remaining.y;
+        prevPinchDist = null;
+        return;
+      }
+
+      prevPinchDist = null;
       isDraggingRef.current = false;
       canvas.style.cursor = 'grab';
-      try { canvas.releasePointerCapture(e.pointerId); } catch {}
 
       if (!moved) {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-        const hit = pickPoint(mx, my);
+        const isTouch = pointerType === 'touch';
+
+        // Double-tap on mobile zooms cleanly into tapped coordinates
+        if (isTouch) {
+          const now = Date.now();
+          if (now - lastTapTs < 310 && Math.hypot(mx - lastTapX, my - lastTapY) < 34) {
+            lastTapTs = 0;
+            const geoTap = screenToLonLat(mx, my);
+            if (geoTap) {
+              animateTo(geoTap.lon, geoTap.lat, Math.min(14.0, viewRef.current.zoom * 1.85), 320);
+              return;
+            }
+          }
+          lastTapTs = now;
+          lastTapX = mx;
+          lastTapY = my;
+        }
+
+        const hit = pickPoint(mx, my, isTouch ? 11 : 2);
         if (hit) {
           if (hit.isSatellite) {
             if (callbacksRef.current.onSatelliteClick) callbacksRef.current.onSatelliteClick(hit.payload);
@@ -1504,6 +1871,43 @@ export default function InteractiveCanvasGlobe3D({
             }
           }
         }
+      } else {
+        // Gentle inertial glide after a crisp drag/flick
+        const speed = Math.hypot(viewRef.current.velLon, viewRef.current.velLat);
+        if (speed > 0.08 && speed < 14) {
+          const glide = () => {
+            if (!activeRef.current || isDraggingRef.current) {
+              inertiaRaf = null;
+              return;
+            }
+            viewRef.current.velLon *= 0.89;
+            viewRef.current.velLat *= 0.89;
+            if (Math.hypot(viewRef.current.velLon, viewRef.current.velLat) < 0.015) {
+              inertiaRaf = null;
+              return;
+            }
+            let nextLon = viewRef.current.lon + viewRef.current.velLon;
+            if (nextLon > 180) nextLon -= 360;
+            if (nextLon < -180) nextLon += 360;
+            viewRef.current.lon = nextLon;
+            viewRef.current.lat = Math.max(-78, Math.min(78, viewRef.current.lat + viewRef.current.velLat));
+            requestDraw();
+            inertiaRaf = requestAnimationFrame(glide);
+          };
+          inertiaRaf = requestAnimationFrame(glide);
+        }
+      }
+    };
+
+    const onDblClick = (e) => {
+      if (!activeRef.current) return;
+      stopInertia();
+      const rect = canvas.getBoundingClientRect();
+      const geo = screenToLonLat(e.clientX - rect.left, e.clientY - rect.top);
+      if (geo) {
+        animateTo(geo.lon, geo.lat, Math.min(14.0, viewRef.current.zoom * 1.85), 340);
+      } else {
+        animateTo(viewRef.current.lon, viewRef.current.lat, Math.min(14.0, viewRef.current.zoom * 1.5), 280);
       }
     };
 
@@ -1523,11 +1927,38 @@ export default function InteractiveCanvasGlobe3D({
     const onWheel = (e) => {
       if (!activeRef.current) return;
       e.preventDefault();
+      stopInertia();
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
       if (callbacksRef.current.onInteraction) callbacksRef.current.onInteraction();
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      viewRef.current.zoom = Math.max(0.75, Math.min(6.5, viewRef.current.zoom * factor));
-      setZoomLabel(`${viewRef.current.zoom.toFixed(1)}x`);
-      requestDraw();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const unitScale = e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 220 : 1;
+      const rawDelta = e.deltaY * unitScale * (e.ctrlKey ? 2.4 : 1);
+      const clampedDelta = Math.max(-220, Math.min(220, rawDelta));
+      const factor = Math.exp(-clampedDelta * 0.0024);
+      applyCursorZoom(factor, mx, my);
+    };
+
+    const onKeyDown = (e) => {
+      if (!activeRef.current) return;
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return;
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        animateTo(viewRef.current.lon, viewRef.current.lat, Math.min(14.0, viewRef.current.zoom * 1.38), 220);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        animateTo(viewRef.current.lon, viewRef.current.lat, Math.max(0.55, viewRef.current.zoom / 1.38), 220);
+      }
+    };
+
+    // Prevent browser native pinch/page scroll on mobile touchscreens
+    const onTouchMovePrevent = (e) => {
+      if (activeRef.current) e.preventDefault();
     };
 
     canvas.addEventListener('pointerdown', onPointerDown);
@@ -1535,20 +1966,27 @@ export default function InteractiveCanvasGlobe3D({
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('pointerleave', onPointerLeave);
+    canvas.addEventListener('dblclick', onDblClick);
     canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('touchmove', onTouchMovePrevent, { passive: false });
+    window.addEventListener('keydown', onKeyDown);
 
     return () => {
+      stopInertia();
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('pointerleave', onPointerLeave);
+      canvas.removeEventListener('dblclick', onDblClick);
       canvas.removeEventListener('wheel', onWheel);
+      canvas.removeEventListener('touchmove', onTouchMovePrevent);
+      window.removeEventListener('keydown', onKeyDown);
     };
-  }, [requestDraw]);
+  }, [requestDraw, animateTo, syncZoomLabel]);
 
   const handleStepZoom = (dir) => {
-    const nextZoom = Math.max(0.75, Math.min(6.5, viewRef.current.zoom * (dir > 0 ? 1.32 : 1 / 1.32)));
+    const nextZoom = Math.max(0.55, Math.min(14.0, viewRef.current.zoom * (dir > 0 ? 1.42 : 1 / 1.42)));
     animateTo(viewRef.current.lon, viewRef.current.lat, nextZoom, 240);
   };
 
@@ -1563,7 +2001,8 @@ export default function InteractiveCanvasGlobe3D({
         pointerEvents: active ? 'auto' : 'none',
         transition: 'opacity 0.25s ease',
         overflow: 'hidden',
-        touchAction: 'none'
+        touchAction: 'none',
+        userSelect: 'none'
       }}
     >
       <canvas
@@ -1572,7 +2011,8 @@ export default function InteractiveCanvasGlobe3D({
           width: '100%',
           height: '100%',
           display: 'block',
-          cursor: 'grab'
+          cursor: 'grab',
+          touchAction: 'none'
         }}
       />
 
@@ -1581,9 +2021,9 @@ export default function InteractiveCanvasGlobe3D({
         <div
           style={{
             position: 'absolute',
-            top: '12px',
-            left: '12px',
-            zIndex: 10,
+            top: isCompact ? '58px' : '12px',
+            left: isCompact ? '10px' : '12px',
+            zIndex: 18,
             background: 'var(--sov-panel-bg)',
             border: '1px solid var(--sov-border)',
             borderRadius: '7px',
@@ -1625,38 +2065,53 @@ export default function InteractiveCanvasGlobe3D({
         </div>
       )}
 
-      {/* Bottom-left compact 3D Globe zoom controls */}
+      {/* Right-docked responsive 3D Globe zoom controls (clear of left Live Feed & mobile bottom dock) */}
       {active && (
         <div
+          onPointerDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
-            bottom: '54px',
-            left: '16px',
-            zIndex: 10,
+            bottom: isCompact ? '112px' : '54px',
+            right: isCompact ? '10px' : '16px',
+            zIndex: 20,
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: isCompact ? '5px' : '6px',
             background: 'var(--sov-panel-bg)',
             border: '1px solid var(--sov-border)',
-            borderRadius: '8px',
-            padding: '5px 8px',
+            borderRadius: '9px',
+            padding: isCompact ? '5px 7px' : '5px 9px',
             fontFamily: 'var(--font-jetbrains-fallback)',
             fontSize: '9.5px',
             color: 'var(--sov-muted)',
             boxShadow: 'var(--sov-shadow)',
-            backdropFilter: 'blur(10px)'
+            backdropFilter: 'blur(12px)'
           }}
         >
-          <span style={{ fontWeight: 700, letterSpacing: '0.06em' }}>3D GLOBE · {zoomLabel}</span>
+          <span style={{ fontWeight: 800, letterSpacing: '0.06em', color: 'var(--sov-accent)' }}>
+            {isCompact ? zoomLabel : `3D VECTOR · ${zoomLabel}`}
+          </span>
           <button
             type="button"
             onClick={() => handleStepZoom(1)}
             style={{
-              width: '20px', height: '20px', borderRadius: '4px',
-              border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)',
-              color: 'var(--sov-text)', cursor: 'pointer', fontWeight: 800
+              width: isCompact ? '28px' : '22px',
+              height: isCompact ? '28px' : '22px',
+              borderRadius: '5px',
+              border: '1px solid var(--sov-border)',
+              background: 'var(--sov-card-bg)',
+              color: 'var(--sov-text)',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontSize: isCompact ? '14px' : '12px',
+              lineHeight: 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             aria-label="Zoom in 3D globe"
+            title="Zoom in (+)"
           >
             +
           </button>
@@ -1664,11 +2119,22 @@ export default function InteractiveCanvasGlobe3D({
             type="button"
             onClick={() => handleStepZoom(-1)}
             style={{
-              width: '20px', height: '20px', borderRadius: '4px',
-              border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)',
-              color: 'var(--sov-text)', cursor: 'pointer', fontWeight: 800
+              width: isCompact ? '28px' : '22px',
+              height: isCompact ? '28px' : '22px',
+              borderRadius: '5px',
+              border: '1px solid var(--sov-border)',
+              background: 'var(--sov-card-bg)',
+              color: 'var(--sov-text)',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontSize: isCompact ? '14px' : '12px',
+              lineHeight: 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             aria-label="Zoom out 3D globe"
+            title="Zoom out (−)"
           >
             −
           </button>
@@ -1676,10 +2142,17 @@ export default function InteractiveCanvasGlobe3D({
             type="button"
             onClick={() => animateTo(14.0, 20.0, 1.0, 420)}
             style={{
-              padding: '2px 7px', borderRadius: '4px',
-              border: '1px solid var(--sov-border)', background: 'var(--sov-card-bg)',
-              color: 'var(--sov-accent)', cursor: 'pointer', fontWeight: 800, fontSize: '8.5px'
+              padding: isCompact ? '0 8px' : '0 7px',
+              height: isCompact ? '28px' : '22px',
+              borderRadius: '5px',
+              border: '1px solid var(--sov-border)',
+              background: 'var(--sov-card-bg)',
+              color: 'var(--sov-accent)',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontSize: '8.5px'
             }}
+            title="Reset 3D globe view"
           >
             RESET
           </button>

@@ -699,10 +699,10 @@ export default function LiveMap({
       localStorage.setItem('sovdash_ui_theme', nextTheme);
       document.documentElement.setAttribute('data-ui-theme', nextTheme);
     } catch {}
-    if (nextTheme === 'light') {
+    if (nextTheme === 'light' && mapStyle !== 'vector') {
       setMapStyle('light');
       try { localStorage.setItem('operator_pref_mapStyle', 'light'); } catch {}
-    } else if (mapStyle === 'light') {
+    } else if (nextTheme !== 'light' && mapStyle === 'light') {
       setMapStyle('tactical');
       try { localStorage.setItem('operator_pref_mapStyle', 'tactical'); } catch {}
     }
@@ -3969,13 +3969,27 @@ export default function LiveMap({
       </div>
 
       {/* Status Bar */}
-      <div className="map-status-bar" style={{ zIndex: 10 }}>
-        <div className="status-item">
+      <div
+        className="map-status-bar"
+        style={{
+          zIndex: 10,
+          ...(isMobile
+            ? {
+                gap: '8px',
+                padding: '0 10px',
+                fontSize: '9px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden'
+              }
+            : {})
+        }}
+      >
+        <div className="status-item" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
           <span className={`status-dot ${status === 'live' ? 'live' : ''}`} />
-          {status === 'live' ? 'CONNECTED' : status === 'loading' ? 'CONNECTING...' : 'RECONNECTING...'}
+          {status === 'live' ? (isMobile ? 'LIVE' : 'CONNECTED') : status === 'loading' ? 'CONNECTING...' : 'RECONNECTING...'}
         </div>
-        <div className="status-item">
-          ⚡ {displayedMarkers.length} MAP SIGNALS
+        <div className="status-item" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+          ⚡ {displayedMarkers.length}{isMobile ? '' : ' MAP SIGNALS'}
         </div>
         <div style={{ color: 'rgba(255,255,255,0.15)', display: isMobile ? 'none' : 'block' }}>|</div>
         <button
@@ -3984,7 +3998,7 @@ export default function LiveMap({
             background: 'transparent',
             border: 'none',
             color: 'var(--sov-accent)',
-            fontSize: '10px',
+            fontSize: isMobile ? '9px' : '10px',
             fontWeight: '700',
             fontFamily: 'monospace',
             cursor: 'pointer',
@@ -3994,14 +4008,16 @@ export default function LiveMap({
             gap: '4px',
             transition: 'color 0.2s',
             letterSpacing: '0.05em',
-            outline: 'none'
+            outline: 'none',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}
           onMouseEnter={(e) => e.currentTarget.style.color = 'var(--sov-text)'}
           onMouseLeave={(e) => e.currentTarget.style.color = 'var(--sov-accent)'}
         >
-          📋 CHANGELOG
+          📋 {isMobile ? 'LOG' : 'CHANGELOG'}
         </button>
-        <div className="status-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="status-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px', whiteSpace: 'nowrap', flexShrink: 0 }}>
           <a 
             href="https://aviperera.com" 
             target="_blank" 
@@ -4011,7 +4027,7 @@ export default function LiveMap({
               textDecoration: 'none', 
               fontWeight: '700',
               fontFamily: 'monospace',
-              fontSize: '10px',
+              fontSize: isMobile ? '9px' : '10px',
               transition: 'color 0.2s',
               borderBottom: '1px dotted rgba(56, 189, 248, 0.4)',
               paddingBottom: '1px',
@@ -4022,18 +4038,28 @@ export default function LiveMap({
           >
             BY AVI
           </a>
-          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
-          <span>DATABASE SYNC: {new Date().toLocaleTimeString()}</span>
+          {!isMobile && (
+            <>
+              <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+              <span>DATABASE SYNC: {new Date().toLocaleTimeString()}</span>
+            </>
+          )}
         </div>
       </div>
 
       {/* Live Market Quotes & Tactical Widgets */}
       {showMarkets && (
-        <MarketQuotesBox onClose={() => setShowMarkets(false)} />
+        <MarketQuotesBox
+          onClose={() => setShowMarkets(false)}
+          currentUser={currentUser}
+          onRequireAuth={() => setShowAuthModal(true)}
+          isMobile={isMobile}
+        />
       )}
       {showLegislativeTracker && (
         <LegislativeCountdownWidget
           onClose={() => setShowLegislativeTracker(false)}
+          isMobile={isMobile}
           onFocusLocation={(lat, lon) => {
             setAutoRotate(false);
             setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
@@ -4043,6 +4069,7 @@ export default function LiveMap({
       {showCensorshipPulse && (
         <CensorshipPulseWidget
           onClose={() => setShowCensorshipPulse(false)}
+          isMobile={isMobile}
           censorshipEnabled={censorshipEnabled}
           onToggleCensorshipLayer={() => setCensorshipEnabled(prev => !prev)}
           onFocusLocation={(lat, lon) => {
@@ -4054,6 +4081,7 @@ export default function LiveMap({
       {showComputeSafety && (
         <ComputeSafetyWidget
           onClose={() => setShowComputeSafety(false)}
+          isMobile={isMobile}
           signals={allFetchedEvents}
           onFocusLocation={(lat, lon) => {
             setAutoRotate(false);
@@ -4241,7 +4269,7 @@ export default function LiveMap({
           pointerEvents: 'auto'
         }}>
           <div style={{
-            width: '400px',
+            width: 'min(92vw, 400px)',
             background: 'rgba(8, 12, 24, 0.98)',
             border: '1px solid rgba(56, 189, 248, 0.4)',
             borderRadius: '10px',
