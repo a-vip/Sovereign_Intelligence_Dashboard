@@ -647,8 +647,14 @@ export default function LiveMap({
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('operator_pref_mapMode');
+        const legacyStyle = localStorage.getItem('operator_pref_mapStyle');
+        if (legacyStyle === 'vector') {
+          localStorage.setItem('sovdash_map_mode_v2', 'vector');
+          localStorage.setItem('operator_pref_mapStyle', 'tactical');
+          return 'vector';
+        }
         const saved = localStorage.getItem('sovdash_map_mode_v2');
-        return saved === '2d' || saved === '3d' ? saved : '3d';
+        return saved === '2d' || saved === '3d' || saved === 'vector' ? saved : '3d';
       } catch {}
     }
     return '3d';
@@ -656,9 +662,19 @@ export default function LiveMap({
   const [mapStyle, setMapStyle] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('operator_pref_mapStyle');
-      return (stored === 'dark' || !stored) ? 'tactical' : stored;
+      return (!stored || stored === 'dark' || stored === 'vector') ? 'tactical' : stored;
     }
     return 'tactical';
+  });
+  const [vectorTheme, setVectorTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('operator_pref_vectorTheme');
+        const valid = ['obsidian', 'editorial', 'blueprint', 'thermal', 'emerald', 'solaris'];
+        return valid.includes(stored) ? stored : 'obsidian';
+      } catch {}
+    }
+    return 'obsidian';
   });
   const [autoRotate, setAutoRotate] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -699,14 +715,25 @@ export default function LiveMap({
       localStorage.setItem('sovdash_ui_theme', nextTheme);
       document.documentElement.setAttribute('data-ui-theme', nextTheme);
     } catch {}
-    if (nextTheme === 'light' && mapStyle !== 'vector') {
-      setMapStyle('light');
-      try { localStorage.setItem('operator_pref_mapStyle', 'light'); } catch {}
-    } else if (nextTheme !== 'light' && mapStyle === 'light') {
-      setMapStyle('tactical');
-      try { localStorage.setItem('operator_pref_mapStyle', 'tactical'); } catch {}
+    if (nextTheme === 'light') {
+      if (mapMode === 'vector') {
+        setVectorTheme('editorial');
+        try { localStorage.setItem('operator_pref_vectorTheme', 'editorial'); } catch {}
+      } else {
+        setMapStyle('light');
+        try { localStorage.setItem('operator_pref_mapStyle', 'light'); } catch {}
+      }
+    } else if (nextTheme !== 'light') {
+      if (mapMode === 'vector' && vectorTheme === 'editorial') {
+        const mapped = nextTheme === 'emerald' ? 'emerald' : nextTheme === 'cambridge' ? 'blueprint' : 'obsidian';
+        setVectorTheme(mapped);
+        try { localStorage.setItem('operator_pref_vectorTheme', mapped); } catch {}
+      } else if (mapStyle === 'light') {
+        setMapStyle('tactical');
+        try { localStorage.setItem('operator_pref_mapStyle', 'tactical'); } catch {}
+      }
     }
-  }, [mapStyle]);
+  }, [mapMode, mapStyle, vectorTheme]);
   const [bookmarks, setBookmarks] = useState([]);
 
   const getBookmarkKey = useCallback((ev) => {
@@ -1020,12 +1047,16 @@ export default function LiveMap({
   useEffect(() => {
     const handlePrefChange = () => {
       const nextMode = localStorage.getItem('sovdash_map_mode_v2');
-      if (nextMode === '2d' || nextMode === '3d') {
+      if (nextMode === '2d' || nextMode === '3d' || nextMode === 'vector') {
         setMapMode(nextMode);
       }
       const storedStyle = localStorage.getItem('operator_pref_mapStyle');
-      if (storedStyle) {
+      if (storedStyle && storedStyle !== 'vector') {
         setMapStyle(storedStyle === 'dark' ? 'tactical' : storedStyle);
+      }
+      const storedVecTheme = localStorage.getItem('operator_pref_vectorTheme');
+      if (storedVecTheme) {
+        setVectorTheme(storedVecTheme);
       }
       const rotate = localStorage.getItem('operator_pref_autoRotate');
       if (rotate !== null) {
@@ -1912,6 +1943,8 @@ export default function LiveMap({
           setMapStyle={setMapStyle}
           mapMode={mapMode}
           setMapMode={setMapMode}
+          vectorTheme={vectorTheme}
+          setVectorTheme={setVectorTheme}
           autoRotate={autoRotate}
           setAutoRotate={setAutoRotate}
           tickerSpeed={tickerSpeed}
@@ -2816,6 +2849,7 @@ export default function LiveMap({
           onCountrySelect={setSelectedCountry}
           mapMode={mapMode}
           mapStyle={mapStyle}
+          vectorTheme={vectorTheme}
           onMapModeChange={setMapMode}
           onMapStyleChange={setMapStyle}
           autoRotate={autoRotate}
@@ -3073,11 +3107,12 @@ export default function LiveMap({
             {isMapOptionsExpanded && (
               <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
 
-                {/* 3D Globe vs 2D Equal Earth Projection Switcher */}
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '2px' }}>
+                {/* 3D HD Globe vs ✦ 3D Vector Mode vs 2D Equal Earth Switcher */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '2px' }}>
                   {[
-                    { id: '3d', label: '🌐 3D GLOBE' },
-                    { id: '2d', label: '🗺️ 2D EQUAL EARTH' }
+                    { id: '3d', label: '🌐 3D HD' },
+                    { id: 'vector', label: '✦ VECTOR 3D' },
+                    { id: '2d', label: '🗺️ 2D MAP' }
                   ].map((opt) => {
                     const active = mapMode === opt.id;
                     return (
@@ -3095,13 +3130,12 @@ export default function LiveMap({
                           } catch {}
                         }}
                         style={{
-                          flex: 1,
-                          padding: '5px 4px',
+                          padding: '5px 3px',
                           borderRadius: '4px',
                           border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
                           background: active ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
                           color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
-                          fontSize: '8.5px',
+                          fontSize: '8px',
                           fontWeight: 800,
                           fontFamily: 'var(--font-jetbrains-fallback)',
                           cursor: 'pointer'
@@ -3113,34 +3147,74 @@ export default function LiveMap({
                   })}
                 </div>
                 
-                {/* Map style selection */}
+                {/* Mode-specific Theme / Basemap Selection */}
                 <div style={{ marginBottom: '4px', paddingBottom: '6px', borderBottom: '1px solid var(--sov-border)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--sov-muted)', marginBottom: '5px', letterSpacing: '0.05em' }}>MAP VIEWPORT STYLE</div>
-                  <select
-                    value={mapStyle}
-                    onChange={(e) => setMapStyle(e.target.value)}
-                    style={{
-                      width: '100%',
-                      background: 'var(--sov-card-bg)',
-                      border: '1px solid var(--sov-border)',
-                      borderRadius: '4px',
-                      padding: '4px 6px',
-                      color: 'var(--sov-text)',
-                      fontSize: '9px',
-                      fontWeight: '800',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'monospace'
-                    }}
-                  >
-                    <option value="tactical">🛰️ TACTICAL DARK</option>
-                    <option value="vector">✦ SOVEREIGN VECTOR 3D (60FPS)</option>
-                    <option value="minimal">🌑 CLEAN DARK (MINIMAL)</option>
-                    <option value="light">☀️ EDITORIAL LIGHT</option>
-                    <option value="satellite">🌍 HIGH-RES ORBITAL</option>
-                    <option value="buildings">🏢 3D URBAN BUILDINGS</option>
-                    <option value="lights">🌃 EARTH AT NIGHT</option>
-                  </select>
+                  <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--sov-muted)', marginBottom: '5px', letterSpacing: '0.05em' }}>
+                    {mapMode === 'vector' ? 'VECTOR 3D THEME (60FPS)' : 'HD BASEMAP STYLE'}
+                  </div>
+                  {mapMode === 'vector' ? (
+                    <select
+                      value={vectorTheme}
+                      onChange={(e) => {
+                        setVectorTheme(e.target.value);
+                        try {
+                          localStorage.setItem('operator_pref_vectorTheme', e.target.value);
+                          window.dispatchEvent(new Event('operator_pref_changed'));
+                        } catch {}
+                      }}
+                      style={{
+                        width: '100%',
+                        background: 'var(--sov-card-bg)',
+                        border: '1px solid var(--sov-accent)',
+                        borderRadius: '4px',
+                        padding: '4px 6px',
+                        color: 'var(--sov-text)',
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      <option value="obsidian">✦ OBSIDIAN CYBER (DEFAULT)</option>
+                      <option value="editorial">☀️ EDITORIAL PAPER (LIGHT)</option>
+                      <option value="blueprint">📐 ATLAS BLUEPRINT</option>
+                      <option value="thermal">🔥 THERMAL NIGHT</option>
+                      <option value="emerald">🌿 EMERALD TOPO</option>
+                      <option value="solaris">✨ SOLARIS GOLD</option>
+                    </select>
+                  ) : (
+                    <select
+                      value={mapStyle}
+                      onChange={(e) => {
+                        setMapStyle(e.target.value);
+                        try {
+                          localStorage.setItem('operator_pref_mapStyle', e.target.value);
+                          window.dispatchEvent(new Event('operator_pref_changed'));
+                        } catch {}
+                      }}
+                      style={{
+                        width: '100%',
+                        background: 'var(--sov-card-bg)',
+                        border: '1px solid var(--sov-border)',
+                        borderRadius: '4px',
+                        padding: '4px 6px',
+                        color: 'var(--sov-text)',
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      <option value="tactical">🛰️ TACTICAL DARK</option>
+                      <option value="minimal">🌑 CLEAN DARK (MINIMAL)</option>
+                      <option value="light">☀️ EDITORIAL LIGHT</option>
+                      <option value="satellite">🌍 HIGH-RES ORBITAL</option>
+                      <option value="buildings">🏢 3D URBAN BUILDINGS</option>
+                      <option value="lights">🌃 EARTH AT NIGHT</option>
+                    </select>
+                  )}
                 </div>
 
                 {/* Checklist options with right-side status indicators */}
@@ -4054,12 +4128,18 @@ export default function LiveMap({
           currentUser={currentUser}
           onRequireAuth={() => setShowAuthModal(true)}
           isMobile={isMobile}
+          onFocusLocation={(lat, lon) => {
+            setAutoRotate(false);
+            setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
+          }}
         />
       )}
       {showLegislativeTracker && (
         <LegislativeCountdownWidget
           onClose={() => setShowLegislativeTracker(false)}
           isMobile={isMobile}
+          aiRegulationsEnabled={aiRegulationsEnabled}
+          onToggleAiRegLayer={() => setAiRegulationsEnabled(prev => !prev)}
           onFocusLocation={(lat, lon) => {
             setAutoRotate(false);
             setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });
@@ -4083,6 +4163,8 @@ export default function LiveMap({
           onClose={() => setShowComputeSafety(false)}
           isMobile={isMobile}
           signals={allFetchedEvents}
+          dataCentersEnabled={dataCentersEnabled}
+          onToggleDataCentersLayer={() => setDataCentersEnabled(prev => !prev)}
           onFocusLocation={(lat, lon) => {
             setAutoRotate(false);
             setFocusCoordinate({ lat: Number(lat), lon: Number(lon), timestamp: Date.now() });

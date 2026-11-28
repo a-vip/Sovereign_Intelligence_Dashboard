@@ -1,0 +1,27 @@
+{
+  "targetScale": 100000,
+  "cumulativeAuditedCases": 1044,
+  "cumulativePassedCases": 1035,
+  "cumulativePhantomCitations": 0,
+  "batches": [
+    {
+      "batchId": "batch-1795878924903",
+      "generatedAt": "2026-11-28T15:15:24.895Z",
+      "variantSeed": 0,
+      "totalTests": 1044,
+      "passedCount": 1035,
+      "passRate": 99.14,
+      "abstentionAccuracy": 100,
+      "citationCoverageAvg": 96.74,
+      "groundingAvg": 100,
+      "phantomCitationCount": 0,
+      "durationMs": 44174,
+      "failureTaxonomy": {
+        "keyword_mismatch": 8,
+        "false_abstention": 1
+      }
+    }
+  ],
+  "cumulativePassRate": 99.14,
+  "updatedAt": "2026-11-28T15:15:24.895Z"
+}

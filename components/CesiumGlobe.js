@@ -595,6 +595,7 @@ export default function CesiumGlobe({
   onPointClick = null, 
   mapMode = '3d', 
   mapStyle = 'satellite', 
+  vectorTheme = 'obsidian',
   focusCoordinate = null, 
   onMapModeChange = null,
   onMapStyleChange = null,
@@ -730,16 +731,16 @@ export default function CesiumGlobe({
 
   // CRITICAL: 2D Equal Earth is ONLY active when the user explicitly selects '2d'.
   // WebGL failure or software-WebGL NEVER forces the user into 2D or traps them there — 3D seamlessly uses InteractiveCanvasGlobe3D!
-  // Also, when the user explicitly selects the 'vector' ("Sovereign Vector 3D") map style, we render InteractiveCanvasGlobe3D directly as a first-class 60fps vector globe.
+  // Also, when the user selects dedicated 'vector' mode ("✦ 3D VECTOR"), we render InteractiveCanvasGlobe3D with its 6 exclusive Vector 3D themes.
   const is2DActive = mapMode === '2d';
-  const isVectorGlobeStyle = !is2DActive && mapStyle === 'vector';
-  const [hasRequestedHdGlobe, setHasRequestedHdGlobe] = useState(() => mapStyle !== 'vector');
+  const isVectorGlobeStyle = mapMode === 'vector' || (!is2DActive && mapStyle === 'vector');
+  const [hasRequestedHdGlobe, setHasRequestedHdGlobe] = useState(() => !isVectorGlobeStyle && !is2DActive);
   useEffect(() => {
-    if (mapStyle !== 'vector' && !hasRequestedHdGlobe) {
+    if (!isVectorGlobeStyle && !is2DActive && !hasRequestedHdGlobe) {
       setHasRequestedHdGlobe(true);
     }
-  }, [mapStyle, hasRequestedHdGlobe]);
-  const shouldUseCesiumHd = !is2DActive && hasRequestedHdGlobe && !mapError && (forceHdWebgl || gpuTier === 'hd' || gpuTier === 'eco');
+  }, [isVectorGlobeStyle, is2DActive, hasRequestedHdGlobe]);
+  const shouldUseCesiumHd = !is2DActive && !isVectorGlobeStyle && hasRequestedHdGlobe && !mapError && (forceHdWebgl || gpuTier === 'hd' || gpuTier === 'eco');
 
   // Keep prevMapModeRef synced
   useEffect(() => {
@@ -4449,7 +4450,9 @@ export default function CesiumGlobe({
   //   - Cesium HD WebGL Globe seamlessly crossfades in over it once root tiles upload on hardware-accelerated GPUs (when a raster/3D-tiles style is selected)
   const is3DReadyToDisplay = shouldUseCesiumHd && !isVectorGlobeStyle && viewerReady && globeSurfaceReady;
   const isCanvas3DActive = !is2DActive && !is3DReadyToDisplay;
-  const isLightBackdrop = mapStyle === 'light' || (uiTheme === 'light' && mapStyle !== 'vector');
+  const isLightBackdrop = isVectorGlobeStyle
+    ? vectorTheme === 'editorial'
+    : (mapStyle === 'light' || uiTheme === 'light');
   const canTryHdWebgl = !isVectorGlobeStyle && (gpuTier === 'software' || mapError) && gpuTier !== 'none';
 
   return (
@@ -4502,6 +4505,7 @@ export default function CesiumGlobe({
         showSatellites={showSatellites}
         satellites={satellites}
         selectedSatellite={selectedSatellite}
+        isTracked={isTracked}
         onSatelliteClick={(sat) => { if (onSatelliteClickRef.current) onSatelliteClickRef.current(sat); }}
         onPointClick={(pt) => { if (onPointClickRef.current) onPointClickRef.current(pt); }}
         onCountrySelect={(cName) => { if (onCountrySelectRef.current) onCountrySelectRef.current(cName); }}
@@ -4513,6 +4517,8 @@ export default function CesiumGlobe({
         focusCoordinate={focusCoordinate}
         uiTheme={uiTheme}
         mapStyle={mapStyle}
+        isVectorMode={isVectorGlobeStyle}
+        vectorTheme={vectorTheme}
         dayNightEnabled={dayNightEnabled}
         weatherEnabled={weatherEnabled}
         oilGasEnabled={oilGasEnabled}

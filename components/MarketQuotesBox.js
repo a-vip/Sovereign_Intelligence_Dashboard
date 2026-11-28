@@ -16,12 +16,45 @@ import {
   Minimize2,
   Plus,
   Trash2,
-  Lock
+  Lock,
+  MapPin,
+  GitCompare
 } from 'lucide-react';
 import WidgetInfoTooltip from './WidgetInfoTooltip';
 
 const CATEGORIES = ['All', 'Watchlist', 'Indices', 'AI', 'Defense', 'Macro', 'Crypto'];
 const RANGES = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'];
+const COMPARE_PEERS = [
+  { ticker: '^GSPC', label: 'S&P 500' },
+  { ticker: 'NVDA', label: 'NVIDIA' },
+  { ticker: 'TSM', label: 'TSMC' },
+  { ticker: '^VIX', label: 'VIX' },
+  { ticker: 'GC=F', label: 'Gold' },
+  { ticker: 'BZ=F', label: 'Brent Oil' },
+  { ticker: 'BTC-USD', label: 'Bitcoin' }
+];
+
+const GEO_ANCHORS = {
+  '^GSPC': { lat: 40.7069, lon: -74.0113, label: 'NYSE · Wall Street, US' },
+  '^IXIC': { lat: 40.7563, lon: -73.9865, label: 'NASDAQ · New York, US' },
+  '^FTSE': { lat: 51.5145, lon: -0.0987, label: 'LSE · London, UK' },
+  '^N225': { lat: 35.6812, lon: 139.7782, label: 'TSE · Tokyo, Japan' },
+  '000001.SS': { lat: 31.2397, lon: 121.4998, label: 'SSE · Shanghai, China' },
+  'NVDA': { lat: 37.3708, lon: -121.9669, label: 'NVIDIA HQ · Santa Clara, CA' },
+  'TSM': { lat: 24.7736, lon: 121.0113, label: 'TSMC Fab 18 · Hsinchu, Taiwan' },
+  'ASML': { lat: 51.4063, lon: 5.4148, label: 'ASML EUV Campus · Veldhoven, NL' },
+  'MSFT': { lat: 47.6423, lon: -122.1369, label: 'Microsoft · Redmond, WA' },
+  'GOOGL': { lat: 37.4220, lon: -122.0841, label: 'Google · Mountain View, CA' },
+  'AAPL': { lat: 37.3346, lon: -122.0090, label: 'Apple Park · Cupertino, CA' },
+  'META': { lat: 37.4848, lon: -122.1484, label: 'Meta · Menlo Park, CA' },
+  'AMD': { lat: 37.3827, lon: -121.9701, label: 'AMD HQ · Santa Clara, CA' },
+  'PLTR': { lat: 39.7525, lon: -104.9995, label: 'Palantir · Denver, CO' },
+  'LMT': { lat: 39.0315, lon: -77.1436, label: 'Lockheed Martin · Bethesda, MD' },
+  'ITA': { lat: 38.8719, lon: -77.0563, label: 'US Defense Corridor · Washington DC' },
+  'BZ=F': { lat: 26.5667, lon: 56.2500, label: 'Strait of Hormuz · Brent Corridor' },
+  'CL=F': { lat: 35.9849, lon: -96.7669, label: 'Cushing Hub · WTI Crude, US' },
+  'GC=F': { lat: 51.5136, lon: -0.0890, label: 'LBMA Gold Clearing · London' }
+};
 
 function formatPrice(val) {
   const num = Number(val);
@@ -55,9 +88,14 @@ function formatAxisTime(tsMs, range) {
 
 function MarketProChart({
   candles,
+  compareCandles = null,
+  compareTicker = '',
   range,
   chartType,
   showSma,
+  showEma = false,
+  showBollinger = false,
+  showRsi = false,
   showVolume,
   isPositive,
   onHoverCandle
@@ -66,18 +104,90 @@ function MarketProChart({
   const wrapRef = useRef(null);
   const [hoverIdx, setHoverIdx] = useState(null);
 
-  const sma20 = useMemo(() => {
-    if (!showSma || !candles.length) return [];
+  const isCompareMode = Boolean(compareTicker && Array.isArray(compareCandles) && compareCandles.length > 1);
+
+  const { sma20, bbUpper, bbLower } = useMemo(() => {
+    if ((!showSma && !showBollinger) || !candles.length || isCompareMode) {
+      return { sma20: [], bbUpper: [], bbLower: [] };
+    }
+    const n = candles.length;
+    const sma = new Array(n).fill(null);
+    const upper = new Array(n).fill(null);
+    const lower = new Array(n).fill(null);
+    const period = Math.min(20, Math.max(5, Math.floor(n / 4)));
+    for (let i = period - 1; i < n; i++) {
+      let sum = 0;
+      for (let j = i - period + 1; j <= i; j++) sum += candles[j].c;
+      const mean = sum / period;
+      sma[i] = mean;
+      if (showBollinger) {
+        let sq = 0;
+        for (let j = i - period + 1; j <= i; j++) {
+          const d = candles[j].c - mean;
+          sq += d * d;
+        }
+        const std = Math.sqrt(sq / period);
+        upper[i] = mean + 2 * std;
+        lower[i] = mean - 2 * std;
+      }
+    }
+    return { sma20: sma, bbUpper: upper, bbLower: lower };
+  }, [candles, showSma, showBollinger, isCompareMode]);
+
+  const ema12 = useMemo(() => {
+    if (!showEma || !candles.length || isCompareMode) return [];
+    const period = Math.min(12, Math.max(4, Math.floor(candles.length / 5)));
+    const k = 2 / (period + 1);
     const out = new Array(candles.length).fill(null);
-    let sum = 0;
-    const period = Math.min(20, Math.max(5, Math.floor(candles.length / 4)));
-    for (let i = 0; i < candles.length; i++) {
-      sum += candles[i].c;
-      if (i >= period) sum -= candles[i - period].c;
-      if (i >= period - 1) out[i] = sum / period;
+    let prev = candles[0].c;
+    out[0] = prev;
+    for (let i = 1; i < candles.length; i++) {
+      prev = candles[i].c * k + prev * (1 - k);
+      out[i] = prev;
     }
     return out;
-  }, [candles, showSma]);
+  }, [candles, showEma, isCompareMode]);
+
+  const rsi14 = useMemo(() => {
+    if (!showRsi || candles.length < 6) return [];
+    const period = Math.min(14, Math.max(4, Math.floor(candles.length / 4)));
+    const out = new Array(candles.length).fill(null);
+    let avgGain = 0;
+    let avgLoss = 0;
+    for (let i = 1; i <= period && i < candles.length; i++) {
+      const diff = candles[i].c - candles[i - 1].c;
+      if (diff >= 0) avgGain += diff;
+      else avgLoss -= diff;
+    }
+    avgGain /= period;
+    avgLoss /= period;
+    if (period < candles.length) {
+      out[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    }
+    for (let i = period + 1; i < candles.length; i++) {
+      const diff = candles[i].c - candles[i - 1].c;
+      const gain = diff > 0 ? diff : 0;
+      const loss = diff < 0 ? -diff : 0;
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
+      out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    }
+    return out;
+  }, [candles, showRsi]);
+
+  // Align peer compare series by nearest timestamp and normalize both to % return from first bar
+  const alignedComparePct = useMemo(() => {
+    if (!isCompareMode || !candles.length) return [];
+    const basePeer = compareCandles[0]?.c || 1;
+    let pIdx = 0;
+    return candles.map((c) => {
+      while (pIdx + 1 < compareCandles.length && compareCandles[pIdx + 1].t <= c.t) {
+        pIdx++;
+      }
+      const pc = compareCandles[pIdx]?.c ?? basePeer;
+      return ((pc - basePeer) / basePeer) * 100;
+    });
+  }, [candles, compareCandles, isCompareMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -103,7 +213,6 @@ function MarketProChart({
     }
 
     const styles = getComputedStyle(document.documentElement);
-    const textCol = styles.getPropertyValue('--sov-text').trim() || '#e2e8f0';
     const mutedCol = styles.getPropertyValue('--sov-muted').trim() || '#94a3b8';
     const borderCol = styles.getPropertyValue('--sov-border').trim() || 'rgba(148,163,184,0.22)';
     const accentCol = styles.getPropertyValue('--sov-accent').trim() || '#0ea5e9';
@@ -113,33 +222,52 @@ function MarketProChart({
     const padTop = 12;
     const padBottom = 22;
     const plotW = Math.max(40, w - padLeft - padRight);
-    const plotH = Math.max(40, h - padTop - padBottom);
-    const volH = showVolume ? Math.round(plotH * 0.2) : 0;
-    const priceH = plotH - volH - (showVolume ? 6 : 0);
+    const totalPlotH = Math.max(40, h - padTop - padBottom);
+    const rsiH = showRsi ? 42 : 0;
+    const rsiGap = showRsi ? 8 : 0;
+    const mainH = totalPlotH - rsiH - rsiGap;
+    const volH = showVolume && !isCompareMode ? Math.round(mainH * 0.2) : 0;
+    const priceH = mainH - volH - (volH > 0 ? 6 : 0);
+
+    const basePrimary = candles[0]?.c || 1;
+    const primaryPct = isCompareMode ? candles.map((c) => ((c.c - basePrimary) / basePrimary) * 100) : null;
 
     let minP = Infinity;
     let maxP = -Infinity;
     let maxVol = 0;
-    for (let i = 0; i < candles.length; i++) {
-      const c = candles[i];
-      if (c.l < minP) minP = c.l;
-      if (c.h > maxP) maxP = c.h;
-      if (c.v > maxVol) maxVol = c.v;
+    if (isCompareMode) {
+      for (let i = 0; i < candles.length; i++) {
+        const v1 = primaryPct[i];
+        const v2 = alignedComparePct[i] ?? 0;
+        if (v1 < minP) minP = v1;
+        if (v1 > maxP) maxP = v1;
+        if (v2 < minP) minP = v2;
+        if (v2 > maxP) maxP = v2;
+      }
+    } else {
+      for (let i = 0; i < candles.length; i++) {
+        const c = candles[i];
+        if (c.l < minP) minP = c.l;
+        if (c.h > maxP) maxP = c.h;
+        if (bbLower[i] != null && bbLower[i] < minP) minP = bbLower[i];
+        if (bbUpper[i] != null && bbUpper[i] > maxP) maxP = bbUpper[i];
+        if (c.v > maxVol) maxVol = c.v;
+      }
     }
     if (!Number.isFinite(minP) || !Number.isFinite(maxP)) {
       ctx.restore();
       return;
     }
-    const span = Math.max(maxP - minP, maxP * 0.004 || 0.01);
+    const span = Math.max(maxP - minP, isCompareMode ? 0.8 : (maxP * 0.004 || 0.01));
     const lo = minP - span * 0.08;
     const hi = maxP + span * 0.08;
 
     const n = candles.length;
     const stepX = n > 1 ? plotW / n : plotW;
     const xOf = (idx) => padLeft + (idx + 0.5) * stepX;
-    const yOf = (price) => padTop + (1 - (price - lo) / (hi - lo)) * priceH;
+    const yOf = (val) => padTop + (1 - (val - lo) / (hi - lo)) * priceH;
 
-    // 1. Subtle horizontal price gridlines & right-axis labels
+    // 1. Subtle horizontal gridlines & right-axis labels (Price OR % Return)
     ctx.font = '600 9.5px var(--font-jetbrains-fallback), monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -158,9 +286,24 @@ function MarketProChart({
 
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = mutedCol;
-      ctx.fillText(formatPrice(val), padLeft + plotW + 6, y);
+      const lbl = isCompareMode ? `${val >= 0 ? '+' : ''}${val.toFixed(1)}%` : formatPrice(val);
+      ctx.fillText(lbl, padLeft + plotW + 6, y);
     }
     ctx.globalAlpha = 1;
+
+    // Zero baseline in % compare mode
+    if (isCompareMode && lo < 0 && hi > 0) {
+      const y0 = yOf(0);
+      ctx.save();
+      ctx.strokeStyle = mutedCol;
+      ctx.globalAlpha = 0.45;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y0);
+      ctx.lineTo(padLeft + plotW, y0);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // 2. Bottom time axis labels
     ctx.textAlign = 'center';
@@ -170,12 +313,12 @@ function MarketProChart({
       const idx = Math.min(n - 1, Math.round((t / Math.max(1, tickCount - 1)) * (n - 1)));
       const x = xOf(idx);
       ctx.fillStyle = mutedCol;
-      ctx.fillText(formatAxisTime(candles[idx].t, range), x, padTop + plotH + 5);
+      ctx.fillText(formatAxisTime(candles[idx].t, range), x, padTop + totalPlotH + 5);
     }
 
     // 3. Volume Histogram Bars
-    if (showVolume && maxVol > 0 && volH > 6) {
-      const volBaseY = padTop + plotH;
+    if (volH > 6 && maxVol > 0) {
+      const volBaseY = padTop + mainH;
       const barW = Math.max(1.4, Math.min(10, stepX * 0.65));
       for (let i = 0; i < n; i++) {
         const c = candles[i];
@@ -187,11 +330,76 @@ function MarketProChart({
       }
     }
 
-    // 4. Primary Price Series (Line/Area OR OHLC Candlesticks)
     const upCol = '#10b981';
     const downCol = '#ef4444';
 
-    if (chartType === 'candles') {
+    // 3B. Optional Bollinger Band Shaded Envelope (20, 2σ)
+    if (showBollinger && !isCompareMode && bbUpper.length) {
+      ctx.save();
+      ctx.beginPath();
+      let firstIdx = -1;
+      for (let i = 0; i < n; i++) {
+        if (bbUpper[i] == null) continue;
+        if (firstIdx < 0) { firstIdx = i; ctx.moveTo(xOf(i), yOf(bbUpper[i])); }
+        else ctx.lineTo(xOf(i), yOf(bbUpper[i]));
+      }
+      if (firstIdx >= 0) {
+        for (let i = n - 1; i >= firstIdx; i--) {
+          if (bbLower[i] == null) continue;
+          ctx.lineTo(xOf(i), yOf(bbLower[i]));
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.09)';
+        ctx.fill();
+
+        const strokeBand = (arr) => {
+          ctx.beginPath();
+          let started = false;
+          for (let i = 0; i < n; i++) {
+            if (arr[i] == null) continue;
+            if (!started) { ctx.moveTo(xOf(i), yOf(arr[i])); started = true; }
+            else ctx.lineTo(xOf(i), yOf(arr[i]));
+          }
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
+          ctx.lineWidth = 1.0;
+          ctx.stroke();
+        };
+        strokeBand(bbUpper);
+        strokeBand(bbLower);
+      }
+      ctx.restore();
+    }
+
+    // 4. Primary Price Series (Normalized % Compare OR OHLC Candlesticks OR Area Line)
+    if (isCompareMode) {
+      // Primary normalized % return
+      const lineCol = isPositive ? upCol : downCol;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = xOf(i);
+        const y = yOf(primaryPct[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = lineCol;
+      ctx.lineWidth = 2.1;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Peer compare normalized % return (purple luminous line)
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = xOf(i);
+        const y = yOf(alignedComparePct[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (chartType === 'candles') {
       const bodyW = Math.max(2.2, Math.min(12, stepX * 0.68));
       for (let i = 0; i < n; i++) {
         const c = candles[i];
@@ -203,7 +411,6 @@ function MarketProChart({
         const up = c.c >= c.o;
         const col = up ? upCol : downCol;
 
-        // High-low wick
         ctx.strokeStyle = col;
         ctx.lineWidth = Math.max(1, Math.min(1.6, bodyW * 0.2));
         ctx.beginPath();
@@ -211,7 +418,6 @@ function MarketProChart({
         ctx.lineTo(x, yL);
         ctx.stroke();
 
-        // Open-close body
         const top = Math.min(yO, yC);
         const height = Math.max(1.5, Math.abs(yC - yO));
         ctx.fillStyle = col;
@@ -231,7 +437,6 @@ function MarketProChart({
       ctx.lineJoin = 'round';
       ctx.stroke();
 
-      // Subtle gradient area fill underneath
       ctx.lineTo(xOf(n - 1), padTop + priceH);
       ctx.lineTo(xOf(0), padTop + priceH);
       ctx.closePath();
@@ -242,8 +447,8 @@ function MarketProChart({
       ctx.fill();
     }
 
-    // 5. Optional SMA 20 Overlay Curve
-    if (showSma && sma20.length) {
+    // 5. Optional SMA 20 & EMA 12 Overlays
+    if (showSma && !isCompareMode && sma20.length) {
       ctx.beginPath();
       let started = false;
       for (let i = 0; i < n; i++) {
@@ -260,11 +465,81 @@ function MarketProChart({
       ctx.setLineDash([]);
     }
 
-    // 6. Interactive Crosshair + Price Tag
+    if (showEma && !isCompareMode && ema12.length) {
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < n; i++) {
+        if (ema12[i] == null) continue;
+        const x = xOf(i);
+        const y = yOf(ema12[i]);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 1.35;
+      ctx.stroke();
+    }
+
+    // 5B. Optional RSI (14) Momentum Sub-Oscillator Panel
+    if (showRsi && rsi14.length) {
+      const rsiTop = padTop + mainH + rsiGap;
+      const yRsi = (val) => rsiTop + (1 - Math.max(0, Math.min(100, val)) / 100) * rsiH;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+      ctx.fillRect(padLeft, rsiTop, plotW, rsiH);
+
+      // 70 / 30 overbought-oversold reference lines
+      ctx.strokeStyle = borderCol;
+      ctx.setLineDash([2, 3]);
+      ctx.lineWidth = 0.8;
+      [70, 30].forEach((lvl) => {
+        const y = yRsi(lvl);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(padLeft + plotW, y);
+        ctx.stroke();
+        ctx.fillStyle = mutedCol;
+        ctx.font = '600 8px var(--font-jetbrains-fallback), monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${lvl}`, padLeft + plotW + 6, y);
+      });
+      ctx.setLineDash([]);
+
+      // RSI Curve
+      ctx.beginPath();
+      let started = false;
+      let latestRsi = null;
+      for (let i = 0; i < n; i++) {
+        if (rsi14[i] == null) continue;
+        latestRsi = rsi14[i];
+        const x = xOf(i);
+        const y = yRsi(rsi14[i]);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 1.45;
+      ctx.stroke();
+
+      if (latestRsi != null) {
+        const curRsi = hoverIdx != null && rsi14[hoverIdx] != null ? rsi14[hoverIdx] : latestRsi;
+        ctx.fillStyle = curRsi >= 70 ? '#ef4444' : curRsi <= 30 ? '#10b981' : '#c084fc';
+        ctx.font = '800 8.5px var(--font-jetbrains-fallback), monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`RSI ${curRsi.toFixed(1)}`, padLeft + 4, rsiTop + 2);
+      }
+      ctx.restore();
+    }
+
+    // 6. Interactive Crosshair + Price / % Tag
     if (hoverIdx !== null && candles[hoverIdx]) {
       const c = candles[hoverIdx];
       const hx = xOf(hoverIdx);
-      const hy = yOf(c.c);
+      const valAt = isCompareMode ? primaryPct[hoverIdx] : c.c;
+      const hy = yOf(valAt);
 
       ctx.save();
       ctx.strokeStyle = mutedCol;
@@ -273,13 +548,12 @@ function MarketProChart({
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(hx, padTop);
-      ctx.lineTo(hx, padTop + plotH);
+      ctx.lineTo(hx, padTop + totalPlotH);
       ctx.moveTo(padLeft, hy);
       ctx.lineTo(padLeft + plotW, hy);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Highlight point
       ctx.globalAlpha = 1;
       ctx.beginPath();
       ctx.arc(hx, hy, 4, 0, Math.PI * 2);
@@ -289,7 +563,6 @@ function MarketProChart({
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
 
-      // Right-axis live price pill
       const tagH = 16;
       const tagY = Math.max(padTop, Math.min(padTop + priceH - tagH, hy - tagH / 2));
       ctx.fillStyle = accentCol;
@@ -298,12 +571,15 @@ function MarketProChart({
       ctx.font = '800 9px var(--font-jetbrains-fallback), monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(formatPrice(c.c), padLeft + plotW + 5, tagY + tagH / 2);
+      ctx.fillText(
+        isCompareMode ? `${valAt >= 0 ? '+' : ''}${valAt.toFixed(1)}%` : formatPrice(valAt),
+        padLeft + plotW + 5,
+        tagY + tagH / 2
+      );
       ctx.restore();
     } else if (candles.length > 0) {
-      // Latest price marker line
-      const last = candles[n - 1];
-      const ly = yOf(last.c);
+      const lastVal = isCompareMode ? primaryPct[n - 1] : candles[n - 1].c;
+      const ly = yOf(lastVal);
       ctx.save();
       ctx.strokeStyle = isPositive ? upCol : downCol;
       ctx.globalAlpha = 0.4;
@@ -316,10 +592,8 @@ function MarketProChart({
       ctx.restore();
     }
 
-    // Keep textCol referenced cleanly for linter
-    void textCol;
     ctx.restore();
-  }, [candles, range, chartType, showSma, showVolume, isPositive, hoverIdx, sma20]);
+  }, [candles, alignedComparePct, isCompareMode, range, chartType, showSma, showEma, showBollinger, showRsi, showVolume, isPositive, hoverIdx, sma20, bbUpper, bbLower, ema12, rsi14]);
 
   const handlePointerAt = (clientX) => {
     const wrap = wrapRef.current;
@@ -337,7 +611,7 @@ function MarketProChart({
       ref={wrapRef}
       style={{
         width: '100%',
-        height: '214px',
+        height: showRsi ? '254px' : '214px',
         position: 'relative',
         cursor: 'crosshair',
         touchAction: 'none',
@@ -359,6 +633,7 @@ export default function MarketQuotesBox({
   onClose,
   currentUser = null,
   onRequireAuth = null,
+  onFocusLocation = null,
   isMobile = false
 }) {
   const [quotes, setQuotes] = useState([]);
@@ -384,7 +659,12 @@ export default function MarketQuotesBox({
   const [chartType, setChartType] = useState('candles'); // 'line' | 'candles'
   const [chartRange, setChartRange] = useState('1M');
   const [showSma, setShowSma] = useState(true);
+  const [showEma, setShowEma] = useState(false);
+  const [showBollinger, setShowBollinger] = useState(false);
+  const [showRsi, setShowRsi] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
+  const [compareTicker, setCompareTicker] = useState('');
+  const [compareData, setCompareData] = useState(null);
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -519,6 +799,60 @@ export default function MarketQuotesBox({
       cancelled = true;
     };
   }, [selectedQuote?.ticker, chartRange]);
+
+  // Fetch peer comparison history when Compare overlay is active
+  useEffect(() => {
+    if (!selectedQuote?.ticker || !compareTicker || compareTicker === selectedQuote.ticker) {
+      setCompareData(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/markets/history?ticker=${encodeURIComponent(compareTicker)}&range=${encodeURIComponent(chartRange)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && Array.isArray(d?.candles) && d.candles.length > 1) {
+          setCompareData(d);
+        } else if (!cancelled) {
+          setCompareData(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCompareData(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedQuote?.ticker, compareTicker, chartRange]);
+
+  // Compute live Market Macro Regime from S&P 500, VIX, Gold & Brent quotes
+  const marketRegime = useMemo(() => {
+    if (!quotes.length) return null;
+    const findQ = (t) => quotes.find((q) => String(q.ticker || '').toUpperCase() === t);
+    const spx = findQ('^GSPC');
+    const vix = findQ('^VIX');
+    const gold = findQ('GC=F');
+    const vixPrice = Number(vix?.price || 0);
+    const spxChg = Number(spx?.change || 0);
+    let label = 'BALANCED';
+    let color = '#f59e0b';
+    if (vixPrice >= 24 || spxChg <= -1.0) {
+      label = 'DEFENSIVE / RISK-OFF';
+      color = '#ef4444';
+    } else if ((vixPrice > 0 && vixPrice <= 18.5 && spxChg >= 0) || spxChg >= 0.7) {
+      label = 'RISK-ON';
+      color = '#10b981';
+    } else if (vixPrice > 18.5) {
+      label = 'ELEVATED VOL';
+      color = '#f59e0b';
+    }
+    return {
+      label,
+      color,
+      vixPrice: vixPrice > 0 ? vixPrice.toFixed(1) : null,
+      spxChg: spx ? `${spxChg >= 0 ? '+' : ''}${spxChg.toFixed(1)}%` : null,
+      goldChg: gold ? `${Number(gold.change) >= 0 ? '+' : ''}${Number(gold.change).toFixed(1)}%` : null
+    };
+  }, [quotes]);
 
   const handleToggleWatchlist = async (item, e) => {
     if (e) e.stopPropagation();
@@ -834,103 +1168,161 @@ export default function MarketQuotesBox({
             </div>
           </div>
 
-          {/* Chart Type + Overlay + Timescale Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <button
-                type="button"
-                onClick={() => setChartType('line')}
-                style={{
-                  padding: '3px 7px',
-                  borderRadius: '5px',
-                  fontSize: '9.5px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: chartType === 'line' ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
-                  background: chartType === 'line' ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
-                  color: chartType === 'line' ? 'var(--sov-accent)' : 'var(--sov-muted)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <LineChart size={11} /> Line
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartType('candles')}
-                style={{
-                  padding: '3px 7px',
-                  borderRadius: '5px',
-                  fontSize: '9.5px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: chartType === 'candles' ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
-                  background: chartType === 'candles' ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
-                  color: chartType === 'candles' ? 'var(--sov-accent)' : 'var(--sov-muted)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <CandlestickChart size={11} /> Candles
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSma((s) => !s)}
-                style={{
-                  padding: '3px 6px',
-                  borderRadius: '5px',
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: showSma ? '1px solid #f59e0b' : '1px solid var(--sov-border)',
-                  background: showSma ? 'rgba(245, 158, 11, 0.14)' : 'var(--sov-card-bg)',
-                  color: showSma ? '#f59e0b' : 'var(--sov-muted)'
-                }}
-                title="Toggle 20-period Simple Moving Average"
-              >
-                SMA
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowVolume((v) => !v)}
-                style={{
-                  padding: '3px 6px',
-                  borderRadius: '5px',
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: showVolume ? '1px solid #10b981' : '1px solid var(--sov-border)',
-                  background: showVolume ? 'rgba(16, 185, 129, 0.14)' : 'var(--sov-card-bg)',
-                  color: showVolume ? '#10b981' : 'var(--sov-muted)'
-                }}
-                title="Toggle Volume bars"
-              >
-                VOL
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-              {RANGES.map((r) => (
+          {/* Chart Type + Technical Indicators + Peer Compare + Timescale Controls */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '5px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
                 <button
-                  key={r}
                   type="button"
-                  onClick={() => setChartRange(r)}
+                  onClick={() => setChartType('line')}
                   style={{
                     padding: '3px 6px',
-                    borderRadius: '4px',
+                    borderRadius: '5px',
                     fontSize: '9px',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     cursor: 'pointer',
-                    border: chartRange === r ? '1px solid var(--sov-accent)' : '1px solid transparent',
-                    background: chartRange === r ? 'var(--sov-accent-soft)' : 'transparent',
-                    color: chartRange === r ? 'var(--sov-accent)' : 'var(--sov-muted)'
+                    border: chartType === 'line' ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+                    background: chartType === 'line' ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                    color: chartType === 'line' ? 'var(--sov-accent)' : 'var(--sov-muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px'
                   }}
                 >
-                  {r}
+                  <LineChart size={10} /> Line
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setChartType('candles')}
+                  style={{
+                    padding: '3px 6px',
+                    borderRadius: '5px',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: chartType === 'candles' ? '1px solid var(--sov-accent)' : '1px solid var(--sov-border)',
+                    background: chartType === 'candles' ? 'var(--sov-accent-soft)' : 'var(--sov-card-bg)',
+                    color: chartType === 'candles' ? 'var(--sov-accent)' : 'var(--sov-muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}
+                >
+                  <CandlestickChart size={10} /> Candles
+                </button>
+                {[
+                  { label: 'SMA', on: showSma, toggle: () => setShowSma((s) => !s), col: '#f59e0b', tip: '20-period Simple Moving Average' },
+                  { label: 'EMA', on: showEma, toggle: () => setShowEma((s) => !s), col: '#22d3ee', tip: '12-period Exponential Moving Average' },
+                  { label: 'BB', on: showBollinger, toggle: () => setShowBollinger((s) => !s), col: '#38bdf8', tip: 'Bollinger Bands (20, 2σ)' },
+                  { label: 'RSI', on: showRsi, toggle: () => setShowRsi((s) => !s), col: '#c084fc', tip: 'RSI (14) Momentum Sub-Oscillator' },
+                  { label: 'VOL', on: showVolume, toggle: () => setShowVolume((s) => !s), col: '#10b981', tip: 'Trading Volume Histogram' }
+                ].map((ind) => (
+                  <button
+                    key={ind.label}
+                    type="button"
+                    onClick={ind.toggle}
+                    title={ind.tip}
+                    style={{
+                      padding: '3px 5px',
+                      borderRadius: '4px',
+                      fontSize: '8.5px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      border: ind.on ? `1px solid ${ind.col}` : '1px solid var(--sov-border)',
+                      background: ind.on ? `${ind.col}22` : 'var(--sov-card-bg)',
+                      color: ind.on ? ind.col : 'var(--sov-muted)'
+                    }}
+                  >
+                    {ind.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                {RANGES.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setChartRange(r)}
+                    style={{
+                      padding: '3px 5px',
+                      borderRadius: '4px',
+                      fontSize: '8.5px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      border: chartRange === r ? '1px solid var(--sov-accent)' : '1px solid transparent',
+                      background: chartRange === r ? 'var(--sov-accent-soft)' : 'transparent',
+                      color: chartRange === r ? 'var(--sov-accent)' : 'var(--sov-muted)'
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Peer % Compare + 1-Click Locate Geo-Hub Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: 'var(--sov-muted)' }}>
+                <GitCompare size={11} color="#a855f7" />
+                <span>Compare %:</span>
+                <select
+                  value={compareTicker}
+                  onChange={(e) => setCompareTicker(e.target.value)}
+                  style={{
+                    background: 'var(--sov-card-bg)',
+                    border: compareTicker ? '1px solid #a855f7' : '1px solid var(--sov-border)',
+                    borderRadius: '5px',
+                    color: compareTicker ? '#c084fc' : 'var(--sov-text)',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">None (Price Mode)</option>
+                  {COMPARE_PEERS.filter((p) => p.ticker !== selectedQuote.ticker).map((p) => (
+                    <option key={p.ticker} value={p.ticker}>
+                      vs {p.label} ({p.ticker})
+                    </option>
+                  ))}
+                </select>
+                {compareData && historyData && (
+                  <span style={{ fontWeight: 800, color: '#c084fc' }}>
+                    Δ {((historyData.changePct || 0) - (compareData.changePct || 0)) >= 0 ? '+' : ''}
+                    {((historyData.changePct || 0) - (compareData.changePct || 0)).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+
+              {onFocusLocation && GEO_ANCHORS[String(selectedQuote.ticker || '').toUpperCase()] && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hub = GEO_ANCHORS[String(selectedQuote.ticker || '').toUpperCase()];
+                    onFocusLocation(hub.lat, hub.lon);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 7px',
+                    borderRadius: '5px',
+                    border: '1px solid var(--sov-accent)',
+                    background: 'var(--sov-accent-soft)',
+                    color: 'var(--sov-accent)',
+                    fontSize: '8.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit'
+                  }}
+                  title={`Fly 3D globe to ${GEO_ANCHORS[String(selectedQuote.ticker || '').toUpperCase()].label}`}
+                >
+                  <MapPin size={10} /> Locate Hub
+                </button>
+              )}
             </div>
           </div>
 
@@ -984,9 +1376,14 @@ export default function MarketQuotesBox({
             ) : (
               <MarketProChart
                 candles={historyData?.candles || []}
+                compareCandles={compareData?.candles || null}
+                compareTicker={compareTicker}
                 range={chartRange}
                 chartType={chartType}
                 showSma={showSma}
+                showEma={showEma}
+                showBollinger={showBollinger}
+                showRsi={showRsi}
                 showVolume={showVolume}
                 isPositive={chartIsPos}
                 onHoverCandle={setHoveredCandle}
@@ -994,22 +1391,57 @@ export default function MarketQuotesBox({
             )}
           </div>
 
-          {/* Period Summary Metrics */}
+          {/* Period Summary Metrics + 52-Week Range Slider Bar */}
           {historyData && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
-                <div style={{ fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700 }}>{chartRange} HIGH</div>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>{formatPrice(historyData.periodHigh)}</div>
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700 }}>{chartRange} HIGH</div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>{formatPrice(historyData.periodHigh)}</div>
+                </div>
+                <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700 }}>{chartRange} LOW</div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', marginTop: '2px' }}>{formatPrice(historyData.periodLow)}</div>
+                </div>
+                <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700 }}>
+                    {historyData.regularMarketVolume ? '24H VOL' : 'BASE / PREV'}
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--sov-text)', marginTop: '2px' }}>
+                    {historyData.regularMarketVolume ? formatVol(historyData.regularMarketVolume) : formatPrice(historyData.previousClose)}
+                  </div>
+                </div>
               </div>
-              <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
-                <div style={{ fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700 }}>{chartRange} LOW</div>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', marginTop: '2px' }}>{formatPrice(historyData.periodLow)}</div>
-              </div>
-              <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
-                <div style={{ fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700 }}>BASE / PREV</div>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--sov-text)', marginTop: '2px' }}>{formatPrice(historyData.previousClose)}</div>
-              </div>
-            </div>
+
+              {historyData.fiftyTwoWeekLow != null && historyData.fiftyTwoWeekHigh != null && historyData.fiftyTwoWeekHigh > historyData.fiftyTwoWeekLow && (
+                <div style={{ padding: '7px 9px', borderRadius: '6px', background: 'var(--sov-card-bg)', border: '1px solid var(--sov-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', color: 'var(--sov-muted)', fontWeight: 700, marginBottom: '5px' }}>
+                    <span>52W LOW {formatPrice(historyData.fiftyTwoWeekLow)}</span>
+                    <span style={{ color: 'var(--sov-accent)' }}>{historyData.marketState || 'LIVE RANGE'}</span>
+                    <span>52W HIGH {formatPrice(historyData.fiftyTwoWeekHigh)}</span>
+                  </div>
+                  <div style={{ position: 'relative', height: '5px', borderRadius: '999px', background: 'rgba(148,163,184,0.22)' }}>
+                    {(() => {
+                      const pct = Math.max(
+                        0,
+                        Math.min(
+                          100,
+                          ((historyData.currentPrice - historyData.fiftyTwoWeekLow) /
+                            (historyData.fiftyTwoWeekHigh - historyData.fiftyTwoWeekLow)) *
+                            100
+                        )
+                      );
+                      return (
+                        <>
+                          <div style={{ width: `${pct}%`, height: '100%', borderRadius: '999px', background: 'linear-gradient(90deg, #ef4444, #f59e0b, #10b981)' }} />
+                          <div style={{ position: 'absolute', top: '-3px', left: `calc(${pct}% - 5px)`, width: '10px', height: '10px', borderRadius: '50%', background: '#ffffff', border: '2px solid var(--sov-accent)' }} />
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (
@@ -1145,6 +1577,32 @@ export default function MarketQuotesBox({
                   })
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Compact Live Geopolitical Macro Regime Strip */}
+          {marketRegime && !searchOpen && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '6px',
+                padding: '5px 12px',
+                borderBottom: '1px solid var(--sov-border)',
+                background: 'var(--sov-card-bg)',
+                fontSize: '8.8px'
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 800, color: marketRegime.color }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: marketRegime.color }} />
+                {marketRegime.label}
+              </span>
+              <span style={{ color: 'var(--sov-muted)', fontWeight: 700 }}>
+                {marketRegime.vixPrice ? `VIX ${marketRegime.vixPrice}` : ''}
+                {marketRegime.spxChg ? ` · S&P ${marketRegime.spxChg}` : ''}
+                {marketRegime.goldChg ? ` · Au ${marketRegime.goldChg}` : ''}
+              </span>
             </div>
           )}
 

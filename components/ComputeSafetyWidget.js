@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { X, Cpu, ShieldCheck, MapPin, GripHorizontal, Search, LayoutGrid, Table2 } from 'lucide-react';
+import { X, Cpu, ShieldCheck, MapPin, GripHorizontal, Search, LayoutGrid, Table2, Eye, Download } from 'lucide-react';
 import { classifyMitRiskDomain, MIT_RISK_DOMAINS } from '@/lib/mitRiskTaxonomy';
 import WidgetInfoTooltip from './WidgetInfoTooltip';
 
@@ -23,7 +23,14 @@ function waterScore(str) {
   return 0;
 }
 
-export default function ComputeSafetyWidget({ onClose, onFocusLocation, signals = [], isMobile = false }) {
+export default function ComputeSafetyWidget({
+  onClose,
+  onFocusLocation,
+  signals = [],
+  dataCentersEnabled = false,
+  onToggleDataCentersLayer = null,
+  isMobile = false
+}) {
   const [tab, setTab] = useState('compute'); // 'compute' | 'safety'
   const [envData, setEnvData] = useState([]);
   const [labsData, setLabsData] = useState([]);
@@ -176,6 +183,50 @@ export default function ComputeSafetyWidget({ onClose, onFocusLocation, signals 
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {onToggleDataCentersLayer && (
+            <button
+              type="button"
+              onClick={onToggleDataCentersLayer}
+              title={dataCentersEnabled ? 'Hide Data Centers & Compute globe layer' : 'Show Data Centers & Compute globe layer'}
+              style={{
+                background: dataCentersEnabled ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                border: `1px solid ${dataCentersEnabled ? 'var(--sov-amber)' : 'var(--sov-border)'}`,
+                borderRadius: '5px',
+                color: dataCentersEnabled ? 'var(--sov-amber)' : 'var(--sov-muted)',
+                height: '24px',
+                padding: '0 6px',
+                fontSize: '9px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                cursor: 'pointer'
+              }}
+            >
+              <Eye size={11} /> {dataCentersEnabled ? 'Map ON' : 'Map'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const rows = tab === 'compute'
+                ? [['Facility', 'Country', 'PowerMW', 'Carbon_g_kWh', 'WaterStress'], ...computeStats.topNodes.map((n) => [n.name || '', n.country || '', n.powerLoadMw || '', n.carbonIntensity || '', n.waterStress || ''])]
+                : [['Lab', 'Country', 'Framework', 'AISI_Status'], ...filteredLabs.map((l) => [l.name || '', l.country || '', l.safetyFramework || '', l.aisiStatus || ''])];
+              const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = tab === 'compute' ? 'sovereign-compute-grid-stress.csv' : 'sovereign-frontier-labs.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            title="Export current view as CSV"
+            style={{ background: 'transparent', border: '1px solid var(--sov-border)', borderRadius: '5px', color: 'var(--sov-muted)', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          >
+            <Download size={11} />
+          </button>
           {tab === 'compute' && (
             <button
               type="button"

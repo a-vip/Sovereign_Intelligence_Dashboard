@@ -194,30 +194,182 @@ function isPointInFeature(lat, lon, item) {
   return false;
 }
 
-function getGlobePalette(uiTheme, mapStyle) {
-  if (mapStyle === 'vector') {
-    // Signature crisp Sovereign Vector 3D initial-load globe theme (slate-obsidian oceans, luminous halo & crisp borders)
-    return {
-      isLight: false,
-      spaceBg: '#020612',
-      spaceGlow: 'rgba(56, 189, 248, 0.18)',
-      oceanCenter: '#1f364d',
-      oceanMid: '#122234',
-      oceanEdge: '#081220',
-      atmoHalo: 'rgba(148, 197, 235, 0.42)',
-      rimStroke: 'rgba(186, 230, 253, 0.62)',
-      graticule: 'rgba(148, 163, 184, 0.085)',
-      equator: 'rgba(56, 189, 248, 0.22)',
-      landFill: '#1b2636',
-      landHover: '#283b54',
-      landStroke: 'rgba(148, 163, 184, 0.38)',
-      selectedFill: 'rgba(0, 240, 255, 0.22)',
-      selectedStroke: '#00f0ff',
-      labelColor: 'rgba(226, 232, 240, 0.72)',
-      labelHalo: 'rgba(2, 6, 23, 0.92)',
-      nodeStroke: '#ffffff',
-      accent: '#00f0ff'
-    };
+const VECTOR_THEMES = {
+  obsidian: {
+    label: 'OBSIDIAN',
+    isLight: false,
+    spaceBg: '#020612',
+    spaceGlow: 'rgba(56, 189, 248, 0.18)',
+    oceanCenter: '#1f364d',
+    oceanMid: '#122234',
+    oceanEdge: '#081220',
+    atmoHalo: 'rgba(148, 197, 235, 0.42)',
+    rimStroke: 'rgba(186, 230, 253, 0.65)',
+    graticule: 'rgba(148, 163, 184, 0.085)',
+    equator: 'rgba(56, 189, 248, 0.24)',
+    landFill: '#1b2636',
+    landHover: '#283b54',
+    landStroke: 'rgba(148, 163, 184, 0.40)',
+    selectedFill: 'rgba(0, 240, 255, 0.22)',
+    selectedStroke: '#00f0ff',
+    labelColor: 'rgba(226, 232, 240, 0.74)',
+    labelHalo: 'rgba(2, 6, 23, 0.92)',
+    nodeStroke: '#ffffff',
+    accent: '#00f0ff'
+  },
+  editorial: {
+    label: 'EDITORIAL',
+    isLight: true,
+    spaceBg: '#e2e8f0',
+    spaceGlow: 'rgba(14, 165, 233, 0.16)',
+    oceanCenter: '#dbeafe',
+    oceanMid: '#bfdbfe',
+    oceanEdge: '#93c5fd',
+    atmoHalo: 'rgba(14, 165, 233, 0.34)',
+    rimStroke: 'rgba(2, 132, 199, 0.58)',
+    graticule: 'rgba(51, 65, 85, 0.11)',
+    equator: 'rgba(2, 132, 199, 0.26)',
+    landFill: '#f8fafc',
+    landHover: '#e0f2fe',
+    landStroke: '#94a3b8',
+    selectedFill: 'rgba(2, 132, 199, 0.22)',
+    selectedStroke: '#0284c7',
+    labelColor: 'rgba(15, 23, 42, 0.78)',
+    labelHalo: 'rgba(255, 255, 255, 0.90)',
+    nodeStroke: '#0f172a',
+    accent: '#0284c7'
+  },
+  blueprint: {
+    label: 'BLUEPRINT',
+    isLight: false,
+    spaceBg: '#040b1c',
+    spaceGlow: 'rgba(56, 189, 248, 0.24)',
+    oceanCenter: '#0d2b57',
+    oceanMid: '#081d40',
+    oceanEdge: '#041029',
+    atmoHalo: 'rgba(56, 189, 248, 0.48)',
+    rimStroke: 'rgba(125, 211, 252, 0.78)',
+    graticule: 'rgba(125, 211, 252, 0.16)',
+    equator: 'rgba(56, 189, 248, 0.40)',
+    landFill: '#103466',
+    landHover: '#19498c',
+    landStroke: 'rgba(125, 211, 252, 0.62)',
+    selectedFill: 'rgba(56, 189, 248, 0.28)',
+    selectedStroke: '#38bdf8',
+    labelColor: 'rgba(224, 242, 254, 0.86)',
+    labelHalo: 'rgba(4, 16, 41, 0.92)',
+    nodeStroke: '#ffffff',
+    accent: '#38bdf8'
+  },
+  thermal: {
+    label: 'THERMAL',
+    isLight: false,
+    spaceBg: '#0b0406',
+    spaceGlow: 'rgba(249, 115, 22, 0.20)',
+    oceanCenter: '#261015',
+    oceanMid: '#18090d',
+    oceanEdge: '#0b0406',
+    atmoHalo: 'rgba(249, 115, 22, 0.42)',
+    rimStroke: 'rgba(251, 146, 60, 0.68)',
+    graticule: 'rgba(251, 146, 60, 0.11)',
+    equator: 'rgba(239, 68, 68, 0.30)',
+    landFill: '#2f161b',
+    landHover: '#472128',
+    landStroke: 'rgba(251, 146, 60, 0.46)',
+    selectedFill: 'rgba(249, 115, 22, 0.28)',
+    selectedStroke: '#fb923c',
+    labelColor: 'rgba(255, 237, 213, 0.80)',
+    labelHalo: 'rgba(11, 4, 6, 0.94)',
+    nodeStroke: '#ffffff',
+    accent: '#f97316'
+  },
+  emerald: {
+    label: 'EMERALD',
+    isLight: false,
+    spaceBg: '#020a08',
+    spaceGlow: 'rgba(16, 185, 129, 0.18)',
+    oceanCenter: '#0d2c24',
+    oceanMid: '#071d17',
+    oceanEdge: '#03110d',
+    atmoHalo: 'rgba(16, 185, 129, 0.40)',
+    rimStroke: 'rgba(52, 211, 153, 0.64)',
+    graticule: 'rgba(52, 211, 153, 0.10)',
+    equator: 'rgba(52, 211, 153, 0.28)',
+    landFill: '#12362c',
+    landHover: '#1a4d3f',
+    landStroke: 'rgba(52, 211, 153, 0.44)',
+    selectedFill: 'rgba(16, 185, 129, 0.26)',
+    selectedStroke: '#34d399',
+    labelColor: 'rgba(209, 250, 229, 0.78)',
+    labelHalo: 'rgba(2, 10, 8, 0.92)',
+    nodeStroke: '#ffffff',
+    accent: '#34d399'
+  },
+  solaris: {
+    label: 'SOLARIS',
+    isLight: false,
+    spaceBg: '#070612',
+    spaceGlow: 'rgba(234, 179, 8, 0.18)',
+    oceanCenter: '#1b1833',
+    oceanMid: '#110f24',
+    oceanEdge: '#070612',
+    atmoHalo: 'rgba(250, 204, 21, 0.38)',
+    rimStroke: 'rgba(253, 224, 71, 0.62)',
+    graticule: 'rgba(250, 204, 21, 0.09)',
+    equator: 'rgba(250, 204, 21, 0.28)',
+    landFill: '#24203d',
+    landHover: '#342e57',
+    landStroke: 'rgba(250, 204, 21, 0.44)',
+    selectedFill: 'rgba(250, 204, 21, 0.24)',
+    selectedStroke: '#facc15',
+    labelColor: 'rgba(254, 249, 195, 0.80)',
+    labelHalo: 'rgba(7, 6, 18, 0.94)',
+    nodeStroke: '#ffffff',
+    accent: '#facc15'
+  }
+};
+
+// Major urban lights illuminated strictly on the night hemisphere when Day/Night terminator is ON
+const NIGHT_CITY_HUBS = [
+  [-74.0, 40.7], [-118.2, 34.0], [-87.6, 41.9], [-122.4, 37.8], [-99.1, 19.4], [-46.6, -23.5],
+  [-58.4, -34.6], [-0.1, 51.5], [2.35, 48.85], [13.4, 52.5], [-3.7, 40.4], [12.5, 41.9],
+  [28.9, 41.0], [37.6, 55.7], [31.2, 30.0], [3.4, 6.5], [28.0, -26.2], [55.3, 25.2],
+  [72.8, 19.1], [77.2, 28.6], [103.8, 1.35], [100.5, 13.7], [116.4, 39.9], [121.5, 31.2],
+  [114.2, 22.3], [127.0, 37.5], [139.7, 35.7], [151.2, -33.9]
+].map(([lon, lat]) => ({ lon, lat, u: lonLatToUnit(lon, lat) }));
+
+// Fast local Keplerian live-position interpolation matching /api/satellite so satellites glide smoothly at 24fps
+function getLiveSatelliteCoords(sat, nowMs) {
+  const baseLon = Number(sat?.longitude);
+  const baseLat = Number(sat?.latitude);
+  const inc = Number(sat?.inclination);
+  const period = Number(sat?.period);
+  const raan = Number(sat?.raan);
+  const phase = Number(sat?.phaseOffset);
+  if (Number.isFinite(inc) && Number.isFinite(period) && period > 10 && Number.isFinite(raan) && Number.isFinite(phase)) {
+    const nowMin = nowMs / 60000;
+    const incRad = inc * DEG2RAD;
+    const theta = (2 * Math.PI * nowMin) / period + phase;
+    const lat = Math.asin(Math.max(-1, Math.min(1, Math.sin(incRad) * Math.sin(theta)))) * RAD2DEG;
+    const lonOrb = Math.atan2(Math.cos(incRad) * Math.sin(theta), Math.cos(theta)) * RAD2DEG;
+    let lon = lonOrb + raan - ((nowMin * 0.25) % 360);
+    lon = ((lon + 540) % 360) - 180;
+    return { lon, lat, theta };
+  }
+  return { lon: Number.isFinite(baseLon) ? baseLon : 0, lat: Number.isFinite(baseLat) ? baseLat : 0, theta: null };
+}
+
+// Convert Web-Mercator tile pixel (z=2: 1024x1024 mosaic) to spherical [lon, lat]
+function mercatorPxToLonLat(px, py, size) {
+  const lon = (px / size) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * py) / size;
+  const lat = RAD2DEG * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return [lon, lat];
+}
+
+function getGlobePalette(uiTheme, mapStyle, isVectorMode, vectorTheme) {
+  if (isVectorMode || mapStyle === 'vector') {
+    return VECTOR_THEMES[vectorTheme] || VECTOR_THEMES.obsidian;
   }
   const isLight =
     mapStyle === 'light' ||
@@ -352,6 +504,7 @@ export default function InteractiveCanvasGlobe3D({
   showSatellites = false,
   satellites = [],
   selectedSatellite = null,
+  isTracked = false,
   onSatelliteClick = null,
   onPointClick = null,
   onCountrySelect = null,
@@ -363,6 +516,8 @@ export default function InteractiveCanvasGlobe3D({
   focusCoordinate = null,
   uiTheme = 'obsidian',
   mapStyle = 'tactical',
+  isVectorMode = false,
+  vectorTheme = 'obsidian',
   dayNightEnabled = false,
   weatherEnabled = false,
   oilGasEnabled = false,
@@ -415,8 +570,12 @@ export default function InteractiveCanvasGlobe3D({
   const [countriesReady, setCountriesReady] = useState(0);
   const [overlayTick, setOverlayTick] = useState(0);
   const [storms, setStorms] = useState([]);
+  const [radarCells, setRadarCells] = useState([]);
+  const [radarTimeLabel, setRadarTimeLabel] = useState('');
   const [zoomLabel, setZoomLabel] = useState('1.0x');
   const [isCompact, setIsCompact] = useState(false);
+  const satLoopRef = useRef(null);
+  const lastSelectedSatCodeRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -521,12 +680,92 @@ export default function InteractiveCanvasGlobe3D({
     if (aiLaborEnabled) fetchLayer('aiLabor', '/api/ethics-layers?layer=ai_labor');
 
     if (weatherEnabled) {
-      fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=25&category=severeStorms')
+      // 1) NASA EONET v3 active global hazards (Severe Storms, Wildfires, Volcanoes)
+      fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=45&category=severeStorms,wildfires,volcanoes')
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (!cancelled && Array.isArray(d?.events)) setStorms(d.events);
         })
         .catch(() => {});
+
+      // 2) RainViewer Live Global Precipitation Radar Mosaic (z=2, 4x4 tiles -> spherical radar cells for 60fps 3D projection)
+      if (layerCache.radarCells && Date.now() - (layerCache.radarFetchedAt || 0) < 300000) {
+        setRadarCells(layerCache.radarCells);
+        setRadarTimeLabel(layerCache.radarTimeLabel || 'LIVE');
+      } else {
+        fetch('https://api.rainviewer.com/public/weather-maps.json')
+          .then((r) => (r.ok ? r.json() : null))
+          .then(async (meta) => {
+            if (cancelled || !meta?.host || !Array.isArray(meta?.radar?.past) || !meta.radar.past.length) return;
+            const latest = meta.radar.past[meta.radar.past.length - 1];
+            const host = meta.host;
+            const tilePath = latest.path;
+            const timeStr = latest.time
+              ? new Date(latest.time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + 'Z'
+              : 'LIVE';
+            const z = 2;
+            const grid = 4; // 2^2 = 4x4 tiles
+            const tileSz = 128;
+            const mosaic = document.createElement('canvas');
+            mosaic.width = grid * tileSz;
+            mosaic.height = grid * tileSz;
+            const mctx = mosaic.getContext('2d', { willReadFrequently: true });
+            if (!mctx) return;
+
+            const loadTile = (tx, ty) =>
+              new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                  try { mctx.drawImage(img, tx * tileSz, ty * tileSz, tileSz, tileSz); } catch {}
+                  resolve();
+                };
+                img.onerror = () => resolve();
+                // Color scheme 6 (NEXRAD/Tactical radar palette), smooth=1, snow=1
+                img.src = `${host}${tilePath}/256/${z}/${tx}/${ty}/6/1_1.png`;
+              });
+
+            const jobs = [];
+            for (let ty = 0; ty < grid; ty++) {
+              for (let tx = 0; tx < grid; tx++) {
+                jobs.push(loadTile(tx, ty));
+              }
+            }
+            await Promise.all(jobs);
+            if (cancelled) return;
+
+            try {
+              const imgData = mctx.getImageData(0, 0, mosaic.width, mosaic.height).data;
+              const cells = [];
+              const stride = 4;
+              for (let py = 2; py < mosaic.height - 2; py += stride) {
+                for (let px = 0; px < mosaic.width; px += stride) {
+                  const idx = (py * mosaic.width + px) * 4;
+                  const a = imgData[idx + 3];
+                  if (a < 28) continue;
+                  const r = imgData[idx];
+                  const g = imgData[idx + 1];
+                  const b = imgData[idx + 2];
+                  const [lon, lat] = mercatorPxToLonLat(px + 1.5, py + 1.5, mosaic.width);
+                  if (Math.abs(lat) > 78) continue;
+                  cells.push({
+                    u: lonLatToUnit(lon, lat),
+                    color: `rgba(${r},${g},${b},${Math.min(0.72, (a / 255) * 0.78).toFixed(2)})`,
+                    intensity: Math.min(1, a / 255)
+                  });
+                }
+              }
+              layerCache.radarCells = cells;
+              layerCache.radarFetchedAt = Date.now();
+              layerCache.radarTimeLabel = timeStr;
+              if (!cancelled) {
+                setRadarCells(cells);
+                setRadarTimeLabel(timeStr);
+              }
+            } catch {}
+          })
+          .catch(() => {});
+      }
     } else {
       setStorms([]);
     }
@@ -629,6 +868,54 @@ export default function InteractiveCanvasGlobe3D({
     };
   }, [focusCoordinate, active, animateTo, requestDraw]);
 
+  // Smoothly fly camera toward newly selected satellite (e.g. from ORBIT sidebar or clicking globe spacecraft)
+  useEffect(() => {
+    if (!active || !showSatellites || !selectedSatellite) {
+      lastSelectedSatCodeRef.current = null;
+      return;
+    }
+    const code = selectedSatellite.code || selectedSatellite.id;
+    if (code && code !== lastSelectedSatCodeRef.current) {
+      lastSelectedSatCodeRef.current = code;
+      const live = getLiveSatelliteCoords(selectedSatellite, Date.now());
+      animateTo(live.lon, Math.max(-72, Math.min(72, live.lat)), Math.max(viewRef.current.zoom, 1.55), 560);
+    }
+  }, [active, showSatellites, selectedSatellite, animateTo]);
+
+  // Smooth real-time orbital motion & live camera tracking loop (runs ONLY when active && showSatellites)
+  useEffect(() => {
+    if (!active || !showSatellites || !Array.isArray(satellites) || satellites.length === 0) {
+      if (satLoopRef.current) {
+        cancelAnimationFrame(satLoopRef.current);
+        satLoopRef.current = null;
+      }
+      return;
+    }
+    let lastDraw = 0;
+    const step = (now) => {
+      if (!activeRef.current) return;
+      if (!document.hidden && now - lastDraw >= 42) { // ~24fps ultra-lean orbital motion
+        lastDraw = now;
+        if (isTracked && selectedSatellite && !isDraggingRef.current && !animFrameRef.current) {
+          const live = getLiveSatelliteCoords(selectedSatellite, Date.now());
+          let dLon = ((live.lon - viewRef.current.lon + 540) % 360) - 180;
+          viewRef.current.lon = ((viewRef.current.lon + dLon * 0.18 + 540) % 360) - 180;
+          const tgtLat = Math.max(-74, Math.min(74, live.lat));
+          viewRef.current.lat += (tgtLat - viewRef.current.lat) * 0.18;
+        }
+        if (typeof renderCanvasRef.current === 'function') renderCanvasRef.current();
+      }
+      satLoopRef.current = requestAnimationFrame(step);
+    };
+    satLoopRef.current = requestAnimationFrame(step);
+    return () => {
+      if (satLoopRef.current) {
+        cancelAnimationFrame(satLoopRef.current);
+        satLoopRef.current = null;
+      }
+    };
+  }, [active, showSatellites, satellites, selectedSatellite, isTracked]);
+
   // Auto-rotate spin loop (ONLY runs when active && autoRotate && not dragging; 0% CPU when off!)
   useEffect(() => {
     if (!active || !autoRotate) {
@@ -682,7 +969,7 @@ export default function InteractiveCanvasGlobe3D({
     ctx.save();
     ctx.scale(dpr, dpr);
 
-    const palette = getGlobePalette(uiTheme, mapStyle);
+    const palette = getGlobePalette(uiTheme, mapStyle, isVectorMode, vectorTheme);
     const cx = width * 0.5;
     const cy = height * 0.5;
     const { lon: lon0, lat: lat0, zoom } = viewRef.current;
@@ -938,7 +1225,7 @@ export default function InteractiveCanvasGlobe3D({
       ctx.restore();
     }
 
-    // 6. Optional Day/Night Solar Terminator on the 3D Sphere (viewport-clamped for 60fps at deep zoom)
+    // 6. Authentic Spherical Day/Night Solar Terminator + Twilight Curve + Night City Glows
     if (dayNightEnabled) {
       const now = new Date();
       const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
@@ -947,21 +1234,98 @@ export default function InteractiveCanvasGlobe3D({
       const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
       const subsolarLon = ((12 - utcHours) * 15 + 540) % 360 - 180;
       const sunVec = lonLatToUnit(subsolarLon, subsolarLat);
-      const [sunSx, sunSy, sunZ] = projVec(sunVec[0], sunVec[1], sunVec[2]);
+
+      // Compute two orthonormal tangent basis vectors perpendicular to sunVec to trace the exact terminator great circle
+      const refUp = Math.abs(sunVec[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const bxRaw = [
+        refUp[1] * sunVec[2] - refUp[2] * sunVec[1],
+        refUp[2] * sunVec[0] - refUp[0] * sunVec[2],
+        refUp[0] * sunVec[1] - refUp[1] * sunVec[0]
+      ];
+      const bxLen = Math.hypot(bxRaw[0], bxRaw[1], bxRaw[2]) || 1;
+      const b1 = [bxRaw[0] / bxLen, bxRaw[1] / bxLen, bxRaw[2] / bxLen];
+      const b2 = [
+        sunVec[1] * b1[2] - sunVec[2] * b1[1],
+        sunVec[2] * b1[0] - sunVec[0] * b1[2],
+        sunVec[0] * b1[1] - sunVec[1] * b1[0]
+      ];
+
+      // Night hemisphere shading anchored cleanly opposite the sub-solar point
+      const [antiSx, antiSy] = projVec(-sunVec[0], -sunVec[1], -sunVec[2]);
       const nightGrad = ctx.createRadialGradient(
-        cx - (sunSx - cx) * 0.9,
-        cy - (sunSy - cy) * 0.9,
-        R * 0.12,
-        cx,
-        cy,
-        R * 1.15
+        antiSx,
+        antiSy,
+        R * 0.08,
+        antiSx,
+        antiSy,
+        R * 1.48
       );
-      nightGrad.addColorStop(0, palette.isLight ? 'rgba(15, 23, 42, 0.24)' : 'rgba(2, 6, 23, 0.56)');
-      nightGrad.addColorStop(0.58, palette.isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(2, 6, 23, 0.22)');
+      nightGrad.addColorStop(0, palette.isLight ? 'rgba(15, 23, 42, 0.36)' : 'rgba(2, 6, 23, 0.68)');
+      nightGrad.addColorStop(0.55, palette.isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(2, 6, 23, 0.34)');
+      nightGrad.addColorStop(0.86, 'rgba(2, 6, 23, 0.06)');
       nightGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      if (sunZ > -1.1) {
-        ctx.fillStyle = nightGrad;
-        ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = nightGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw crisp golden-cyan solar twilight terminator curve (sunVec · p = 0)
+      ctx.save();
+      ctx.beginPath();
+      let pen = false;
+      for (let deg = 0; deg <= 360; deg += 4) {
+        const a = deg * DEG2RAD;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        const ux = b1[0] * ca + b2[0] * sa;
+        const uy = b1[1] * ca + b2[1] * sa;
+        const uz = b1[2] * ca + b2[2] * sa;
+        const [tx, ty, tz] = projVec(ux, uy, uz);
+        if (tz >= -0.01) {
+          if (!pen) { ctx.moveTo(tx, ty); pen = true; }
+          else ctx.lineTo(tx, ty);
+        } else {
+          pen = false;
+        }
+      }
+      ctx.strokeStyle = palette.isLight ? 'rgba(217, 119, 6, 0.55)' : 'rgba(251, 191, 36, 0.58)';
+      ctx.lineWidth = 2.0;
+      ctx.shadowColor = 'rgba(251, 191, 36, 0.45)';
+      ctx.shadowBlur = 7;
+      ctx.stroke();
+      ctx.restore();
+
+      // Subtle glowing city lights exclusively inside the night hemisphere
+      if (!palette.isLight) {
+        for (let i = 0; i < NIGHT_CITY_HUBS.length; i++) {
+          const city = NIGHT_CITY_HUBS[i];
+          const sunDot = city.u[0] * sunVec[0] + city.u[1] * sunVec[1] + city.u[2] * sunVec[2];
+          if (sunDot > -0.04) continue;
+          const [lx, ly, lz] = projVec(city.u[0], city.u[1], city.u[2]);
+          if (lz < 0.06 || !onScreen(lx, ly)) continue;
+          const glowR = Math.min(8, 3.6 * Math.sqrt(zoom));
+          ctx.beginPath();
+          ctx.arc(lx, ly, glowR, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(lx, ly, 1.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(254, 240, 138, 0.9)';
+          ctx.fill();
+        }
+      }
+
+      // Sub-solar beacon on the day side
+      const [sunSx, sunSy, sunZ] = projVec(sunVec[0], sunVec[1], sunVec[2]);
+      if (sunZ > 0.08 && onScreen(sunSx, sunSy)) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(sunSx, sunSy, 8.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.18)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sunSx, sunSy, 3.6, 0, Math.PI * 2);
+        ctx.fillStyle = '#fde047';
+        ctx.fill();
+        ctx.restore();
       }
     }
 
@@ -1220,36 +1584,96 @@ export default function InteractiveCanvasGlobe3D({
       });
     }
 
-    // 8F. Weather Storms
-    if (weatherEnabled && storms.length > 0) {
-      storms.forEach((ev) => {
-        const latest = Array.isArray(ev.geometry) ? ev.geometry[ev.geometry.length - 1] : null;
-        const coords = latest?.coordinates;
-        if (!Array.isArray(coords) || coords.length < 2) return;
-        const [sx, sy, z] = projLonLat(coords[0], coords[1]);
-        if (z < 0.04 || !onScreen(sx, sy)) return;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 9.5, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.55)';
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(sx, sy, 5.8, 0, Math.PI * 2);
-        ctx.fillStyle = '#06b6d4';
-        ctx.fill();
-        ctx.lineWidth = 1.6;
-        ctx.strokeStyle = '#ffffff';
-        ctx.stroke();
-        hitPoints.push({
-          x: sx, y: sy, r: 10.5, priority: 4, tooltipType: 'generic',
-          title: `🌀 ${ev.title}`,
-          details: { Source: 'NASA EONET Satellite Telemetry', Observed: String(latest.date || 'Active').slice(0, 10) },
-          payload: { id: ev.id || ev.title, title: ev.title, lat: coords[1], lon: coords[0], category: 'Disaster', severity: 3 }
+    // 8F. Live Global Weather Layer: RainViewer Doppler Precipitation Radar + NASA EONET Active Cyclones, Wildfires & Volcanoes
+    if (weatherEnabled) {
+      if (radarCells.length > 0) {
+        const cellR = Math.max(2.6, Math.min(12.5, (R / 215) * 3.4));
+        for (let i = 0; i < radarCells.length; i++) {
+          const rc = radarCells[i];
+          const [rx, ry, rz] = projVec(rc.u[0], rc.u[1], rc.u[2]);
+          if (rz < 0.04 || !onScreen(rx, ry, 24)) continue;
+          const rScaled = cellR * (0.65 + 0.55 * rc.intensity) * (0.72 + 0.28 * Math.min(1, rz));
+          ctx.fillStyle = rc.color;
+          ctx.beginPath();
+          ctx.arc(rx, ry, rScaled, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (storms.length > 0) {
+        storms.forEach((ev) => {
+          const latest = Array.isArray(ev.geometry) ? ev.geometry[ev.geometry.length - 1] : null;
+          const coords = latest?.coordinates;
+          if (!Array.isArray(coords) || coords.length < 2) return;
+          const [sx, sy, z] = projLonLat(coords[0], coords[1]);
+          if (z < 0.04 || !onScreen(sx, sy)) return;
+
+          const catId = String(ev.categories?.[0]?.id || 'severeStorms').toLowerCase();
+          const isFire = catId.includes('wildfire');
+          const isVolcano = catId.includes('volcano');
+          const col = isFire ? '#f97316' : isVolcano ? '#ef4444' : '#06b6d4';
+          const icon = isFire ? '🔥' : isVolcano ? '🌋' : '🌀';
+
+          if (isVolcano) {
+            ctx.beginPath();
+            ctx.moveTo(sx, sy - 6.8);
+            ctx.lineTo(sx + 6.4, sy + 5.2);
+            ctx.lineTo(sx - 6.4, sy + 5.2);
+            ctx.closePath();
+            ctx.fillStyle = col;
+            ctx.fill();
+            ctx.lineWidth = 1.4;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.arc(sx, sy, isFire ? 8.2 : 11.2, 0, Math.PI * 2);
+            ctx.strokeStyle = isFire ? 'rgba(249, 115, 22, 0.55)' : 'rgba(6, 182, 212, 0.65)';
+            ctx.lineWidth = 1.5;
+            if (!isFire) ctx.setLineDash([4, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(sx, sy, isFire ? 4.6 : 5.8, 0, Math.PI * 2);
+            ctx.fillStyle = col;
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+          }
+
+          hitPoints.push({
+            x: sx, y: sy, r: 11, priority: 5, tooltipType: 'generic',
+            title: `${icon} ${ev.title}`,
+            details: {
+              Hazard: isFire ? 'Active Wildfire' : isVolcano ? 'Volcanic Activity' : 'Severe Tropical / Weather System',
+              Source: 'NASA EONET + RainViewer Live Telemetry',
+              Observed: String(latest.date || 'Active').slice(0, 10)
+            },
+            payload: { id: ev.id || ev.title, title: ev.title, lat: coords[1], lon: coords[0], category: 'Disaster', severity: isFire || isVolcano ? 3 : 4 }
+          });
         });
-      });
+      }
     }
 
-    // 8G. AI Ethics & Censorship Layers
+    // 8G. AI Ethics & Censorship Layers (including Supply Chain curved arcs!)
+    if (supplyChainEnabled && Array.isArray(layerCache.supplyChain?.arcs)) {
+      layerCache.supplyChain.arcs.forEach((arc) => {
+        if (!Array.isArray(arc.from) || !Array.isArray(arc.to)) return;
+        const pts = [];
+        for (let step = 0; step <= 18; step++) {
+          const t = step / 18;
+          const lat = arc.from[0] + (arc.to[0] - arc.from[0]) * t;
+          let dLon = arc.to[1] - arc.from[1];
+          if (dLon > 180) dLon -= 360;
+          if (dLon < -180) dLon += 360;
+          const lon = ((arc.from[1] + dLon * t + 540) % 360) - 180;
+          pts.push([lon, lat]);
+        }
+        drawSphericalLine(pts, arc.color || '#f59e0b', 1.65, 0.72);
+      });
+    }
     const ethicsJobs = [
       [censorshipEnabled, 'censorship', '🔒'],
       [envJusticeEnabled, 'environmental', '🌍'],
@@ -1419,8 +1843,9 @@ export default function InteractiveCanvasGlobe3D({
       ctx.stroke();
     }
 
-    // 11. Orbiting Satellites + Selected Satellite Orbit Path & Nadir Beam
+    // 11. Live Orbiting Satellites (Real-Time Keplerian Motion + Custom Spacecraft Icons + Orbital Tracks + Nadir Beam + Ground Swath Footprint)
     if (showSatellites && Array.isArray(satellites) && satellites.length > 0) {
+      const nowMs = Date.now();
       const projOrbitPt = (lonDeg, latDeg, altScale) => {
         const phi = latDeg * DEG2RAD;
         const lam = (lonDeg - lon0) * DEG2RAD;
@@ -1433,84 +1858,185 @@ export default function InteractiveCanvasGlobe3D({
         return [cx + x1 * R * altScale, cy - y2 * R * altScale, z2, occluded];
       };
 
-      // Draw selected satellite orbital track + nadir scan beam
-      if (selectedSatellite && Number.isFinite(Number(selectedSatellite.latitude)) && Number.isFinite(Number(selectedSatellite.longitude))) {
-        const satAltScale = 1 + Math.min(0.24, Math.max(0.03, (Number(selectedSatellite.altitude) || 550) / 16000));
-        const incRad = Math.max(0.05, ((Number(selectedSatellite.inclination) || 51.6) * Math.PI) / 180);
-        const satLatRad = Number(selectedSatellite.latitude) * DEG2RAD;
+      const drawKeplerOrbitRing = (sat, liveCoords, altScale, startDeg, endDeg, strokeStyle, lineW, dashed = false) => {
+        const incRad = Math.max(0.05, ((Number(sat.inclination) || 51.6) * Math.PI) / 180);
+        const satLatRad = liveCoords.lat * DEG2RAD;
         const sinTheta = Math.max(-1, Math.min(1, Math.sin(satLatRad) / Math.sin(incRad)));
-        const theta0 = Math.asin(sinTheta);
+        const theta0 = liveCoords.theta != null ? liveCoords.theta : Math.asin(sinTheta);
         const lonOrb0 = Math.atan2(Math.cos(incRad) * Math.sin(theta0), Math.cos(theta0));
-        const raanDeg = Number(selectedSatellite.longitude) - lonOrb0 * RAD2DEG;
+        const raanDeg = liveCoords.lon - lonOrb0 * RAD2DEG;
 
-        const drawTrackArc = (startDeg, endDeg, strokeStyle, lineW) => {
+        ctx.save();
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineW;
+        if (dashed) ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        let pen = false;
+        for (let off = startDeg; off <= endDeg; off += 4) {
+          const th = theta0 + off * DEG2RAD;
+          const latD = Math.asin(Math.max(-1, Math.min(1, Math.sin(incRad) * Math.sin(th)))) * RAD2DEG;
+          let lonD = Math.atan2(Math.cos(incRad) * Math.sin(th), Math.cos(th)) * RAD2DEG + raanDeg;
+          lonD = ((lonD + 540) % 360) - 180;
+          const [ox, oy, , occ] = projOrbitPt(lonD, latD, altScale);
+          if (!occ) {
+            if (!pen) { ctx.moveTo(ox, oy); pen = true; }
+            else ctx.lineTo(ox, oy);
+          } else {
+            pen = false;
+          }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      };
+
+      // Draw subtle orbital guide rings for flagship stations (ISS / Tiangong) so the orbital shell is unmistakably legible
+      satellites.forEach((sat) => {
+        if (sat.missionType !== 'station') return;
+        const live = getLiveSatelliteCoords(sat, nowMs);
+        const altScale = 1 + Math.min(0.24, Math.max(0.045, (Number(sat.altitude) || 420) / 14000));
+        drawKeplerOrbitRing(sat, live, altScale, -180, 180, palette.isLight ? 'rgba(2, 132, 199, 0.24)' : 'rgba(0, 240, 255, 0.22)', 1.1, true);
+      });
+
+      // Draw selected satellite full luminous orbital track + nadir scan beam + projected ground sensor swath footprint
+      if (selectedSatellite) {
+        const selLive = getLiveSatelliteCoords(selectedSatellite, nowMs);
+        const satAltScale = 1 + Math.min(0.26, Math.max(0.05, (Number(selectedSatellite.altitude) || 550) / 14000));
+
+        drawKeplerOrbitRing(selectedSatellite, selLive, satAltScale, -175, 0, 'rgba(168, 85, 247, 0.70)', 1.8, false);
+        drawKeplerOrbitRing(selectedSatellite, selLive, satAltScale, 0, 175, '#00f0ff', 2.4, false);
+
+        // Projected spherical ground sensor swath footprint circle on Earth's surface
+        const swathDeg = Math.max(2.2, Math.min(18, ((Number(selectedSatellite.swathRadiusKm) || 480) / 111.32)));
+        const [gX, gY, gZ] = projLonLat(selLive.lon, selLive.lat);
+        if (gZ > 0.04) {
           ctx.save();
-          ctx.strokeStyle = strokeStyle;
-          ctx.lineWidth = lineW;
           ctx.beginPath();
           let pen = false;
-          for (let off = startDeg; off <= endDeg; off += 4) {
-            const th = theta0 + off * DEG2RAD;
-            const latD = Math.asin(Math.max(-1, Math.min(1, Math.sin(incRad) * Math.sin(th)))) * RAD2DEG;
-            let lonD = Math.atan2(Math.cos(incRad) * Math.sin(th), Math.cos(th)) * RAD2DEG + raanDeg;
-            lonD = ((lonD + 540) % 360) - 180;
-            const [ox, oy, , occ] = projOrbitPt(lonD, latD, satAltScale);
-            if (!occ) {
-              if (!pen) { ctx.moveTo(ox, oy); pen = true; }
-              else ctx.lineTo(ox, oy);
+          for (let deg = 0; deg <= 360; deg += 12) {
+            const a = deg * DEG2RAD;
+            const fpLat = Math.max(-85, Math.min(85, selLive.lat + swathDeg * Math.sin(a)));
+            const fpLon = selLive.lon + (swathDeg * Math.cos(a)) / Math.max(0.2, Math.cos(selLive.lat * DEG2RAD));
+            const [fx, fy, fz] = projLonLat(fpLon, fpLat);
+            if (fz > 0.01) {
+              if (!pen) { ctx.moveTo(fx, fy); pen = true; }
+              else ctx.lineTo(fx, fy);
             } else {
               pen = false;
             }
           }
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.14)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.80)';
+          ctx.lineWidth = 1.4;
           ctx.stroke();
           ctx.restore();
-        };
-
-        drawTrackArc(-170, 0, 'rgba(168, 85, 247, 0.55)', 1.5);
-        drawTrackArc(0, 170, 'rgba(0, 240, 255, 0.85)', 2.2);
+        }
 
         // Vertical nadir scan beam from satellite down to sub-satellite surface point
-        const [satX, satY, , satOcc] = projOrbitPt(Number(selectedSatellite.longitude), Number(selectedSatellite.latitude), satAltScale);
-        const [gX, gY, gZ] = projLonLat(Number(selectedSatellite.longitude), Number(selectedSatellite.latitude));
-        if (!satOcc && gZ > 0) {
+        const [satX, satY, , satOcc] = projOrbitPt(selLive.lon, selLive.lat, satAltScale);
+        if (!satOcc && gZ > 0.02) {
           ctx.save();
-          ctx.strokeStyle = 'rgba(0, 240, 255, 0.72)';
-          ctx.lineWidth = 1.6;
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.85)';
+          ctx.lineWidth = 1.7;
           ctx.setLineDash([4, 3]);
           ctx.beginPath();
           ctx.moveTo(satX, satY);
           ctx.lineTo(gX, gY);
           ctx.stroke();
           ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.arc(gX, gY, 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#00f0ff';
+          ctx.fill();
           ctx.restore();
         }
       }
 
-      satellites.forEach((sat) => {
-        const altScale = 1 + Math.min(0.24, Math.max(0.03, (Number(sat.altitude) || 550) / 16000));
-        const [sx, sy, , occluded] = projOrbitPt(Number(sat.longitude), Number(sat.latitude), altScale);
-        if (occluded || !onScreen(sx, sy)) return;
+      const drawSpacecraftGlyph = (sx, sy, col, isSel, isStation) => {
+        const s = isSel ? 1.45 : isStation ? 1.25 : 1.0;
+        ctx.save();
+        ctx.translate(sx, sy);
 
-        const isSel = selectedSatellite && selectedSatellite.code === sat.code;
+        // Luminous orbital beacon halo
+        ctx.beginPath();
+        ctx.arc(0, 0, (isSel ? 11.5 : isStation ? 8.5 : 6.4) * s, 0, Math.PI * 2);
+        ctx.fillStyle = `${col}33`;
+        ctx.fill();
+        if (isSel || isStation) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = isSel ? 1.4 : 1.0;
+          ctx.stroke();
+        }
+
+        // Angled dual photovoltaic solar-panel wings (instantly recognizable spacecraft silhouette!)
+        ctx.rotate(-0.42);
+        ctx.fillStyle = palette.isLight ? '#0369a1' : '#38bdf8';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.85;
+        // Left solar wing
+        ctx.fillRect(-9.2 * s, -2.2 * s, 5.2 * s, 4.4 * s);
+        ctx.strokeRect(-9.2 * s, -2.2 * s, 5.2 * s, 4.4 * s);
+        // Right solar wing
+        ctx.fillRect(4.0 * s, -2.2 * s, 5.2 * s, 4.4 * s);
+        ctx.strokeRect(4.0 * s, -2.2 * s, 5.2 * s, 4.4 * s);
+
+        // Central spacecraft bus
+        ctx.fillStyle = isSel ? '#ffffff' : col;
+        ctx.strokeStyle = palette.isLight ? '#0f172a' : '#ffffff';
+        ctx.lineWidth = 1.1;
+        ctx.fillRect(-2.6 * s, -2.8 * s, 5.2 * s, 5.6 * s);
+        ctx.strokeRect(-2.6 * s, -2.8 * s, 5.2 * s, 5.6 * s);
+
+        ctx.restore();
+      };
+
+      const satLabelBoxes = [];
+      satellites.forEach((sat) => {
+        const live = getLiveSatelliteCoords(sat, nowMs);
+        const altScale = 1 + Math.min(0.26, Math.max(0.045, (Number(sat.altitude) || 550) / 14000));
+        const [sx, sy, , occluded] = projOrbitPt(live.lon, live.lat, altScale);
+        if (occluded || !onScreen(sx, sy, 36)) return;
+
+        const isSel = selectedSatellite && (selectedSatellite.code === sat.code || selectedSatellite.id === sat.id);
+        const isStation = sat.missionType === 'station';
         const col = MISSION_COLORS[sat.missionType] || '#38bdf8';
 
-        ctx.beginPath();
-        ctx.arc(sx, sy, isSel ? 7.5 : 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = `${col}44`;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(sx, sy, isSel ? 3.8 : 2.6, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.lineWidth = 1.3;
-        ctx.strokeStyle = col;
-        ctx.stroke();
+        // Draw crisp spacecraft solar-panel glyph
+        drawSpacecraftGlyph(sx, sy, col, isSel, isStation);
+
+        // Crisp non-overlapping callsign labels for selected, flagship stations, and nearby sats on zoom
+        const shouldLabel = isSel || isStation || sat.code === '20580' || zoom >= 2.2;
+        if (shouldLabel && sat.name) {
+          const shortLbl = String(sat.name).replace(/\s*\(.*?\)/g, '').slice(0, 16);
+          const bx = { x1: sx + 9, y1: sy - 7, x2: sx + 9 + shortLbl.length * 6.2, y2: sy + 7 };
+          const collides = !isSel && satLabelBoxes.some((b) => bx.x1 < b.x2 && bx.x2 > b.x1 && bx.y1 < b.y2 && bx.y2 > b.y1);
+          if (!collides) {
+            satLabelBoxes.push(bx);
+            ctx.save();
+            ctx.font = isSel ? '800 9.5px var(--font-jetbrains-fallback), monospace' : '700 8.5px var(--font-jetbrains-fallback), monospace';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 2.6;
+            ctx.strokeStyle = palette.labelHalo;
+            ctx.strokeText(shortLbl, sx + 11, sy);
+            ctx.fillStyle = isSel ? '#00f0ff' : col;
+            ctx.fillText(shortLbl, sx + 11, sy);
+            ctx.restore();
+          }
+        }
 
         hitPoints.push({
-          x: sx, y: sy, r: 11, priority: 18, isSatellite: true, tooltipType: 'generic',
+          x: sx, y: sy, r: isSel ? 15 : 13, priority: 22, isSatellite: true, tooltipType: 'generic',
           title: `🛰️ ${sat.name}`,
-          details: { Operator: sat.operator || sat.country || 'Space Agency', Altitude: `${sat.altitude || 550} km`, Orbit: sat.orbitRegime || 'LEO' },
-          payload: sat
+          details: {
+            Operator: sat.operator || sat.country || 'Space Agency',
+            Altitude: `${sat.altitude || 550} km (${sat.orbitRegime || 'LEO'})`,
+            Velocity: sat.velocity ? `${sat.velocity} km/s` : '7.6 km/s',
+            Position: `${live.lat.toFixed(2)}°, ${live.lon.toFixed(2)}°`
+          },
+          payload: { ...sat, latitude: live.lat, longitude: live.lon }
         });
       });
     }
@@ -1536,9 +2062,12 @@ export default function InteractiveCanvasGlobe3D({
     selectedCountry,
     uiTheme,
     mapStyle,
+    isVectorMode,
+    vectorTheme,
     dayNightEnabled,
     weatherEnabled,
     storms,
+    radarCells,
     oilGasEnabled,
     internetCablesEnabled,
     gpsJammingEnabled,
@@ -2090,8 +2619,20 @@ export default function InteractiveCanvasGlobe3D({
           }}
         >
           <span style={{ fontWeight: 800, letterSpacing: '0.06em', color: 'var(--sov-accent)' }}>
-            {isCompact ? zoomLabel : `3D VECTOR · ${zoomLabel}`}
+            {isCompact
+              ? zoomLabel
+              : `${isVectorMode ? `✦ ${(VECTOR_THEMES[vectorTheme]?.label || 'OBSIDIAN')}` : '3D VECTOR'} · ${zoomLabel}`}
           </span>
+          {!isCompact && showSatellites && satellites.length > 0 && (
+            <span style={{ fontSize: '8.5px', fontWeight: 800, color: '#00f0ff', padding: '1px 5px', borderRadius: '4px', background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.3)' }}>
+              🛰️ {satellites.length}
+            </span>
+          )}
+          {!isCompact && weatherEnabled && (
+            <span style={{ fontSize: '8.5px', fontWeight: 800, color: '#38bdf8', padding: '1px 5px', borderRadius: '4px', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)' }}>
+              🌧️ {radarTimeLabel || 'WX'}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => handleStepZoom(1)}

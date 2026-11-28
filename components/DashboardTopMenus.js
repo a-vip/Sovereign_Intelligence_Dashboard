@@ -56,8 +56,16 @@ const MAP_STYLE_OPTIONS = [
   { id: 'light', label: 'Editorial Light' },
   { id: 'satellite', label: 'Satellite' },
   { id: 'lights', label: 'Earth Night' },
-  { id: 'buildings', label: '3D Urban' },
-  { id: 'vector', label: '✦ Sovereign Vector 3D · Fast 60fps', fullWidth: true }
+  { id: 'buildings', label: '3D Urban' }
+];
+
+const VECTOR_THEME_OPTIONS = [
+  { id: 'obsidian', label: 'Obsidian Cyber', swatch: '#00f0ff', bg: '#081220' },
+  { id: 'editorial', label: 'Editorial Paper', swatch: '#0284c7', bg: '#f8fafc' },
+  { id: 'blueprint', label: 'Atlas Blueprint', swatch: '#38bdf8', bg: '#071630' },
+  { id: 'thermal', label: 'Thermal Night', swatch: '#f97316', bg: '#160908' },
+  { id: 'emerald', label: 'Emerald Topo', swatch: '#10b981', bg: '#051510' },
+  { id: 'solaris', label: 'Solaris Gold', swatch: '#eab308', bg: '#110f1c' }
 ];
 
 export default function DashboardTopMenus({
@@ -68,6 +76,8 @@ export default function DashboardTopMenus({
   setMapStyle,
   mapMode = '3d',
   setMapMode,
+  vectorTheme = 'obsidian',
+  setVectorTheme,
   autoRotate = false,
   setAutoRotate,
   tickerSpeed = 'slow',
@@ -497,78 +507,46 @@ export default function DashboardTopMenus({
             </div>
           </div>
 
-          {/* Globe Basemap + 3D/2D */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', borderTop: `1px solid ${menuBorder}`, paddingTop: '10px' }}>
+          {/* Globe Viewport Mode (3D HD / ✦ 3D Vector / 2D) + Mode-Specific Themes */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: `1px solid ${menuBorder}`, paddingTop: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, color: 'var(--sov-muted)', letterSpacing: '0.08em' }}>
-                MAP STYLE &amp; VIEWPORT
+                VIEWPORT ENGINE
               </span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {[
-                  { id: '3d', label: '3D GLOBE' },
-                  { id: '2d', label: '2D EQUAL EARTH' }
-                ].map((opt) => {
-                  const active = mapMode === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        setMapMode(opt.id);
-                        try {
-                          localStorage.setItem('sovdash_map_mode_v2', opt.id);
-                          window.dispatchEvent(new Event('operator_pref_changed'));
-                          if (opt.id === '3d') {
-                            window.dispatchEvent(new Event('sovdash_force_3d'));
-                          }
-                        } catch {}
-                      }}
-                      style={{
-                        padding: '2px 7px',
-                        borderRadius: '4px',
-                        border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
-                        background: active ? 'var(--sov-accent-soft)' : 'transparent',
-                        color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
-                        fontSize: '9.5px',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-jetbrains-fallback)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-jetbrains-fallback)', color: 'var(--sov-accent)', fontWeight: 700 }}>
+                {mapMode === 'vector' ? '60FPS VECTOR' : mapMode === '2d' ? 'EQUAL EARTH' : 'CESIUM HD'}
+              </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-              {MAP_STYLE_OPTIONS.map((opt) => {
-                const active = mapStyle === opt.id;
+              {[
+                { id: '3d', label: '3D HD GLOBE' },
+                { id: 'vector', label: '✦ 3D VECTOR' },
+                { id: '2d', label: '2D MAP' }
+              ].map((opt) => {
+                const active = mapMode === opt.id;
                 return (
                   <button
                     key={opt.id}
                     type="button"
                     onClick={() => {
-                      setMapStyle(opt.id);
-                      try { localStorage.setItem('operator_pref_mapStyle', opt.id); } catch {}
-                      if (opt.id === 'vector' && mapMode !== '3d') {
-                        setMapMode('3d');
-                        try {
-                          localStorage.setItem('sovdash_map_mode_v2', '3d');
-                          window.dispatchEvent(new Event('operator_pref_changed'));
+                      setMapMode(opt.id);
+                      try {
+                        localStorage.setItem('sovdash_map_mode_v2', opt.id);
+                        window.dispatchEvent(new Event('operator_pref_changed'));
+                        if (opt.id === '3d') {
                           window.dispatchEvent(new Event('sovdash_force_3d'));
-                        } catch {}
-                      }
+                        }
+                      } catch {}
                     }}
                     style={{
-                      gridColumn: opt.fullWidth ? '1 / -1' : 'auto',
-                      padding: opt.fullWidth ? '6px 8px' : '5px 4px',
+                      padding: '5px 4px',
                       borderRadius: '5px',
-                      border: `1px solid ${active ? 'var(--sov-accent)' : opt.fullWidth ? 'rgba(0, 240, 255, 0.28)' : isLightUi ? '#cbd5e1' : 'rgba(255,255,255,0.08)'}`,
-                      background: active ? 'var(--sov-accent-soft)' : opt.fullWidth ? 'rgba(0, 240, 255, 0.05)' : subSurface,
-                      color: active ? 'var(--sov-accent)' : opt.fullWidth ? (isLightUi ? '#0369a1' : '#e0f2fe') : isLightUi ? '#334155' : '#cbd5e1',
-                      fontSize: '10.5px',
-                      fontWeight: opt.fullWidth ? 700 : 600,
+                      border: `1px solid ${active ? 'var(--sov-accent)' : 'var(--sov-border)'}`,
+                      background: active ? 'var(--sov-accent-soft)' : subSurface,
+                      color: active ? 'var(--sov-accent)' : 'var(--sov-muted)',
+                      fontSize: '9.5px',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-jetbrains-fallback)',
                       cursor: 'pointer'
                     }}
                   >
@@ -577,6 +555,88 @@ export default function DashboardTopMenus({
                 );
               })}
             </div>
+
+            <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, color: 'var(--sov-muted)', letterSpacing: '0.08em', marginTop: '2px' }}>
+              {mapMode === 'vector' ? 'VECTOR 3D THEMES (EXCLUSIVE)' : 'HD BASEMAP STYLE'}
+            </div>
+
+            {mapMode === 'vector' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                {VECTOR_THEME_OPTIONS.map((opt) => {
+                  const active = vectorTheme === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        if (setVectorTheme) setVectorTheme(opt.id);
+                        try {
+                          localStorage.setItem('operator_pref_vectorTheme', opt.id);
+                          window.dispatchEvent(new Event('operator_pref_changed'));
+                        } catch {}
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 7px',
+                        borderRadius: '5px',
+                        border: `1px solid ${active ? opt.swatch : isLightUi ? '#cbd5e1' : 'rgba(255,255,255,0.08)'}`,
+                        background: active ? 'var(--sov-accent-soft)' : subSurface,
+                        color: active ? 'var(--sov-accent)' : isLightUi ? '#334155' : '#e2e8f0',
+                        fontSize: '10.5px',
+                        fontWeight: active ? 700 : 600,
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          background: opt.bg,
+                          border: `2px solid ${opt.swatch}`,
+                          flexShrink: 0
+                        }}
+                      />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                {MAP_STYLE_OPTIONS.map((opt) => {
+                  const active = mapStyle === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setMapStyle(opt.id);
+                        try {
+                          localStorage.setItem('operator_pref_mapStyle', opt.id);
+                          window.dispatchEvent(new Event('operator_pref_changed'));
+                        } catch {}
+                      }}
+                      style={{
+                        padding: '5px 4px',
+                        borderRadius: '5px',
+                        border: `1px solid ${active ? 'var(--sov-accent)' : isLightUi ? '#cbd5e1' : 'rgba(255,255,255,0.08)'}`,
+                        background: active ? 'var(--sov-accent-soft)' : subSurface,
+                        color: active ? 'var(--sov-accent)' : isLightUi ? '#334155' : '#cbd5e1',
+                        fontSize: '10.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Ticker & Auto-Rotate */}

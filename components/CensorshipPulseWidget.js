@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { X, WifiOff, RefreshCw, MapPin, ExternalLink, GripHorizontal, Eye, Search, LayoutGrid, Table2 } from 'lucide-react';
+import { X, WifiOff, RefreshCw, MapPin, ExternalLink, GripHorizontal, Eye, Search, LayoutGrid, Table2, Download } from 'lucide-react';
 import WidgetInfoTooltip from './WidgetInfoTooltip';
 
 export default function CensorshipPulseWidget({
@@ -166,6 +166,27 @@ export default function CensorshipPulseWidget({
           />
         </div>
         <div style={{ display: 'flex', gap: '5px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const rows = [
+                ['Country', 'Code', 'IODA_Alerts', 'Confirmed_Web_Blocks', 'IM_Tor_Anomalies', 'Disruption_Rate_Pct'],
+                ...displayed.map((i) => [i.country || '', i.cc || '', i.iodaAlerts || 0, i.confirmedBlocks || 0, i.imAnomalies || 0, i.blockRatePct || 0])
+              ];
+              const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'sovereign-ooni-ioda-pulse.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            title="Export live OONI + IODA censorship pulse as CSV"
+            style={{ background: 'transparent', border: '1px solid var(--sov-border)', borderRadius: '5px', color: 'var(--sov-muted)', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          >
+            <Download size={11} />
+          </button>
           <button
             type="button"
             onClick={() => setViewMode((m) => (m === 'cards' ? 'table' : 'cards'))}

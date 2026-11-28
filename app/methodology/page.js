@@ -202,6 +202,36 @@ export default async function MethodologyPage() {
             </a>
           </div>
         </section>
+
+        {/* 6. Large-Scale Ask SovDash AI Grounding Audit (1,050+ Cases -> 100k Longitudinal Protocol) */}
+        <section style={{ background: 'var(--sov-panel-bg)', border: '1px solid rgba(56, 189, 248, 0.28)', borderRadius: '10px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--sov-text)' }}>6. Ask SovDash AI Stratified Grounding Audit (1,050+ Cases → 100k Protocol)</h2>
+            <Link href="/ai-report" style={{ fontSize: '12px', color: 'var(--sov-accent)', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}>
+              OPEN LIVE AUDIT REPORT ↗
+            </Link>
+          </div>
+          <p style={{ fontSize: '13.5px', color: 'var(--sov-text)', lineHeight: 1.65 }}>
+            In addition to the 200-item classifier and geocoder benchmark above, Sovereign continuously audits its citation-locked RAG research assistant across a <strong>1,050-case stratified evaluation matrix</strong> (spanning all 60 jurisdictions, multi-country comparisons, PeeringDB facility counts, Frontier Compute, Frontier Labs, Ethics/OONI overlays, noisy paraphrases, and 150 adversarial hallucination &amp; prompt-injection traps) with exact <strong>95% Wilson Score confidence intervals</strong> and automated failure-mode classification.
+          </p>
+          <p style={{ fontSize: '13px', color: 'var(--sov-muted)', lineHeight: 1.65 }}>
+            Seeded longitudinal batches (<code style={{ color: 'var(--sov-accent)' }}>npm run eval:ai:continuous</code>) scale cumulative verification across corpus updates from 1,050 toward 10,000 and 100,000 audited turns, logging every observed edge case to guide empirical improvements.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+            <Link
+              href="/ai-report"
+              style={{ padding: '7px 12px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.14)', border: '1px solid rgba(56, 189, 248, 0.4)', color: 'var(--sov-accent)', fontSize: '11.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}
+            >
+              INSPECT 1,050+ CASE AUDIT EXPLORER →
+            </Link>
+            <a
+              href="/api/ai-report?format=csv"
+              style={{ padding: '7px 12px', borderRadius: '6px', background: 'rgba(168, 85, 247, 0.14)', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#c084fc', fontSize: '11.5px', fontFamily: 'var(--font-jetbrains-fallback)', fontWeight: 700, textDecoration: 'none' }}
+            >
+              DOWNLOAD FULL AI AUDIT CSV ↗
+            </a>
+          </div>
+        </section>
       </div>
     </div>
   );

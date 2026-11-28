@@ -7,6 +7,7 @@ dotenv.config({ path: '.env' });
 
 const { syncKnowledgeIndex } = await import('../lib/sovdashRag.js');
 const { executeHallucinationEvalSuite } = await import('../lib/sovdashEvalSuite.js');
+const { preloadKnowledgeMemoryCache } = await import('../lib/sovdashAiDb.js');
 
 async function main() {
   console.log('[eval:ai] Checking & syncing full ecosystem knowledge base into Neon pgvector...');
@@ -15,6 +16,7 @@ async function main() {
     `[eval:ai] Indexed ${syncRes.totalChunks} chunks in ${syncRes.durationMs}ms (pgvector=${syncRes.hasPgVector}):`,
     JSON.stringify(syncRes.byType)
   );
+  await preloadKnowledgeMemoryCache();
 
   console.log('[eval:ai] Executing 23-case Hallucination & Groundedness Benchmark Suite...');
   const useDeterministic = process.argv.includes('--deterministic');

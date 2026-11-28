@@ -11,6 +11,8 @@
     "benchmark": "node scripts/run-benchmark.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
     "eval:ai": "node scripts/eval-sovdash-ai.mjs",
+    "eval:ai:1000": "node scripts/eval-sovdash-ai-1000.mjs",
+    "eval:ai:continuous": "node scripts/eval-sovdash-ai-continuous.mjs",
     "export:zenodo": "node scripts/generate-zenodo-bundle.mjs"
   },
   "dependencies": {

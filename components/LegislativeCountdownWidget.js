@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { X, Scale, MapPin, ExternalLink, GripHorizontal, Clock, Search, LayoutGrid, Table2 } from 'lucide-react';
+import { X, Scale, MapPin, ExternalLink, GripHorizontal, Clock, Search, LayoutGrid, Table2, Eye, Download } from 'lucide-react';
 import WidgetInfoTooltip from './WidgetInfoTooltip';
 
 const STATUTORY_CLIFFS = [
@@ -296,7 +296,13 @@ function computeDayDelta(dateStr) {
   return { days: diffDays, inForce: false, label: `T-${diffDays}d` };
 }
 
-export default function LegislativeCountdownWidget({ onClose, onFocusLocation, isMobile = false }) {
+export default function LegislativeCountdownWidget({
+  onClose,
+  onFocusLocation,
+  aiRegulationsEnabled = false,
+  onToggleAiRegLayer = null,
+  isMobile = false
+}) {
   const [filter, setFilter] = useState('all'); // 'all' | 'upcoming' | 'in_force'
   const [regionFilter, setRegionFilter] = useState('ALL'); // 'ALL' | 'EU' | 'US' | 'APAC' | 'Global'
   const [searchQuery, setSearchQuery] = useState('');
@@ -378,6 +384,28 @@ export default function LegislativeCountdownWidget({ onClose, onFocusLocation, i
 
   const upcomingCount = useMemo(() => STATUTORY_CLIFFS.filter((x) => !computeDayDelta(x.date).inForce).length, []);
   const inForceCount = STATUTORY_CLIFFS.length - upcomingCount;
+  const nextUpcomingCliff = useMemo(() => {
+    return STATUTORY_CLIFFS.map((x) => ({ ...x, delta: computeDayDelta(x.date) }))
+      .filter((x) => !x.delta.inForce)
+      .sort((a, b) => a.delta.days - b.delta.days)[0] || null;
+  }, []);
+
+  const exportCsv = () => {
+    const rows = [
+      ['Jurisdiction', 'Region', 'Statute', 'EffectiveDate', 'Status', 'Authority', 'PenaltyCap'],
+      ...enrichedCliffs.map((c) => [
+        c.jurisdiction, c.region, c.title, c.date, c.delta.label, c.authority, c.penaltyCap || ''
+      ])
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sovereign-ai-enforcement-deadlines.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <aside
@@ -434,6 +462,49 @@ export default function LegislativeCountdownWidget({ onClose, onFocusLocation, i
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {onToggleAiRegLayer && (
+            <button
+              type="button"
+              onClick={onToggleAiRegLayer}
+              title={aiRegulationsEnabled ? 'Hide AI Regulations globe overlay' : 'Show AI Regulations globe overlay'}
+              style={{
+                background: aiRegulationsEnabled ? 'rgba(168, 85, 247, 0.16)' : 'transparent',
+                border: `1px solid ${aiRegulationsEnabled ? 'var(--sov-purple)' : 'var(--sov-border)'}`,
+                borderRadius: '5px',
+                color: aiRegulationsEnabled ? 'var(--sov-purple)' : 'var(--sov-muted)',
+                height: '24px',
+                padding: '0 6px',
+                fontSize: '9px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-jetbrains-fallback)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                cursor: 'pointer'
+              }}
+            >
+              <Eye size={11} /> {aiRegulationsEnabled ? 'Map ON' : 'Map'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={exportCsv}
+            title="Export filtered enforcement deadlines as CSV"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--sov-border)',
+              borderRadius: '5px',
+              color: 'var(--sov-muted)',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <Download size={11} />
+          </button>
           <button
             type="button"
             onClick={() => setViewMode((m) => (m === 'cards' ? 'table' : 'cards'))}
@@ -474,6 +545,50 @@ export default function LegislativeCountdownWidget({ onClose, onFocusLocation, i
           </button>
         </div>
       </div>
+
+      {/* Next Nearest Statutory Cliff Highlight Strip */}
+      {nextUpcomingCliff && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            padding: '6px 12px',
+            background: 'rgba(168, 85, 247, 0.10)',
+            borderBottom: '1px solid var(--sov-border)',
+            fontSize: '9.5px'
+          }}
+        >
+          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ padding: '1px 5px', borderRadius: '4px', background: 'var(--sov-purple)', color: '#fff', fontWeight: 800, fontSize: '8.5px', flexShrink: 0 }}>
+              {nextUpcomingCliff.delta.label}
+            </span>
+            <span style={{ color: 'var(--sov-text)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Next: {nextUpcomingCliff.jurisdiction} · {nextUpcomingCliff.title}
+            </span>
+          </div>
+          {onFocusLocation && (
+            <button
+              type="button"
+              onClick={() => onFocusLocation(nextUpcomingCliff.lat, nextUpcomingCliff.lon)}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                borderRadius: '4px',
+                color: 'var(--sov-purple)',
+                padding: '2px 6px',
+                fontSize: '8.5px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              Locate
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter Pills Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', borderBottom: '1px solid var(--sov-border)', gap: '6px', flexWrap: 'wrap' }}>
