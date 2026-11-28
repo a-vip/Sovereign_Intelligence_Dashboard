@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import benchmark1000 from '@/benchmarks/sovdash-ai-eval-1000.json';
+import committed23 from '@/benchmarks/sovdash-ai-eval.json';
+import longitudinal from '@/benchmarks/sovdash-ai-longitudinal.json';
 import {
   getAdminAiAnalytics,
   getAiConfig,
@@ -10,16 +11,6 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-function readJsonSafe(relPath) {
-  try {
-    const p = path.resolve(relPath);
-    if (fs.existsSync(p)) {
-      return JSON.parse(fs.readFileSync(p, 'utf8'));
-    }
-  } catch {}
-  return null;
-}
-
 function escapeCsv(v) {
   return `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
 }
@@ -28,10 +19,6 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const format = String(searchParams.get('format') || '').trim().toLowerCase();
-
-    const benchmark1000 = readJsonSafe('benchmarks/sovdash-ai-eval-1000.json');
-    const committed23 = readJsonSafe('benchmarks/sovdash-ai-eval.json');
-    const longitudinal = readJsonSafe('benchmarks/sovdash-ai-longitudinal.json');
 
     // Open academic dataset export (CSV or JSONL) for full peer-review reproducibility
     if (format === 'csv' || format === 'jsonl') {

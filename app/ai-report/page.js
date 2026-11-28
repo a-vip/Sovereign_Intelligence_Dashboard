@@ -1,8 +1,9 @@
-import fs from 'fs';
-import path from 'path';
 import Link from 'next/link';
 import ObservatorySubNav from '@/components/ObservatorySubNav';
 import AiAuditExplorer from '@/components/AiAuditExplorer';
+import bench1000 from '@/benchmarks/sovdash-ai-eval-1000.json';
+import longitudinal from '@/benchmarks/sovdash-ai-longitudinal.json';
+import committed23 from '@/benchmarks/sovdash-ai-eval.json';
 import { getAdminAiAnalytics, getAiConfig, getEvalRuns, getKnowledgeChunkStats } from '@/lib/sovdashAiDb';
 import { getAiRegulations } from '@/lib/db';
 import { JURISDICTIONS } from '@/lib/jurisdictions';
@@ -10,21 +11,11 @@ import { JURISDICTIONS } from '@/lib/jurisdictions';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Ask SovDash AI — 1,050-Case Groundedness & Hallucination Audit Report',
+  title: 'Ask SovDash AI — 1,044-Case Groundedness & Hallucination Audit Report',
   description:
-    'Published 1,050-case stratified evaluation benchmark with 95% Wilson confidence intervals, hybrid Neon pgvector + citation-lock verification architecture, and continuous 100k longitudinal scaling protocol.',
+    'Published 1,044-case stratified evaluation benchmark with 95% Wilson confidence intervals, hybrid Neon pgvector + citation-lock verification architecture, and continuous 100k longitudinal scaling protocol.',
   alternates: { canonical: '/ai-report' }
 };
-
-function readJsonSafe(relPath) {
-  try {
-    const p = path.resolve(relPath);
-    if (fs.existsSync(p)) {
-      return JSON.parse(fs.readFileSync(p, 'utf8'));
-    }
-  } catch {}
-  return null;
-}
 
 export default async function AiAuditReportPage() {
   const [evalRuns, indexStats, analytics, config, regulations] = await Promise.all([
@@ -36,9 +27,6 @@ export default async function AiAuditReportPage() {
   ]);
 
   const statuteCount = regulations?.length || 472;
-  const bench1000 = readJsonSafe('benchmarks/sovdash-ai-eval-1000.json');
-  const longitudinal = readJsonSafe('benchmarks/sovdash-ai-longitudinal.json');
-  const committed23 = readJsonSafe('benchmarks/sovdash-ai-eval.json');
   const latest23 = committed23 || evalRuns?.[0] || null;
 
   const primary = bench1000 || latest23 || {
